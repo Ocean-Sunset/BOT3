@@ -105,6 +105,63 @@ logger.addHandler(discord_handler)
 async def on_ready():
     logging.info(f"Logged in as {bot.user}")
 
+# File to store banned server IDs
+banned_servers_file = "banned_servers.json"
+
+# Load or initialize banned servers data
+if os.path.exists(banned_servers_file):
+    try:
+        with open(banned_servers_file, "r") as f:
+            banned_servers = json.load(f)
+    except json.JSONDecodeError:
+        # If the file is empty or invalid, initialize an empty list
+        banned_servers = []
+else:
+    banned_servers = []
+
+# Save banned servers data
+def save_banned_servers():
+    with open(banned_servers_file, "w") as f:
+        json.dump(banned_servers, f)
+
+# Middleware to check if the server is banned
+@bot.check
+async def check_banned_server(ctx):
+    if ctx.guild and ctx.guild.id in banned_servers:
+        await ctx.send("❌ This server is banned from using the bot.")
+        return False
+    return True
+
+# Command: Ban Server
+@bot.command(name="BServer")
+@commands.has_permissions(administrator=True)
+async def ban_server(ctx, *, server_name: str):
+    for guild in bot.guilds:
+        if guild.name.lower() == server_name.lower():
+            if guild.id in banned_servers:
+                await ctx.send(f"❌ Server **{server_name}** is already banned.")
+                return
+            banned_servers.append(guild.id)
+            save_banned_servers()
+            await ctx.send(f"✅ Server **{server_name}** has been banned. The bot will no longer work there.")
+            return
+    await ctx.send(f"❌ Server **{server_name}** not found.")
+
+# Command: Unban Server
+@bot.command(name="UBServer")
+@commands.has_permissions(administrator=True)
+async def unban_server(ctx, *, server_name: str):
+    for guild in bot.guilds:
+        if guild.name.lower() == server_name.lower():
+            if guild.id not in banned_servers:
+                await ctx.send(f"❌ Server **{server_name}** is not banned.")
+                return
+            banned_servers.remove(guild.id)
+            save_banned_servers()
+            await ctx.send(f"✅ Server **{server_name}** has been unbanned. The bot will now work there.")
+            return
+    await ctx.send(f"❌ Server **{server_name}** not found.")
+
 # Event: On message
 @bot.event
 async def on_message(message):
@@ -264,14 +321,14 @@ async def choose_country(ctx):
 # Event: On member join
 @bot.event
 async def on_member_join(member):
-    welcome_channel = get_channel_by_name(member.guild, "welcome")
+    welcome_channel = get_channel_by_name(member.guild, ["welcome", "『🎊』all-announcements"])
     if welcome_channel:
         await welcome_channel.send(f"Welcome to the server, {member.mention}!")
 
 # Event: On member remove
 @bot.event
 async def on_member_remove(member):
-    bye_channel = get_channel_by_name(member.guild, "bye")
+    bye_channel = get_channel_by_name(member.guild, ["bye", "『🎊』all-announcements"])
     if bye_channel:
         await bye_channel.send(f"Goodbye, {member.mention}. We will miss you!")
 
@@ -321,8 +378,52 @@ async def help(ctx):
     ?checkvc - Checks wether all the users are in a voice channel or not (specifically Truth or Dare channel)
     ?continue - Continues the Truth or Dare game
     ?endgame - Ends the Truth or Dare game
+    ?timeout - Timeout a user (Usage: ?timeout <user> <time> <reason>)
+    ?search_img - Search for an image (Usage: ?search_img <query>)
+    ?zen - Zen mode (Usage: ?zen <user> <time.hh:mm:ss>)
+    ?BServer - Ban a server (Usage: ?BServer <server_name>)
+    ?UBServer - Unban a server (Usage: ?UBServer <server_name>)
     """
     await ctx.send(help_message)
+# Zen mode: idea is whenever a people executes the command, 
+# They will be timed out and won't see any messages for a custom set of time.
+# This is a temporary timeout, so it will be removed after the time is up.
+# This command can be used by everyone including themselves.
+# THE TIME IS DIVIDED IN 3 PARTS:
+# hh:mm:ss
+# (Only an admin can unzen them)
+@bot.command(name="zen")
+@commands.has_permissions(moderate_members=True)
+async def zen(ctx, member: discord.Member = None, time: str = None):
+    if member is None:
+        member = ctx.author  # If no member is mentioned, use the command author
+    if time is None:
+        await ctx.send("Please provide a time in the format hh:mm:ss.")
+        return
+    time = time.split(":", 2)
+    await ctx.send(time)
+# timeout command
+@bot.command(name="timeout")
+@commands.has_permissions(moderate_members=True)
+async def timeout(ctx, member: discord.Member, time: int, *, reason: str = None):
+    if reason is None:
+        reason = "No reason provided"
+
+    # Create a timeout role if it doesn't exist
+    timeout_role = discord.utils.get(ctx.guild.roles, name="Timeout")
+    if not timeout_role:
+        timeout_role = await ctx.guild.create_role(name="Timeout")
+        for channel in ctx.guild.channels:
+            await channel.set_permissions(timeout_role, send_messages=False, speak=False)
+
+    # Add the timeout role to the member
+    await member.add_roles(timeout_role, reason=reason)
+    await ctx.send(f"✅ {member.mention} has been put in timeout for {time} seconds. Reason: {reason}")
+
+    # Wait for the specified time and remove the role
+    await asyncio.sleep(time)
+    await member.remove_roles(timeout_role, reason="Timeout expired")
+    await ctx.send(f"✅ {member.mention} has been removed from timeout.")
 
 game_ongoing = False
 
@@ -333,14 +434,18 @@ def get_truth_or_dare_vc(guild):
 def get_truth_or_dare_text_channel(guild):
     return discord.utils.get(guild.text_channels, name="truth-or-dare")
 
+def assign_numbers_to_players(members):
+    player_numbers = {member.display_name: index + 1 for index, member in enumerate(members)}
+    return player_numbers
+
 def game_logic(ctx):
     vc_channel = get_truth_or_dare_vc(ctx.guild)
     text_channel = get_truth_or_dare_text_channel(ctx.guild)
-    # choose between 2 different members (list)
     members_in_vc = [member for member in vc_channel.members if not member.bot]
-    # transform usernames in numbers
-    player_names = ', '.join(member.display_name for member in members_in_vc)
-    
+    player_numbers = assign_numbers_to_players(members_in_vc)
+    player_names = ', '.join(f"{name} ({number})" for name, number in player_numbers.items())
+    ctx.send(f"Players: {player_numbers}")
+    return player_names
 
 # ?startgame command
 @bot.command(name="startgame")
@@ -365,13 +470,44 @@ async def startgame(ctx):
         return
     if len(members_in_vc) > 3:
         await ctx.send("Cannot start game with more the 2 members!")
+        return
     if len(members_in_vc) < 2:
         await ctx.send("Cannot start game with less than 2 members!")
+        return
     player_names = ', '.join(member.display_name for member in members_in_vc)
     player_usernames = ', '.join(member.mention for member in members_in_vc)
 
     game_ongoing = True
     await text_channel.send(f"Starting Truth or Dare game! '({player_names}) Use `?continue` to proceed with the game.")
+    game_logic(ctx)
+    await ctx.send("Game started!")
+
+# ?startgamenovc command
+@bot.command(name="startgamenovc")
+@commands.has_permissions(administrator=True)
+async def startgame(ctx,  member: discord.Member = None,  member2: discord.Member = None):
+    global game_ongoing
+    if member is None:
+        member = ctx.author
+        ctx.send(f"You didnt mention any member so we chose you ({member}, by default)")
+    if member2 is None:
+        member2 = ctx.author
+        if member2 == member:
+            ctx.send("You cannot choose the same member twice!")
+            return
+        ctx.send(f"You didnt mention any member so we chose you ({member2}, by default)")
+    if game_ongoing:
+        await ctx.send("A game is already ongoing!")
+        return
+    player_names = [member, member2]
+    
+    text_channel = get_truth_or_dare_text_channel(ctx.guild)
+
+    if not text_channel:
+        await ctx.send("Truth or Dare text channel not found!")
+        return
+    game_ongoing = True
+    text_channel.send(f"Starting Truth or Dare game! '({player_names}) Use `?continue` to proceed with the game.")
     game_logic(ctx)
     await ctx.send("Game started!")
 
@@ -388,7 +524,7 @@ async def continue_game(ctx):
         await ctx.send(f"Please use the `?continue` command in the {text_channel.mention} channel.")
         return
 
-    game_logic()
+    game_logic(ctx)
     await text_channel.send("It's your turn! Choose Truth or Dare.")
 
 # ?endgame command
@@ -511,13 +647,17 @@ async def removerole(ctx, member: discord.Member, role: discord.Role):
 @bot.command()
 async def info(ctx):
     custominfo = """I am a multifunctional Discord bot, here to assist you!
-    Status: Very Unstable Build.
-    Version: 1.5
-    Owner: theguyreal.
+    Status: Unstable build
+    Version: 1.6.1
+    Owner: smiley_unsmiley
     New stuff: 
-        -Added **Truth or Dare**
-        -Added *VC* regocnition.
-        -Fixed stuff.
+        - Added a timeout command
+        - Added a Zen mode command (experimental)
+        - Added a Truth or Dare game command without vc's (experimental)
+        - Added a Ban Server command
+        - Added an Unban Server command
+        - Added a server.json file to store data.
+        - Fixed ?myhelp commands
     """
     await ctx.send(custominfo)
 

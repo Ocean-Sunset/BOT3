@@ -162,6 +162,70 @@ async def unban_server(ctx, *, server_name: str):
             return
     await ctx.send(f"❌ Server **{server_name}** not found.")
 
+# File to store server restriction levels
+server_restrictions_file = "server_restrictions.json"
+
+# Load or initialize server restrictions data
+if os.path.exists(server_restrictions_file):
+    try:
+        with open(server_restrictions_file, "r") as f:
+            server_restrictions = json.load(f)
+    except json.JSONDecodeError:
+        # If the file is empty or invalid, initialize an empty dictionary
+        server_restrictions = {}
+else:
+    server_restrictions = {}
+
+# Save server restrictions data
+def save_server_restrictions():
+    with open(server_restrictions_file, "w") as f:
+        json.dump(server_restrictions, f)
+
+# Middleware to check server restrictions
+@bot.check
+async def check_server_restrictions(ctx):
+    if ctx.guild:
+        # Allow BServer and UBServer commands to bypass restrictions
+        if ctx.command.name in ["BServer", "UBServer"]:
+            return True
+
+        restriction_level = server_restrictions.get(str(ctx.guild.id), "Free")
+        if restriction_level == "Limited" and ctx.command.name in ["startgame", "givexp", "gainlvl", "choose_country"]:
+            await ctx.send("❌ This command is restricted in Limited mode.")
+            return False
+        elif restriction_level == "Very Limited" and ctx.command.name not in ["ban", "kick"]:
+            await ctx.send("❌ This command is restricted in Very Limited mode.")
+            return False
+        elif restriction_level == "Absolute Restriction" and ctx.command.name not in ["ban", "kick"]:
+            await ctx.send("❌ This command is restricted in Absolute Restriction mode.")
+            return False
+    return True
+
+# Command: Manage Server
+@bot.command(name="MServer")
+@commands.has_permissions(administrator=True)
+async def manage_server(ctx, *, args: str):
+    try:
+        server_name, restriction_level = args.split(" / ")
+    except ValueError:
+        await ctx.send("❌ Invalid format. Use `?MServer <Server Name> / <Restriction Level>`.")
+        return
+
+    restriction_levels = ["Free", "Limited", "Very Limited", "Absolute Restriction"]
+
+    if restriction_level not in restriction_levels:
+        await ctx.send(f"❌ Invalid restriction level. Choose from: {', '.join(restriction_levels)}.")
+        return
+
+    for guild in bot.guilds:
+        if guild.name.lower() == server_name.lower():
+            server_restrictions[str(guild.id)] = restriction_level
+            save_server_restrictions()
+            await ctx.send(f"✅ Server **{server_name}** is now set to **{restriction_level}** mode.")
+            return
+
+    await ctx.send(f"❌ Server **{server_name}** not found.")
+
 # Event: On message
 @bot.event
 async def on_message(message):
@@ -383,6 +447,7 @@ async def help(ctx):
     ?zen - Zen mode (Usage: ?zen <user> <time.hh:mm:ss>)
     ?BServer - Ban a server (Usage: ?BServer <server_name>)
     ?UBServer - Unban a server (Usage: ?UBServer <server_name>)
+    ?MServer - Manage server restrictions (Usage: ?MServer <server_name> / <restriction_level>)
     """
     await ctx.send(help_message)
 # Zen mode: idea is whenever a people executes the command, 
@@ -648,7 +713,7 @@ async def removerole(ctx, member: discord.Member, role: discord.Role):
 async def info(ctx):
     custominfo = """I am a multifunctional Discord bot, here to assist you!
     Status: Unstable build
-    Version: 1.6.1
+    Version: 1.6.2
     Owner: smiley_unsmiley
     New stuff: 
         - Added a timeout command

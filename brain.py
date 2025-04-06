@@ -4,8 +4,10 @@ import os
 import openai  # For ChatGPT functionality
 import time
 import json
+import sys
 import logging
 import requests
+import random
 import asyncio
 from os import environ
 from dotenv import load_dotenv
@@ -78,6 +80,24 @@ def get_logs_channel(guild):
 # Function to get the welcome and bye channels
 def get_channel_by_name(guild, channel_name):
     return discord.utils.get(guild.text_channels, name="『🎊』all-announcements")
+
+# File to store user money data
+money_data_file = "money_data.json"
+
+# Load or initialize money data
+if os.path.exists(money_data_file):
+    try:
+        with open(money_data_file, "r") as f:
+            money_data = json.load(f)
+    except json.JSONDecodeError:
+        money_data = {}
+else:
+    money_data = {}
+
+# Save money data
+def save_money_data():
+    with open(money_data_file, "w") as f:
+        json.dump(money_data, f)
 
 # Custom logging handler to send logs to the logs channel
 class DiscordLogHandler(logging.Handler):
@@ -226,6 +246,46 @@ async def manage_server(ctx, *, args: str):
 
     await ctx.send(f"❌ Server **{server_name}** not found.")
 
+# File to store bot info (version and new features)
+bot_info_file = "bot_info.json"
+
+# Load or initialize bot info
+if os.path.exists(bot_info_file):
+    try:
+        with open(bot_info_file, "r") as f:
+            bot_info = json.load(f)
+    except json.JSONDecodeError:
+        bot_info = {"version": "1.6.2", "new_stuff": "Initial release"}
+else:
+    bot_info = {"version": "1.6.2", "new_stuff": "Initial release"}
+
+# Save bot info
+def save_bot_info():
+    with open(bot_info_file, "w") as f:
+        json.dump(bot_info, f)
+
+# Command: Update
+@bot.command(name="update")
+@commands.has_permissions(administrator=True)
+async def update(ctx, *, args: str):
+    """Update the bot's version and new features, then restart."""
+    try:
+        version, new_stuff = args.split(" / ")
+    except ValueError:
+        await ctx.send("❌ Invalid format. Use `?update <version> / <new features>`.")
+        return
+
+    # Update the bot info
+    bot_info["version"] = version
+    bot_info["new_stuff"] = new_stuff
+    save_bot_info()
+
+    await ctx.send(f"✅ Bot updated to version **{version}** with new features: **{new_stuff}**.")
+    await ctx.send("🔄 Restarting the bot...")
+
+    # Restart the bot
+    os.execv(sys.executable, ["python"] + sys.argv)
+
 # Event: On message
 @bot.event
 async def on_message(message):
@@ -361,7 +421,7 @@ async def verify(ctx):
     message = await ctx.send("React to this message to verify!\n✅ to verify")
     await message.add_reaction("✅")
 
-# Command: Choose Country
+# Command: Choose Continent
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def choose_country(ctx):
@@ -448,6 +508,13 @@ async def help(ctx):
     ?BServer - Ban a server (Usage: ?BServer <server_name>)
     ?UBServer - Unban a server (Usage: ?UBServer <server_name>)
     ?MServer - Manage server restrictions (Usage: ?MServer <server_name> / <restriction_level>)
+    ?update - Update the bot (Admin only, Usage: ?update <version> / <new features>)
+    ?unzen - Unzen a user (Admin only, Usage: ?unzen <user>)
+    ?balance - Check your balance
+    ?daily - Claim your daily reward
+    ?steal - Steal money from another user (Usage: ?steal <user>)
+    ?give - Give money to another user (Usage: ?give <user> <amount>)
+    ?stealadmin - Steal money and bypassing any time limit (Usage: ?stealadmin <user> <receiveuser>) <amount>)
     """
     await ctx.send(help_message)
 # Zen mode: idea is whenever a people executes the command, 
@@ -457,16 +524,52 @@ async def help(ctx):
 # THE TIME IS DIVIDED IN 3 PARTS:
 # hh:mm:ss
 # (Only an admin can unzen them)
+# Command: Zen Mode
 @bot.command(name="zen")
-@commands.has_permissions(moderate_members=True)
 async def zen(ctx, member: discord.Member = None, time: str = None):
+    """Put a user in Zen mode (timeout) for a specified duration."""
     if member is None:
         member = ctx.author  # If no member is mentioned, use the command author
     if time is None:
-        await ctx.send("Please provide a time in the format hh:mm:ss.")
+        await ctx.send("❌ Please provide a time in the format `hh:mm:ss`.")
         return
-    time = time.split(":", 2)
-    await ctx.send(time)
+
+    # Parse the time string into hours, minutes, and seconds
+    try:
+        hours, minutes, seconds = map(int, time.split(":"))
+        total_seconds = hours * 3600 + minutes * 60 + seconds
+    except ValueError:
+        await ctx.send("❌ Invalid time format. Use `hh:mm:ss`.")
+        return
+
+    # Check if the bot has permission to timeout members
+    if not ctx.guild.me.guild_permissions.moderate_members:
+        await ctx.send("❌ I do not have permission to timeout members.")
+        return
+
+    # Apply the timeout
+    try:
+        # Use the `timedelta` to calculate the timeout duration
+        timeout_until = discord.utils.utcnow() + timedelta(seconds=total_seconds)
+        await member.edit(timed_out_until=timeout_until)  # Correct method to apply timeout
+        await ctx.send(f"✅ {member.mention} has been put in Zen mode for {time}.")
+    except discord.Forbidden:
+        await ctx.send("❌ I do not have permission to timeout this member.")
+    except Exception as e:
+        await ctx.send(f"❌ An error occurred: {e}")
+
+# Command: Unzen (Admin only)
+@bot.command(name="unzen")
+@commands.has_permissions(administrator=True)
+async def unzen(ctx, member: discord.Member):
+    """Remove Zen mode (timeout) from a user."""
+    try:
+        await member.timeout(until=None)  # Remove the timeout
+        await ctx.send(f"✅ {member.mention} has been removed from Zen mode.")
+    except discord.Forbidden:
+        await ctx.send("❌ I do not have permission to remove the timeout.")
+    except Exception as e:
+        await ctx.send(f"❌ An error occurred: {e}")
 # timeout command
 @bot.command(name="timeout")
 @commands.has_permissions(moderate_members=True)
@@ -708,21 +811,15 @@ async def removerole(ctx, member: discord.Member, role: discord.Role):
     else:
         await ctx.send(f"❌ {member.mention} does not have the role **{role.name}**.")
 
-# ?info command
+# Updated ?info command to use dynamic data
 @bot.command()
 async def info(ctx):
-    custominfo = """I am a multifunctional Discord bot, here to assist you!
+    custominfo = f"""I am a multifunctional Discord bot, here to assist you!
     Status: Unstable build
-    Version: 1.6.2
+    Version: {bot_info['version']}
     Owner: smiley_unsmiley
     New stuff: 
-        - Added a timeout command
-        - Added a Zen mode command (experimental)
-        - Added a Truth or Dare game command without vc's (experimental)
-        - Added a Ban Server command
-        - Added an Unban Server command
-        - Added a server.json file to store data.
-        - Fixed ?myhelp commands
+        - {bot_info['new_stuff']}
     """
     await ctx.send(custominfo)
 
@@ -1077,6 +1174,129 @@ async def on_raw_reaction_remove(payload):
         if role:
             await member.remove_roles(role)
             await member.send(f"The {role_name} role has been removed from you.")
+
+@bot.command(name="daily")
+async def daily(ctx):
+    user_id = str(ctx.author.id)
+    current_time = datetime.utcnow()
+
+    # Initialize user data if not present
+    if user_id not in money_data:
+        money_data[user_id] = {"balance": 0, "last_daily": None}
+
+    # Check if the user has already claimed their daily reward
+    last_daily = money_data[user_id]["last_daily"]
+    if last_daily:
+        last_daily_time = datetime.strptime(last_daily, "%Y-%m-%d %H:%M:%S")
+        if (current_time - last_daily_time).days < 1:
+            await ctx.send("❌ You have already claimed your daily reward. Try again tomorrow!")
+            return
+
+    # Give daily reward
+    reward = 100  # Amount of daily reward
+    money_data[user_id]["balance"] += reward
+    money_data[user_id]["last_daily"] = current_time.strftime("%Y-%m-%d %H:%M:%S")
+    save_money_data()
+
+    await ctx.send(f"✅ You have claimed your daily reward of {reward} coins! Your new balance is {money_data[user_id]['balance']} coins.")
+
+@bot.command(name="balance")
+async def balance(ctx, member: discord.Member = None):
+    if member is None:
+        member = ctx.author
+
+    user_id = str(member.id)
+    balance = money_data.get(user_id, {}).get("balance", 0)
+    await ctx.send(f"💰 {member.mention} has {balance} coins.")
+
+@bot.command(name="steal")
+async def steal(ctx, target: discord.Member):
+    if target == ctx.author:
+        await ctx.send("❌ You cannot steal from yourself!")
+        return
+
+    user_id = str(ctx.author.id)
+    target_id = str(target.id)
+
+    # Ensure both users have balances
+    if user_id not in money_data:
+        money_data[user_id] = {"balance": 0, "last_daily": None}
+    if target_id not in money_data:
+        money_data[target_id] = {"balance": 0, "last_daily": None}
+
+    # Check if the target has enough money to steal
+    if money_data[target_id]["balance"] < 50:
+        await ctx.send(f"❌ {target.mention} does not have enough coins to steal from!")
+        return
+
+    # Guess game
+    number_to_guess = random.randint(1, 10)
+    await ctx.send(f"🎲 Guess a number between 1 and 10 to steal from {target.mention}. You have 1 attempt!")
+
+    def check(m):
+        return m.author == ctx.author and m.channel == ctx.channel and m.content.isdigit()
+
+    try:
+        guess = await bot.wait_for("message", check=check, timeout=15.0)
+        if int(guess.content) == number_to_guess:
+            stolen_amount = random.randint(20, 50)
+            money_data[user_id]["balance"] += stolen_amount
+            money_data[target_id]["balance"] -= stolen_amount
+            save_money_data()
+            await ctx.send(f"✅ You guessed correctly and stole {stolen_amount} coins from {target.mention}!")
+        else:
+            await ctx.send(f"❌ Wrong guess! The correct number was {number_to_guess}. Better luck next time!")
+    except asyncio.TimeoutError:
+        await ctx.send("⏰ You took too long to respond! The stealing attempt failed.")
+
+@bot.command(name="give")
+@commands.has_permissions(administrator=True)
+async def give(ctx, member: discord.Member, amount: int):
+    """Give coins to a user (Admin only)."""
+    if amount <= 0:
+        await ctx.send("❌ The amount must be greater than 0.")
+        return
+
+    user_id = str(member.id)
+
+    # Ensure the user has a balance entry
+    if user_id not in money_data:
+        money_data[user_id] = {"balance": 0, "last_daily": None}
+
+    # Add the amount to the user's balance
+    money_data[user_id]["balance"] += amount
+    save_money_data()
+
+    await ctx.send(f"✅ {amount} coins have been given to {member.mention}. Their new balance is {money_data[user_id]['balance']} coins.")
+
+@bot.command(name="stealadmin")
+@commands.has_permissions(administrator=True)
+async def stealadmin(ctx, target: discord.Member, recipient: discord.Member, amount: int):
+    """Steal coins from one user and give them to another (Admin only)."""
+    if amount <= 0:
+        await ctx.send("❌ The amount must be greater than 0.")
+        return
+
+    target_id = str(target.id)
+    recipient_id = str(recipient.id)
+
+    # Ensure both users have balance entries
+    if target_id not in money_data:
+        money_data[target_id] = {"balance": 0, "last_daily": None}
+    if recipient_id not in money_data:
+        money_data[recipient_id] = {"balance": 0, "last_daily": None}
+
+    # Check if the target has enough coins
+    if money_data[target_id]["balance"] < amount:
+        await ctx.send(f"❌ {target.mention} does not have enough coins to steal!")
+        return
+
+    # Transfer the coins
+    money_data[target_id]["balance"] -= amount
+    money_data[recipient_id]["balance"] += amount
+    save_money_data()
+
+    await ctx.send(f"✅ {amount} coins have been stolen from {target.mention} and given to {recipient.mention}.")
 
 # Run the bot
 bot.run(token)  # Replace with your actual bot token

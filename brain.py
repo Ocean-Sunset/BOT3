@@ -1795,6 +1795,41 @@ async def on_ready():
     logging.info(f"Logged in as {bot.user}")
     bot.loop.create_task(monitor_inactivity())
 
+
+inpwhen = input(str("Update?: "))
+if inpwhen == "yes":
+    inpwhen2 = input(str("Version?: "))
+    print(f"Updating to {inpwhen2} from {bot_info['version']}...")
+    
+    bot_info['version'] = inpwhen2
+    save_bot_info()
+
+    inpwhen2 = None
+    inpwhen2 = input(str("New stuff?: "))
+    print(f"Updating new stuff to {inpwhen2} from {bot_info['new_stuff']}...")
+
+    bot_info['new_stuff'] = inpwhen2
+    save_bot_info()
+    
+elif inpwhen == "no":
+    print("Procceding without update.")
+else:
+    print("error, try again later.")
+    time.sleep(0.6)
+    print("Procceding without update.")
+
+inpwhen3 = input(str("Clear all data?: "))
+if inpwhen3 == "yes":
+    print("Are you sure?")
+    input()
+    if input() == "yes":
+        print("Deleting all data...")
+    elif input() == "no":
+        print("Procceding...")
+    else:
+        print("error, Procceding nontheless.")
+
+
 # Run the bot
 bot.run(token)  # Replace with your actual bot token
 shared_data == {"Connection: true"}

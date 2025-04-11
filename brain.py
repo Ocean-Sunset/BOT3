@@ -51,26 +51,27 @@ async def search_img(ctx, *, query: str):
 
 
 # Load or initialize user data
-if os.path.exists("user_data.json"):
-    with open("user_data.json", "r") as f:
+if os.path.exists("data/user_data.json"):
+    with open("data/user_data.json", "r") as f:
         user_data = json.load(f)
 else:
     user_data = {}
 
 # Load or initialize warnings data
-if os.path.exists("warnings.json"):
-    with open("warnings.json", "r") as f:
+if os.path.exists("data/warnings.json"):
+    with open("data/warnings.json", "r") as f:
         warnings_data = json.load(f)
 else:
     warnings_data = {}
+
 # Save user data
 def save_user_data():
-    with open("user_data.json", "w") as f:
+    with open("data/user_data.json", "w") as f:
         json.dump(user_data, f)
 
 # Save warnings data
 def save_warnings_data():
-    with open("warnings.json", "w") as f:
+    with open("data/warnings.json", "w") as f:
         json.dump(warnings_data, f)
 
 # Add this function to get the logs channel
@@ -104,7 +105,7 @@ async def on_command_error(ctx, error):
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # File to store user money data
-money_data_file = "money_data.json"
+money_data_file = "data/money_data.json"
 
 # Load or initialize money data
 if os.path.exists(money_data_file):
@@ -148,7 +149,7 @@ async def on_ready():
     logging.info(f"Logged in as {bot.user}")
 
 # File to store banned server IDs
-banned_servers_file = "banned_servers.json"
+banned_servers_file = "data/banned_servers.json"
 
 # Load or initialize banned servers data
 if os.path.exists(banned_servers_file):
@@ -205,7 +206,7 @@ async def unban_server(ctx, *, server_name: str):
     await ctx.send(f"❌ Server **{server_name}** not found.")
 
 # File to store server restriction levels
-server_restrictions_file = "server_restrictions.json"
+server_restrictions_file = "data/server_restrictions.json"
 
 # Load or initialize server restrictions data
 if os.path.exists(server_restrictions_file):
@@ -269,7 +270,7 @@ async def manage_server(ctx, *, args: str):
     await ctx.send(f"❌ Server **{server_name}** not found.")
 
 # File to store bot info (version and new features)
-bot_info_file = "bot_info.json"
+bot_info_file = "data/bot_info.json"
 
 # Load or initialize bot info
 if os.path.exists(bot_info_file):
@@ -1754,5 +1755,47 @@ async def delmoney(ctx, member: discord.Member, amount: int):
 
     await ctx.send(f"✅ {amount} coins have been deleted from {member.mention}'s balance. Their new balance is {money_data[user_id]['balance']} coins.")
 
+try:
+    with open("shared.json", "r") as f:
+        shared_data = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    shared_data = {}  # Initialize with an empty dictionary if the file is missing or invalid
+    with open("shared.json", "w") as f:
+        json.dump(shared_data, f)
+
+# Track the last activity time
+last_activity_time = datetime.utcnow()
+
+# Update the last activity time on any command or message
+@bot.event
+async def on_message(message):
+    global last_activity_time
+    if message.author != bot.user:  # Ignore bot's own messages
+        last_activity_time = datetime.utcnow()
+    await bot.process_commands(message)  # Allow commands to be processed
+
+@bot.event
+async def on_command(ctx):
+    global last_activity_time
+    last_activity_time = datetime.utcnow()
+
+# Background task to monitor inactivity
+async def monitor_inactivity():
+    global last_activity_time
+    while True:
+        await asyncio.sleep(60)  # Check every minute
+        time_since_last_activity = (datetime.utcnow() - last_activity_time).total_seconds()
+        if time_since_last_activity > 1200:  # 20 minutes = 1200 seconds
+            logging.info("No activity detected for 20 minutes. Restarting the bot...")
+            os.execv(sys.executable, ["python"] + sys.argv)  # Restart the bot
+
+# Start the background task when the bot is ready
+@bot.event
+async def on_ready():
+    logging.info(f"Logged in as {bot.user}")
+    bot.loop.create_task(monitor_inactivity())
+
 # Run the bot
 bot.run(token)  # Replace with your actual bot token
+shared_data == {"Connection: true"}
+save_user_data()

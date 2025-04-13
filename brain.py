@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from yt_dlp import YoutubeDL
 import os
 import openai  # For ChatGPT functionality
 import time
@@ -1795,9 +1796,74 @@ async def on_ready():
     logging.info(f"Logged in as {bot.user}")
     bot.loop.create_task(monitor_inactivity())
 
+@bot.command(name="game")
+async def game(ctx, *, game_name: str):
+    """Set yourself as gaming and deafen notifications."""
+    user_id = str(ctx.author.id)
+
+    # Ensure the user has an entry in user_data
+    if user_id not in user_data:
+        user_data[user_id] = {"xp": 0, "level": 1, "gaming": None}
+
+    # Update the user's gaming status
+    user_data[user_id]["gaming"] = game_name
+    save_user_data()  # Save the updated user_data to the file
+
+    await ctx.send(f"🎮 {ctx.author.mention} is now gaming on **{game_name}**. Notifications will be muted.")
+
+    # Try to deafen the user (if in a voice channel)
+    if ctx.author.voice:
+        try:
+            await ctx.author.edit(deafen=True)
+            await ctx.send(f"🔇 {ctx.author.mention} has been deafened in their voice channel.")
+        except discord.Forbidden:
+            await ctx.send(f"❌ I do not have permission to deafen {ctx.author.mention}.")
+        except Exception as e:
+            await ctx.send(f"❌ An error occurred while trying to deafen {ctx.author.mention}: {e}")
+
+@bot.command(name="stopgame")
+async def stopgame(ctx):
+    """Stop gaming mode for yourself."""
+    user_id = str(ctx.author.id)
+
+    # Check if the user is gaming
+    if user_id in user_data and user_data[user_id].get("gaming"):
+        user_data[user_id]["gaming"] = None  # Clear the gaming status
+        save_user_data()  # Save the updated user_data to the file
+
+        await ctx.send(f"✅ {ctx.author.mention} is no longer gaming.")
+
+        # Try to undeafen the user (if in a voice channel)
+        if ctx.author.voice:
+            try:
+                await ctx.author.edit(deafen=False)
+                await ctx.send(f"🔊 {ctx.author.mention} has been undeafened in their voice channel.")
+            except discord.Forbidden:
+                await ctx.send(f"❌ I do not have permission to undeafen {ctx.author.mention}.")
+            except Exception as e:
+                await ctx.send(f"❌ An error occurred while trying to undeafen {ctx.author.mention}: {e}")
+    else:
+        await ctx.send(f"❌ {ctx.author.mention}, you are not currently gaming.")
+
+@bot.event
+async def on_message(message):
+    """Handle pings to gaming users."""
+    if message.author.bot:
+        return
+
+    # Check if the message mentions a gaming user
+    for mention in message.mentions:
+        user_id = str(mention.id)
+        if user_id in user_data and user_data[user_id].get("gaming"):
+            game_name = user_data[user_id]["gaming"]
+            await message.channel.send(f"⛔ {mention.mention} is currently gaming on **{game_name}**. Please try again later!")
+            return
+
+    await bot.process_commands(message)
 
 inpwhen = input(str("Update?: "))
 if inpwhen == "yes":
+    print(f"Current version: {bot_info['version']}")
     inpwhen2 = input(str("Version?: "))
     print(f"Updating to {inpwhen2} from {bot_info['version']}...")
     
@@ -1805,6 +1871,7 @@ if inpwhen == "yes":
     save_bot_info()
 
     inpwhen2 = None
+    print(f"Current new stuff: {bot_info['new_stuff']}")
     inpwhen2 = input(str("New stuff?: "))
     print(f"Updating new stuff to {inpwhen2} from {bot_info['new_stuff']}...")
 
@@ -1829,6 +1896,100 @@ if inpwhen3 == "yes":
     else:
         print("error, Procceding nontheless.")
 
+# Ensure the music folder exists
+if not os.path.exists("music"):
+    os.makedirs("music")
+
+# Set up the bot
+bot = commands.Bot(command_prefix="?", intents=discord.Intents.all())
+
+@bot.command(name="upload")
+async def upload(ctx):
+    """Allow users to upload .mp3 files."""
+    if not ctx.message.attachments:
+        await ctx.send("❌ Please attach an audio file to upload.")
+        return
+
+    for attachment in ctx.message.attachments:
+        if attachment.filename.endswith((".mp3", ".wav", ".ogg")):
+            file_path = os.path.join("music", attachment.filename)
+            await attachment.save(file_path)
+            await ctx.send(f"✅ File `{attachment.filename}` has been uploaded and saved.")
+        else:
+            await ctx.send(f"❌ `{attachment.filename}` is not a supported audio format. Please upload .mp3, .wav, or .ogg files.")
+
+@bot.command(name="play")
+async def play(ctx, *, query: str = None):
+    """Play a song from the music folder or a YouTube URL."""
+    if not ctx.author.voice:
+        await ctx.send("❌ You must be in a voice channel to use this command.")
+        return
+
+    voice_channel = ctx.author.voice.channel
+
+    try:
+        # Join the voice channel
+        if ctx.voice_client is None:
+            vc = await voice_channel.connect()
+        else:
+            vc = ctx.voice_client
+
+        # If a query is provided, download the song from YouTube
+        if query:
+            await ctx.send(f"🔍 Searching for `{query}`...")
+            ydl_opts = {
+                "format": "bestaudio/best",
+                "outtmpl": "music/%(title)s.%(ext)s",
+                "noplaylist": True,
+            }
+            with YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(query, download=True)
+                song_path = ydl.prepare_filename(info)
+                await ctx.send(f"✅ Downloaded `{info['title']}`. Now playing...")
+        else:
+            # Play the first song in the music folder
+            if not os.listdir("music"):
+                await ctx.send("❌ The music folder is empty. Upload some songs using `?upload` or provide a YouTube URL.")
+                return
+            song = sorted(os.listdir("music"))[0]
+            song_path = os.path.join("music", song)
+
+        # Play the song
+        vc.play(discord.FFmpegPCMAudio(song_path), after=lambda e: print(f"Finished playing: {song_path}"))
+        await ctx.send(f"🎵 Now playing: `{os.path.basename(song_path)}`")
+    except Exception as e:
+        await ctx.send(f"❌ An error occurred: {e}")
+
+@bot.command(name="queue")
+async def queue(ctx):
+    """List all songs in the music folder."""
+    songs = sorted(os.listdir("music"))
+    if not songs:
+        await ctx.send("❌ The music folder is empty. Upload some songs using `?upload`.")
+        return
+
+    song_list = "\n".join(f"{i + 1}. {song}" for i, song in enumerate(songs))
+    await ctx.send(f"🎶 **Music Queue:**\n{song_list}")
+
+@bot.command(name="skip")
+async def skip(ctx):
+    """Skip the currently playing song."""
+    if not ctx.voice_client or not ctx.voice_client.is_playing():
+        await ctx.send("❌ No song is currently playing.")
+        return
+
+    ctx.voice_client.stop()
+    await ctx.send("⏭️ Skipped the current song.")
+
+@bot.command(name="stop")
+async def stop(ctx):
+    """Stop the music and disconnect the bot."""
+    if not ctx.voice_client:
+        await ctx.send("❌ The bot is not connected to a voice channel.")
+        return
+
+    await ctx.voice_client.disconnect()
+    await ctx.send("⏹️ Stopped the music and disconnected.")
 
 # Run the bot
 bot.run(token)  # Replace with your actual bot token

@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from yt_dlp import YoutubeDL
+from discord import FFmpegPCMAudio
 import os
 import openai  # For ChatGPT functionality
 import time
@@ -288,7 +289,6 @@ def save_bot_info():
     with open(bot_info_file, "w") as f:
         json.dump(bot_info, f)
 
-# Command: Update
 @bot.command(name="update")
 @commands.has_permissions(administrator=True)
 async def update(ctx, *, args: str):
@@ -307,8 +307,8 @@ async def update(ctx, *, args: str):
     await ctx.send(f"✅ Bot updated to version **{version}** with new features: **{new_stuff}**.")
     await ctx.send("🔄 Restarting the bot...")
 
-    # Restart the bot
-    os.execv(sys.executable, ["python"] + sys.argv)
+    # Restart the bot with the skip-input flag
+    os.execv(sys.executable, ["python", __file__, "--skip-input"])
 
 # Event: On message
 @bot.event
@@ -558,6 +558,12 @@ async def help(ctx):
     
     await ctx.send(help_message)
     await ctx.send(help_message2)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)  # Change to DEBUG for more detailed logs
+logger = logging.getLogger("discord")
+logger.setLevel(logging.DEBUG)  # Enable debug-level logging for Discord events
+
 # Zen mode: idea is whenever a people executes the command, 
 # They will be timed out and won't see any messages for a custom set of time.
 # This is a temporary timeout, so it will be removed after the time is up.
@@ -859,8 +865,7 @@ async def info(ctx):
     Status: Unstable build
     Version: {bot_info['version']}
     Owner: smiley_unsmiley
-    New stuff: 
-        - {bot_info['new_stuff']}
+    New stuff: {bot_info['new_stuff']}
     """
     await ctx.send(custominfo)
 
@@ -1635,7 +1640,7 @@ async def restart(ctx):
     """Restart the bot."""
     await ctx.send("🔄 Restarting the bot...")
     await bot.close()  # Close the bot connection
-    os.execv(sys.executable, ["python"] + sys.argv)  # Restart the bot
+    os.execv(sys.executable, ["python", __file__, "--skip-input"])  # Restart the bot with the skip-input flag
 
 @bot.command(name="tictactoe")
 async def tictactoe(ctx, player1: discord.Member, player2: discord.Member):
@@ -1861,71 +1866,101 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-inpwhen = input(str("Update?: "))
-if inpwhen == "yes":
-    print(f"Current version: {bot_info['version']}")
-    inpwhen2 = input(str("Version?: "))
-    print(f"Updating to {inpwhen2} from {bot_info['version']}...")
-    
-    bot_info['version'] = inpwhen2
-    save_bot_info()
+if __name__ == "__main__":
+    import argparse
 
-    inpwhen2 = None
-    print(f"Current new stuff: {bot_info['new_stuff']}")
-    inpwhen2 = input(str("New stuff?: "))
-    print(f"Updating new stuff to {inpwhen2} from {bot_info['new_stuff']}...")
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--skip-input", action="store_true", help="Skip input prompts for auto-restart")
+    args = parser.parse_args()
 
-    bot_info['new_stuff'] = inpwhen2
-    save_bot_info()
-    
-elif inpwhen == "no":
-    print("Procceding without update.")
-else:
-    print("error, try again later.")
-    time.sleep(0.6)
-    print("Procceding without update.")
+    if not args.skip_input:
+        inpwhen = input(str("Update?: "))
+        if inpwhen == "yes":
+            print(f"Current version: {bot_info['version']}")
+            inpwhen2 = input(str("Version?: "))
+            print(f"Updating to {inpwhen2} from {bot_info['version']}...")
+            
+            bot_info['version'] = inpwhen2
+            save_bot_info()
 
-inpwhen3 = input(str("Clear all data?: "))
-if inpwhen3 == "yes":
-    print("Are you sure?")
-    input()
-    if input() == "yes":
-        print("Deleting all data...")
-    elif input() == "no":
-        print("Procceding...")
-    else:
-        print("error, Procceding nontheless.")
+            inpwhen2 = None
+            print(f"Current new stuff: {bot_info['new_stuff']}")
+            inpwhen2 = input(str("New stuff?: "))
+            print(f"Updating new stuff to {inpwhen2} from {bot_info['new_stuff']}...")
+
+            bot_info['new_stuff'] = inpwhen2
+            save_bot_info()
+            
+        elif inpwhen == "no":
+            print("Proceeding without update.")
+        else:
+            print("Error, try again later.")
+            time.sleep(0.6)
+            print("Proceeding without update.")
+
+        inpwhen3 = input(str("Clear all data?: "))
+        if inpwhen3 == "yes":
+            print("Are you sure?")
+            input()
+            if input() == "yes":
+                print("Deleting all data...")
+            elif input() == "no":
+                print("Proceeding...")
+            else:
+                print("Error, proceeding nonetheless.")
 
 # Ensure the music folder exists
 if not os.path.exists("music"):
     os.makedirs("music")
 
-# Set up the bot
-bot = commands.Bot(command_prefix="?", intents=discord.Intents.all())
-
 @bot.command(name="upload")
-async def upload(ctx):
-    """Allow users to upload .mp3 files."""
-    if not ctx.message.attachments:
-        await ctx.send("❌ Please attach an audio file to upload.")
+async def upload(ctx, *, url: str = None):
+    """Allow users to upload .mp3 files or provide a URL to download."""
+    if not ctx.message.attachments and not url:
+        await ctx.send("❌ Please attach an audio file or provide a URL to upload.")
         return
 
-    for attachment in ctx.message.attachments:
-        if attachment.filename.endswith((".mp3", ".wav", ".ogg")):
-            file_path = os.path.join("music", attachment.filename)
-            await attachment.save(file_path)
-            await ctx.send(f"✅ File `{attachment.filename}` has been uploaded and saved.")
+    # Handle file attachments
+    if ctx.message.attachments:
+        for attachment in ctx.message.attachments:
+            if attachment.filename.endswith((".mp3", ".wav", ".ogg")):
+                file_path = os.path.join("music", attachment.filename)
+                await attachment.save(file_path)
+                await ctx.send(f"✅ File `{attachment.filename}` has been uploaded and saved.")
+            else:
+                await ctx.send(f"❌ `{attachment.filename}` is not a supported audio format. Please upload .mp3, .wav, or .ogg files.")
+
+    # Handle URL input
+    if url:
+        if url.startswith("http://") or url.startswith("https://"):
+            await ctx.send(f"🔍 Downloading from URL: `{url}`...")
+            ydl_opts = {
+                "format": "bestaudio/best",
+                "outtmpl": "music/%(title)s.%(ext)s",
+                "noplaylist": True,
+            }
+            try:
+                with YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=True)
+                    file_name = ydl.prepare_filename(info)
+                    await ctx.send(f"✅ Downloaded `{info['title']}` and saved to the music folder.")
+            except Exception as e:
+                await ctx.send(f"❌ Failed to download from URL: {e}")
         else:
-            await ctx.send(f"❌ `{attachment.filename}` is not a supported audio format. Please upload .mp3, .wav, or .ogg files.")
+            await ctx.send("❌ Invalid URL. Please provide a valid URL starting with `http://` or `https://`.")
+
+ffmpeg_path = r"C:\Users\roland\Downloads\ffmpeg-2025-03-31-git-35c091f4b7-full_build\bin\ffmpeg.exe"
 
 @bot.command(name="play")
 async def play(ctx, *, query: str = None):
-    """Play a song from the music folder or a YouTube URL."""
+    """Play a song from a URL or the music folder."""
     if not ctx.author.voice:
         await ctx.send("❌ You must be in a voice channel to use this command.")
         return
 
     voice_channel = ctx.author.voice.channel
+
 
     try:
         # Join the voice channel
@@ -1934,30 +1969,44 @@ async def play(ctx, *, query: str = None):
         else:
             vc = ctx.voice_client
 
-        # If a query is provided, download the song from YouTube
+        # Log FFmpeg path
+        ffmpeg_path = "ffmpeg"  # Default to "ffmpeg" if it's in PATH
+        logger.info(f"Using FFmpeg executable: {ffmpeg_path}")
+
+        # If a query is provided, check if it's a URL
         if query:
-            await ctx.send(f"🔍 Searching for `{query}`...")
-            ydl_opts = {
-                "format": "bestaudio/best",
-                "outtmpl": "music/%(title)s.%(ext)s",
-                "noplaylist": True,
-            }
-            with YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(query, download=True)
-                song_path = ydl.prepare_filename(info)
-                await ctx.send(f"✅ Downloaded `{info['title']}`. Now playing...")
+            if query.startswith("http://") or query.startswith("https://"):
+                await ctx.send(f"🔍 Searching for `{query}`...")
+                ydl_opts = {
+                    "format": "bestaudio/best",
+                    "outtmpl": "music/%(title)s.%(ext)s",
+                    "noplaylist": True,
+                }
+                with YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(query, download=True)
+                    song_path = ydl.prepare_filename(info)
+                    await ctx.send(f"✅ Downloaded `{info['title']}`. Now playing...")
+            else:
+                # Assume the query is a local file name
+                song_path = os.path.join("music", query)
+                if not os.path.exists(song_path):
+                    await ctx.send(f"❌ The file `{query}` does not exist in the music folder.")
+                    return
+                await ctx.send(f"🎵 Now playing: `{query}`")
         else:
             # Play the first song in the music folder
-            if not os.listdir("music"):
-                await ctx.send("❌ The music folder is empty. Upload some songs using `?upload` or provide a YouTube URL.")
+            songs = sorted(os.listdir("music"))
+            if not songs:
+                await ctx.send("❌ The music folder is empty. Upload some songs using `?upload` or provide a URL.")
                 return
-            song = sorted(os.listdir("music"))[0]
+            song = songs[0]
             song_path = os.path.join("music", song)
+            await ctx.send(f"🎵 Now playing: `{song}`")
 
         # Play the song
-        vc.play(discord.FFmpegPCMAudio(song_path), after=lambda e: print(f"Finished playing: {song_path}"))
-        await ctx.send(f"🎵 Now playing: `{os.path.basename(song_path)}`")
+        vc.play(discord.FFmpegPCMAudio(song_path, executable=ffmpeg_path), after=lambda e: logger.info(f"Finished playing: {song_path}"))
     except Exception as e:
+        logger.error(f"An error occurred in the play command: {e}")
         await ctx.send(f"❌ An error occurred: {e}")
 
 @bot.command(name="queue")
@@ -1990,6 +2039,22 @@ async def stop(ctx):
 
     await ctx.voice_client.disconnect()
     await ctx.send("⏹️ Stopped the music and disconnected.")
+
+@bot.command(name="check_ffmpeg")
+async def check_ffmpeg(ctx):
+    """Check if FFmpeg is accessible."""
+    try:
+        import subprocess
+        result = subprocess.run(["ffmpeg", "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if result.returncode == 0:
+            await ctx.send(f"✅ FFmpeg is installed and accessible:\n```\n{result.stdout.splitlines()[0]}\n```")
+            logger.info(f"FFmpeg is accessible: {result.stdout.splitlines()[0]}")
+        else:
+            await ctx.send("❌ FFmpeg is not accessible. Please check your installation.")
+            logger.error(f"FFmpeg error: {result.stderr}")
+    except FileNotFoundError:
+        await ctx.send("❌ FFmpeg is not installed or not in PATH.")
+        logger.error("FFmpeg executable not found.")
 
 # Run the bot
 bot.run(token)  # Replace with your actual bot token

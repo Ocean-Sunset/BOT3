@@ -2,9 +2,12 @@ import discord
 from discord.ext import commands
 from yt_dlp import YoutubeDL
 from discord import FFmpegPCMAudio
+from googletrans import Translator
+import argparse
 import os
 import openai  # For ChatGPT functionality
 import time
+from transformers import pipeline
 import json
 import sys
 import logging
@@ -23,6 +26,8 @@ OPENAI_API_KEY = environ.get("OPEN_API_KEY") # Replace with your actual API key
 openai.api_key = OPENAI_API_KEY
 
 UNSPLACH_API_KEY = os.environ.get("UNSPLASH_API_KEY")
+OPENWHEATHER_KEY = os.environ.get("OPENWEATHER_KEY")
+openwheather = OPENWHEATHER_KEY
 
 # Define intents and enable the message content intent
 intents = discord.Intents.default()
@@ -495,6 +500,50 @@ async def on_command_error(ctx, error):
         await logs_channel.send(f"{ctx.author} tried to execute {ctx.command} in {ctx.channel}. Status: error. Reason: {error}")
     await ctx.send(f"❌ An error occurred: {error}")
 
+
+@bot.command(name="Mhelp")
+async def mhelp(ctx, command_name: str = None):
+    if command_name is None:
+        embed = discord.Embed(
+            title="Error",
+            description="❌ You did not insert any command name.",
+            color=discord.Color.red(),
+        )
+        embed.set_thumbnail(url="https://www.clipartmax.com/png/full/388-3887666_wrong-icon-with-png-and-vector-format-for-free-unlimited-wrong-icon.png")
+        await ctx.send(embed=embed)
+        return
+
+    embed = discord.Embed(
+        title=command_name,
+        description=f"Here is the info about {command_name}.",
+        color=discord.Color.light_gray(),
+    )
+    embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/3593/3593455.png")
+
+    if command_name == "info":
+        embed.add_field(name="Info", value="Info is used when you want to get info about the bot, its version, or other details.")
+        embed.add_field(name="How to execute", value="?info")
+    elif command_name == "serverinfo":
+        embed.add_field(name="Server Information", value="This command is used to get information about the server you're in.")
+        embed.add_field(name="How to execute", value="?serverinfo")
+    elif command_name == "shutdown":
+        embed.add_field(name="Shut Down", value="Turn the bot off. ⚠ **ADMIN COMMAND** ⚠")
+        embed.add_field(name="How to execute", value="?shutdown")
+    elif command_name == "poll":
+        embed.add_field(name="Poll", value="Create a timed poll. This command is limited to only 10 answers!")
+        embed.add_field(name="How to execute", value="?poll 'Question' 'Answer one' 'Answer two'...")
+    else:
+        embed = discord.Embed(
+            title="Oops...",
+            description=f"Sorry, we couldn't find the command named `{command_name}`.",
+            color=discord.Color.blue(),
+        )
+
+    await ctx.send(embed=embed)
+
+
+
+
 # ?help command
 @bot.command(name="myhelp")
 async def help(ctx):
@@ -966,7 +1015,7 @@ async def on_command_error(ctx, error):
     # Check if the error is a "CommandNotFound" error
     if isinstance(error, commands.CommandNotFound):
         print(f"{ctx.author} Tried to use a command in {ctx.channel}. Error: command not found.")
-        await ctx.send("❌ That command does not exist. Use `?help` to see the list of available commands.")
+        await ctx.send("❌ That command does not exist. Use `?Mhelp` to see the list of available commands.")
     # Handle other errors (optional)
     else:
         print(f"{ctx.author} Tried to use a command in {ctx.channel}. Error: {error}")
@@ -1634,14 +1683,6 @@ async def on_message(message):
             await message.channel.send(f"🔔 {mention.mention} is AFK: {afk_users[mention.id]}")
     await bot.process_commands(message)
 
-@bot.command(name="restart")
-@commands.has_permissions(administrator=True)
-async def restart(ctx):
-    """Restart the bot."""
-    await ctx.send("🔄 Restarting the bot...")
-    await bot.close()  # Close the bot connection
-    os.execv(sys.executable, ["python", __file__, "--skip-input"])  # Restart the bot with the skip-input flag
-
 @bot.command(name="tictactoe")
 async def tictactoe(ctx, player1: discord.Member, player2: discord.Member):
     """Start a Tic-Tac-Toe game."""
@@ -1867,7 +1908,47 @@ async def on_message(message):
     await bot.process_commands(message)
 
 if __name__ == "__main__":
-    import argparse
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--skip-input", action="store_true", help="Skip input prompts for auto-restart")
+    args = parser.parse_args()
+
+    # Skip the input prompts if the `--skip-input` flag is provided
+    if not args.skip_input:
+        inpwhen = input(str("Update?: "))
+        if inpwhen == "yes":
+            print(f"Current version: {bot_info['version']}")
+            inpwhen2 = input(str("Version?: "))
+            print(f"Updating to {inpwhen2} from {bot_info['version']}...")
+            
+            bot_info['version'] = inpwhen2
+            save_bot_info()
+
+            inpwhen2 = None
+            print(f"Current new stuff: {bot_info['new_stuff']}")
+            inpwhen2 = input(str("New stuff?: "))
+            print(f"Updating new stuff to {inpwhen2} from {bot_info['new_stuff']}...")
+
+            bot_info['new_stuff'] = inpwhen2
+            save_bot_info()
+            
+        elif inpwhen == "no":
+            print("Proceeding without update.")
+        else:
+            print("Error, try again later.")
+            time.sleep(0.6)
+            print("Proceeding without update.")
+
+        inpwhen3 = input(str("Clear all data?: "))
+        if inpwhen3 == "yes":
+            print("Are you sure?")
+            input()
+            if input() == "yes":
+                print("Deleting all data...")
+            elif input() == "no":
+                print("Proceeding...")
+            else:
+                print("Error, proceeding nonetheless.")
 
     # Parse command-line arguments
     parser = argparse.ArgumentParser()
@@ -2055,6 +2136,120 @@ async def check_ffmpeg(ctx):
     except FileNotFoundError:
         await ctx.send("❌ FFmpeg is not installed or not in PATH.")
         logger.error("FFmpeg executable not found.")
+
+@bot.command(name="download")
+async def download(ctx, url: str):
+    """Download a YouTube song or video and save it to the music folder."""
+    if not (url.startswith("http://") or url.startswith("https://")):
+        await ctx.send("❌ Invalid URL. Please provide a valid YouTube URL starting with `http://` or `https://`.")
+        return
+
+    await ctx.send(f"🔍 Downloading from URL: `{url}`...")
+    ydl_opts = {
+        "format": "bestaudio/best",  # Download the best audio format
+        "outtmpl": "music/%(title)s.%(ext)s",  # Save to the music folder with the title as the filename
+        "noplaylist": True,  # Do not download playlists
+    }
+    try:
+        with YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            file_name = ydl.prepare_filename(info)
+            await ctx.send(f"✅ Downloaded `{info['title']}` and saved to the music folder as `{file_name}`.")
+    except Exception as e:
+        await ctx.send(f"❌ Failed to download from URL: {e}")
+
+# Load the Hugging Face model (e.g., GPT-2)
+qa_pipeline = pipeline("text-generation", model="gpt2")
+
+@bot.command(name="ask")
+async def ask(ctx, *, question: str):
+    """Answer a question using a local AI model."""
+    try:
+        # Generate a response using the Hugging Face model
+        response = qa_pipeline(question, max_length=100, num_return_sequences=1)
+        answer = response[0]["generated_text"]
+        await ctx.send(answer)
+    except Exception as e:
+        await ctx.send(f"❌ An error occurred: {e}")
+
+@bot.command(name="joke")
+async def joke(ctx):
+    """Fetch a random joke."""
+    url = "https://official-joke-api.appspot.com/random_joke"
+    try:
+        response = requests.get(url)
+        data = response.json()
+        await ctx.send(f"😂 **{data['setup']}**\n{data['punchline']}")
+    except Exception as e:
+        await ctx.send(f"❌ Failed to fetch a joke: {e}")
+
+@bot.command(name="flip")
+async def flip(ctx):
+    """Flip a coin."""
+    result = random.choice(["Heads", "Tails"])
+    await ctx.send(f"🪙 The coin landed on: **{result}**!")
+
+translator = Translator()
+
+@bot.command(name="translate")
+async def translate(ctx, target_language: str, *, text: str):
+    """Translate text to a specified language."""
+    try:
+        translation = translator.translate(text, dest=target_language)
+        await ctx.send(f"🌐 **Translation ({target_language}):** {translation.text}")
+    except Exception as e:
+        await ctx.send(f"❌ Failed to translate: {e}")
+
+@bot.command(name="roll")
+async def roll(ctx, sides: int = 6):
+    """Roll a dice with a specified number of sides (default: 6)."""
+    if sides < 1:
+        await ctx.send("❌ The dice must have at least 1 side.")
+        return
+    result = random.randint(1, sides)
+    await ctx.send(f"🎲 You rolled a {result} on a {sides}-sided dice!")
+
+@bot.command(name="meme")
+async def meme(ctx):
+    """Fetch a random meme from Reddit."""
+    url = "https://www.reddit.com/r/memes/random/.json"
+    headers = {"User-Agent": "DiscordBot"}
+    try:
+        response = requests.get(url, headers=headers)
+        data = response.json()
+        meme_url = data[0]["data"]["children"][0]["data"]["url"]
+        title = data[0]["data"]["children"][0]["data"]["title"]
+        await ctx.send(f"**{title}**\n{meme_url}")
+    except Exception as e:
+        await ctx.send(f"❌ Failed to fetch a meme: {e}")
+
+import requests
+
+@bot.command(name="weather")
+async def weather(ctx, *, city: str):
+    """Get the current weather for a city."""
+    api_key = openwheather # Replace with your API key
+    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
+    try:
+        response = requests.get(url)
+        data = response.json()
+        if data["cod"] != 200:
+            await ctx.send(f"❌ City not found: {city}")
+            return
+        weather_desc = data["weather"][0]["description"].capitalize()
+        temp = data["main"]["temp"]
+        feels_like = data["main"]["feels_like"]
+        humidity = data["main"]["humidity"]
+        wind_speed = data["wind"]["speed"]
+        await ctx.send(
+            f"🌤️ **Weather in {city.capitalize()}**:\n"
+            f"- Description: {weather_desc}\n"
+            f"- Temperature: {temp}°C (Feels like {feels_like}°C)\n"
+            f"- Humidity: {humidity}%\n"
+            f"- Wind Speed: {wind_speed} m/s"
+        )
+    except Exception as e:
+        await ctx.send(f"❌ An error occurred: {e}")
 
 # Run the bot
 bot.run(token)  # Replace with your actual bot token

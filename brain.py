@@ -386,45 +386,6 @@ async def on_message(message):
     # Allow commands to be processed
     await bot.process_commands(message)
 
-# Event: On reaction add
-@bot.event
-async def on_raw_reaction_add(payload):
-    if payload.user_id == bot.user.id:
-        return
-
-    guild = bot.get_guild(payload.guild_id)
-    member = guild.get_member(payload.user_id)
-    if member is None:
-        member = await guild.fetch_member(payload.user_id)
-    emoji = str(payload.emoji)
-
-    if emoji == "✅":
-        role_name = "Verified"
-        role = discord.utils.get(guild.roles, name=role_name)
-        if not role:
-            role = await guild.create_role(name=role_name)
-        await member.add_roles(role)
-        await member.send(f"You have been given the {role_name} role.")
-
-# Event: On reaction remove (optional, to remove the role when the reaction is removed)
-@bot.event
-async def on_raw_reaction_remove(payload):
-    if payload.user_id == bot.user.id:
-        return
-
-    guild = bot.get_guild(payload.guild_id)
-    member = guild.get_member(payload.user_id)
-    if member is None:
-        member = await guild.fetch_member(payload.user_id)
-    emoji = str(payload.emoji)
-
-    if emoji == "✅":
-        role_name = "Verified"
-        role = discord.utils.get(guild.roles, name=role_name)
-        if role:
-            await member.remove_roles(role)
-            await member.send(f"The {role_name} role has been removed from you.")
-
 # Command: Copy text
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -443,12 +404,57 @@ async def copydm(ctx, member: discord.Member, *, text: str):
     except Exception as e:
         await ctx.send(f"❌ An error occurred: {e}")
 
-# Command: Send verification message
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def verify(ctx):
-    message = await ctx.send("React to this message to verify!\n✅ to verify")
+    """Send a verification message and assign the exact role '.・🍨︴Member ✰' when reacted to."""
+    # Create the embed for the verification message
+    embed = discord.Embed(
+        title="Verification",
+        description="React with ✅ to verify yourself and gain access to the server!",
+        color=discord.Color.green(),
+    )
+    embed.set_thumbnail(url="https://www.freeiconspng.com/thumbs/checkmark-png/checkmark-png-5.png")
+
+    # Send the embed message
+    message = await ctx.send(embed=embed)
+
+    # Add the ✅ reaction to the message
     await message.add_reaction("✅")
+
+    # Save the message ID for tracking reactions
+    shared_data["verify_message_id"] = message.id
+    with open("shared.json", "w") as f:
+        json.dump(shared_data, f)
+
+@bot.event
+async def on_raw_reaction_add(payload):
+    """Handle reactions to the verification message."""
+    if payload.user_id == bot.user.id:
+        return
+
+    # Load the verification message ID
+    verify_message_id = shared_data.get("verify_message_id")
+    if payload.message_id != verify_message_id:
+        return
+
+    # Check if the reaction is ✅
+    if str(payload.emoji) == "✅":
+        guild = bot.get_guild(payload.guild_id)
+        member = guild.get_member(payload.user_id)
+        if member is None:
+            member = await guild.fetch_member(payload.user_id)
+
+        # Find the exact role
+        role_name = ".・🍨︴Member ✰"
+        role = discord.utils.get(guild.roles, name=role_name)
+        if not role:
+            # Create the role if it doesn't exist
+            role = await guild.create_role(name=role_name)
+        
+        # Assign the role to the member
+        await member.add_roles(role)
+        await member.send(f"✅ You have been verified and given the role: **{role_name}**.")
 
 # Command: Choose Continent
 @bot.command()
@@ -540,8 +546,6 @@ async def mhelp(ctx, command_name: str = None):
         )
 
     await ctx.send(embed=embed)
-
-
 
 
 # ?help command
@@ -653,6 +657,14 @@ async def zen(ctx, member: discord.Member = None, time: str = None):
         await ctx.send("❌ I do not have permission to timeout this member.")
     except Exception as e:
         await ctx.send(f"❌ An error occurred: {e}")
+
+@bot.command(name="restart")
+@commands.has_permissions(administrator=True)
+async def restart(ctx):
+    """Restart the bot."""
+    await ctx.send("🔄 Restarting the bot...")
+    await bot.close()  # Close the bot connection
+    os.execv(sys.executable, ["python", __file__, "--skip-input"])
 
 # Command: Unzen (Admin only)
 @bot.command(name="unzen")

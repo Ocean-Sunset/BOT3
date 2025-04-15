@@ -1,1 +1,1 @@
-{"version": "1.9.01 (Unstable Build)", "new_stuff": "\n -Added ChatGPT 2 Turbo, free version.\n - Fixed auto restart."}
+{"version": "1.9.02", "new_stuff": "- Added ChatGPT 2 Turbo\n- Fixed auto restart\n- Fixed verify command (Goodbye MEE6)"}

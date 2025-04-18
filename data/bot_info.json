@@ -1,1 +1,1 @@
-{"version": "1.9.02", "new_stuff": "- Added ChatGPT 2 Turbo\n- Fixed auto restart\n- Fixed verify command (Goodbye MEE6)"}
+{"version": "1.9.11", "new_stuff": "\n- Added ChatGPT 2 Turbo\n- Fixed auto restart\n- Fixed verify command (Goodbye MEE6)\n- Added image when a member joins\n- Fixed member join to support multiple servers\n- Fixed member leave function"}

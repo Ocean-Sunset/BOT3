@@ -3,6 +3,8 @@ from discord.ext import commands
 from yt_dlp import YoutubeDL
 from discord import FFmpegPCMAudio
 from googletrans import Translator
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
 import argparse
 import os
 import openai  # For ChatGPT functionality
@@ -477,17 +479,65 @@ async def choose_country(ctx):
     for reaction in reactions:
         await message.add_reaction(reaction)
 
-# Event: On member join
 @bot.event
 async def on_member_join(member):
-    welcome_channel = get_channel_by_name(member.guild, ["welcome", "『🎊』all-announcements"])
-    if welcome_channel:
-        await welcome_channel.send(f"Welcome to the server, {member.mention}!")
+    """Event triggered when a user joins the server."""
+    try:
+        # Log the event
+        logging.info(f"New member joined: {member.name}#{member.discriminator} (ID: {member.id})")
+
+        # Get the welcome channel
+        welcome_channel = discord.utils.get(member.guild.text_channels, name="「ෆ-⌗-•-welcome-ʚɞ」👋" or "welcome-🚃⋆｡˚⋆")
+        if not welcome_channel:
+            logging.warning(f"Welcome channel not found in guild: {member.guild.name} (ID: {member.guild.id})")
+            return  # Exit if no welcome channel is found
+
+        # Fetch the user's profile picture
+        avatar_url = member.avatar.url if member.avatar else member.default_avatar.url
+        response = requests.get(avatar_url)
+        if response.status_code != 200:
+            logging.error(f"Failed to fetch avatar for {member.name}#{member.discriminator}. HTTP Status: {response.status_code}")
+            return
+        avatar = Image.open(BytesIO(response.content)).convert("RGBA")
+
+        # Create the base image
+        base = Image.new("RGBA", (800, 300), (30, 30, 30))  # Dark background
+        draw = ImageDraw.Draw(base)
+
+        # Add a decorative border
+        draw.rectangle([(0, 0), (799, 299)], outline=(255, 255, 255), width=5)
+
+        # Paste the user's avatar
+        avatar = avatar.resize((150, 150))  # Resize the avatar
+        base.paste(avatar, (50, 75), avatar)  # Paste with transparency
+
+        # Add text (username and welcome message)
+        font = ImageFont.truetype("arial.ttf", 30)  # Use a font available on your system
+        draw.text((220, 100), f"Welcome, {member.name}!", fill=(255, 255, 255), font=font)
+        draw.text((220, 150), f"Member #{len(member.guild.members)}", fill=(200, 200, 200), font=font)
+
+        # Save the image to a BytesIO object
+        buffer = BytesIO()
+        base.save(buffer, format="PNG")
+        buffer.seek(0)
+
+        # Send the image in the welcome channel
+        await welcome_channel.send(
+            f"🎉 Welcome to the server, {member.mention}!",
+            file=discord.File(fp=buffer, filename="welcome.png")
+        )
+        logging.info(f"Welcome message sent for {member.name}#{member.discriminator} in {welcome_channel.name}.")
+    except Exception as e:
+        logging.error(f"Error in on_member_join for {member.name}#{member.discriminator}: {e}")
+        # Optionally, send an error message to a logs channel
+        logs_channel = discord.utils.get(member.guild.text_channels, name="logs")
+        if logs_channel:
+            await logs_channel.send(f"❌ An error occurred while welcoming {member.mention}: {e}")
 
 # Event: On member remove
 @bot.event
-async def on_member_remove(member):
-    bye_channel = get_channel_by_name(member.guild, ["bye", "『🎊』all-announcements"])
+async def on_member_leave(member):
+    bye_channel = get_channel_by_name(member.guild, ["「ෆ-⌗-•-bye-ʚɞ」👋"])
     if bye_channel:
         await bye_channel.send(f"Goodbye, {member.mention}. We will miss you!")
 
@@ -538,6 +588,9 @@ async def mhelp(ctx, command_name: str = None):
     elif command_name == "poll":
         embed.add_field(name="Poll", value="Create a timed poll. This command is limited to only 10 answers!")
         embed.add_field(name="How to execute", value="?poll 'Question' 'Answer one' 'Answer two'...")
+    elif command_name == "ask":
+        embed.add_field(name="Ask", value="Ask ChatGPT 2 Turbo a question.")
+        embed.add_field(name="How to execute", value="?ask 'Question'")
     else:
         embed = discord.Embed(
             title="Oops...",
@@ -559,7 +612,7 @@ async def help(ctx):
     ?shutdown - Shut down the bot (Admin only)
     ?start - Start the bot (Admin only)
     ?poll - Create a poll (Usage: ?poll <question> <option1, option2, ...>)
-    ?chat - Chat with ChatGPT (Usage: ?chat <your message>)
+    ?ask - Ask ChatGPT (Usage: ?ask <your message>)
     ?analyse - Analyse the user you want (Usage: ?analyse @user)
     ?createrole - Create a role (Usage: ?createrole <name> <permissions: (member, mod or admin)> <color:(Hex code)>)
     ?giverole - Give a role (Usage: ?giverole <name> <user>)
@@ -1614,18 +1667,6 @@ async def unmute(ctx, member: discord.Member):
     else:
         await ctx.send(f"❌ {member.mention} is not muted.")
 
-@bot.event
-async def on_member_join(member):
-    logs_channel = discord.utils.get(member.guild.text_channels, name="logs")
-    if logs_channel:
-        await logs_channel.send(f"✅ {member.mention} joined the server.")
-
-@bot.event
-async def on_member_remove(member):
-    logs_channel = discord.utils.get(member.guild.text_channels, name="logs")
-    if logs_channel:
-        await logs_channel.send(f"❌ {member.mention} left the server.")
-
 @bot.command(name="purge")
 @commands.has_permissions(manage_messages=True)
 async def purge(ctx, amount: int):
@@ -1659,13 +1700,6 @@ async def setwelcome(ctx, *, message: str):
     """Set a custom welcome message."""
     welcome_messages[str(ctx.guild.id)] = message
     await ctx.send("✅ Welcome message set!")
-
-@bot.event
-async def on_member_join(member):
-    message = welcome_messages.get(str(member.guild.id), f"Welcome to the server, {member.mention}!")
-    channel = discord.utils.get(member.guild.text_channels, name="welcome")
-    if channel:
-        await channel.send(message)
 
 afk_users = {}
 
@@ -1846,7 +1880,7 @@ async def monitor_inactivity():
         time_since_last_activity = (datetime.utcnow() - last_activity_time).total_seconds()
         if time_since_last_activity > 1200:  # 20 minutes = 1200 seconds
             logging.info("No activity detected for 20 minutes. Restarting the bot...")
-            os.execv(sys.executable, ["python"] + sys.argv)  # Restart the bot
+            os.execv(sys.executable, ["python", __file__, "--skip-input"])  # Restart the bot
 
 # Start the background task when the bot is ready
 @bot.event

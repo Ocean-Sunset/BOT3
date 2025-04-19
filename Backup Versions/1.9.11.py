@@ -406,140 +406,57 @@ async def copydm(ctx, member: discord.Member, *, text: str):
     except Exception as e:
         await ctx.send(f"❌ An error occurred: {e}")
 
-@bot.command(name="verify")
+@bot.command()
 @commands.has_permissions(administrator=True)
 async def verify(ctx):
     """Send a verification message and assign the exact role '.・🍨︴Member ✰' when reacted to."""
-    try:
-        # Create the embed for the verification message
-        embed = discord.Embed(
-            title="Verification",
-            description="React with ✅ to verify yourself and gain access to the server!",
-            color=discord.Color.green(),
-        )
-        embed.set_thumbnail(url="https://www.freeiconspng.com/thumbs/checkmark-png/checkmark-png-5.png")
+    # Create the embed for the verification message
+    embed = discord.Embed(
+        title="Verification",
+        description="React with ✅ to verify yourself and gain access to the server!",
+        color=discord.Color.green(),
+    )
+    embed.set_thumbnail(url="https://www.freeiconspng.com/thumbs/checkmark-png/checkmark-png-5.png")
 
-        # Send the embed message
-        message = await ctx.send(embed=embed)
+    # Send the embed message
+    message = await ctx.send(embed=embed)
 
-        # Add the ✅ reaction to the message
-        await message.add_reaction("✅")
+    # Add the ✅ reaction to the message
+    await message.add_reaction("✅")
 
-        # Save the message ID for tracking reactions
-        shared_data["verify_message_id"] = message.id
-        with open("shared.json", "w") as f:
-            json.dump(shared_data, f)
-
-        logging.info(f"Verification message sent in {ctx.channel.name} (ID: {ctx.channel.id}). Message ID: {message.id}")
-        await ctx.send("✅ Verification message sent successfully!")
-    except Exception as e:
-        logging.error(f"Error in verify command: {e}")
-        await ctx.send(f"❌ An error occurred while setting up verification: {e}")
+    # Save the message ID for tracking reactions
+    shared_data["verify_message_id"] = message.id
+    with open("shared.json", "w") as f:
+        json.dump(shared_data, f)
 
 @bot.event
 async def on_raw_reaction_add(payload):
-    """Handle all reactions."""
-    try:
-        # Ignore the bot's own reactions
-        if payload.user_id == bot.user.id:
-            return
+    """Handle reactions to the verification message."""
+    if payload.user_id == bot.user.id:
+        return
 
+    # Load the verification message ID
+    verify_message_id = shared_data.get("verify_message_id")
+    if payload.message_id != verify_message_id:
+        return
+
+    # Check if the reaction is ✅
+    if str(payload.emoji) == "✅":
         guild = bot.get_guild(payload.guild_id)
-        if not guild:
-            logging.error(f"Guild not found for ID: {payload.guild_id}")
-            return
-
         member = guild.get_member(payload.user_id)
-        if not member:
+        if member is None:
             member = await guild.fetch_member(payload.user_id)
-            if not member:
-                logging.error(f"Member not found for ID: {payload.user_id}")
-                return
 
-        emoji = str(payload.emoji)
-
-        # Handle verification reactions
-        verify_message_id = shared_data.get("verify_message_id")
-        if verify_message_id and payload.message_id == verify_message_id:
-            if emoji == "✅":
-                role_name = ".・🍨︴Member ✰"
-                role = discord.utils.get(guild.roles, name=role_name)
-                if not role:
-                    # Create the role if it doesn't exist
-                    try:
-                        role = await guild.create_role(name=role_name)
-                        logging.info(f"Role '{role_name}' created in guild '{guild.name}' (ID: {guild.id}).")
-                    except discord.Forbidden:
-                        logging.error(f"Insufficient permissions to create role '{role_name}' in guild '{guild.name}'.")
-                        await member.send("❌ I do not have permission to create the verification role. Please contact an administrator.")
-                        return
-                    except Exception as e:
-                        logging.error(f"Error creating role '{role_name}': {e}")
-                        return
-
-                # Assign the role to the member
-                try:
-                    await member.add_roles(role)
-                    await member.send(f"✅ You have been verified and given the role: **{role_name}**.")
-                    logging.info(f"Role '{role_name}' assigned to {member.name}#{member.discriminator} (ID: {member.id}).")
-                except discord.Forbidden:
-                    logging.error(f"Insufficient permissions to assign role '{role_name}' to {member.name}#{member.discriminator}.")
-                    await member.send("❌ I do not have permission to assign the verification role. Please contact an administrator.")
-                except Exception as e:
-                    logging.error(f"Error assigning role '{role_name}' to {member.name}#{member.discriminator}: {e}")
-            return
-
-        # Handle country selection reactions
-        country_roles = {
-            "🇺🇸": "United States 🇺🇸",
-            "🇨🇦": "Canada 🇨🇦",
-            "🇬🇧": "United Kingdom 🇬🇧",
-            "🇦🇺": "Australia 🇦🇺",
-            "🇮🇳": "India 🇮🇳",
-            "🇩🇪": "Germany 🇩🇪",
-            "🇫🇷": "France 🇫🇷",
-            "🇯🇵": "Japan 🇯🇵",
-            "🇰🇷": "South Korea 🇰🇷",
-            "🇧🇷": "Brazil 🇧🇷",
-        }
-        if emoji in country_roles:
-            role_name = country_roles[emoji]
-            role = discord.utils.get(guild.roles, name=role_name)
-            if not role:
-                role = await guild.create_role(name=role_name)
-            await member.add_roles(role)
-            await member.send(f"You have been given the {role_name} role.")
-            logging.info(f"Role '{role_name}' assigned to {member.name}#{member.discriminator} (ID: {member.id}).")
-            return
-
-        # Handle color role reactions
-        color_roles = {
-            "🔴": "Red",
-            "🟠": "Orange",
-            "🟡": "Yellow",
-            "🟢": "Green",
-            "🌲": "Dark Green",
-            "🔵": "Light Blue",
-            "🔷": "Blue",
-            "🔹": "Dark Blue",
-            "🟣": "Violet",
-            "🌸": "Pink",
-            "⚪": "White",
-            "⚫": "Black",
-            "🟤": "Brown",
-        }
-        if emoji in color_roles:
-            role_name = color_roles[emoji]
-            role = discord.utils.get(guild.roles, name=role_name)
-            if not role:
-                role = await guild.create_role(name=role_name)
-            await member.add_roles(role)
-            await member.send(f"You have been given the {role_name} role.")
-            logging.info(f"Role '{role_name}' assigned to {member.name}#{member.discriminator} (ID: {member.id}).")
-            return
-
-    except Exception as e:
-        logging.error(f"Error in on_raw_reaction_add: {e}")
+        # Find the exact role
+        role_name = ".・🍨︴Member ✰"
+        role = discord.utils.get(guild.roles, name=role_name)
+        if not role:
+            # Create the role if it doesn't exist
+            role = await guild.create_role(name=role_name)
+        
+        # Assign the role to the member
+        await member.add_roles(role)
+        await member.send(f"✅ You have been verified and given the role: **{role_name}**.")
 
 # Command: Choose Continent
 @bot.command()
@@ -655,7 +572,7 @@ async def mhelp(ctx, command_name: str = None):
     embed = discord.Embed(
         title=command_name,
         description=f"Here is the info about {command_name}.",
-        color=discord.Color.blue(),
+        color=discord.Color.light_gray(),
     )
     embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/3593/3593455.png")
 
@@ -674,41 +591,11 @@ async def mhelp(ctx, command_name: str = None):
     elif command_name == "ask":
         embed.add_field(name="Ask", value="Ask ChatGPT 2 Turbo a question.")
         embed.add_field(name="How to execute", value="?ask 'Question'")
-    elif command_name == "analyse":
-        embed.add_field(name="Analyse", value="Analyse a user or yourself")
-        embed.add_field(name="How to execute", value="?analyse 'nothing = yourself or @user")
-    elif command_name == "createrole":
-        embed.add_field(name="Create a role", value="Create a custom role.")
-        embed.add_field(name="How to execute", value="?createrole 'role name' 'permissions (member, mod or admin)' 'color (hex code)'")
-    elif command_name == "giverole":
-        embed.add_field(name="Give a role", value="Give a custom role")
-        embed.add_field(name="How to execute", value="?giverole 'rolename' 'user'")
-    elif command_name == "removerole":
-        embed.add_field(name="Remove a role", value="Remove a custom role")
-        embed.add_field(name="How to execute", value="?removerole 'rolename' 'user'")
-    elif command_name == "warn":
-        embed.add_field(name="Warn an user", value="Warn a user with or without a specific reason")
-        embed.add_field(name="How to execute", value="?warn 'user' 'reason'")
-    elif command_name == "kick":
-        embed.add_field(name="Kick an user", value="Kick a user with or without a specific reason")
-        embed.add_field(name="How to execute", value="?kick 'user' 'reason'")
-    elif command_name == "ban":
-        embed.add_field(name="Ban", value="Ban an user with or without a specific reason")
-        embed.add_field(name="How to execute", value="?ban 'user' 'reason'")
-    elif command_name == "givexp":
-        embed.add_field(name="Give XP", value="Give XP to a specific user or yourself (i think)")
-        embed.add_field(name="How to execute", value="?givexp 'user' 'xp'")
-    elif command_name == "gainlvl":
-        embed.add_field(name="Gain a level", value="Gain a level from a specific command")
-        embed.add_field(name="How to execute", value="?gainlvl 'user'")
-    elif command_name == "copydm":
-        embed.add_field(name="Copy DM", value="Copy and send a message to a user's DM")
-        embed.add_field(name="How to execute", value="?copydm 'user' 'message'")
     else:
         embed = discord.Embed(
             title="Oops...",
             description=f"Sorry, we couldn't find the command named `{command_name}`.",
-            color=discord.Color.gray(),
+            color=discord.Color.blue(),
         )
 
     await ctx.send(embed=embed)
@@ -723,6 +610,7 @@ async def help(ctx):
     ?info - Get information about the bot
     ?serverinfo - Get information about the current server
     ?shutdown - Shut down the bot (Admin only)
+    ?start - Start the bot (Admin only)
     ?poll - Create a poll (Usage: ?poll <question> <option1, option2, ...>)
     ?ask - Ask ChatGPT (Usage: ?ask <your message>)
     ?analyse - Analyse the user you want (Usage: ?analyse @user)
@@ -1077,7 +965,7 @@ async def giverole(ctx, role_name: str, member: discord.Member):
 # Command: Remove Role
 @bot.command()
 @commands.has_permissions(manage_roles=True)
-async def removerole(ctx, role: discord.Role, member: discord.Member):
+async def removerole(ctx, member: discord.Member, role: discord.Role):
     if role in member.roles:
         await member.remove_roles(role)
         await ctx.send(f"✅ Removed role **{role.name}** from {member.mention}.")
@@ -1091,14 +979,9 @@ async def info(ctx):
     Status: Unstable build
     Version: {bot_info['version']}
     Owner: smiley_unsmiley
-    Use changelog if you wanna see the new features added in this update!
+    New stuff: {bot_info['new_stuff']}
     """
     await ctx.send(custominfo)
-
-@bot.command(name="changelog")
-async def changelog(ctx):
-    changelog = f"Here is the changelog for the {bot_info['version']} version: {bot_info['new_stuff']}"
-    await ctx.send(changelog)
 
 
 @bot.command()
@@ -1318,6 +1201,139 @@ async def colorrole(ctx):
     reactions = ["🔴", "🟠", "🟡", "🟢", "🌲", "🔵", "🔷", "🔹", "🟣", "🌸", "⚪", "⚫", "🟤"]
     for reaction in reactions:
         await message.add_reaction(reaction)
+
+# Event: On reaction add
+@bot.event
+async def on_raw_reaction_add(payload):
+    if payload.user_id == bot.user.id:
+        return
+
+    guild = bot.get_guild(payload.guild_id)
+    member = guild.get_member(payload.user_id)
+    if member is None:
+        member = await guild.fetch_member(payload.user_id)
+    emoji = str(payload.emoji)
+
+    role_name = None
+    if emoji == "🔴":
+        role_name = "Red"
+    elif emoji == "🟠":
+        role_name = "Orange"
+    elif emoji == "🟡":
+        role_name = "Yellow"
+    elif emoji == "🟢":
+        role_name = "Green"
+    elif emoji == "🌲":
+        role_name = "Dark Green"
+    elif emoji == "🔵":
+        role_name = "Light Blue"
+    elif emoji == "🔷":
+        role_name = "Blue"
+    elif emoji == "🔹":
+        role_name = "Dark Blue"
+    elif emoji == "🟣":
+        role_name = "Violet"
+    elif emoji == "🌸":
+        role_name = "Pink"
+    elif emoji == "⚪":
+        role_name = "White"
+    elif emoji == "⚫":
+        role_name = "Black"
+    elif emoji == "🟤":
+        role_name = "Brown"
+    elif emoji == "🇺🇸":
+        role_name = "United States 🇺🇸"
+    elif emoji == "🇨🇦":
+        role_name = "Canada 🇨🇦"
+    elif emoji == "🇬🇧":
+        role_name = "United Kingdom 🇬🇧"
+    elif emoji == "🇦🇺":
+        role_name = "Australia 🇦🇺"
+    elif emoji == "🇮🇳":
+        role_name = "India 🇮🇳"
+    elif emoji == "🇩🇪":
+        role_name = "Germany 🇩🇪"
+    elif emoji == "🇫🇷":
+        role_name = "France 🇫🇷"
+    elif emoji == "🇯🇵":
+        role_name = "Japan 🇯🇵"
+    elif emoji == "🇰🇷":
+        role_name = "South Korea 🇰🇷"
+    elif emoji == "🇧🇷":
+        role_name = "Brazil 🇧🇷"
+
+    if role_name:
+        role = discord.utils.get(guild.roles, name=role_name)
+        if not role:
+            role = await guild.create_role(name=role_name)
+        await member.add_roles(role)
+        await member.send(f"You have been given the {role_name} role.")
+
+# Event: On reaction remove (optional, to remove the role when the reaction is removed)
+@bot.event
+async def on_raw_reaction_remove(payload):
+    if payload.user_id == bot.user.id:
+        return
+
+    guild = bot.get_guild(payload.guild_id)
+    member = guild.get_member(payload.user_id)
+    if member is None:
+        member = await guild.fetch_member(payload.user_id)
+    emoji = str(payload.emoji)
+
+    role_name = None
+    if emoji == "🔴":
+        role_name = "Red"
+    elif emoji == "🟠":
+        role_name = "Orange"
+    elif emoji == "🟡":
+        role_name = "Yellow"
+    elif emoji == "🟢":
+        role_name = "Green"
+    elif emoji == "🌲":
+        role_name = "Dark Green"
+    elif emoji == "🔵":
+        role_name = "Light Blue"
+    elif emoji == "🔷":
+        role_name = "Blue"
+    elif emoji == "🔹":
+        role_name = "Dark Blue"
+    elif emoji == "🟣":
+        role_name = "Violet"
+    elif emoji == "🌸":
+        role_name = "Pink"
+    elif emoji == "⚪":
+        role_name = "White"
+    elif emoji == "⚫":
+        role_name = "Black"
+    elif emoji == "🟤":
+        role_name = "Brown"
+    elif emoji == "🇺🇸":
+        role_name = "United States 🇺🇸"
+    elif emoji == "🇨🇦":
+        role_name = "Canada 🇨🇦"
+    elif emoji == "🇬🇧":
+        role_name = "United Kingdom 🇬🇧"
+    elif emoji == "🇦🇺":
+        role_name = "Australia 🇦🇺"
+    elif emoji == "🇮🇳":
+        role_name = "India 🇮🇳"
+    elif emoji == "🇩🇪":
+        role_name = "Germany 🇩🇪"
+    elif emoji == "🇫🇷":
+        role_name = "France 🇫🇷"
+    elif emoji == "🇯🇵":
+        role_name = "Japan 🇯🇵"
+    elif emoji == "🇰🇷":
+        role_name = "South Korea 🇰🇷"
+    elif emoji == "🇧🇷":
+        role_name = "Brazil 🇧🇷"
+
+    if role_name:
+        role = discord.utils.get(guild.roles, name=role_name)
+        if role:
+            await member.remove_roles(role)
+            await member.send(f"The {role_name} role has been removed from you.")
 
 @bot.command(name="daily")
 async def daily(ctx):
@@ -2028,29 +2044,6 @@ if not os.path.exists("music"):
 @bot.command(name="upload")
 async def upload(ctx, *, url: str = None):
     """Allow users to upload .mp3 files or provide a URL to download."""
-    # Check if the music folder has more than 50 files
-    oldest_file = check_music_folder()
-    if oldest_file:
-        await ctx.send(
-            f"⚠️ The music folder has more than 50 songs. Continuing will delete the oldest file: `{os.path.basename(oldest_file)}`. Do you want to proceed? (yes/no)"
-        )
-
-        def check(m):
-            return m.author == ctx.author and m.channel == ctx.channel and m.content.lower() in ["yes", "no"]
-
-        try:
-            response = await bot.wait_for("message", check=check, timeout=30.0)
-            if response.content.lower() == "no":
-                await ctx.send("❌ Operation canceled.")
-                return
-            else:
-                os.remove(oldest_file)  # Delete the oldest file
-                await ctx.send(f"🗑️ Deleted the oldest file: `{os.path.basename(oldest_file)}`.")
-        except asyncio.TimeoutError:
-            await ctx.send("⏰ You took too long to respond. Operation canceled.")
-            return
-
-    # Proceed with the upload logic
     if not ctx.message.attachments and not url:
         await ctx.send("❌ Please attach an audio file or provide a URL to upload.")
         return
@@ -2088,35 +2081,13 @@ ffmpeg_path = r"C:\Users\roland\Downloads\ffmpeg-2025-03-31-git-35c091f4b7-full_
 
 @bot.command(name="play")
 async def play(ctx, *, query: str = None):
-    """Play a song from a URL, the music folder, or by its number."""
-    # Check if the music folder has more than 50 files
-    oldest_file = check_music_folder()
-    if oldest_file:
-        await ctx.send(
-            f"⚠️ The music folder has more than 50 songs. Continuing will delete the oldest file: `{os.path.basename(oldest_file)}`. Do you want to proceed? (yes/no)"
-        )
-
-        def check(m):
-            return m.author == ctx.author and m.channel == ctx.channel and m.content.lower() in ["yes", "no"]
-
-        try:
-            response = await bot.wait_for("message", check=check, timeout=30.0)
-            if response.content.lower() == "no":
-                await ctx.send("❌ Operation canceled.")
-                return
-            else:
-                os.remove(oldest_file)  # Delete the oldest file
-                await ctx.send(f"🗑️ Deleted the oldest file: `{os.path.basename(oldest_file)}`.")
-        except asyncio.TimeoutError:
-            await ctx.send("⏰ You took too long to respond. Operation canceled.")
-            return
-
-    # Proceed with the play logic
+    """Play a song from a URL or the music folder."""
     if not ctx.author.voice:
         await ctx.send("❌ You must be in a voice channel to use this command.")
         return
 
     voice_channel = ctx.author.voice.channel
+
 
     try:
         # Join the voice channel
@@ -2125,20 +2096,13 @@ async def play(ctx, *, query: str = None):
         else:
             vc = ctx.voice_client
 
-        # If a query is provided, check if it's a number or a URL
+        # Log FFmpeg path
+        ffmpeg_path = "ffmpeg"  # Default to "ffmpeg" if it's in PATH
+        logger.info(f"Using FFmpeg executable: {ffmpeg_path}")
+
+        # If a query is provided, check if it's a URL
         if query:
-            if query.isdigit():
-                # Play the song by its number
-                songs = sorted(os.listdir("music"))
-                song_index = int(query) - 1  # Convert to zero-based index
-                if 0 <= song_index < len(songs):
-                    song_path = os.path.join("music", songs[song_index])
-                    await ctx.send(f"🎵 Now playing: `{songs[song_index]}`")
-                else:
-                    await ctx.send(f"❌ Invalid song number. Please use a number between 1 and {len(songs)}.")
-                    return
-            elif query.startswith("http://") or query.startswith("https://"):
-                # Play a song from a URL
+            if query.startswith("http://") or query.startswith("https://"):
                 await ctx.send(f"🔍 Searching for `{query}`...")
                 ydl_opts = {
                     "format": "bestaudio/best",
@@ -2150,7 +2114,7 @@ async def play(ctx, *, query: str = None):
                     song_path = ydl.prepare_filename(info)
                     await ctx.send(f"✅ Downloaded `{info['title']}`. Now playing...")
             else:
-                # Play a song by its name
+                # Assume the query is a local file name
                 song_path = os.path.join("music", query)
                 if not os.path.exists(song_path):
                     await ctx.send(f"❌ The file `{query}` does not exist in the music folder.")
@@ -2332,15 +2296,6 @@ async def weather(ctx, *, city: str):
         )
     except Exception as e:
         await ctx.send(f"❌ An error occurred: {e}")
-
-def check_music_folder():
-    """Check if the music folder has more than 50 files and return the oldest file."""
-    music_folder = "music"
-    files = [os.path.join(music_folder, f) for f in os.listdir(music_folder) if os.path.isfile(os.path.join(music_folder, f))]
-    if len(files) > 50:
-        oldest_file = min(files, key=os.path.getctime)  # Get the oldest file based on creation time
-        return oldest_file
-    return None
 
 # Run the bot
 bot.run(token)  # Replace with your actual bot token

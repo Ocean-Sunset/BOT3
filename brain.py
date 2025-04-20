@@ -1,5 +1,7 @@
 import discord
 from discord.ext import commands
+from discord.ext.commands import CooldownMapping
+from discord.ext.commands import BucketType
 from yt_dlp import YoutubeDL
 from discord import FFmpegPCMAudio
 from googletrans import Translator
@@ -73,10 +75,64 @@ if os.path.exists("data/warnings.json"):
 else:
     warnings_data = {}
 
-# Save user data
-def save_user_data():
-    with open("data/user_data.json", "w") as f:
-        json.dump(user_data, f)
+def get_balance(user_id):
+    """Get the balance of a user."""
+    data = load_user_data()
+    if str(user_id) not in data:
+        data[str(user_id)] = {"xp": 0, "level": 1, "coins": 100, "balance": 0, "warnings": []}
+        save_user_data(data)
+    return data[str(user_id)].get("balance", 0)
+
+def update_balance(user_id, amount):
+    """Update the balance of a user."""
+    data = load_user_data()
+    if str(user_id) not in data:
+        data[str(user_id)] = {"xp": 0, "level": 1, "coins": 100, "balance": 0, "warnings": []}
+    data[str(user_id)]["balance"] = data[str(user_id)].get("balance", 0) + amount
+    save_user_data(data)
+
+USER_DATA_FILE = "data/user_data.json"
+
+
+def save_user_data(data):
+    """Save user data to the JSON file."""
+    with open(USER_DATA_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+        
+def load_user_data():
+    """Load user data from the JSON file."""
+    if not os.path.exists(USER_DATA_FILE):
+        return {}
+    with open(USER_DATA_FILE, "r") as f:
+        return json.load(f)
+
+def get_user_data(user_id):
+    """Get data for a specific user."""
+    data = load_user_data()
+    if str(user_id) not in data:
+        # Initialize default values for new users
+        data[str(user_id)] = {"xp": 0, "level": 1, "coins": 100, "balance": 0, "warnings": []}
+        save_user_data(data)
+    else:
+        # Ensure all required keys exist for existing users
+        user_data = data[str(user_id)]
+        user_data.setdefault("xp", 0)
+        user_data.setdefault("level", 1)
+        user_data.setdefault("coins", 100)
+        user_data.setdefault("balance", 0)
+        user_data.setdefault("warnings", [])
+        data[str(user_id)] = user_data
+        save_user_data(data)
+    return data[str(user_id)]
+
+def update_user_data(user_id, key, value):
+    """Update a specific field for a user."""
+    data = load_user_data()
+    if str(user_id) not in data:
+        data[str(user_id)] = {"xp": 0, "level": 1, "coins": 100, "balance": 0, "warnings": []}
+    data[str(user_id)][key] = value
+    save_user_data(data)
+    logging.info(f"Updated {key} for user {user_id}: {value}")
 
 # Save warnings data
 def save_warnings_data():
@@ -112,24 +168,6 @@ async def on_command_error(ctx, error):
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-
-# File to store user money data
-money_data_file = "data/money_data.json"
-
-# Load or initialize money data
-if os.path.exists(money_data_file):
-    try:
-        with open(money_data_file, "r") as f:
-            money_data = json.load(f)
-    except json.JSONDecodeError:
-        money_data = {}
-else:
-    money_data = {}
-
-# Save money data
-def save_money_data():
-    with open(money_data_file, "w") as f:
-        json.dump(money_data, f)
 
 # Custom logging handler to send logs to the logs channel
 class DiscordLogHandler(logging.Handler):
@@ -317,76 +355,45 @@ async def update(ctx, *, args: str):
     # Restart the bot with the skip-input flag
     os.execv(sys.executable, ["python", __file__, "--skip-input"])
 
-# Event: On message
-@bot.event
-async def on_message(message):
-    global user_data  # Add this line to reference the global user_data variable
+cooldown = CooldownMapping.from_cooldown(1, 10, BucketType.user)  # 1 message per 60 seconds
 
-    if message.author == bot.user:
+@bot.command(name="profile")
+async def profile(ctx):
+    """Check your XP, level, and coins."""
+    user_id = ctx.author.id
+    user_data = get_user_data(user_id)
+
+    xp = user_data["xp"]
+    level = user_data["level"]
+    coins = user_data["coins"]
+
+    await ctx.send(f"📜 **{ctx.author.name}'s Profile**:\n"
+                   f"🔹 XP: {xp}\n"
+                   f"🔹 Level: {level}\n"
+                   f"🔹 Coins: {coins}")
+
+@bot.command(name="buylevel")
+async def buylevel(ctx, levels: int = 1):
+    """Buy levels using coins."""
+    if levels <= 0:
+        await ctx.send("❌ You must buy at least 1 level.")
         return
 
-    user_id = str(message.author.id)
-    if user_id not in user_data:
-        user_data[user_id] = {"xp": 0, "level": 1}
+    user_id = ctx.author.id
+    user_data = get_user_data(user_id)
 
-    user_data[user_id]["xp"] += 2  # Reward 10 XP per message
-    current_xp = user_data[user_id]["xp"]
-    current_level = user_data[user_id]["level"]
-    next_level_xp = current_level * 100  # Example: 100 XP per level
+    cost = levels * 100  # Cost per level
+    if user_data["coins"] < cost:
+        await ctx.send(f"❌ You don't have enough coins. You need {cost} coins to buy {levels} level(s).")
+        return
 
-    if current_xp >= next_level_xp:
-        user_data[user_id]["level"] += 1
-        user_data[user_id]["xp"] = current_xp - next_level_xp
-        await message.channel.send(f"🎉 {message.author.mention} has reached level {user_data[user_id]['level']}!")
-        logging.info(f"{message.author} has reached level {user_data[user_id]['level']}")
+    # Deduct coins and increase levels
+    user_data["coins"] -= cost
+    user_data["level"] += levels
+    update_user_data(user_id, "coins", user_data["coins"])
+    update_user_data(user_id, "level", user_data["level"])
 
-    save_user_data()
-
-    # Anti-spam logic
-    user_id = str(message.author.id)
-    current_time = time.time()
-
-    if user_id in warnings_data:
-        user_data = warnings_data[user_id]
-        user_data["messages"].append(current_time)
-
-        # Remove messages older than 10 seconds from tracking
-        user_data["messages"] = [msg_time for msg_time in user_data["messages"] if current_time - msg_time < 10]
-
-        # Take action if the user exceeds the message limit
-        if len(user_data["messages"]) > 5:  # Limit: 5 messages in 10 seconds
-            await message.channel.send(f"🚨 {message.author.mention}, you are spamming! Please slow down.")
-            await message.delete()  # Optionally delete the spam message
-            logs_channel = get_logs_channel(message.guild)
-            if logs_channel:
-                await logs_channel.send(f"User {message.author} was warned for spamming in {message.channel}")
-            # Add a warning
-            if user_id not in warnings_data:
-                warnings_data[user_id] = {"warnings": 0}
-            warnings_data[user_id]["warnings"] += 1
-            save_warnings_data()
-
-            # Mute the user if they reach 5 warnings
-            if warnings_data[user_id]["warnings"] >= 5:
-                mute_role = discord.utils.get(message.guild.roles, name="Muted")
-                if not mute_role:
-                    mute_role = await message.guild.create_role(name="Muted")
-                    for channel in message.guild.channels:
-                        await channel.set_permissions(mute_role, send_messages=False, speak=False)
-                await message.author.add_roles(mute_role)
-                await message.channel.send(f"{message.author.mention} has been muted for 10 minutes due to excessive warnings.")
-                await logs_channel.send(f"{message.author} has been muted for 10 minutes due to excessive warnings.")
-                await asyncio.sleep(600)  # 10 minutes
-                await message.author.remove_roles(mute_role)
-                await message.channel.send(f"{message.author.mention} has been unmuted.")
-                await logs_channel.send(f"{message.author} has been unmuted.")
-    else:
-        # Start tracking the user
-        warnings_data[user_id] = {"messages": [current_time], "warnings": 0}
-
-    save_user_data()
-    # Allow commands to be processed
-    await bot.process_commands(message)
+    await ctx.send(f"🎉 {ctx.author.mention} bought {levels} level(s) for {cost} coins! You are now **Level {user_data['level']}**.")
 
 # Command: Copy text
 @bot.command()
@@ -405,141 +412,6 @@ async def copydm(ctx, member: discord.Member, *, text: str):
         await ctx.send(f"❌ I cannot send DMs to {member.mention}. They might have DMs disabled.")
     except Exception as e:
         await ctx.send(f"❌ An error occurred: {e}")
-
-@bot.command(name="verify")
-@commands.has_permissions(administrator=True)
-async def verify(ctx):
-    """Send a verification message and assign the exact role '.・🍨︴Member ✰' when reacted to."""
-    try:
-        # Create the embed for the verification message
-        embed = discord.Embed(
-            title="Verification",
-            description="React with ✅ to verify yourself and gain access to the server!",
-            color=discord.Color.green(),
-        )
-        embed.set_thumbnail(url="https://www.freeiconspng.com/thumbs/checkmark-png/checkmark-png-5.png")
-
-        # Send the embed message
-        message = await ctx.send(embed=embed)
-
-        # Add the ✅ reaction to the message
-        await message.add_reaction("✅")
-
-        # Save the message ID for tracking reactions
-        shared_data["verify_message_id"] = message.id
-        with open("shared.json", "w") as f:
-            json.dump(shared_data, f)
-
-        logging.info(f"Verification message sent in {ctx.channel.name} (ID: {ctx.channel.id}). Message ID: {message.id}")
-        await ctx.send("✅ Verification message sent successfully!")
-    except Exception as e:
-        logging.error(f"Error in verify command: {e}")
-        await ctx.send(f"❌ An error occurred while setting up verification: {e}")
-
-@bot.event
-async def on_raw_reaction_add(payload):
-    """Handle all reactions."""
-    try:
-        # Ignore the bot's own reactions
-        if payload.user_id == bot.user.id:
-            return
-
-        guild = bot.get_guild(payload.guild_id)
-        if not guild:
-            logging.error(f"Guild not found for ID: {payload.guild_id}")
-            return
-
-        member = guild.get_member(payload.user_id)
-        if not member:
-            member = await guild.fetch_member(payload.user_id)
-            if not member:
-                logging.error(f"Member not found for ID: {payload.user_id}")
-                return
-
-        emoji = str(payload.emoji)
-
-        # Handle verification reactions
-        verify_message_id = shared_data.get("verify_message_id")
-        if verify_message_id and payload.message_id == verify_message_id:
-            if emoji == "✅":
-                role_name = ".・🍨︴Member ✰"
-                role = discord.utils.get(guild.roles, name=role_name)
-                if not role:
-                    # Create the role if it doesn't exist
-                    try:
-                        role = await guild.create_role(name=role_name)
-                        logging.info(f"Role '{role_name}' created in guild '{guild.name}' (ID: {guild.id}).")
-                    except discord.Forbidden:
-                        logging.error(f"Insufficient permissions to create role '{role_name}' in guild '{guild.name}'.")
-                        await member.send("❌ I do not have permission to create the verification role. Please contact an administrator.")
-                        return
-                    except Exception as e:
-                        logging.error(f"Error creating role '{role_name}': {e}")
-                        return
-
-                # Assign the role to the member
-                try:
-                    await member.add_roles(role)
-                    await member.send(f"✅ You have been verified and given the role: **{role_name}**.")
-                    logging.info(f"Role '{role_name}' assigned to {member.name}#{member.discriminator} (ID: {member.id}).")
-                except discord.Forbidden:
-                    logging.error(f"Insufficient permissions to assign role '{role_name}' to {member.name}#{member.discriminator}.")
-                    await member.send("❌ I do not have permission to assign the verification role. Please contact an administrator.")
-                except Exception as e:
-                    logging.error(f"Error assigning role '{role_name}' to {member.name}#{member.discriminator}: {e}")
-            return
-
-        # Handle country selection reactions
-        country_roles = {
-            "🇺🇸": "United States 🇺🇸",
-            "🇨🇦": "Canada 🇨🇦",
-            "🇬🇧": "United Kingdom 🇬🇧",
-            "🇦🇺": "Australia 🇦🇺",
-            "🇮🇳": "India 🇮🇳",
-            "🇩🇪": "Germany 🇩🇪",
-            "🇫🇷": "France 🇫🇷",
-            "🇯🇵": "Japan 🇯🇵",
-            "🇰🇷": "South Korea 🇰🇷",
-            "🇧🇷": "Brazil 🇧🇷",
-        }
-        if emoji in country_roles:
-            role_name = country_roles[emoji]
-            role = discord.utils.get(guild.roles, name=role_name)
-            if not role:
-                role = await guild.create_role(name=role_name)
-            await member.add_roles(role)
-            await member.send(f"You have been given the {role_name} role.")
-            logging.info(f"Role '{role_name}' assigned to {member.name}#{member.discriminator} (ID: {member.id}).")
-            return
-
-        # Handle color role reactions
-        color_roles = {
-            "🔴": "Red",
-            "🟠": "Orange",
-            "🟡": "Yellow",
-            "🟢": "Green",
-            "🌲": "Dark Green",
-            "🔵": "Light Blue",
-            "🔷": "Blue",
-            "🔹": "Dark Blue",
-            "🟣": "Violet",
-            "🌸": "Pink",
-            "⚪": "White",
-            "⚫": "Black",
-            "🟤": "Brown",
-        }
-        if emoji in color_roles:
-            role_name = color_roles[emoji]
-            role = discord.utils.get(guild.roles, name=role_name)
-            if not role:
-                role = await guild.create_role(name=role_name)
-            await member.add_roles(role)
-            await member.send(f"You have been given the {role_name} role.")
-            logging.info(f"Role '{role_name}' assigned to {member.name}#{member.discriminator} (ID: {member.id}).")
-            return
-
-    except Exception as e:
-        logging.error(f"Error in on_raw_reaction_add: {e}")
 
 # Command: Choose Continent
 @bot.command()
@@ -1319,129 +1191,6 @@ async def colorrole(ctx):
     for reaction in reactions:
         await message.add_reaction(reaction)
 
-@bot.command(name="daily")
-async def daily(ctx):
-    user_id = str(ctx.author.id)
-    current_time = datetime.utcnow()
-
-    # Initialize user data if not present
-    if user_id not in money_data:
-        money_data[user_id] = {"balance": 0, "last_daily": None}
-
-    # Check if the user has already claimed their daily reward
-    last_daily = money_data[user_id]["last_daily"]
-    if last_daily:
-        last_daily_time = datetime.strptime(last_daily, "%Y-%m-%d %H:%M:%S")
-        if (current_time - last_daily_time).days < 1:
-            await ctx.send("❌ You have already claimed your daily reward. Try again tomorrow!")
-            return
-
-    # Give daily reward
-    reward = 100  # Amount of daily reward
-    money_data[user_id]["balance"] += reward
-    money_data[user_id]["last_daily"] = current_time.strftime("%Y-%m-%d %H:%M:%S")
-    save_money_data()
-
-    await ctx.send(f"✅ You have claimed your daily reward of {reward} coins! Your new balance is {money_data[user_id]['balance']} coins.")
-
-@bot.command(name="balance")
-async def balance(ctx, member: discord.Member = None):
-    if member is None:
-        member = ctx.author
-
-    user_id = str(member.id)
-    balance = money_data.get(user_id, {}).get("balance", 0)
-    await ctx.send(f"💰 {member.mention} has {balance} coins.")
-
-@bot.command(name="steal")
-async def steal(ctx, target: discord.Member):
-    if target == ctx.author:
-        await ctx.send("❌ You cannot steal from yourself!")
-        return
-
-    user_id = str(ctx.author.id)
-    target_id = str(target.id)
-
-    # Ensure both users have balances
-    if user_id not in money_data:
-        money_data[user_id] = {"balance": 0, "last_daily": None}
-    if target_id not in money_data:
-        money_data[target_id] = {"balance": 0, "last_daily": None}
-
-    # Check if the target has enough money to steal
-    if money_data[target_id]["balance"] < 50:
-        await ctx.send(f"❌ {target.mention} does not have enough coins to steal from!")
-        return
-
-    # Guess game
-    number_to_guess = random.randint(1, 10)
-    await ctx.send(f"🎲 Guess a number between 1 and 10 to steal from {target.mention}. You have 1 attempt!")
-
-    def check(m):
-        return m.author == ctx.author and m.channel == ctx.channel and m.content.isdigit()
-
-    try:
-        guess = await bot.wait_for("message", check=check, timeout=15.0)
-        if int(guess.content) == number_to_guess:
-            stolen_amount = random.randint(20, 50)
-            money_data[user_id]["balance"] += stolen_amount
-            money_data[target_id]["balance"] -= stolen_amount
-            save_money_data()
-            await ctx.send(f"✅ You guessed correctly and stole {stolen_amount} coins from {target.mention}!")
-        else:
-            await ctx.send(f"❌ Wrong guess! The correct number was {number_to_guess}. Better luck next time!")
-    except asyncio.TimeoutError:
-        await ctx.send("⏰ You took too long to respond! The stealing attempt failed.")
-
-@bot.command(name="give")
-@commands.has_permissions(administrator=True)
-async def give(ctx, member: discord.Member, amount: int):
-    """Give coins to a user (Admin only)."""
-    if amount <= 0:
-        await ctx.send("❌ The amount must be greater than 0.")
-        return
-
-    user_id = str(member.id)
-
-    # Ensure the user has a balance entry
-    if user_id not in money_data:
-        money_data[user_id] = {"balance": 0, "last_daily": None}
-
-    # Add the amount to the user's balance
-    money_data[user_id]["balance"] += amount
-    save_money_data()
-
-    await ctx.send(f"✅ {amount} coins have been given to {member.mention}. Their new balance is {money_data[user_id]['balance']} coins.")
-
-@bot.command(name="stealadmin")
-@commands.has_permissions(administrator=True)
-async def stealadmin(ctx, target: discord.Member, recipient: discord.Member, amount: int):
-    """Steal coins from one user and give them to another (Admin only)."""
-    if amount <= 0:
-        await ctx.send("❌ The amount must be greater than 0.")
-        return
-
-    target_id = str(target.id)
-    recipient_id = str(recipient.id)
-
-    # Ensure both users have balance entries
-    if target_id not in money_data:
-        money_data[target_id] = {"balance": 0, "last_daily": None}
-    if recipient_id not in money_data:
-        money_data[recipient_id] = {"balance": 0, "last_daily": None}
-
-    # Check if the target has enough coins
-    if money_data[target_id]["balance"] < amount:
-        await ctx.send(f"❌ {target.mention} does not have enough coins to steal!")
-        return
-
-    # Transfer the coins
-    money_data[target_id]["balance"] -= amount
-    money_data[recipient_id]["balance"] += amount
-    save_money_data()
-
-    await ctx.send(f"✅ {amount} coins have been stolen from {target.mention} and given to {recipient.mention}.")
-
 @bot.command(name="wheel")
 async def wheel(ctx, *, names: str):
     """Spin a wheel of names and pick one randomly."""
@@ -1460,166 +1209,6 @@ async def wheel(ctx, *, names: str):
     # Pick a random name
     chosen_name = random.choice(name_list)
     await ctx.send(f"🎉 The wheel has chosen: **{chosen_name}**!")
-
-@bot.command(name="leaderboard")
-async def leaderboard(ctx):
-    """Display the top users based on their balance."""
-    sorted_users = sorted(money_data.items(), key=lambda x: x[1]["balance"], reverse=True)
-    leaderboard_message = "🏆 **Leaderboard** 🏆\n"
-    for i, (user_id, data) in enumerate(sorted_users[:10], start=1):
-        user = await bot.fetch_user(int(user_id))
-        leaderboard_message += f"{i}. {user.name} - {data['balance']} coins\n"
-    await ctx.send(leaderboard_message)
-
-@bot.command(name="trivia")
-async def trivia(ctx):
-    """Start a trivia game."""
-    questions = {
-        "What is the capital of France?": "Paris",
-        "What is 757.124964164? + 64565*(6454/15)": "27799991.524964165",
-        "Who wrote 'To Kill a Mockingbird'?": "Harper Lee",
-        "What is the largest planet in our solar system?": "Jupiter",
-        "What is the chemical symbol for gold?": "Au",
-        "What is the smallest prime number?": "2",
-        "Who painted the Mona Lisa?": "Leonardo da Vinci",
-        "What is the largest mammal?": "Blue Whale",
-        "What is the capital of Japan?": "Tokyo",
-        "What is the hardest natural substance on Earth?": "Diamond",
-        "What is the main ingredient in guacamole?": "Avocado",
-        "What is the longest river in the world?": "Nile",
-        "What is the largest desert in the world?": "Sahara",
-        "What is the speed of light?": "299792458 m/s",
-        "What is the boiling point of water?": "100°C",
-        "What is the largest ocean on Earth?": "Pacific Ocean",
-        "What is the most spoken language in the world?": "Mandarin Chinese",
-        "What is the capital of Canada?": "Ottawa",
-        "What is the currency of Japan?": "Yen",
-        "What is the tallest mountain in the world?": "Mount Everest",
-        "What is the largest continent?": "Asia",
-        "What is the main ingredient in sushi?": "Rice",
-        "What is the capital of Italy?": "Rome",
-        "What is the largest country in the world?": "Russia",
-        "What is the most populous country?": "China",
-        "What is the capital of Australia?": "Canberra",
-        "What is the largest island in the world?": "Greenland",
-        "What is the main ingredient in hummus?": "Chickpeas",
-        "What is the capital of Germany?": "Berlin",
-        "What is the largest volcano in the world?": "Mauna Loa",
-        "What is the chemical symbol for silver?": "Ag",
-        "What is the largest city in the world?": "Tokyo",
-        "What is the main ingredient in chocolate?": "Cocoa",
-        "What is the capital of Spain?": "Madrid",
-        "What is the largest lake in the world?": "Caspian Sea",
-        "What is the main ingredient in bread?": "Flour",
-        "What is the capital of Russia?": "Moscow",
-        "What is the largest animal on land?": "African Elephant",
-        "What is the main ingredient in pizza?": "Dough",
-        "What is the capital of Egypt?": "Cairo",
-        "What is the largest city in the USA?": "New York City",
-        "What is the main ingredient in curry?": "Spices",
-        "What is the capital of Brazil?": "Brasilia",
-        "What is the largest organ in the human body?": "Skin",
-        "What is the main ingredient in pancakes?": "Flour",
-        "What is the capital of India?": "New Delhi",
-        "What is the largest city in Canada?": "Toronto",
-        "What is the main ingredient in salad?": "Vegetables",
-        "What is the capital of Mexico?": "Mexico City",
-        "What is the largest city in Australia?": "Sydney",
-        "What is the main ingredient in soup?": "Broth",
-        "What is the capital of Argentina?": "Buenos Aires",
-        "What is the largest city in Europe?": "Moscow",
-        "What is the main ingredient in ice cream?": "Cream",
-        "What is the capital of South Africa?": "Pretoria",
-        "What is the main ingredient in cheese?": "Milk",
-        "What is the capital of Turkey?": "Ankara",
-        "What is the main ingredient in jelly?": "Fruit",
-        "What is the capital of Thailand?": "Bangkok",
-        "What is the main ingredient in mayonnaise?": "Eggs",
-        "What is the capital of Greece?": "Athens",
-        "What is the main ingredient in ketchup?": "Tomatoes",
-        "What is the capital of Portugal?": "Lisbon",
-        "What is the main ingredient in mustard?": "Mustard seeds",
-        "What is the capital of Sweden?": "Stockholm",
-        "What is the main ingredient in salsa?": "Tomatoes",
-        "What is the capital of Norway?": "Oslo",
-        "What is the main ingredient in pesto?": "Basil",
-        "What is the capital of Denmark?": "Copenhagen",
-        "What is the main ingredient in guacamole?": "Avocado",
-        "What is the capital of Finland?": "Helsinki",
-        "What is the main ingredient in tzatziki?": "Yogurt",
-        "What is the capital of Hungary?": "Budapest",
-        "What is the main ingredient in hummus?": "Chickpeas",
-        "What is the capital of Czech Republic?": "Prague",
-        "What is the main ingredient in falafel?": "Chickpeas",
-        "What is the capital of Slovakia?": "Bratislava",
-        "What is the main ingredient in tabbouleh?": "Bulgur",
-        "What is the capital of Romania?": "Bucharest",
-        "What is the main ingredient in moussaka?": "Eggplant",
-        "What is the capital of Bulgaria?": "Sofia",
-        "What is the main ingredient in baklava?": "Phyllo dough",
-        "What is the capital of Serbia?": "Belgrade",
-        "What is the main ingredient in goulash?": "Beef",
-        "What is the capital of Croatia?": "Zagreb",
-        "What is the chemical symbol for iron?": "Fe",
-        "What is the main ingredient in paella?": "Rice",
-        "What is the capital of Slovenia?": "Ljubljana",
-        "What is the main ingredient in risotto?": "Rice",
-        "What is the capital of Bosnia and Herzegovina?": "Sarajevo",
-        "What is the main ingredient in borscht?": "Beets",
-        "What is the capital of Montenegro?": "Podgorica",
-        "What is the main ingredient in cevapi?": "Ground meat",
-        "What is the capital of North Macedonia?": "Skopje",
-        "What is the main ingredient in ajvar?": "Red peppers",
-        "What is the capital of Albania?": "Tirana",
-        "What is the main ingredient in sarma?": "Cabbage",
-        "What is the capital of Kosovo?": "Pristina",
-        "What is the main ingredient in burek?": "Phyllo dough",
-        "What is the capital of Malta?": "Valletta",
-        "What is the main ingredient in pastizzi?": "Ricotta",
-        "What is the capital of Cyprus?": "Nicosia",
-        "What is the main ingredient in halloumi?": "Cheese",
-        "What is the capital of Luxembourg?": "Luxembourg City",
-        "What is the main ingredient in quiche?": "Eggs",
-        "What is the capital of Liechtenstein?": "Vaduz",
-        "What is the main ingredient in fondue?": "Cheese",
-        "What is the capital of Monaco?": "Monaco",
-        "What is the main ingredient in ratatouille?": "Vegetables",
-        "What is the capital of San Marino?": "San Marino",
-        "What is the main ingredient in tiramisu?": "Coffee",
-        "What is the capital of Vatican City?": "Vatican City",
-        "What is the main ingredient in panna cotta?": "Cream",
-        "What is the capital of Andorra?": "Andorra la Vella",
-        "What is the main ingredient in churros?": "Dough",
-        "What is the capital of Monaco?": "Monaco",
-        "What is the main ingredient in croissants?": "Dough",
-        "What is the capital of Gibraltar?": "Gibraltar",
-        "What is the main ingredient in scones?": "Flour",
-        "What is the capital of Bermuda?": "Hamilton",
-        "What is the main ingredient in shortbread?": "Butter",
-        "What is the capital of the Bahamas?": "Nassau",
-        
-
-    }
-    question, answer = random.choice(list(questions.items()))
-    await ctx.send(f"❓ {question}")
-
-    def check(m):
-        return m.author == ctx.author and m.channel == ctx.channel
-
-    try:
-        response = await bot.wait_for("message", check=check, timeout=60.0)
-        if response.content.lower() == answer.lower():
-            reward = 50
-            user_id = str(ctx.author.id)
-            if user_id not in money_data:
-                money_data[user_id] = {"balance": 0, "last_daily": None}
-            money_data[user_id]["balance"] += reward
-            save_money_data()
-            await ctx.send(f"✅ Correct! You earned {reward} coins.")
-        else:
-            await ctx.send(f"❌ Wrong! The correct answer was **{answer}**.")
-    except asyncio.TimeoutError:
-        await ctx.send("⏰ Time's up! You didn't answer in time.")
 
 @bot.command(name="reminder")
 async def remindme(ctx, time: int, *, reminder: str):
@@ -1695,22 +1284,49 @@ async def afk(ctx, *, reason="AFK"):
 
 @bot.event
 async def on_message(message):
-    if message.author.id in afk_users:
-        del afk_users[message.author.id]
-        await message.channel.send(f"✅ Welcome back, {message.author.mention}!")
-    for mention in message.mentions:
-        if mention.id in afk_users:
-            await message.channel.send(f"🔔 {mention.mention} is AFK: {afk_users[mention.id]}")
-    await bot.process_commands(message)
+    """Handle all on_message events."""
+    global last_activity_time
 
-@bot.event
-async def on_message(message):
+    # Ignore bot's own messages
+    if message.author.bot:
+        return
+
+    # Update last activity time for inactivity monitoring
+    last_activity_time = datetime.utcnow()
+
+    # Handle AFK users
     if message.author.id in afk_users:
         del afk_users[message.author.id]
         await message.channel.send(f"✅ Welcome back, {message.author.mention}!")
     for mention in message.mentions:
         if mention.id in afk_users:
             await message.channel.send(f"🔔 {mention.mention} is AFK: {afk_users[mention.id]}")
+
+    # Handle XP system
+    bucket = cooldown.get_bucket(message)
+    retry_after = bucket.update_rate_limit()
+    if not retry_after:  # Only grant XP if not in cooldown
+        user_id = message.author.id
+        user_data = get_user_data(user_id)
+
+        # Grant XP
+        user_data["xp"] += 10
+        xp_needed = user_data["level"] * 100  # XP needed to level up
+
+        # Check for level up
+        if user_data["xp"] >= xp_needed:
+            user_data["xp"] -= xp_needed
+            user_data["level"] += 1
+            user_data["coins"] += 50  # Reward coins for leveling up
+            await message.channel.send(f"🎉 {message.author.mention} leveled up to **Level {user_data['level']}**! You earned 50 coins!")
+
+        # Save updated user data
+        update_user_data(user_id, "xp", user_data["xp"])
+        update_user_data(user_id, "level", user_data["level"])
+        update_user_data(user_id, "coins", user_data["coins"])
+        logging.info(f"User {message.author.name} (ID: {user_id}) gained 10 XP. Total XP: {user_data['xp']}.")
+
+    # Process commands
     await bot.process_commands(message)
 
 @bot.command(name="tictactoe")
@@ -1807,50 +1423,6 @@ async def color(ctx, *, color_input: str):
     except ValueError:
         await ctx.send("❌ Invalid color input. Please provide a valid color name or hex code (e.g., `red` or `#FF0000`).")
 
-@bot.command(name="delmoney")
-@commands.has_permissions(administrator=True)
-async def delmoney(ctx, member: discord.Member, amount: int):
-    """Delete money from a user's balance (Admin only)."""
-    if amount <= 0:
-        await ctx.send("❌ The amount must be greater than 0.")
-        return
-
-    user_id = str(member.id)
-
-    # Ensure the user has a balance entry
-    if user_id not in money_data:
-        money_data[user_id] = {"balance": 0, "last_daily": None}
-
-    # Check if the user has enough money to delete
-    if money_data[user_id]["balance"] < amount:
-        await ctx.send(f"❌ {member.mention} does not have enough coins to delete {amount} coins.")
-        return
-
-    # Deduct the amount from the user's balance
-    money_data[user_id]["balance"] -= amount
-    save_money_data()
-
-    await ctx.send(f"✅ {amount} coins have been deleted from {member.mention}'s balance. Their new balance is {money_data[user_id]['balance']} coins.")
-
-try:
-    with open("shared.json", "r") as f:
-        shared_data = json.load(f)
-except (FileNotFoundError, json.JSONDecodeError):
-    shared_data = {}  # Initialize with an empty dictionary if the file is missing or invalid
-    with open("shared.json", "w") as f:
-        json.dump(shared_data, f)
-
-# Track the last activity time
-last_activity_time = datetime.utcnow()
-
-# Update the last activity time on any command or message
-@bot.event
-async def on_message(message):
-    global last_activity_time
-    if message.author != bot.user:  # Ignore bot's own messages
-        last_activity_time = datetime.utcnow()
-    await bot.process_commands(message)  # Allow commands to be processed
-
 @bot.event
 async def on_command(ctx):
     global last_activity_time
@@ -1920,22 +1492,6 @@ async def stopgame(ctx):
                 await ctx.send(f"❌ An error occurred while trying to undeafen {ctx.author.mention}: {e}")
     else:
         await ctx.send(f"❌ {ctx.author.mention}, you are not currently gaming.")
-
-@bot.event
-async def on_message(message):
-    """Handle pings to gaming users."""
-    if message.author.bot:
-        return
-
-    # Check if the message mentions a gaming user
-    for mention in message.mentions:
-        user_id = str(mention.id)
-        if user_id in user_data and user_data[user_id].get("gaming"):
-            game_name = user_data[user_id]["gaming"]
-            await message.channel.send(f"⛔ {mention.mention} is currently gaming on **{game_name}**. Please try again later!")
-            return
-
-    await bot.process_commands(message)
 
 if __name__ == "__main__":
     # Parse command-line arguments
@@ -2342,7 +1898,273 @@ def check_music_folder():
         return oldest_file
     return None
 
+@bot.command(name="balance")
+async def balance(ctx):
+    """Check your current balance."""
+    user_id = ctx.author.id
+    balance = get_balance(user_id)
+    await ctx.send(f"💰 {ctx.author.mention}, your current balance is **{balance} coins**.")
+
+def can_claim_daily(user_id):
+    """Check if the user can claim their daily reward."""
+    data = load_user_data()
+    if str(user_id) not in data:
+        data[str(user_id)] = {"xp": 0, "level": 1, "coins": 100, "balance": 0, "warnings": [], "last_daily": None}
+        save_user_data(data)
+    last_daily = data[str(user_id)].get("last_daily")
+    if last_daily:
+        last_claim_time = datetime.fromisoformat(last_daily)
+        return datetime.utcnow() >= last_claim_time + timedelta(days=1)
+    return True
+
+def update_last_daily(user_id):
+    """Update the last daily claim time for a user."""
+    data = load_user_data()
+    if str(user_id) not in data:
+        data[str(user_id)] = {"xp": 0, "level": 1, "coins": 100, "balance": 0, "warnings": [], "last_daily": None}
+    data[str(user_id)]["last_daily"] = datetime.utcnow().isoformat()
+    save_user_data(data)
+
+@bot.command(name="daily")
+async def daily(ctx):
+    """Claim your daily reward."""
+    user_id = ctx.author.id
+    if can_claim_daily(user_id):
+        reward = 100  # Amount of coins rewarded daily
+        update_balance(user_id, reward)
+        update_last_daily(user_id)
+        await ctx.send(f"✅ {ctx.author.mention}, you have claimed your daily reward of **{reward} coins**!")
+    else:
+        await ctx.send(f"❌ {ctx.author.mention}, you have already claimed your daily reward. Try again tomorrow!")
+
+@bot.command(name="give")
+async def give(ctx, member: discord.Member, amount: int):
+    """Give coins to another user."""
+    if amount <= 0:
+        await ctx.send("❌ You must give a positive amount of coins.")
+        return
+
+    giver_id = ctx.author.id
+    receiver_id = member.id
+
+    giver_balance = get_balance(giver_id)
+    if giver_balance < amount:
+        await ctx.send(f"❌ {ctx.author.mention}, you don't have enough coins to give. Your balance is **{giver_balance} coins**.")
+        return
+
+    # Deduct from giver and add to receiver
+    update_balance(giver_id, -amount)
+    update_balance(receiver_id, amount)
+
+    await ctx.send(f"✅ {ctx.author.mention} gave **{amount} coins** to {member.mention}.")
+
+@bot.command(name="steal")
+async def steal(ctx, member: discord.Member):
+    """Attempt to steal coins from another user."""
+    if member == ctx.author:
+        await ctx.send("❌ You cannot steal from yourself!")
+        return
+
+    thief_id = ctx.author.id
+    victim_id = member.id
+
+    victim_balance = get_balance(victim_id)
+    if victim_balance <= 0:
+        await ctx.send(f"❌ {member.mention} has no coins to steal.")
+        return
+
+    # Determine the amount to steal (randomized)
+    stolen_amount = random.randint(1, min(50, victim_balance))
+
+    # Deduct from victim and add to thief
+    update_balance(victim_id, -stolen_amount)
+    update_balance(thief_id, stolen_amount)
+
+    await ctx.send(f"💰 {ctx.author.mention} stole **{stolen_amount} coins** from {member.mention}!")
+
+@bot.command(name="verify")
+@commands.has_permissions(administrator=True)
+async def verify(ctx):
+    """Send a verification message and assign the role '.・🍨︴Member ✰' when reacted to."""
+    try:
+        # Create the embed for the verification message
+        embed = discord.Embed(
+            title="Verification",
+            description="React with ✅ to verify yourself and gain access to the server!",
+            color=discord.Color.green(),
+        )
+        embed.set_thumbnail(url="https://www.freeiconspng.com/thumbs/checkmark-png/checkmark-png-5.png")
+
+        # Send the embed message
+        message = await ctx.send(embed=embed)
+
+        # Add the ✅ reaction to the message
+        await message.add_reaction("✅")
+
+        # Save the message ID in the user_data.json file
+        data = load_user_data()
+        data["verify_message_id"] = message.id
+        save_user_data(data)
+
+        logging.info(f"Verification message sent in {ctx.channel.name} (ID: {ctx.channel.id}). Message ID: {message.id}")
+        await ctx.send("✅ Verification message sent successfully!")
+    except Exception as e:
+        logging.error(f"Error in verify command: {e}")
+        await ctx.send(f"❌ An error occurred while setting up verification: {e}")
+        
+@bot.event
+async def on_raw_reaction_add(payload):
+    """Handle reactions to the verification message."""
+    try:
+        # Ignore the bot's own reactions
+        if payload.user_id == bot.user.id:
+            return
+
+        # Load the verification message ID from user_data.json
+        data = load_user_data()
+        verify_message_id = data.get("verify_message_id")
+        if not verify_message_id:
+            logging.warning("Verification message ID not found in user data.")
+            return
+
+        if payload.message_id != verify_message_id:
+            return
+
+        # Check if the reaction is ✅
+        if str(payload.emoji) == "✅":
+            guild = bot.get_guild(payload.guild_id)
+            if not guild:
+                logging.error(f"Guild not found for ID: {payload.guild_id}")
+                return
+
+            member = guild.get_member(payload.user_id)
+            if not member:
+                member = await guild.fetch_member(payload.user_id)
+                if not member:
+                    logging.error(f"Member not found for ID: {payload.user_id}")
+                    return
+
+            # Find or create the verification role
+            role_name = ".・🍨︴Member ✰"
+            role = discord.utils.get(guild.roles, name=role_name)
+            if not role:
+                try:
+                    role = await guild.create_role(name=role_name)
+                    logging.info(f"Role '{role_name}' created in guild '{guild.name}' (ID: {guild.id}).")
+                except discord.Forbidden:
+                    logging.error(f"Insufficient permissions to create role '{role_name}' in guild '{guild.name}'.")
+                    await member.send("❌ I do not have permission to create the verification role. Please contact an administrator.")
+                    return
+                except Exception as e:
+                    logging.error(f"Error creating role '{role_name}': {e}")
+                    return
+
+            # Assign the role to the member
+            try:
+                await member.add_roles(role)
+                await member.send(f"✅ You have been verified and given the role: **{role_name}**.")
+                logging.info(f"Role '{role_name}' assigned to {member.name}#{member.discriminator} (ID: {member.id}).")
+
+                # Update the user_data.json file to mark the user as verified
+                user_data = load_user_data()
+                if str(member.id) not in user_data:
+                    user_data[str(member.id)] = {"xp": 0, "level": 1, "coins": 100, "balance": 0, "warnings": []}
+                user_data[str(member.id)]["verified"] = True
+                save_user_data(user_data)
+            except discord.Forbidden:
+                logging.error(f"Insufficient permissions to assign role '{role_name}' to {member.name}#{member.discriminator}.")
+                await member.send("❌ I do not have permission to assign the verification role. Please contact an administrator.")
+            except Exception as e:
+                logging.error(f"Error assigning role '{role_name}' to {member.name}#{member.discriminator}: {e}")
+    except Exception as e:
+        logging.error(f"Error in on_raw_reaction_add: {e}")
+
+@bot.command(name="trivia")
+async def trivia(ctx, question: str, *options):
+    """Play a trivia game with a question and multiple options."""
+    if len(options) < 2:
+        await ctx.send("❌ You need at least two options to create a trivia question.")
+        return
+    if len(options) > 10:
+        await ctx.send("❌ You can only have up to 10 options for a trivia question.")
+        return
+
+    # Create an embed for the trivia question
+    embed = discord.Embed(
+        title="Trivia Time! 🎉",
+        description=question,
+        color=discord.Color.blue()
+    )
+    reactions = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+
+    # Add options to the embed
+    for i, option in enumerate(options):
+        embed.add_field(name=f"Option {i + 1}", value=option, inline=False)
+
+    # Send the trivia question
+    trivia_message = await ctx.send(embed=embed)
+
+    # Add reactions for each option
+    for i in range(len(options)):
+        await trivia_message.add_reaction(reactions[i])
+
+    # Wait for 30 seconds to collect answers
+    await asyncio.sleep(30)
+
+    # Fetch the updated message to count reactions
+    trivia_message = await ctx.channel.fetch_message(trivia_message.id)
+    results = {reactions[i]: trivia_message.reactions[i].count - 1 for i in range(len(options))}
+
+    # Determine the winning option
+    winner = max(results, key=results.get)
+    winning_index = reactions.index(winner)
+    winning_option = options[winning_index]
+
+    # Announce the winner
+    await ctx.send(f"🏆 The winning option is: **{winning_option}** with **{results[winner]} votes**!")
+
+@bot.command(name="leaderboard")
+async def leaderboard(ctx, category: str = None):
+    """Display the leaderboard for level, XP, or coins."""
+    if category not in ["level", "xp", "coins"]:
+        await ctx.send("❌ Invalid category. Use `?leaderboard level`, `?leaderboard xp`, or `?leaderboard coins`.")
+        return
+
+    # Load user data
+    data = load_user_data()
+
+    # Prepare the leaderboard
+    leaderboard_data = []
+    for user_id, user_info in data.items():
+        if user_id.isdigit():  # Ensure it's a user ID
+            user = ctx.guild.get_member(int(user_id))
+            if user:  # Only include users who are in the server
+                leaderboard_data.append({
+                    "name": user.display_name,
+                    "level": user_info.get("level", 0),
+                    "xp": user_info.get("xp", 0),
+                    "coins": user_info.get("coins", 0)
+                })
+
+    # Sort the leaderboard based on the selected category
+    leaderboard_data = sorted(leaderboard_data, key=lambda x: x[category], reverse=True)
+
+    # Create the leaderboard message
+    embed = discord.Embed(
+        title=f"🏆 {category.capitalize()} Leaderboard",
+        description=f"Top users by {category.capitalize()}",
+        color=discord.Color.gold()
+    )
+
+    for i, entry in enumerate(leaderboard_data[:10], start=1):  # Show top 10 users
+        embed.add_field(
+            name=f"{i}. {entry['name']}",
+            value=f"**{category.capitalize()}:** {entry[category]}",
+            inline=False
+        )
+
+    await ctx.send(embed=embed)
+
 # Run the bot
 bot.run(token)  # Replace with your actual bot token
-shared_data == {"Connection: true"}
 save_user_data()

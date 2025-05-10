@@ -102,30 +102,6 @@ intents.guilds = True
 intents.members = True
 intents.reactions = True
 
-def verify_ffmpeg():
-    """Verify that FFMPEG is installed and accessible."""
-    try:
-        import subprocess
-        result = subprocess.run(["ffmpeg", "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        if result.returncode != 0:
-            raise EnvironmentError("FFMPEG is not accessible. Please check your installation.")
-    except FileNotFoundError:
-        raise FileNotFoundError("FFMPEG is not installed or not in PATH.")
-    
-def initialize_background_tasks():
-    """Initialize background tasks."""
-    bot.loop.create_task(monitor_inactivity())
-    bot.loop.create_task(update_bot_data_periodically())
-    bot.loop.create_task(handle_website_commands())
-    bot.loop.create_task(change_status())
-    print("Status task has been sent!")
-    print(f"✅ Bot is ready! Logged in as {bot.user}")
-    print(f"Connected to {len(bot.guilds)} guild(s).")
-    logging.info(f"Logged in as {bot.user}")
-    print("Handling website commands task has started.")
-    bot.loop.create_task(chat_reviver_task())
-    logging.info(f"Chat reviver task started.")
-
 level_roles = {
     5: "[🌱 Novice]",
     10: "[🔰 Apprentice]",
@@ -133,15 +109,6 @@ level_roles = {
     30: "[🏆 Master]",
     50: "[👑 Grandmaster]"
 }
-
-def setup_commands():
-    """Ensure all commands are properly set up."""
-    if not bot.commands:
-        raise RuntimeError("No commands are registered. Please check the bot's command setup.")
-
-def finish_startup():
-    """Perform final startup steps."""
-    print("✅ All startup tasks completed successfully.")
 
 # Create the bot with intents
 bot = commands.Bot(command_prefix="?", intents=intents)
@@ -279,29 +246,35 @@ def update_coins(user_id, amount):
 
 USER_DATA_FILE = "data/user_data.json"
 
+
+def save_user_data(data):
+    """Save user data to the JSON file."""
+    try:
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(USER_DATA_FILE), exist_ok=True)
+
+        # Write the data to the file
+        with open(USER_DATA_FILE, "w") as f:
+            json.dump(data, f, indent=4)
+    except Exception as e:
+        print(f"❌ Error saving user data: {e}")
+
 def load_user_data():
     """Load user data from the JSON file."""
     try:
-        if os.path.exists(USER_DATA_FILE):
-            with open(USER_DATA_FILE, "r") as f:
-                return json.load(f)
-        else:
-            return {}  # Return an empty dictionary if the file doesn't exist
+        # Check if the file exists
+        if not os.path.exists(USER_DATA_FILE):
+            return {}
+
+        # Read the data from the file
+        with open(USER_DATA_FILE, "r") as f:
+            return json.load(f)
     except json.JSONDecodeError:
         print("❌ Error: user_data.json is corrupted. Initializing with an empty dictionary.")
         return {}
     except Exception as e:
         print(f"❌ Error loading user data: {e}")
         return {}
-
-def save_user_data(data):
-    """Save user data to the JSON file."""
-    try:
-        os.makedirs(os.path.dirname(USER_DATA_FILE), exist_ok=True)
-        with open(USER_DATA_FILE, "w") as f:
-            json.dump(data, f, indent=4)
-    except Exception as e:
-        print(f"❌ Error saving user data: {e}")
 
 def load_limitations():
     """Load limitations from the JSON file."""
@@ -343,21 +316,6 @@ def update_user_data(user_id, key, value):
     data[str(user_id)][key] = value
     save_user_data(data)
     logging.info(f"Updated {key} for user {user_id}: {value}")
-
-def verify_files():
-    """Verify that all required files exist."""
-    required_files = [
-        "data/user_data.json",
-        "data/easter.json",
-        "data/trophies.json",
-        "data/warnings.json",
-        "data/bank.json",
-        "data/server_restrictions.json",
-        "data/banned_servers.json",
-    ]
-    missing_files = [file for file in required_files if not os.path.exists(file)]
-    if missing_files:
-        raise FileNotFoundError(f"Missing required files: {', '.join(missing_files)}")
 
 # Save warnings data
 def save_warnings_data():
@@ -1582,13 +1540,14 @@ async def removerole(ctx, role: discord.Role, member: discord.Member):
 @bot.command()
 async def info(ctx):
     custominfo = f"""# I am a multifunctional python Discord bot!
-    - Status: Normal
-    - Build: A-1 Original
+    - Status: Exclusive
+    - Build: A-1 Exclusive
     - Version: **{bot_info['version']}**
     - Developper: th3_t1sm
     
     I am multifunctional discord bot created by th3_t1sm,
-    This is the official bot from th3_t1sm.
+    This bot is Exclusive to Akari's Ashed Graveyard.
+    As well as the build who will receive custom updates.
     """
     await ctx.send(custominfo)
 
@@ -1678,53 +1637,21 @@ async def shutdown(ctx):
     # Set the bot's status to "Offline" and idle
     await bot.change_presence(status=discord.Status.idle, activity=discord.Game("[🔌⚠️] : Offline"))
     await ctx.send("🔌 The bot is now in sleep mode. Use `?start` to wake it up.")
+
 @bot.command(name="start")
 @commands.check(is_owner)
 async def start(ctx):
-    """Wake the bot up from sleep mode and show dynamic task updates with a spinning loading animation."""
+    """Wake the bot up from sleep mode."""
     global is_sleeping
     if not is_sleeping:
         await ctx.send("✅ The bot is already active.")
         return
 
     is_sleeping = False  # Disable sleep mode
-    
-    # Load existing user data to ensure it is not overwritten
-    global user_data
-    user_data = load_user_data()
-
-    # Send the initial "Starting..." message
-    start_message = await ctx.send("# [ 🔄 ] Starting...**")
-
-    # Define the tasks to perform during startup
-    tasks = [
-        {"task": "Loading user data...", "function": load_user_data},
-        {"task": "Verifying required files...", "function": verify_files},
-        {"task": "Connecting to YouTube using FFMPEG...", "function": verify_ffmpeg},
-        {"task": "Initializing background tasks...", "function": initialize_background_tasks},
-        {"task": "Setting up commands...", "function": setup_commands},
-        {"task": "Finishing startup...", "function": finish_startup},
-    ]
-
-    # Define the spinning frames
-    frames = ["|", "/", "-", "\\", "|"]
-
-    # Update the message dynamically for each task
-    for task in tasks:
-        for frame in frames:
-            await start_message.edit(content=f"# [ {frame} ] Starting... \n{task['task']}")
-            await asyncio.sleep(0.2)  # Short delay for the spinning effect
-
-        try:
-            task["function"]()  # Call the associated function
-            await asyncio.sleep(1)  # Simulate time taken for each task
-        except Exception as e:
-            await start_message.edit(content=f"❌ **Error during startup:** {task['task']} failed.\nError: {e}")
-            return
 
     # Restore the bot's normal status
     await bot.change_presence(status=discord.Status.online, activity=discord.Game("with Python 🐍"))
-    await start_message.edit(content="✅ **Bot is now online and ready to use!**")
+    await ctx.send("✅ The bot is now active and ready to use!")
     
 @bot.command(name="kys")
 @commands.check(is_owner)
@@ -2100,7 +2027,7 @@ async def on_message(message):
             await message.channel.send(f"🔔 {mention.mention} is AFK: {afk_users[mention.id]}")
     
     # Handle XP system with custom cooldown
-    user_id = str(message.author.id)
+    user_id = message.author.id
     now = datetime.now()
 
     # Check if the user is on cooldown
@@ -2166,7 +2093,7 @@ async def on_message(message):
 
     # Ensure the user exists in the data and initialize the "messages" key if not present
     if user_id not in data:
-        user_data[user_id] = {"xp": 0, "level": 1, "coins": 100, "warnings": [], "censored_count": 0, "strikes": 0}
+        data[user_id] = {"xp": 0, "level": 1, "coins": 100, "warnings": [], "messages": []}
     elif "messages" not in data[user_id]:
         data[user_id]["messages"] = []
 
@@ -2226,13 +2153,12 @@ async def on_message(message):
             # Remove the reaction if no one reacts within 10 seconds
             await message.clear_reaction(gem_emoji)
             
-    # Define offensive words for each level
     offensive_words = {
         1: ["nigga", "nigger", "Nigga", "Nigger", "NIGGA", "NIGGER"],
         2: ["nigga", "nigger", "Nigga", "Nigger", "NIGGA", "NIGGER", "kys", "kms", "Kill yourself", "kill yourself"],
         3: ["nigga", "nigger", "Nigga", "Nigger", "NIGGA", "NIGGER", "kys", "kms", "Kill yourself", "kill yourself", "fuck", "bitch", "kill", "Fuck", "Bitch", "FUCK", "BITCH"],
         4: ["nigga", "nigger", "Nigga", "Nigger", "NIGGA", "NIGGER", "kys", "kms", "Kill yourself", "kill yourself", "fuck", "bitch", "kill", "Fuck", "Bitch", "FUCK", "BITCH", "shit", "SHIT", "Shit", "ts"],
-        5: ["nigga", "nigger", "Nigga", "Nigger", "NIGGA", "NIGGER", "kys", "kms", "Kill yourself", "kill yourself", "fuck", "bitch", "kill", "Fuck", "Bitch", "FUCK", "BITCH", "shit", "SHIT", "Shit", "ts", "dumb", "Dumb", "DUMB", "ass", "Ass", "ASS", "idiot", "Idiot", "IDIOT", "stupid", "Stupid", "STUPID", "STOOPID", "Stoopid", "stoopid"],
+        5: ["nigga", "nigger", "Nigga", "Nigger", "NIGGA", "NIGGER", "kys", "kms", "Kill yourself", "kill yourself", "fuck", "bitch", "kill", "Fuck", "Bitch", "FUCK", "BITCH", "shit", "SHIT", "Shit", "ts", "dumb", "Dumb", "DUMB", "ass", "Ass", "ASS", "idiot", "Idiot", "IDIOT"],
     }
     
     # Ensure the user exists in the data and initialize missing keys
@@ -2403,9 +2329,20 @@ async def monitor_inactivity():
 # Start the background task when the bot is ready
 @bot.event
 async def on_ready():
-    global is_sleeping
-    is_sleeping = True  # Start in sleep mode
-    await bot.change_presence(status=discord.Status.idle, activity=discord.Game("[🔌⚠️] : Offline"))
+    print(f"✅ Bot is ready! Logged in as {bot.user}")
+    print(f"Connected to {len(bot.guilds)} guild(s).")
+    logging.info(f"Logged in as {bot.user}")
+    bot.loop.create_task(monitor_inactivity())
+    print("Monitor activity task has been started.")
+    asyncio.create_task(update_bot_data_periodically())
+    print("Update bot through website task has started.")
+    asyncio.create_task(handle_website_commands())
+    print("Handling website commands task has started.")
+    bot.loop.create_task(change_status())
+    print("Status task has been sent!")
+    await asyncio.sleep(18000)
+    bot.loop.create_task(chat_reviver_task())
+    logging.info(f"Chat reviver task started.")
 
 current_status = None
 async def change_status():
@@ -2413,9 +2350,9 @@ async def change_status():
     global custom_status
     global is_sleeping
     statuses = itertools.cycle([
-        discord.Game("with Python 🎮"),
-        discord.Activity(type=discord.ActivityType.watching, name="[ 🔍 Looking for interesting stuff to do..]"),
-        discord.Streaming(name="clicc pls it very funni", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+        discord.Game("with Python ❤️"),
+        discord.Activity(type=discord.ActivityType.watching, name="[ 🔍 Akari's Ashed Graveyard]: https://discord.gg/HR48uPMUfK"),
+        discord.Streaming(name="DONT CLICK PLS", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ")
     ])
     while True:
         if is_sleeping:
@@ -3841,6 +3778,100 @@ async def setlimitations(ctx, level: str = None):
     save_limitations(limitations)
 
     await ctx.send(f"✅ Offensive word filtering level set to **{level}**.")
+
+# EXCEPTIONAL DELETE AFTER EVENT.
+
+bot.command(name="easter_finale")
+@commands.check(is_owner)
+async def easter_finale(ctx):
+    """Trigger the Easter Event Finale."""
+    # Announce the finale
+    await ctx.send("🎉 **The Easter Event Finale has begun!** 🎉")
+
+    # Fetch the top 3 users with the most eggs
+    top_users = sorted(
+        easter_data.items(),
+        key=lambda x: x[1].get("eggs", 0),
+        reverse=True
+    )[:3]
+
+    # Prepare the leaderboard message
+    embed = discord.Embed(
+        title="🏆 Easter Event Leaderboard",
+        description="Here are the top 3 egg collectors:",
+        color=discord.Color.gold()
+    )
+    for rank, (user_id, data) in enumerate(top_users, start=1):
+        user = await bot.fetch_user(int(user_id))
+        embed.add_field(
+            name=f"{rank}. {user.name}#{user.discriminator}",
+            value=f"🥚 Eggs Collected: {data['eggs']}",
+            inline=False
+        )
+
+    # Send the leaderboard
+    await ctx.send(embed=embed)
+
+    # Reward the top 3 users
+    rewards = [
+        {"coins": 1000, "gems": 10, "role": "Easter Champion 🥇"},
+        {"coins": 750, "gems": 7, "role": "Easter Runner-Up 🥈"},
+        {"coins": 500, "gems": 5, "role": "Easter Participant 🥉"}
+    ]
+    for rank, (user_id, reward) in enumerate(zip(top_users, rewards), start=1):
+        user_id = user_id[0]
+        user = ctx.guild.get_member(int(user_id))
+        if user:
+            # Add coins and gems
+            update_coins(user_id, reward["coins"])
+            update_gems(user_id, reward["gems"])
+
+            # Assign the role with a random blue color
+            random_blue = discord.Color.from_rgb(
+                random.randint(0, 50),  # Low red value
+                random.randint(100, 200),  # Medium green value
+                random.randint(200, 255)  # High blue value
+            )
+            role = discord.utils.get(ctx.guild.roles, name=reward["role"])
+            if not role:
+                role = await ctx.guild.create_role(name=reward["role"], color=random_blue)
+            await user.add_roles(role)
+
+            # Notify the user
+            await ctx.send(
+                f"🎉 {user.mention} has been rewarded with **{reward['coins']} coins**, **{reward['gems']} gems**, "
+                f"and the **{reward['role']}** role!"
+            )
+
+    # Announce the end of the event
+    await ctx.send("🎊 **The Easter Event has officially ended! Thank you for participating!** 🎊")
+
+async def send_closing_message():
+    """Send a closing message to all servers."""
+    for guild in bot.guilds:
+        channel = discord.utils.find(
+            lambda c: "announcements" in c.name.lower() or "general" in c.name.lower(),
+            guild.text_channels
+        )
+        if channel:
+            await channel.send(
+                "🎊 **The Easter Event has officially ended!** 🎊\n"
+                "Thank you to everyone who participated. Stay tuned for more events in the future!"
+            )
+
+async def schedule_easter_finale():
+    """Schedule the Easter Event Finale."""
+    await bot.wait_until_ready()
+    now = datetime.now()
+    target_time = datetime.combine(now.date(), datetime.min.time()) + timedelta(days=1, hours=2)  # 00:00 UTC+2
+    wait_time = (target_time - now).total_seconds()
+
+    await asyncio.sleep(wait_time)  # Wait until the target time
+    channel = discord.utils.get(bot.get_all_channels(), name="announcements")  # Replace with your channel name
+    if channel:
+        await channel.send("🎉 **The Easter Event Finale has begun!** 🎉")
+    await easter_finale(channel)
+    await send_closing_message()
 
 @bot.command(name="setlogging")
 @commands.has_permissions(administrator=True)

@@ -45,21 +45,6 @@ EASTER_FILE = "data/easter.json"
 TROPHY_FILE = "data/trophies.json"
 BOT_DATA_FILE = "bot_data.txt"
 WEBSITE_COMMANDS_FILE = "website_commands.txt"
-LIMITATIONS_FILE = "f:\\Coding\\Discord\\BOT3\\data\\limitations.json"
-LOGGING_CONFIG_FILE = "data/logging_config.json"
-
-def load_logging_config():
-    """Load logging configuration from the JSON file."""
-    try:
-        with open(LOGGING_CONFIG_FILE, "r") as file:
-            return json.load(file)
-    except FileNotFoundError:
-        return {}
-
-def save_logging_config(data):
-    """Save logging configuration to the JSON file."""
-    with open(LOGGING_CONFIG_FILE, "w") as file:
-        json.dump(data, file, indent=4)
 
 
 # Trophy definitions
@@ -102,30 +87,6 @@ intents.guilds = True
 intents.members = True
 intents.reactions = True
 
-def verify_ffmpeg():
-    """Verify that FFMPEG is installed and accessible."""
-    try:
-        import subprocess
-        result = subprocess.run(["ffmpeg", "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        if result.returncode != 0:
-            raise EnvironmentError("FFMPEG is not accessible. Please check your installation.")
-    except FileNotFoundError:
-        raise FileNotFoundError("FFMPEG is not installed or not in PATH.")
-    
-def initialize_background_tasks():
-    """Initialize background tasks."""
-    bot.loop.create_task(monitor_inactivity())
-    bot.loop.create_task(update_bot_data_periodically())
-    bot.loop.create_task(handle_website_commands())
-    bot.loop.create_task(change_status())
-    print("Status task has been sent!")
-    print(f"✅ Bot is ready! Logged in as {bot.user}")
-    print(f"Connected to {len(bot.guilds)} guild(s).")
-    logging.info(f"Logged in as {bot.user}")
-    print("Handling website commands task has started.")
-    bot.loop.create_task(chat_reviver_task())
-    logging.info(f"Chat reviver task started.")
-
 level_roles = {
     5: "[🌱 Novice]",
     10: "[🔰 Apprentice]",
@@ -133,15 +94,6 @@ level_roles = {
     30: "[🏆 Master]",
     50: "[👑 Grandmaster]"
 }
-
-def setup_commands():
-    """Ensure all commands are properly set up."""
-    if not bot.commands:
-        raise RuntimeError("No commands are registered. Please check the bot's command setup.")
-
-def finish_startup():
-    """Perform final startup steps."""
-    print("✅ All startup tasks completed successfully.")
 
 # Create the bot with intents
 bot = commands.Bot(command_prefix="?", intents=intents)
@@ -279,42 +231,35 @@ def update_coins(user_id, amount):
 
 USER_DATA_FILE = "data/user_data.json"
 
+
+def save_user_data(data):
+    """Save user data to the JSON file."""
+    try:
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(USER_DATA_FILE), exist_ok=True)
+
+        # Write the data to the file
+        with open(USER_DATA_FILE, "w") as f:
+            json.dump(data, f, indent=4)
+    except Exception as e:
+        print(f"❌ Error saving user data: {e}")
+
 def load_user_data():
     """Load user data from the JSON file."""
     try:
-        if os.path.exists(USER_DATA_FILE):
-            with open(USER_DATA_FILE, "r") as f:
-                return json.load(f)
-        else:
-            return {}  # Return an empty dictionary if the file doesn't exist
+        # Check if the file exists
+        if not os.path.exists(USER_DATA_FILE):
+            return {}
+
+        # Read the data from the file
+        with open(USER_DATA_FILE, "r") as f:
+            return json.load(f)
     except json.JSONDecodeError:
         print("❌ Error: user_data.json is corrupted. Initializing with an empty dictionary.")
         return {}
     except Exception as e:
         print(f"❌ Error loading user data: {e}")
         return {}
-
-def save_user_data(data):
-    """Save user data to the JSON file."""
-    try:
-        os.makedirs(os.path.dirname(USER_DATA_FILE), exist_ok=True)
-        with open(USER_DATA_FILE, "w") as f:
-            json.dump(data, f, indent=4)
-    except Exception as e:
-        print(f"❌ Error saving user data: {e}")
-
-def load_limitations():
-    """Load limitations from the JSON file."""
-    try:
-        with open(LIMITATIONS_FILE, "r") as file:
-            return json.load(file)
-    except FileNotFoundError:
-        return {}
-
-def save_limitations(data):
-    """Save limitations to the JSON file."""
-    with open(LIMITATIONS_FILE, "w") as file:
-        json.dump(data, file, indent=4)
 
 def get_user_data(user_id):
     """Get data for a specific user."""
@@ -343,21 +288,6 @@ def update_user_data(user_id, key, value):
     data[str(user_id)][key] = value
     save_user_data(data)
     logging.info(f"Updated {key} for user {user_id}: {value}")
-
-def verify_files():
-    """Verify that all required files exist."""
-    required_files = [
-        "data/user_data.json",
-        "data/easter.json",
-        "data/trophies.json",
-        "data/warnings.json",
-        "data/bank.json",
-        "data/server_restrictions.json",
-        "data/banned_servers.json",
-    ]
-    missing_files = [file for file in required_files if not os.path.exists(file)]
-    if missing_files:
-        raise FileNotFoundError(f"Missing required files: {', '.join(missing_files)}")
 
 # Save warnings data
 def save_warnings_data():
@@ -1490,7 +1420,7 @@ async def checkvc(ctx):
         await ctx.send("No members in the Truth or Dare voice channel.")
 
 @bot.command()
-@commands.check(is_owner) # Ensure the user has the required permissions
+@commands.has_permissions(manage_roles=True)  # Ensure the user has the required permissions
 async def createrole(ctx, name: str, power: str, color: str):
     """Create a role with a specified name, power level, and color."""
     # Map power levels to Discord permissions
@@ -1535,7 +1465,7 @@ async def createrole(ctx, name: str, power: str, color: str):
         await ctx.send(f"❌ An error occurred: {e}")
 
 @bot.command()
-@commands.check(is_owner) # Ensure the user has the required permissions
+@commands.has_permissions(manage_roles=True)  # Ensure the user has the required permissions
 async def giverole(ctx, role_name: str, member: discord.Member):
     """Assign a role to a specified user."""
     # Find the role in the server
@@ -1570,7 +1500,7 @@ async def giverole(ctx, role_name: str, member: discord.Member):
 
 # Command: Remove Role
 @bot.command()
-@commands.check(is_owner)
+@commands.has_permissions(manage_roles=True)
 async def removerole(ctx, role: discord.Role, member: discord.Member):
     if role in member.roles:
         await member.remove_roles(role)
@@ -1582,13 +1512,12 @@ async def removerole(ctx, role: discord.Role, member: discord.Member):
 @bot.command()
 async def info(ctx):
     custominfo = f"""# I am a multifunctional python Discord bot!
-    - Status: Normal
-    - Build: A-1 Original
+    - Status: Stable build
+    - Build: Delta (v1), continued.
     - Version: **{bot_info['version']}**
-    - Developper: th3_t1sm
+    - Owner: th3_t1sm
     
-    I am multifunctional discord bot created by th3_t1sm,
-    This is the official bot from th3_t1sm.
+    I am multifunctional discord bot created by th3_t1sm, this project is continued and made in python.
     """
     await ctx.send(custominfo)
 
@@ -1598,62 +1527,27 @@ async def changelog(ctx):
     await ctx.send(changelog)
 
 
-@bot.command(name="analyse")
+@bot.command()
 async def analyse(ctx, member: discord.Member = None):
-    """Analyse a user with all available data."""
+    """Analyse un utilisateur mentionné ou l'utilisateur qui exécute la commande."""
     if member is None:
-        member = ctx.author  # Default to the command author if no member is mentioned
+        member = ctx.author  # Si aucun membre n'est mentionné, analyser l'auteur de la commande
 
-    # Load user data
-    user_id = str(member.id)
-    user_data = get_user_data(user_id)
-    inventory = load_inventory().get(user_id, [])
-    trophies = trophy_data.get(user_id, [])
-    warnings = warnings_data.get(user_id, {}).get("warnings", 0)
-    eggs_collected = easter_data.get(user_id, {}).get("eggs", 0)
-    gems_collected = user_data.get("gems", 0)
-    bank_balance = get_bank_balance(user_id)
-
-    # Create the embed
     embed = discord.Embed(
-        title=f"Analysis of {member.name}",
-        description=f"Here are the details of {member.mention}",
-        color=discord.Color.blue()
+        title=f"Analyse de {member.name}",
+        description=f"Voici les détails de l'utilisateur {member.mention}",
+        color=discord.Color.green()
     )
 
-    # Add Discord profile details
     embed.set_thumbnail(url=member.avatar.url if member.avatar else None)
-    embed.add_field(name="Full Name", value=f"{member.name}#{member.discriminator}", inline=False)
+    embed.add_field(name="Nom complet", value=f"{member.name}#{member.discriminator}", inline=False)
     embed.add_field(name="ID", value=member.id, inline=False)
-    embed.add_field(name="Status", value=member.status, inline=False)
-    embed.add_field(name="Account Created On", value=member.created_at.strftime("%d %B %Y, %H:%M:%S"), inline=False)
-    embed.add_field(name="Joined Server On", value=member.joined_at.strftime("%d %B %Y, %H:%M:%S"), inline=False)
-    embed.add_field(name="Roles", value=", ".join([role.name for role in member.roles if role.name != "@everyone"]) or "None", inline=False)
-
-    # Add bot-related stats
-    embed.add_field(name="Level", value=user_data.get("level", 0), inline=True)
-    embed.add_field(name="XP", value=user_data.get("xp", 0), inline=True)
-    embed.add_field(name="Coins", value=user_data.get("coins", 0), inline=True)
-    embed.add_field(name="Gems", value=gems_collected, inline=True)
-    embed.add_field(name="Eggs Collected", value=eggs_collected, inline=True)
-    embed.add_field(name="Bank Balance", value=f"{bank_balance} coins", inline=True)
-    embed.add_field(name="Warnings", value=warnings, inline=True)
-
-    # Add inventory details
-    if inventory:
-        inventory_items = "\n".join([f"{item['name']} (Rarity: {item['rarity']})" for item in inventory])
-        embed.add_field(name="Inventory", value=inventory_items, inline=False)
-    else:
-        embed.add_field(name="Inventory", value="Empty", inline=False)
-
-    # Add trophies
-    if trophies:
-        trophy_names = [trophies[trophy_id]["name"] for trophy_id in trophies if trophy_id in trophies]
-        embed.add_field(name="Trophies", value=", ".join(trophy_names), inline=False)
-    else:
-        embed.add_field(name="Trophies", value="None", inline=False)
-
-    # Send the embed
+    embed.add_field(name="Statut", value=member.status, inline=False)
+    embed.add_field(name="Créé le", value=member.created_at.strftime("%d %B %Y, %H:%M:%S"), inline=False)
+    embed.add_field(name="A rejoint le serveur", value=member.joined_at.strftime("%d %B %Y, %H:%M:%S"), inline=False)
+    embed.add_field(name="Rôles", value=", ".join([role.name for role in member.roles if role.name != "@everyone"]), inline=False)
+    
+    print(f"Analyse command triggered by {ctx.author} in channel {ctx.channel}. State: success.")
     await ctx.send(embed=embed)
 
 # ?serverinfo command
@@ -1678,53 +1572,21 @@ async def shutdown(ctx):
     # Set the bot's status to "Offline" and idle
     await bot.change_presence(status=discord.Status.idle, activity=discord.Game("[🔌⚠️] : Offline"))
     await ctx.send("🔌 The bot is now in sleep mode. Use `?start` to wake it up.")
+
 @bot.command(name="start")
 @commands.check(is_owner)
 async def start(ctx):
-    """Wake the bot up from sleep mode and show dynamic task updates with a spinning loading animation."""
+    """Wake the bot up from sleep mode."""
     global is_sleeping
     if not is_sleeping:
         await ctx.send("✅ The bot is already active.")
         return
 
     is_sleeping = False  # Disable sleep mode
-    
-    # Load existing user data to ensure it is not overwritten
-    global user_data
-    user_data = load_user_data()
-
-    # Send the initial "Starting..." message
-    start_message = await ctx.send("# [ 🔄 ] Starting...**")
-
-    # Define the tasks to perform during startup
-    tasks = [
-        {"task": "Loading user data...", "function": load_user_data},
-        {"task": "Verifying required files...", "function": verify_files},
-        {"task": "Connecting to YouTube using FFMPEG...", "function": verify_ffmpeg},
-        {"task": "Initializing background tasks...", "function": initialize_background_tasks},
-        {"task": "Setting up commands...", "function": setup_commands},
-        {"task": "Finishing startup...", "function": finish_startup},
-    ]
-
-    # Define the spinning frames
-    frames = ["|", "/", "-", "\\", "|"]
-
-    # Update the message dynamically for each task
-    for task in tasks:
-        for frame in frames:
-            await start_message.edit(content=f"# [ {frame} ] Starting... \n{task['task']}")
-            await asyncio.sleep(0.2)  # Short delay for the spinning effect
-
-        try:
-            task["function"]()  # Call the associated function
-            await asyncio.sleep(1)  # Simulate time taken for each task
-        except Exception as e:
-            await start_message.edit(content=f"❌ **Error during startup:** {task['task']} failed.\nError: {e}")
-            return
 
     # Restore the bot's normal status
     await bot.change_presence(status=discord.Status.online, activity=discord.Game("with Python 🐍"))
-    await start_message.edit(content="✅ **Bot is now online and ready to use!**")
+    await ctx.send("✅ The bot is now active and ready to use!")
     
 @bot.command(name="kys")
 @commands.check(is_owner)
@@ -2077,9 +1939,6 @@ async def on_message(message):
     global last_activity_time
     global last_activity
     print(f"{last_activity};{last_activity_time}")
-    guild_id = str(message.guild.id)
-    limitations = load_limitations()
-    level = limitations.get(guild_id, 0)  # Default to no filtering if not set
 
     # Ignore bot's own messages
     if message.author.bot:
@@ -2100,7 +1959,7 @@ async def on_message(message):
             await message.channel.send(f"🔔 {mention.mention} is AFK: {afk_users[mention.id]}")
     
     # Handle XP system with custom cooldown
-    user_id = str(message.author.id)
+    user_id = message.author.id
     now = datetime.now()
 
     # Check if the user is on cooldown
@@ -2166,7 +2025,7 @@ async def on_message(message):
 
     # Ensure the user exists in the data and initialize the "messages" key if not present
     if user_id not in data:
-        user_data[user_id] = {"xp": 0, "level": 1, "coins": 100, "warnings": [], "censored_count": 0, "strikes": 0}
+        data[user_id] = {"xp": 0, "level": 1, "coins": 100, "warnings": [], "messages": []}
     elif "messages" not in data[user_id]:
         data[user_id]["messages"] = []
 
@@ -2198,6 +2057,36 @@ async def on_message(message):
         await message.author.add_roles(mute_role, reason="Spamming")
         await asyncio.sleep(10)  # Mute duration (10 seconds)
         await message.author.remove_roles(mute_role, reason="Mute expired")
+
+    # 1% chance to spawn an egg reaction
+    if random.randint(1, 100) == 1:
+        egg_emoji = "🥚"  # Egg emoji
+        await message.add_reaction(egg_emoji)
+
+        def check(reaction, user):
+            return (
+                str(reaction.emoji) == egg_emoji
+                and reaction.message.id == message.id
+                and not user.bot
+            )
+
+        try:
+            # Wait for a user to react within 10 seconds
+            reaction, user = await bot.wait_for("reaction_add", timeout=10.0, check=check)
+
+            # Add the egg to the user's count in easter.json
+            user_id = str(user.id)
+            if user_id not in easter_data:
+                easter_data[user_id] = {"eggs": 0}
+            easter_data[user_id]["eggs"] += 1
+            save_easter_data()
+
+            # Remove the reaction and notify the user
+            await message.clear_reaction(egg_emoji)
+            await message.channel.send(f"# 🎉 {user.mention} found an egg! Total eggs: {easter_data[user_id]['eggs']}")
+        except asyncio.TimeoutError:
+            # Remove the reaction if no one reacts within 10 seconds
+            await message.clear_reaction(egg_emoji)
             
         # 1% chance to spawn a gem reaction
         if random.randint(1, 200) == 1:
@@ -2226,61 +2115,6 @@ async def on_message(message):
             # Remove the reaction if no one reacts within 10 seconds
             await message.clear_reaction(gem_emoji)
             
-    # Define offensive words for each level
-    offensive_words = {
-        1: ["nigga", "nigger", "Nigga", "Nigger", "NIGGA", "NIGGER"],
-        2: ["nigga", "nigger", "Nigga", "Nigger", "NIGGA", "NIGGER", "kys", "kms", "Kill yourself", "kill yourself"],
-        3: ["nigga", "nigger", "Nigga", "Nigger", "NIGGA", "NIGGER", "kys", "kms", "Kill yourself", "kill yourself", "fuck", "bitch", "kill", "Fuck", "Bitch", "FUCK", "BITCH"],
-        4: ["nigga", "nigger", "Nigga", "Nigger", "NIGGA", "NIGGER", "kys", "kms", "Kill yourself", "kill yourself", "fuck", "bitch", "kill", "Fuck", "Bitch", "FUCK", "BITCH", "shit", "SHIT", "Shit", "ts"],
-        5: ["nigga", "nigger", "Nigga", "Nigger", "NIGGA", "NIGGER", "kys", "kms", "Kill yourself", "kill yourself", "fuck", "bitch", "kill", "Fuck", "Bitch", "FUCK", "BITCH", "shit", "SHIT", "Shit", "ts", "dumb", "Dumb", "DUMB", "ass", "Ass", "ASS", "idiot", "Idiot", "IDIOT", "stupid", "Stupid", "STUPID", "STOOPID", "Stoopid", "stoopid"],
-    }
-    
-    # Ensure the user exists in the data and initialize missing keys
-    if user_id not in user_data:
-        user_data[user_id] = {"xp": 0, "level": 1, "coins": 100, "warnings": [], "censored_count": 0, "strikes": 0}
-    elif "censored_count" not in user_data[user_id]:
-        user_data[user_id]["censored_count"] = 0
-    
-    # Check for offensive words
-    if level > 0:
-        for word in offensive_words.get(level, []):
-            if word in message.content.lower():
-                await message.delete()
-                await message.channel.send(f"⚠️ {message.author.mention}, your message was removed for containing offensive language.")
-                # Increment the censored count
-                user_data[user_id]["censored_count"] += 1
-                censored_count = user_data[user_id]["censored_count"]
-
-                # Check if the user has reached the limit
-                if censored_count >= 15:
-                    user_data[user_id]["censored_count"] = 0  # Reset the count
-                    user_data[user_id]["strikes"] += 1  # Add a strike
-                    save_user_data(user_data)
-
-                    # Notify the user and the channel
-                    await message.channel.send(
-                        f"⚠️ {message.author.mention} has been given a **strike** for repeated offensive language. Total strikes: {user_data[user_id]['strikes']}."
-                    )
-
-                    # Take action based on the number of strikes
-                    if user_data[user_id]["strikes"] == 3:
-                        mute_role = discord.utils.get(message.guild.roles, name="Muted")
-                        if not mute_role:
-                            mute_role = await message.guild.create_role(name="Muted")
-                            for channel in message.guild.channels:
-                                await channel.set_permissions(mute_role, send_messages=False, speak=False)
-                        await message.author.add_roles(mute_role)
-                        await message.channel.send(f"🔇 {message.author.mention} has been muted for accumulating 3 strikes.")
-                    elif user_data[user_id]["strikes"] == 5:
-                        await message.author.kick(reason="Reached 5 strikes")
-                        await message.channel.send(f"👢 {message.author.mention} has been kicked for reaching 5 strikes.")
-                    elif user_data[user_id]["strikes"] >= 7:
-                        await message.author.ban(reason="Reached 7 strikes")
-                        await message.channel.send(f"⛔ {message.author.mention} has been banned for reaching 7 strikes.")
-
-                save_user_data(user_data)
-                return
-    
     # Allow the `?start` command to bypass sleep mode
     if is_sleeping and message.content.startswith("?start"):
         await bot.process_commands(message)
@@ -2403,9 +2237,20 @@ async def monitor_inactivity():
 # Start the background task when the bot is ready
 @bot.event
 async def on_ready():
-    global is_sleeping
-    is_sleeping = True  # Start in sleep mode
-    await bot.change_presence(status=discord.Status.idle, activity=discord.Game("[🔌⚠️] : Offline"))
+    print(f"✅ Bot is ready! Logged in as {bot.user}")
+    print(f"Connected to {len(bot.guilds)} guild(s).")
+    logging.info(f"Logged in as {bot.user}")
+    bot.loop.create_task(monitor_inactivity())
+    print("Monitor activity task has been started.")
+    asyncio.create_task(update_bot_data_periodically())
+    print("Update bot through website task has started.")
+    asyncio.create_task(handle_website_commands())
+    print("Handling website commands task has started.")
+    bot.loop.create_task(change_status())
+    print("Status task has been sent!")
+    await asyncio.sleep(18000)
+    bot.loop.create_task(chat_reviver_task())
+    logging.info(f"Chat reviver task started.")
 
 current_status = None
 async def change_status():
@@ -2413,9 +2258,9 @@ async def change_status():
     global custom_status
     global is_sleeping
     statuses = itertools.cycle([
-        discord.Game("with Python 🎮"),
-        discord.Activity(type=discord.ActivityType.watching, name="[ 🔍 Looking for interesting stuff to do..]"),
-        discord.Streaming(name="clicc pls it very funni", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+        discord.Game("with Python 🐍"),
+        discord.Activity(type=discord.ActivityType.watching, name="[ 🔍 HangOut]: https://discord.gg/QgUQnxCwEk"),
+        discord.Streaming(name="Live Coding", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ")
     ])
     while True:
         if is_sleeping:
@@ -3247,6 +3092,268 @@ async def chatreviver_role(ctx):
         logging.error(f"Error in chatreviver_role command: {e}")
         await ctx.send(f"❌ An error occurred while setting up the Chat Reviver role: {e}")
 
+@bot.command(name="easterfight")
+@cooldown(1, 300, BucketType.user)  # 1 use per 300 seconds (5 minutes) per user
+async def easterfight(ctx, member: discord.Member = None):
+    """Start an Easter fight against the bot or another user."""
+    if member is None or member.bot:
+        # Fighting against the bot
+        embed = discord.Embed(
+            title="Easter Fight - Choose Your Difficulty",
+            description=(
+                "React with one of the buttons below to choose your difficulty:\n\n"
+                "🐣 **Easy**: Gain/Lose 1-3 eggs\n"
+                "🐇 **Medium**: Gain/Lose 4-6 eggs\n"
+                "🥚 **Hard**: Gain/Lose 7-10 eggs\n"
+                "🔥 **Extreme**: Gain/Lose 11-15 eggs\n"
+                "💀 **Impossible**: Gain/Lose 20-30 eggs"
+            ),
+            color=discord.Color.orange(),
+        )
+        embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/2917/2917995.png")  # Example Easter icon
+
+        # Create buttons for difficulty levels
+        easy_button = Button(label="Easy", style=discord.ButtonStyle.green, emoji="🐣")
+        medium_button = Button(label="Medium", style=discord.ButtonStyle.blurple, emoji="🐇")
+        hard_button = Button(label="Hard", style=discord.ButtonStyle.red, emoji="🥚")
+        extreme_button = Button(label="Extreme", style=discord.ButtonStyle.danger, emoji="🔥")
+        impossible_button = Button(label="Impossible", style=discord.ButtonStyle.gray, emoji="💀")
+
+        # Define button callbacks
+        async def easy_callback(interaction):
+            if interaction.user != ctx.author:
+                await interaction.response.send_message("❌ You cannot interact with this button.", ephemeral=True)
+                return
+            await start_game_against_bot(ctx.author, interaction, "Easy", 1, 3)
+
+        async def medium_callback(interaction):
+            if interaction.user != ctx.author:
+                await interaction.response.send_message("❌ You cannot interact with this button.", ephemeral=True)
+                return
+            await start_game_against_bot(ctx.author, interaction, "Medium", 4, 6)
+
+        async def hard_callback(interaction):
+            if interaction.user != ctx.author:
+                await interaction.response.send_message("❌ You cannot interact with this button.", ephemeral=True)
+                return
+            await start_game_against_bot(ctx.author, interaction, "Hard", 7, 10)
+
+        async def extreme_callback(interaction):
+            if interaction.user != ctx.author:
+                await interaction.response.send_message("❌ You cannot interact with this button.", ephemeral=True)
+                return
+            await start_game_against_bot(ctx.author, interaction, "Extreme", 11, 15)
+
+        async def impossible_callback(interaction):
+            if interaction.user != ctx.author:
+                await interaction.response.send_message("❌ You cannot interact with this button.", ephemeral=True)
+                return
+            await start_game_against_bot(ctx.author, interaction, "Impossible", 20, 30)
+
+        # Assign callbacks to buttons
+        easy_button.callback = easy_callback
+        medium_button.callback = medium_callback
+        hard_button.callback = hard_callback
+        extreme_button.callback = extreme_callback
+        impossible_button.callback = impossible_callback
+
+        # Create a view and add buttons
+        view = View()
+        view.add_item(easy_button)
+        view.add_item(medium_button)
+        view.add_item(hard_button)
+        view.add_item(extreme_button)
+        view.add_item(impossible_button)
+
+        # Send the embed with buttons
+        await ctx.send(embed=embed, view=view)
+    else:
+        # Fighting against another user
+        await challenge_user(ctx, ctx.author, member)
+
+
+@easterfight.error
+async def example_error(ctx, error):
+    if isinstance(error, CommandOnCooldown):
+        await ctx.send(f"⏳ This command is on cooldown. Try again in {round(error.retry_after, 2)} seconds.")
+
+async def challenge_user(ctx, challenger, opponent):
+    """Challenge another user to an Easter fight."""
+    if opponent.bot:
+        await ctx.send("❌ You cannot challenge a bot!")
+        return
+
+    # Ask the opponent if they want to accept the challenge
+    await ctx.send(f"🎮 {opponent.mention}, {challenger.mention} has challenged you to an Easter fight! Do you accept? (yes/no)")
+
+    def check(m):
+        return m.author == opponent and m.channel == ctx.channel and m.content.lower() in ["yes", "no"]
+
+    try:
+        response = await bot.wait_for("message", check=check, timeout=30.0)
+        if response.content.lower() == "no":
+            await ctx.send(f"❌ {opponent.mention} declined the challenge.")
+            return
+        elif response.content.lower() == "yes":
+            await ctx.send(f"✅ {opponent.mention} accepted the challenge! Let the battle begin!")
+            await start_game_between_users(ctx, challenger, opponent)
+    except asyncio.TimeoutError:
+        await ctx.send(f"⏰ {opponent.mention} did not respond in time. Challenge canceled.")
+
+
+async def start_game_against_bot(user, interaction, difficulty, min_eggs, max_eggs):
+    """Start the button-clicking game against the bot."""
+    bot_clicks = random.randint(10, 20) if difficulty == "Extreme" else random.randint(15, 30) if difficulty == "Impossible" else random.randint(5, 15)
+    user_clicks = 0
+
+    # Defer the interaction to prevent timeout
+    await interaction.response.defer()
+
+    # Create the button for the game
+    click_button = Button(label="Click Me!", style=discord.ButtonStyle.green)
+
+    async def button_callback(interaction):
+        nonlocal user_clicks
+        if interaction.user != user:
+            await interaction.response.send_message("❌ You cannot interact with this button.", ephemeral=True)
+            return
+        user_clicks += 1
+        await interaction.response.defer()  # Acknowledge the interaction without sending a message
+
+    click_button.callback = button_callback
+
+    # Create a view and add the button
+    view = View()
+    view.add_item(click_button)
+
+    # Send the game message as ephemeral (visible only to the user)
+    game_message = await interaction.followup.send(
+        f"🎮 **{user.mention}**, click the button as fast as you can in 15 seconds! 🕒",
+        view=view,
+        ephemeral=True
+    )
+
+    # Wait for 15 seconds
+    await asyncio.sleep(15)
+
+    # Disable the button after the game ends
+    for item in view.children:
+        item.disabled = True
+    await game_message.edit(content=game_message.content, view=view)
+
+    # Determine the result
+    eggs_change = random.randint(min_eggs, max_eggs)
+    if user_clicks > bot_clicks:
+        # User wins
+        update_eggs(user.id, eggs_change)
+        await interaction.followup.send(
+            f"🎉 **{user.mention}**, you clicked **{user_clicks} times** and beat the bot's **{bot_clicks} clicks**! "
+            f"You won **{eggs_change} eggs**! 🥚",
+            ephemeral=True
+        )
+        if user_clicks > bot_clicks and difficulty == "Impossible":
+            user_data = get_user_data(user.id)
+            user_data["impossible_wins"] = user_data.get("impossible_wins", 0) + 1
+            update_user_data(user.id, "impossible_wins", user_data["impossible_wins"])
+            trophy_message = check_trophy_goals(user.id)
+            if trophy_message:
+                await interaction.followup.send(trophy_message, ephemeral=True)
+    else:
+        # User loses
+        update_eggs(user.id, -eggs_change)
+        await interaction.followup.send(
+            f"😢 **{user.mention}**, you clicked **{user_clicks} times**, but the bot clicked **{bot_clicks} times**! "
+            f"You lost **{eggs_change} eggs**. 🥚",
+            ephemeral=True
+        )
+
+
+async def start_game_between_users(ctx, player1, player2):
+    """Start the button-clicking game between two users."""
+    player1_clicks = 0
+    player2_clicks = 0
+
+    # Assign colors to players
+    player1_color = "🔵 Blue"
+    player2_color = "🔴 Red"
+
+    await ctx.send(f"🎮 **{player1.mention}** is {player1_color}, and **{player2.mention}** is {player2_color}!")
+    await asyncio.sleep(3)
+    await ctx.send("Click your button as fast as you can in 15 seconds! 🕒")
+    await asyncio.sleep(2)
+
+    # Create buttons for each player
+    player1_button = Button(label="Click Me!", style=discord.ButtonStyle.blurple, emoji="🔵")
+    player2_button = Button(label="Click Me!", style=discord.ButtonStyle.red, emoji="🔴")
+
+    async def player1_callback(interaction):
+        nonlocal player1_clicks
+        if interaction.user != player1:
+            await interaction.response.send_message("❌ You cannot interact with this button. This is not your game.", ephemeral=True)
+            return
+        player1_clicks += 1
+        await interaction.response.defer()
+
+    async def player2_callback(interaction):
+        nonlocal player2_clicks
+        if interaction.user != player2:
+            await interaction.response.send_message("❌ You cannot interact with this button. This is not your game.", ephemeral=True)
+            return
+        player2_clicks += 1
+        await interaction.response.defer()
+
+    player1_button.callback = player1_callback
+    player2_button.callback = player2_callback
+
+    # Create a view and add the buttons
+    view = View()
+    view.add_item(player1_button)
+    view.add_item(player2_button)
+
+    # Send the game message
+    game_message = await ctx.send("🎮 Click your buttons!", view=view)
+
+    # Wait for 15 seconds
+    await asyncio.sleep(15)
+
+    # Disable the buttons after the game ends
+    for item in view.children:
+        item.disabled = True
+    await game_message.edit(view=view)
+
+    # Determine the result
+    if player1_clicks > player2_clicks:
+        winner = player1
+        loser = player2
+        winner_clicks = player1_clicks
+        loser_clicks = player2_clicks
+    elif player2_clicks > player1_clicks:
+        winner = player2
+        loser = player1
+        winner_clicks = player2_clicks
+        loser_clicks = player1_clicks
+    else:
+        await ctx.send(f"🤝 It's a tie! Both players clicked **{player1_clicks} times**.")
+        return
+
+    # Update eggs for the winner and loser
+    eggs_change = random.randint(5, 10)
+    update_eggs(winner.id, eggs_change)
+    update_eggs(loser.id, -eggs_change)
+
+    await ctx.send(
+        f"# 🎉 **{winner.mention}** clicked **{winner_clicks} times** WON!!" 
+    )
+    await ctx.send(
+        f"**{loser.mention}** who clicked **{loser_clicks} times** lost.. "
+    )
+    await ctx.send(
+        f"# **{winner.mention}** won **{eggs_change} eggs** by winning!! +🥚" 
+    )
+    await ctx.send(
+        f"**{loser.mention}** lost **{eggs_change} eggs**! -🥚.."
+    )
+
 def update_eggs(user_id, eggs_change):
     """Update the user's egg count."""
     user_id = str(user_id)
@@ -3722,158 +3829,8 @@ async def announcement(ctx, channel_name: str = None, *, message: str):
             logging.error(f"Error sending announcement in {guild.name}: {e}")
 
     await ctx.send("✅ Announcement sent to all servers.")
-    
-@bot.command(name="lookup")
-async def lookup(ctx, input_value: str):
-    """Look up a user by their ID or username."""
-    # Check if the input is a user ID
-    if input_value.isdigit():
-        user = await bot.fetch_user(int(input_value))
-        if user:
-            await ctx.send(f"🔍 User ID `{input_value}` belongs to: **{user.name}#{user.discriminator}**")
-        else:
-            await ctx.send(f"❌ No user found with ID `{input_value}`.")
-    else:
-        # Check if the input is a mention or username
-        user = discord.utils.get(ctx.guild.members, name=input_value) or discord.utils.get(ctx.guild.members, mention=input_value)
-        if user:
-            await ctx.send(f"🔍 User `{user.name}#{user.discriminator}` has the ID: **{user.id}**")
-        else:
-            await ctx.send(f"❌ No user found with the name or mention `{input_value}`.")
-            
-# EXCEPTIONAL DELETE AFTER EVENT.
-    
-# Add a dictionary to track user strikes
-user_strikes = {}
 
-@bot.command(name="strike")
-@commands.has_permissions(manage_roles=True)
-async def strike(ctx, member: discord.Member, *, reason: str = "No reason provided"):
-    """Give a strike to a user."""
-    user_id = str(member.id)
-    user_data = load_user_data()
 
-    # Initialize strikes if not present
-    if user_id not in user_data:
-        user_data[user_id] = {"xp": 0, "level": 1, "coins": 100, "warnings": [], "strikes": 0}
-    elif "strikes" not in user_data[user_id]:
-        user_data[user_id]["strikes"] = 0
-
-    # Increment the user's strikes
-    user_data[user_id]["strikes"] += 1
-    strikes = user_data[user_id]["strikes"]
-    save_user_data(user_data)
-
-    await ctx.send(f"⚠️ {member.mention} has been given a strike. Total strikes: **{strikes}**. Reason: {reason}")
-
-    # Take action based on the number of strikes
-    if strikes == 3:
-        mute_role = discord.utils.get(ctx.guild.roles, name="Muted")
-        if not mute_role:
-            mute_role = await ctx.guild.create_role(name="Muted")
-            for channel in ctx.guild.channels:
-                await channel.set_permissions(mute_role, send_messages=False, speak=False)
-        await member.add_roles(mute_role)
-        await ctx.send(f"🔇 {member.mention} has been muted for accumulating 3 strikes.")
-    elif strikes == 5:
-        await member.kick(reason="Reached 5 strikes")
-        await ctx.send(f"👢 {member.mention} has been kicked for reaching 5 strikes.")
-    elif strikes >= 7:
-        await member.ban(reason="Reached 7 strikes")
-        await ctx.send(f"⛔ {member.mention} has been banned for reaching 7 strikes.")
-
-@bot.command(name="clearstrikes")
-@commands.has_permissions(manage_roles=True)
-async def clearstrikes(ctx, member: discord.Member):
-    """Clear all strikes for a user."""
-    user_id = str(member.id)
-    user_data = load_user_data()
-
-    if user_id in user_data and "strikes" in user_data[user_id]:
-        user_data[user_id]["strikes"] = 0
-        save_user_data(user_data)
-        await ctx.send(f"✅ Cleared all strikes for {member.mention}.")
-    else:
-        await ctx.send(f"❌ {member.mention} has no strikes.")
-        
-@bot.command(name="infractions")
-@commands.has_permissions(manage_roles=True)
-async def infractions(ctx, member: discord.Member):
-    """View a user's strikes and warnings."""
-    user_id = str(member.id)
-    user_data = load_user_data()
-
-    # Extract strikes and warnings
-    strikes = user_data.get(user_id, {}).get("strikes", 0)
-    warnings = len(user_data.get(user_id, {}).get("warnings", []))
-
-    await ctx.send(
-        f"📋 **Infractions for {member.mention}:**\n"
-        f"- Strikes: {strikes}\n"
-        f"- Warnings: {warnings}"
-    )
-    
-@bot.command(name="setlimitations")
-@commands.has_permissions(administrator=True)
-async def setlimitations(ctx, level: str = None):
-    """Set the offensive word filtering level."""
-    if not level:
-        await ctx.send(
-            "❓ **Usage:** `?setlimitations <level>`\n"
-            "Levels:\n"
-            "1 - Minimal filtering\n"
-            "2 - Moderate filtering\n"
-            "3 - Strict filtering\n"
-            "4 - Very strict filtering\n"
-            "5 - Block all offensive words"
-        )
-        return
-
-    # Validate level
-    if level not in ["1", "2", "3", "4", "5"]:
-        await ctx.send("❌ Invalid level. Please choose a level between 1 and 5.")
-        return
-
-    # Save the level to the JSON file
-    guild_id = str(ctx.guild.id)
-    limitations = load_limitations()
-    limitations[guild_id] = int(level)
-    save_limitations(limitations)
-
-    await ctx.send(f"✅ Offensive word filtering level set to **{level}**.")
-
-@bot.command(name="setlogging")
-@commands.has_permissions(administrator=True)
-async def setlogging(ctx, action: str = None):
-    """Enable or disable logging for the server."""
-    if action not in ["enable", "disable"]:
-        await ctx.send("❓ **Usage:** `?setlogging <enable|disable>`")
-        return
-
-    guild_id = str(ctx.guild.id)
-    logging_config = load_logging_config()
-
-    if action == "enable":
-        logging_config[guild_id] = True
-        save_logging_config(logging_config)
-        await ctx.send("✅ Logging has been **enabled** for this server.")
-    elif action == "disable":
-        logging_config[guild_id] = False
-        save_logging_config(logging_config)
-        await ctx.send("✅ Logging has been **disabled** for this server.")
-    
-async def log_event(guild, message):
-    """Log an event to the logs channel if logging is enabled."""
-    logging_config = load_logging_config()
-    guild_id = str(guild.id)
-
-    if logging_config.get(guild_id, False):  # Check if logging is enabled
-        logs_channel = discord.utils.get(guild.text_channels, name="logs")
-        if logs_channel:
-            try:
-                await logs_channel.send(message)
-            except discord.Forbidden:
-                print(f"❌ Unable to send message to the logs channel in {guild.name}.")
 
 if __name__ == "__main__":
     print("🚀 Starting the bot...")

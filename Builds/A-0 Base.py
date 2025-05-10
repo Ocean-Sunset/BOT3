@@ -3,24 +3,20 @@ from discord.ext import commands
 from discord.ext.commands import CooldownMapping
 from discord.ext.commands import BucketType
 from discord.ext.commands import CommandOnCooldown
-from discord.ext.commands import cooldown
 from discord.ui import Button, View
 from yt_dlp import YoutubeDL
 from discord import FFmpegPCMAudio
 from googletrans import Translator
-from discord.ui import Button, View
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 import argparse
 import os
-import itertools
 import openai  # For ChatGPT functionality
 import time
 from transformers import pipeline
 import json
 import difflib
 import sys
-import websockets
 import logging
 import requests
 import random
@@ -29,59 +25,13 @@ from os import environ
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
-print("Startup sequence received.. (1 min wait activation)")
-start_time = time.time()
-is_sleeping = False  # Tracks whether the bot is in sleep mode
-custom_status = None  # Tracks the custom status and activity
 load_dotenv()
 token = environ["TOKEN"]
 
 SPAM_THRESHOLD = 5  # Number of messages allowed within the time window
 TIME_WINDOW = 10  # Time window in seconds
 
-last_activity_time = datetime.now()
-
 EASTER_FILE = "data/easter.json"
-TROPHY_FILE = "data/trophies.json"
-BOT_DATA_FILE = "bot_data.txt"
-WEBSITE_COMMANDS_FILE = "website_commands.txt"
-LIMITATIONS_FILE = "f:\\Coding\\Discord\\BOT3\\data\\limitations.json"
-LOGGING_CONFIG_FILE = "data/logging_config.json"
-
-def load_logging_config():
-    """Load logging configuration from the JSON file."""
-    try:
-        with open(LOGGING_CONFIG_FILE, "r") as file:
-            return json.load(file)
-    except FileNotFoundError:
-        return {}
-
-def save_logging_config(data):
-    """Save logging configuration to the JSON file."""
-    with open(LOGGING_CONFIG_FILE, "w") as file:
-        json.dump(data, file, indent=4)
-
-
-# Trophy definitions
-trophies = {
-    "trophy_1": {"name": "Coin Collector", "goal": "Collect 1,000 coins", "icon": "icons/coin_collector.png"},
-    "trophy_2": {"name": "Gem Hoarder", "goal": "Collect 10 gems", "icon": "icons/gem_hoarder.png"},
-    "trophy_3": {"name": "Impossible Victor", "goal": "Win 10 Impossible Easter fights", "icon": "icons/impossible_victor.png"},
-    "trophy_4": {"name": "Level Master", "goal": "Reach Level 50", "icon": "icons/level_master.png"},
-    "trophy_5": {"name": "Crate Opener", "goal": "Open 50 crates", "icon": "icons/crate_opener.png"},
-}
-
-# Load or initialize trophy data
-if os.path.exists(TROPHY_FILE):
-    with open(TROPHY_FILE, "r") as f:
-        trophy_data = json.load(f)
-else:
-    trophy_data = {}
-
-def save_trophy_data():
-    """Save trophy data to the JSON file."""
-    with open(TROPHY_FILE, "w") as f:
-        json.dump(trophy_data, f, indent=4)
 
 # Set OpenAI API Key
 OPENAI_API_KEY = environ.get("OPEN_API_KEY") # Replace with your actual API key
@@ -91,57 +41,12 @@ UNSPLACH_API_KEY = os.environ.get("UNSPLASH_API_KEY")
 OPENWHEATHER_KEY = os.environ.get("OPENWEATHER_KEY")
 openwheather = OPENWHEATHER_KEY
 
-def is_owner(ctx):
-    """Check if the command issuer is the bot owner."""
-    return ctx.author.id == 917515232065228890  # Replace with your Discord user ID
-
 # Define intents and enable the message content intent
 intents = discord.Intents.default()
 intents.message_content = True  # This is required for processing commands
 intents.guilds = True
 intents.members = True
 intents.reactions = True
-
-def verify_ffmpeg():
-    """Verify that FFMPEG is installed and accessible."""
-    try:
-        import subprocess
-        result = subprocess.run(["ffmpeg", "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        if result.returncode != 0:
-            raise EnvironmentError("FFMPEG is not accessible. Please check your installation.")
-    except FileNotFoundError:
-        raise FileNotFoundError("FFMPEG is not installed or not in PATH.")
-    
-def initialize_background_tasks():
-    """Initialize background tasks."""
-    bot.loop.create_task(monitor_inactivity())
-    bot.loop.create_task(update_bot_data_periodically())
-    bot.loop.create_task(handle_website_commands())
-    bot.loop.create_task(change_status())
-    print("Status task has been sent!")
-    print(f"✅ Bot is ready! Logged in as {bot.user}")
-    print(f"Connected to {len(bot.guilds)} guild(s).")
-    logging.info(f"Logged in as {bot.user}")
-    print("Handling website commands task has started.")
-    bot.loop.create_task(chat_reviver_task())
-    logging.info(f"Chat reviver task started.")
-
-level_roles = {
-    5: "[🌱 Novice]",
-    10: "[🔰 Apprentice]",
-    20: "[⚔️ Expert]",
-    30: "[🏆 Master]",
-    50: "[👑 Grandmaster]"
-}
-
-def setup_commands():
-    """Ensure all commands are properly set up."""
-    if not bot.commands:
-        raise RuntimeError("No commands are registered. Please check the bot's command setup.")
-
-def finish_startup():
-    """Perform final startup steps."""
-    print("✅ All startup tasks completed successfully.")
 
 # Create the bot with intents
 bot = commands.Bot(command_prefix="?", intents=intents)
@@ -176,30 +81,6 @@ def save_easter_data():
     with open(EASTER_FILE, "w") as f:
         json.dump(easter_data, f, indent=4)
 
-INVENTORY_FILE = "data/inventory.json"
-
-def load_inventory():
-    """Load the inventory data from the JSON file."""
-    if os.path.exists(INVENTORY_FILE):
-        with open(INVENTORY_FILE, "r") as f:
-            return json.load(f)
-    return {}
-
-def award_trophy(user_id, trophy_id):
-    """Award a trophy to a user."""
-    user_id = str(user_id)
-    if user_id not in trophy_data:
-        trophy_data[user_id] = []
-    if trophy_id not in trophy_data[user_id]:
-        trophy_data[user_id].append(trophy_id)
-        save_trophy_data()
-        return True  # Trophy awarded
-    return False  # Trophy already owned
-
-def save_inventory(inventory):
-    """Save the inventory data to the JSON file."""
-    with open(INVENTORY_FILE, "w") as f:
-        json.dump(inventory, f, indent=4)
 
 # Load or initialize user data
 if os.path.exists("data/user_data.json"):
@@ -214,52 +95,6 @@ if os.path.exists("data/warnings.json"):
         warnings_data = json.load(f)
 else:
     warnings_data = {}
-
-# File to store bank data
-BANK_FILE = "data/bank.json"
-
-# Load or initialize bank data
-if os.path.exists(BANK_FILE):
-    try:
-        with open(BANK_FILE, "r") as f:
-            bank_data = json.load(f)
-    except (json.JSONDecodeError, FileNotFoundError):
-        # If the file is empty or invalid, initialize an empty dictionary
-        bank_data = {}
-        with open(BANK_FILE, "w") as f:
-            json.dump(bank_data, f, indent=4)
-else:
-    # If the file doesn't exist, create it with an empty dictionary
-    bank_data = {}
-    os.makedirs(os.path.dirname(BANK_FILE), exist_ok=True)
-    with open(BANK_FILE, "w") as f:
-        json.dump(bank_data, f, indent=4)
-
-def save_bank_data():
-    """Save the bank data to the JSON file."""
-    with open(BANK_FILE, "w") as f:
-        json.dump(bank_data, f, indent=4)
-
-def get_bank_balance(user_id):
-    """Get the bank balance of a user."""
-    user_id = str(user_id)
-    return bank_data.get(user_id, 0)
-
-def update_bank_balance(user_id, amount):
-    """Update the bank balance of a user."""
-    user_id = str(user_id)
-    if user_id not in bank_data:
-        bank_data[user_id] = 0
-    bank_data[user_id] += amount
-    save_bank_data()
-
-def update_gems(user_id, gems_change):
-    """Update the user's gem count."""
-    data = load_user_data()
-    if str(user_id) not in data:
-        data[str(user_id)] = {"xp": 0, "level": 1, "coins": 100, "gems": 0, "warnings": []}
-    data[str(user_id)]["gems"] = data[str(user_id)].get("gems", 0) + gems_change
-    save_user_data(data)
 
 def get_coins(user_id):
     """Get the balance of a user."""
@@ -279,49 +114,25 @@ def update_coins(user_id, amount):
 
 USER_DATA_FILE = "data/user_data.json"
 
-def load_user_data():
-    """Load user data from the JSON file."""
-    try:
-        if os.path.exists(USER_DATA_FILE):
-            with open(USER_DATA_FILE, "r") as f:
-                return json.load(f)
-        else:
-            return {}  # Return an empty dictionary if the file doesn't exist
-    except json.JSONDecodeError:
-        print("❌ Error: user_data.json is corrupted. Initializing with an empty dictionary.")
-        return {}
-    except Exception as e:
-        print(f"❌ Error loading user data: {e}")
-        return {}
 
 def save_user_data(data):
     """Save user data to the JSON file."""
-    try:
-        os.makedirs(os.path.dirname(USER_DATA_FILE), exist_ok=True)
-        with open(USER_DATA_FILE, "w") as f:
-            json.dump(data, f, indent=4)
-    except Exception as e:
-        print(f"❌ Error saving user data: {e}")
-
-def load_limitations():
-    """Load limitations from the JSON file."""
-    try:
-        with open(LIMITATIONS_FILE, "r") as file:
-            return json.load(file)
-    except FileNotFoundError:
+    with open(USER_DATA_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+        
+def load_user_data():
+    """Load user data from the JSON file."""
+    if not os.path.exists(USER_DATA_FILE):
         return {}
-
-def save_limitations(data):
-    """Save limitations to the JSON file."""
-    with open(LIMITATIONS_FILE, "w") as file:
-        json.dump(data, file, indent=4)
+    with open(USER_DATA_FILE, "r") as f:
+        return json.load(f)
 
 def get_user_data(user_id):
     """Get data for a specific user."""
     data = load_user_data()
     if str(user_id) not in data:
         # Initialize default values for new users
-        data[str(user_id)] = {"xp": 0, "level": 1, "coins": 100, "gems": 0, "balance": 0, "warnings": []}
+        data[str(user_id)] = {"xp": 0, "level": 1, "coins": 100, "balance": 0, "warnings": []}
         save_user_data(data)
     else:
         # Ensure all required keys exist for existing users
@@ -329,7 +140,6 @@ def get_user_data(user_id):
         user_data.setdefault("xp", 0)
         user_data.setdefault("level", 1)
         user_data.setdefault("coins", 100)
-        user_data.setdefault("gems", 0)  # Initialize gems if missing
         user_data.setdefault("warnings", [])
         data[str(user_id)] = user_data
         save_user_data(data)
@@ -343,21 +153,6 @@ def update_user_data(user_id, key, value):
     data[str(user_id)][key] = value
     save_user_data(data)
     logging.info(f"Updated {key} for user {user_id}: {value}")
-
-def verify_files():
-    """Verify that all required files exist."""
-    required_files = [
-        "data/user_data.json",
-        "data/easter.json",
-        "data/trophies.json",
-        "data/warnings.json",
-        "data/bank.json",
-        "data/server_restrictions.json",
-        "data/banned_servers.json",
-    ]
-    missing_files = [file for file in required_files if not os.path.exists(file)]
-    if missing_files:
-        raise FileNotFoundError(f"Missing required files: {', '.join(missing_files)}")
 
 # Save warnings data
 def save_warnings_data():
@@ -374,12 +169,7 @@ def get_channel_by_name(guild, channel_name):
 
 @bot.event
 async def on_command(ctx):
-    global last_activity_time
-    global is_sleeping
-    last_activity_time = datetime.now()
     logging.info(f"{ctx.author} executed {ctx.command} in {ctx.channel}.")
-    if is_sleeping:
-        return
 
 @bot.event
 async def on_command_completion(ctx):
@@ -387,6 +177,15 @@ async def on_command_completion(ctx):
     if logs_channel:
         await logs_channel.send(f"{ctx.author} executed `{ctx.command}` in {ctx.channel}.")
     logging.info(f"{ctx.author} executed `{ctx.command}` successfully.")
+
+@bot.event
+async def on_command_error(ctx, error):
+    logs_channel = get_logs_channel(ctx.guild)
+    if logs_channel:
+        await logs_channel.send(f"{ctx.author} tried to execute `{ctx.command}` in {ctx.channel}. Status: error. Reason: {error}")
+    logging.error(f"{ctx.author} tried to execute `{ctx.command}`. Error: {error}")
+    await ctx.send(f"❌ An error occurred: {error}")
+
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -410,6 +209,11 @@ discord_handler = DiscordLogHandler(bot)
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 discord_handler.setFormatter(formatter)
 logger.addHandler(discord_handler)
+
+# Event: Bot is ready
+@bot.event
+async def on_ready():
+    logging.info(f"Logged in as {bot.user}")
 
 # File to store banned server IDs
 banned_servers_file = "data/banned_servers.json"
@@ -438,8 +242,9 @@ async def check_banned_server(ctx):
         return False
     return True
 
+# Command: Ban Server
 @bot.command(name="BServer")
-@commands.check(is_owner)
+@commands.has_permissions(administrator=True)
 async def ban_server(ctx, *, server_name: str):
     for guild in bot.guilds:
         if guild.name.lower() == server_name.lower():
@@ -452,8 +257,9 @@ async def ban_server(ctx, *, server_name: str):
             return
     await ctx.send(f"❌ Server **{server_name}** not found.")
 
+# Command: Unban Server
 @bot.command(name="UBServer")
-@commands.check(is_owner)
+@commands.has_permissions(administrator=True)
 async def unban_server(ctx, *, server_name: str):
     for guild in bot.guilds:
         if guild.name.lower() == server_name.lower():
@@ -485,72 +291,6 @@ def save_server_restrictions():
     with open(server_restrictions_file, "w") as f:
         json.dump(server_restrictions, f)
 
-def write_bot_data():
-    """Write bot stats and leaderboard to bot_data.txt."""
-    # Load user data
-    user_data = load_user_data()
-
-    # Generate leaderboard data (sorted by coins in descending order)
-    leaderboard = sorted(
-        [
-            {"user_id": user_id, "coins": user_info.get("coins", 0)}
-            for user_id, user_info in user_data.items()
-        ],
-        key=lambda x: x["coins"],
-        reverse=True
-    )
-
-    # Format leaderboard as a string (e.g., "User123:1000,User456:800")
-    leaderboard_str = ",".join(
-        f"{entry['user_id']}:{entry['coins']}" for entry in leaderboard[:10]  # Top 10 users
-    )
-
-    # Prepare data to write to the file
-    data = [
-        f"total_users={len(bot.guilds[0].members) if bot.guilds else 0}",
-        f"active_users={sum(1 for member in bot.guilds[0].members if member.status != discord.Status.offline) if bot.guilds else 0}",
-        f"total_commands=500",  # Replace with actual command count
-        f"uptime={get_uptime()}",
-        f"bot_status=Running",
-        f"leaderboard={leaderboard_str if leaderboard_str else '[404], No data.'}"  # Default if no data
-    ]
-
-    print("Writing data to bot_data.txt:", data)  # Debug log
-    with open(BOT_DATA_FILE, "w", encoding="utf-8") as f:
-        f.write("\n".join(data))
-
-async def update_bot_data_periodically():
-    """Periodically update bot_data.txt."""
-    while True:
-        write_bot_data()
-        await asyncio.sleep(5)  # Update every 5 seconds
-        
-def read_website_command():
-    """Read the latest command from website_commands.txt."""
-    if not os.path.exists(WEBSITE_COMMANDS_FILE):
-        return None
-    with open(WEBSITE_COMMANDS_FILE, "r") as f:
-        return f.read().strip()
-
-def get_uptime():
-    """Calculate bot uptime."""
-    uptime_seconds = time.time() - start_time
-    hours, remainder = divmod(uptime_seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    return f"{int(hours)}h {int(minutes)}m {int(seconds)}s"
-
-async def handle_website_commands():
-    """Handle commands from the website."""
-    while True:
-        command = read_website_command()
-        if command == "stop_bot":
-            print("⛔ Stopping bot...")
-            await bot.close()
-        elif command == "restart_bot":
-            print("🔄 Restarting bot...")
-            os.execv(sys.executable, ["python", __file__])
-        await asyncio.sleep(2)  # Check every 2 seconds
-
 # Middleware to check server restrictions
 @bot.check
 async def check_server_restrictions(ctx):
@@ -571,8 +311,9 @@ async def check_server_restrictions(ctx):
             return False
     return True
 
+# Command: Manage Server
 @bot.command(name="MServer")
-@commands.check(is_owner)
+@commands.has_permissions(administrator=True)
 async def manage_server(ctx, *, args: str):
     try:
         server_name, restriction_level = args.split(" / ")
@@ -614,10 +355,9 @@ def save_bot_info():
         json.dump(bot_info, f)
 
 @bot.command(name="update")
-@commands.check(is_owner)
+@commands.has_permissions(administrator=True)
 async def update(ctx, *, args: str):
     """Update the bot's version and new features, then restart."""
-    global current_status
     try:
         version, new_stuff = args.split(" / ")
     except ValueError:
@@ -629,36 +369,28 @@ async def update(ctx, *, args: str):
     bot_info["new_stuff"] = new_stuff
     save_bot_info()
 
-    # Set the status to "Updating..."
-    current_status = discord.Game("Updating...")
-    await bot.change_presence(status=discord.Status.dnd, activity=current_status)
-
     await ctx.send(f"✅ Bot updated to version **{version}** with new features: **{new_stuff}**.")
     await ctx.send("🔄 Restarting the bot...")
 
-    # Restart the bot
+    # Restart the bot with the skip-input flag
     os.execv(sys.executable, ["python", __file__, "--skip-input"])
 
-custom_cooldown = CooldownMapping.from_cooldown(1, 10, BucketType.user)  # 1 message per 60 seconds
+cooldown = CooldownMapping.from_cooldown(1, 10, BucketType.user)  # 1 message per 60 seconds
 
 @bot.command(name="profile")
 async def profile(ctx):
-    """Check your XP, level, coins, and deposited coins."""
+    """Check your XP, level, and coins."""
     user_id = ctx.author.id
     user_data = get_user_data(user_id)
 
     xp = user_data["xp"]
     level = user_data["level"]
     coins = user_data["coins"]
-    deposited_coins = get_bank_balance(user_id)  # Retrieve the user's bank balance
 
-    await ctx.send(
-        f"📜 **{ctx.author.name}'s Profile**:\n"
-        f"🔹 XP: {xp}\n"
-        f"🔹 Level: {level}\n"
-        f"🔹 Coins: {coins}\n"
-        f"🔹 Deposited Coins: {deposited_coins}"
-    )
+    await ctx.send(f"📜 **{ctx.author.name}'s Profile**:\n"
+                   f"🔹 XP: {xp}\n"
+                   f"🔹 Level: {level}\n"
+                   f"🔹 Coins: {coins}")
 
 @bot.command(name="buylevel")
 async def buylevel(ctx, levels: int = 1):
@@ -670,7 +402,7 @@ async def buylevel(ctx, levels: int = 1):
     user_id = ctx.author.id
     user_data = get_user_data(user_id)
 
-    cost = levels * 50  # Cost per level
+    cost = levels * 100  # Cost per level
     if user_data["coins"] < cost:
         await ctx.send(f"❌ You don't have enough coins. You need {cost} coins to buy {levels} level(s).")
         return
@@ -873,39 +605,6 @@ async def on_raw_reaction_add(payload):
             except Exception as e:
                 logging.error(f"Error assigning role '{role_name}' to {member.name}#{member.discriminator}: {e}")
 
-        # Handle Chat Reviver role reactions
-        chat_reviver_message_id = data.get("chat_reviver_message_id")
-        if chat_reviver_message_id and payload.message_id == chat_reviver_message_id:
-            guild = bot.get_guild(payload.guild_id)
-            member = guild.get_member(payload.user_id)
-            if str(payload.emoji) == "🛠️":
-                # Find or create the Chat Reviver role
-                role_name = "Chat Reviver"
-                role = discord.utils.get(guild.roles, name=role_name)
-                if not role:
-                    try:
-                        role = await guild.create_role(name=role_name)
-                        logging.info(f"Role '{role_name}' created in guild '{guild.name}' (ID: {guild.id}).")
-                    except discord.Forbidden:
-                        logging.error(f"Insufficient permissions to create role '{role_name}' in guild '{guild.name}'.")
-                        await member.send("❌ I do not have permission to create the Chat Reviver role. Please contact an administrator.")
-                        return
-                    except Exception as e:
-                        logging.error(f"Error creating role '{role_name}': {e}")
-                        return
-
-                # Assign the role to the member
-                try:
-                    await member.add_roles(role)
-                    await member.send(f"✅ You have been given the **{role_name}** role.")
-                    logging.info(f"Role '{role_name}' assigned to {member.name}#{member.discriminator} (ID: {member.id}).")
-                except discord.Forbidden:
-                    logging.error(f"Insufficient permissions to assign role '{role_name}' to {member.name}#{member.discriminator}.")
-                    await member.send("❌ I do not have permission to assign the Chat Reviver role. Please contact an administrator.")
-                except Exception as e:
-                    logging.error(f"Error assigning role '{role_name}' to {member.name}#{member.discriminator}: {e}")
-            return
-
     except Exception as e:
         logging.error(f"Error in on_raw_reaction_add: {e}")
 
@@ -917,7 +616,7 @@ async def on_member_join(member):
         logging.info(f"New member joined: {member.name}#{member.discriminator} (ID: {member.id})")
 
         # Get the welcome channel
-        welcome_channel = discord.utils.get(member.guild.text_channels, name="welcome")
+        welcome_channel = discord.utils.get(member.guild.text_channels, name="「ෆ-⌗-•-welcome-ʚɞ」👋" or "welcome-🚃⋆｡˚⋆")
         if not welcome_channel:
             logging.warning(f"Welcome channel not found in guild: {member.guild.name} (ID: {member.guild.id})")
             return  # Exit if no welcome channel is found
@@ -930,43 +629,21 @@ async def on_member_join(member):
             return
         avatar = Image.open(BytesIO(response.content)).convert("RGBA")
 
-        # Load the background image
-        background_path = "icons/welcome/background.jpg"  # Replace with the path to your background image
-        try:
-            background = Image.open(background_path).convert("RGBA")
-        except FileNotFoundError:
-            logging.error(f"Background image not found at {background_path}. Please ensure the file exists.")
-            await welcome_channel.send("❌ Background image for the welcome card is missing. Please add it to `icons/welcome/background.jpg`.")
-            return
-
-        # Resize the background to fit the welcome card dimensions
-        background = background.resize((800, 400))
-
         # Create the base image
-        base = Image.new("RGBA", (800, 400), (30, 30, 30, 0))  # Transparent background
-        base.paste(background, (0, 0))  # Paste the background onto the base image
-
-        # Draw the circular avatar
-        avatar = avatar.resize((150, 150))  # Resize the avatar
-        mask = Image.new("L", avatar.size, 0)
-        draw = ImageDraw.Draw(mask)
-        draw.ellipse((0, 0, avatar.size[0], avatar.size[1]), fill=255)
-        base.paste(avatar, (325, 50), mask)  # Center the avatar on the image
-
-        # Add the "WELCOME" text
-        font_path = "fonts/impact.ttf"  # Replace with the path to your bold font file
-        try:
-            font_large = ImageFont.truetype(font_path, 80)  # Big and bold font
-            font_small = ImageFont.truetype(font_path, 40)
-        except OSError:
-            await welcome_channel.send("❌ Font file not found. Please ensure the font file exists.")
-            return
-
+        base = Image.new("RGBA", (800, 300), (30, 30, 30))  # Dark background
         draw = ImageDraw.Draw(base)
-        draw.text((250, 220), "WELCOME", font=font_large, fill=(255, 255, 255), align="center")
 
-        # Add the username below the "WELCOME" text
-        draw.text((250, 300), member.name, font=font_small, fill=(255, 255, 255), align="center")
+        # Add a decorative border
+        draw.rectangle([(0, 0), (799, 299)], outline=(255, 255, 255), width=5)
+
+        # Paste the user's avatar
+        avatar = avatar.resize((150, 150))  # Resize the avatar
+        base.paste(avatar, (50, 75), avatar)  # Paste with transparency
+
+        # Add text (username and welcome message)
+        font = ImageFont.truetype("arial.ttf", 30)  # Use a font available on your system
+        draw.text((220, 100), f"Welcome, {member.name}!", fill=(255, 255, 255), font=font)
+        draw.text((220, 150), f"Member #{len(member.guild.members)}", fill=(200, 200, 200), font=font)
 
         # Save the image to a BytesIO object
         buffer = BytesIO()
@@ -985,84 +662,6 @@ async def on_member_join(member):
         logs_channel = discord.utils.get(member.guild.text_channels, name="logs")
         if logs_channel:
             await logs_channel.send(f"❌ An error occurred while welcoming {member.mention}: {e}")
-
-@bot.event
-async def on_member_remove(member):
-    """Event triggered when a user leaves the server."""
-    try:
-        # Log the event
-        logging.info(f"Member left: {member.name}#{member.discriminator} (ID: {member.id})")
-
-        # Replace this with the goodbye channel name you will provide
-        goodbye_channel_name = "「ෆ-⌗-•-bye-ʚɞ」👋"  # Update this later with the actual channel name
-        goodbye_channel = discord.utils.get(member.guild.text_channels, name=goodbye_channel_name)
-        if not goodbye_channel:
-            logging.warning(f"Goodbye channel not found in guild: {member.guild.name} (ID: {member.guild.id})")
-            return  # Exit if no goodbye channel is found
-
-        # Fetch the user's profile picture
-        avatar_url = member.avatar.url if member.avatar else member.default_avatar.url
-        response = requests.get(avatar_url)
-        if response.status_code != 200:
-            logging.error(f"Failed to fetch avatar for {member.name}#{member.discriminator}. HTTP Status: {response.status_code}")
-            return
-        avatar = Image.open(BytesIO(response.content)).convert("RGBA")
-
-        # Load the background image
-        background_path = "icons/welcome/background.jpg"  # Use the same background as the welcome image
-        try:
-            background = Image.open(background_path).convert("RGBA")
-        except FileNotFoundError:
-            logging.error(f"Background image not found at {background_path}. Please ensure the file exists.")
-            await goodbye_channel.send("❌ Background image for the goodbye card is missing. Please add it to `icons/welcome/background.jpg`.")
-            return
-
-        # Resize the background to fit the goodbye card dimensions
-        background = background.resize((800, 400))
-
-        # Create the base image
-        base = Image.new("RGBA", (800, 400), (30, 30, 30, 0))  # Transparent background
-        base.paste(background, (0, 0))  # Paste the background onto the base image
-
-        # Draw the circular avatar
-        avatar = avatar.resize((150, 150))  # Resize the avatar
-        mask = Image.new("L", avatar.size, 0)
-        draw = ImageDraw.Draw(mask)
-        draw.ellipse((0, 0, avatar.size[0], avatar.size[1]), fill=255)
-        base.paste(avatar, (325, 50), mask)  # Center the avatar on the image
-
-        # Add the "GOODBYE" text
-        font_path = "fonts/impact.ttf"  # Replace with the path to your bold font file
-        try:
-            font_large = ImageFont.truetype(font_path, 80)  # Big and bold font
-            font_small = ImageFont.truetype(font_path, 40)
-        except OSError:
-            await goodbye_channel.send("❌ Font file not found. Please ensure the font file exists.")
-            return
-
-        draw = ImageDraw.Draw(base)
-        draw.text((250, 220), "GOODBYE", font=font_large, fill=(255, 255, 255), align="center")
-
-        # Add the username below the "GOODBYE" text
-        draw.text((250, 300), member.name, font=font_small, fill=(255, 255, 255), align="center")
-
-        # Save the image to a BytesIO object
-        buffer = BytesIO()
-        base.save(buffer, format="PNG")
-        buffer.seek(0)
-
-        # Send the image in the goodbye channel
-        await goodbye_channel.send(
-            f"👋 Goodbye, {member.mention}. We will miss you!",
-            file=discord.File(fp=buffer, filename="goodbye.png")
-        )
-        logging.info(f"Goodbye message sent for {member.name}#{member.discriminator} in {goodbye_channel.name}.")
-    except Exception as e:
-        logging.error(f"Error in on_member_remove for {member.name}#{member.discriminator}: {e}")
-        # Optionally, send an error message to a logs channel
-        logs_channel = get_logs_channel(member.guild)
-        if logs_channel:
-            await logs_channel.send(f"❌ An error occurred while saying goodbye to {member.mention}: {e}")
 
 @bot.command(name="rules-verify")
 @commands.has_permissions(administrator=True)
@@ -1111,98 +710,80 @@ async def on_command_completion(ctx):
     if logs_channel:
         await logs_channel.send(f"{ctx.author} executed {ctx.command} in {ctx.channel}. Status: success.")
 
+
 @bot.command(name="Mhelp")
 async def mhelp(ctx, command_name: str = None):
-    """Provide help information for commands dynamically."""
-    # Dictionary to store command descriptions
-    command_descriptions = {
-        "help": "Show this help message.",
-        "info": "Get information about the bot.",
-        "serverinfo": "Get information about the current server.",
-        "shutdown": "Shut down the bot (Admin only).",
-        "poll": "Create a poll (Usage: ?poll <question> <option1, option2, ...>).",
-        "ask": "Ask ChatGPT (Usage: ?ask <your message>).",
-        "analyse": "Analyse a user or yourself (Usage: ?analyse @user).",
-        "createrole": "Create a role (Usage: ?createrole <name> <permissions: member, mod, or admin> <color: Hex code>).",
-        "giverole": "Give a role to a user (Usage: ?giverole <role_name> <user>).",
-        "removerole": "Remove a role from a user (Usage: ?removerole <role_name> <user>).",
-        "warn": "Warn a user (Usage: ?warn <user> <reason>).",
-        "kick": "Kick a user (Usage: ?kick <user> <reason>).",
-        "ban": "Ban a user (Usage: ?ban <user> <reason>).",
-        "givexp": "Give XP to a user (Usage: ?givexp <user> <xp>).",
-        "gainlvl": "Give a level to a user (Usage: ?gainlvl <user>).",
-        "copydm": "Send a message to a user's DM (Usage: ?copydm <user> <message>).",
-        "copychannel": "Send a message to a specific channel (Usage: ?copychannel <channel> <message>).",
-        "colorrole": "Allow users to choose a color role by reacting to emojis.",
-        "verify": "Send a verification message.",
-        "copy": "Copy text (Usage: ?copy <text>).",
-        "choose_country": "Choose your country by reacting to emojis.",
-        "startgame": "Start a Truth or Dare game (members must be in the VC).",
-        "checkvc": "Check if all users are in the Truth or Dare voice channel.",
-        "continue": "Continue the Truth or Dare game.",
-        "endgame": "End the Truth or Dare game.",
-        "timeout": "Timeout a user (Usage: ?timeout <user> <time> <reason>).",
-        "search_img": "Search for an image (Usage: ?search_img <query>).",
-        "zen": "Put a user in Zen mode (timeout) for a specified duration.",
-        "BServer": "Ban a server (Usage: ?BServer <server_name>).",
-        "UBServer": "Unban a server (Usage: ?UBServer <server_name>).",
-        "MServer": "Manage server restrictions (Usage: ?MServer <server_name> / <restriction_level>).",
-        "update": "Update the bot (Admin only).",
-        "unzen": "Remove Zen mode from a user (Admin only).",
-        "balance": "Check your balance.",
-        "daily": "Claim your daily reward.",
-        "steal": "Attempt to steal coins from another user (Usage: ?steal <user>).",
-        "give": "Give coins to another user (Usage: ?give <user> <amount>).",
-        "stealadmin": "Steal coins bypassing time limits (Admin only).",
-        "wheel": "Spin a wheel of names (Usage: ?wheel <name1 / name2 / ...>).",
-        "leaderboard": "Show the leaderboard for level, XP, or coins.",
-        "trivia": "Play a trivia game (Usage: ?trivia <question> <option1, option2, ...>).",
-        "reminder": "Set a reminder (Usage: ?reminder <time> <message>).",
-        "join": "Join a voice channel.",
-        "leave": "Leave a voice channel.",
-        "mute": "Mute a user (Usage: ?mute <user>).",
-        "unmute": "Unmute a user (Usage: ?unmute <user>).",
-        "purge": "Delete a number of messages (Usage: ?purge <number>).",
-        "rps": "Play Rock-Paper-Scissors (Usage: ?rps <choice>).",
-        "setwelcome": "Set a custom welcome message.",
-        "afk": "Set yourself as AFK (Usage: ?afk <reason>).",
-        "restart": "Restart the bot (Admin only).",
-        "changelog": "View the bot's changelog.",
-        "play": "Play a song from a URL or the music folder.",
-        "download": "Download a YouTube song or video.",
-        "upload": "Upload an audio file or provide a URL to download.",
-        "queue": "List all songs in the music folder.",
-        "easterfight": "Initiate a combat between an user or a bot"
-    }
-
     if command_name is None:
-        # If no command is specified, list all available commands
         embed = discord.Embed(
-            title="Available Commands",
-            description="Here is a list of all available commands. Use `?Mhelp <command>` for more details.",
-            color=discord.Color.blue(),
+            title="Error",
+            description="❌ You did not insert any command name.",
+            color=discord.Color.red(),
         )
-        embed.set_thumbnail(url="https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Blue_question_mark_icon.svg/1024px-Blue_question_mark_icon.svg.png")  # Blue question mark thumbnail
-        for command in valid_commands:
-            embed.add_field(
-                name=f"?{command}",
-                value=command_descriptions.get(command, "No description available."),
-                inline=False,
-            )
+        embed.set_thumbnail(url="https://www.clipartmax.com/png/full/388-3887666_wrong-icon-with-png-and-vector-format-for-free-unlimited-wrong-icon.png")
         await ctx.send(embed=embed)
+        return
+
+    embed = discord.Embed(
+        title=command_name,
+        description=f"Here is the info about {command_name}.",
+        color=discord.Color.blue(),
+    )
+    embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/3593/3593455.png")
+
+    if command_name == "info":
+        embed.add_field(name="Info", value="Info is used when you want to get info about the bot, its version, or other details.")
+        embed.add_field(name="How to execute", value="?info")
+    elif command_name == "serverinfo":
+        embed.add_field(name="Server Information", value="This command is used to get information about the server you're in.")
+        embed.add_field(name="How to execute", value="?serverinfo")
+    elif command_name == "shutdown":
+        embed.add_field(name="Shut Down", value="Turn the bot off. ⚠ **ADMIN COMMAND** ⚠")
+        embed.add_field(name="How to execute", value="?shutdown")
+    elif command_name == "poll":
+        embed.add_field(name="Poll", value="Create a timed poll. This command is limited to only 10 answers!")
+        embed.add_field(name="How to execute", value="?poll 'Question' 'Answer one' 'Answer two'...")
+    elif command_name == "ask":
+        embed.add_field(name="Ask", value="Ask ChatGPT 2 Turbo a question.")
+        embed.add_field(name="How to execute", value="?ask 'Question'")
+    elif command_name == "analyse":
+        embed.add_field(name="Analyse", value="Analyse a user or yourself")
+        embed.add_field(name="How to execute", value="?analyse 'nothing = yourself or @user")
+    elif command_name == "createrole":
+        embed.add_field(name="Create a role", value="Create a custom role.")
+        embed.add_field(name="How to execute", value="?createrole 'role name' 'permissions (member, mod or admin)' 'color (hex code)'")
+    elif command_name == "giverole":
+        embed.add_field(name="Give a role", value="Give a custom role")
+        embed.add_field(name="How to execute", value="?giverole 'rolename' 'user'")
+    elif command_name == "removerole":
+        embed.add_field(name="Remove a role", value="Remove a custom role")
+        embed.add_field(name="How to execute", value="?removerole 'rolename' 'user'")
+    elif command_name == "warn":
+        embed.add_field(name="Warn an user", value="Warn a user with or without a specific reason")
+        embed.add_field(name="How to execute", value="?warn 'user' 'reason'")
+    elif command_name == "kick":
+        embed.add_field(name="Kick an user", value="Kick a user with or without a specific reason")
+        embed.add_field(name="How to execute", value="?kick 'user' 'reason'")
+    elif command_name == "ban":
+        embed.add_field(name="Ban", value="Ban an user with or without a specific reason")
+        embed.add_field(name="How to execute", value="?ban 'user' 'reason'")
+    elif command_name == "givexp":
+        embed.add_field(name="Give XP", value="Give XP to a specific user or yourself (i think)")
+        embed.add_field(name="How to execute", value="?givexp 'user' 'xp'")
+    elif command_name == "gainlvl":
+        embed.add_field(name="Gain a level", value="Gain a level from a specific command")
+        embed.add_field(name="How to execute", value="?gainlvl 'user'")
+    elif command_name == "copydm":
+        embed.add_field(name="Copy DM", value="Copy and send a message to a user's DM")
+        embed.add_field(name="How to execute", value="?copydm 'user' 'message'")
     else:
-        # If a specific command is requested, show its details
-        command_name = command_name.lower()
-        if command_name in valid_commands:
-            embed = discord.Embed(
-                title=f"Help: ?{command_name}",
-                description=command_descriptions.get(command_name, "No description available."),
-                color=discord.Color.blue(),
-            )
-            embed.set_thumbnail(url="https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Blue_question_mark_icon.svg/1024px-Blue_question_mark_icon.svg.png")  # Blue question mark thumbnail
-            await ctx.send(embed=embed)
-        else:
-            await ctx.send(f"❌ Command `{command_name}` not found. Use `?Mhelp` to see the list of available commands.")
+        embed = discord.Embed(
+            title="Oops...",
+            description=f"Sorry, we couldn't find the command named `{command_name}`.",
+            color=discord.Color.gray(),
+        )
+
+    await ctx.send(embed=embed)
+
 
 # ?help command
 @bot.command(name="myhelp")
@@ -1314,15 +895,11 @@ async def zen(ctx, member: discord.Member = None, time: str = None):
         await ctx.send(f"❌ An error occurred: {e}")
 
 @bot.command(name="restart")
-@commands.check(is_owner)
+@commands.has_permissions(administrator=True)
 async def restart(ctx):
     """Restart the bot."""
-    global current_status
-    current_status = discord.Game("Restarting...")
-    await bot.change_presence(status=discord.Status.dnd, activity=current_status)
-
     await ctx.send("🔄 Restarting the bot...")
-    await bot.close()
+    await bot.close()  # Close the bot connection
     os.execv(sys.executable, ["python", __file__, "--skip-input"])
 
 # Command: Unzen (Admin only)
@@ -1490,7 +1067,7 @@ async def checkvc(ctx):
         await ctx.send("No members in the Truth or Dare voice channel.")
 
 @bot.command()
-@commands.check(is_owner) # Ensure the user has the required permissions
+@commands.has_permissions(manage_roles=True)  # Ensure the user has the required permissions
 async def createrole(ctx, name: str, power: str, color: str):
     """Create a role with a specified name, power level, and color."""
     # Map power levels to Discord permissions
@@ -1535,7 +1112,7 @@ async def createrole(ctx, name: str, power: str, color: str):
         await ctx.send(f"❌ An error occurred: {e}")
 
 @bot.command()
-@commands.check(is_owner) # Ensure the user has the required permissions
+@commands.has_permissions(manage_roles=True)  # Ensure the user has the required permissions
 async def giverole(ctx, role_name: str, member: discord.Member):
     """Assign a role to a specified user."""
     # Find the role in the server
@@ -1570,7 +1147,7 @@ async def giverole(ctx, role_name: str, member: discord.Member):
 
 # Command: Remove Role
 @bot.command()
-@commands.check(is_owner)
+@commands.has_permissions(manage_roles=True)
 async def removerole(ctx, role: discord.Role, member: discord.Member):
     if role in member.roles:
         await member.remove_roles(role)
@@ -1582,13 +1159,12 @@ async def removerole(ctx, role: discord.Role, member: discord.Member):
 @bot.command()
 async def info(ctx):
     custominfo = f"""# I am a multifunctional python Discord bot!
-    - Status: Normal
-    - Build: A-1 Original
+    - Status: Stable build
+    - Build: Delta (v1), continued.
     - Version: **{bot_info['version']}**
-    - Developper: th3_t1sm
+    - Owner: th3_t1sm
     
-    I am multifunctional discord bot created by th3_t1sm,
-    This is the official bot from th3_t1sm.
+    I am multifunctional discord bot created by th3_t1sm, this project is continued and made in python.
     """
     await ctx.send(custominfo)
 
@@ -1598,62 +1174,27 @@ async def changelog(ctx):
     await ctx.send(changelog)
 
 
-@bot.command(name="analyse")
+@bot.command()
 async def analyse(ctx, member: discord.Member = None):
-    """Analyse a user with all available data."""
+    """Analyse un utilisateur mentionné ou l'utilisateur qui exécute la commande."""
     if member is None:
-        member = ctx.author  # Default to the command author if no member is mentioned
+        member = ctx.author  # Si aucun membre n'est mentionné, analyser l'auteur de la commande
 
-    # Load user data
-    user_id = str(member.id)
-    user_data = get_user_data(user_id)
-    inventory = load_inventory().get(user_id, [])
-    trophies = trophy_data.get(user_id, [])
-    warnings = warnings_data.get(user_id, {}).get("warnings", 0)
-    eggs_collected = easter_data.get(user_id, {}).get("eggs", 0)
-    gems_collected = user_data.get("gems", 0)
-    bank_balance = get_bank_balance(user_id)
-
-    # Create the embed
     embed = discord.Embed(
-        title=f"Analysis of {member.name}",
-        description=f"Here are the details of {member.mention}",
-        color=discord.Color.blue()
+        title=f"Analyse de {member.name}",
+        description=f"Voici les détails de l'utilisateur {member.mention}",
+        color=discord.Color.green()
     )
 
-    # Add Discord profile details
     embed.set_thumbnail(url=member.avatar.url if member.avatar else None)
-    embed.add_field(name="Full Name", value=f"{member.name}#{member.discriminator}", inline=False)
+    embed.add_field(name="Nom complet", value=f"{member.name}#{member.discriminator}", inline=False)
     embed.add_field(name="ID", value=member.id, inline=False)
-    embed.add_field(name="Status", value=member.status, inline=False)
-    embed.add_field(name="Account Created On", value=member.created_at.strftime("%d %B %Y, %H:%M:%S"), inline=False)
-    embed.add_field(name="Joined Server On", value=member.joined_at.strftime("%d %B %Y, %H:%M:%S"), inline=False)
-    embed.add_field(name="Roles", value=", ".join([role.name for role in member.roles if role.name != "@everyone"]) or "None", inline=False)
-
-    # Add bot-related stats
-    embed.add_field(name="Level", value=user_data.get("level", 0), inline=True)
-    embed.add_field(name="XP", value=user_data.get("xp", 0), inline=True)
-    embed.add_field(name="Coins", value=user_data.get("coins", 0), inline=True)
-    embed.add_field(name="Gems", value=gems_collected, inline=True)
-    embed.add_field(name="Eggs Collected", value=eggs_collected, inline=True)
-    embed.add_field(name="Bank Balance", value=f"{bank_balance} coins", inline=True)
-    embed.add_field(name="Warnings", value=warnings, inline=True)
-
-    # Add inventory details
-    if inventory:
-        inventory_items = "\n".join([f"{item['name']} (Rarity: {item['rarity']})" for item in inventory])
-        embed.add_field(name="Inventory", value=inventory_items, inline=False)
-    else:
-        embed.add_field(name="Inventory", value="Empty", inline=False)
-
-    # Add trophies
-    if trophies:
-        trophy_names = [trophies[trophy_id]["name"] for trophy_id in trophies if trophy_id in trophies]
-        embed.add_field(name="Trophies", value=", ".join(trophy_names), inline=False)
-    else:
-        embed.add_field(name="Trophies", value="None", inline=False)
-
-    # Send the embed
+    embed.add_field(name="Statut", value=member.status, inline=False)
+    embed.add_field(name="Créé le", value=member.created_at.strftime("%d %B %Y, %H:%M:%S"), inline=False)
+    embed.add_field(name="A rejoint le serveur", value=member.joined_at.strftime("%d %B %Y, %H:%M:%S"), inline=False)
+    embed.add_field(name="Rôles", value=", ".join([role.name for role in member.roles if role.name != "@everyone"]), inline=False)
+    
+    print(f"Analyse command triggered by {ctx.author} in channel {ctx.channel}. State: success.")
     await ctx.send(embed=embed)
 
 # ?serverinfo command
@@ -1668,70 +1209,21 @@ async def serverinfo(ctx):
     print(f"Server info command triggered by {ctx.author} in channel {ctx.channel}. State: success.")
     await ctx.send(server_info)
 
-@bot.command(name="shutdown")
-@commands.check(is_owner)
+# ?shutdown command
+@bot.command()
+@commands.has_permissions(administrator=True)
 async def shutdown(ctx):
-    """Put the bot into sleep mode."""
-    global is_sleeping
-    is_sleeping = True  # Enable sleep mode
-
-    # Set the bot's status to "Offline" and idle
-    await bot.change_presence(status=discord.Status.idle, activity=discord.Game("[🔌⚠️] : Offline"))
-    await ctx.send("🔌 The bot is now in sleep mode. Use `?start` to wake it up.")
-@bot.command(name="start")
-@commands.check(is_owner)
-async def start(ctx):
-    """Wake the bot up from sleep mode and show dynamic task updates with a spinning loading animation."""
-    global is_sleeping
-    if not is_sleeping:
-        await ctx.send("✅ The bot is already active.")
-        return
-
-    is_sleeping = False  # Disable sleep mode
-    
-    # Load existing user data to ensure it is not overwritten
-    global user_data
-    user_data = load_user_data()
-
-    # Send the initial "Starting..." message
-    start_message = await ctx.send("# [ 🔄 ] Starting...**")
-
-    # Define the tasks to perform during startup
-    tasks = [
-        {"task": "Loading user data...", "function": load_user_data},
-        {"task": "Verifying required files...", "function": verify_files},
-        {"task": "Connecting to YouTube using FFMPEG...", "function": verify_ffmpeg},
-        {"task": "Initializing background tasks...", "function": initialize_background_tasks},
-        {"task": "Setting up commands...", "function": setup_commands},
-        {"task": "Finishing startup...", "function": finish_startup},
-    ]
-
-    # Define the spinning frames
-    frames = ["|", "/", "-", "\\", "|"]
-
-    # Update the message dynamically for each task
-    for task in tasks:
-        for frame in frames:
-            await start_message.edit(content=f"# [ {frame} ] Starting... \n{task['task']}")
-            await asyncio.sleep(0.2)  # Short delay for the spinning effect
-
-        try:
-            task["function"]()  # Call the associated function
-            await asyncio.sleep(1)  # Simulate time taken for each task
-        except Exception as e:
-            await start_message.edit(content=f"❌ **Error during startup:** {task['task']} failed.\nError: {e}")
-            return
-
-    # Restore the bot's normal status
-    await bot.change_presence(status=discord.Status.online, activity=discord.Game("with Python 🐍"))
-    await start_message.edit(content="✅ **Bot is now online and ready to use!**")
-    
-@bot.command(name="kys")
-@commands.check(is_owner)
-async def kys(ctx):
-    """commit die the bot."""
-    await ctx.send("Commiting die...")
+    await ctx.send("Shutting down...")
+    print(f"Shutdown command triggered by {ctx.author} in channel {ctx.channel}. State: success.")
+    await ctx.send("✅ The bot has successfully shut down.")
     await bot.close()
+
+# ?start command
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def start(ctx):
+    print(f"Start command triggered by {ctx.author} in channel {ctx.channel}. State: failed. Reason: Bot already running.")
+    await ctx.send("The bot is already running!")
 
 # ?poll command
 @bot.command(name="poll")
@@ -1781,7 +1273,7 @@ valid_commands = [
     "UBServer", "MServer", "update", "unzen", "balance", "daily", "steal", "give",
     "stealadmin", "wheel", "leaderboard", "trivia", "reminder", "join", "leave",
     "mute", "unmute", "purge", "rps", "setwelcome", "afk", "restart", "changelog",
-    "zen", "play", "download", "upload", "queue", 
+    "zen", "play", "download", "upload", "queue"
 ]
 
 @bot.event
@@ -1804,64 +1296,11 @@ async def on_command_error(ctx, error):
             # No close match found
             await ctx.send("❌ Command not found. Use `?Mhelp` or `?myhelp` to see the list of available commands.")
     else:
-        await ctx.send(f"An error occured: {error}")
+        # Handle other errors
+        await ctx.send(f"❌ An error occurred: {error}")
 
 # Dictionary to track users and their message activity
 user_message_counts = {}
-
-def check_trophy_goals(user_id, channel):
-    """Check if a user has met any trophy goals and notify in the server channel."""
-    user_data = get_user_data(user_id)
-
-    # Trophy 1: Collect 1,000 coins
-    if user_data["coins"] >= 1000:
-        if award_trophy(user_id, "trophy_1"):
-            bonus_xp = 100  # Example: 100 XP for earning this trophy
-            user_data["xp"] += bonus_xp
-            update_user_data(user_id, "xp", user_data["xp"])
-            asyncio.create_task(channel.send(
-                f"🏆 You earned the **Coin Collector** trophy and received **{bonus_xp} bonus XP**!"
-            ))
-
-    # Trophy 2: Collect 10 gems
-    if easter_data.get(str(user_id), {}).get("gems", 0) >= 10:
-        if award_trophy(user_id, "trophy_2"):
-            bonus_xp = 150  # Example: 150 XP for earning this trophy
-            user_data["xp"] += bonus_xp
-            update_user_data(user_id, "xp", user_data["xp"])
-            asyncio.create_task(channel.send(
-                f"🏆 You earned the **Gem Hoarder** trophy and received **{bonus_xp} bonus XP**!"
-            ))
-
-    # Trophy 3: Win 10 Impossible Easter fights
-    if user_data.get("impossible_wins", 0) >= 10:
-        if award_trophy(user_id, "trophy_3"):
-            bonus_xp = 200  # Example: 200 XP for earning this trophy
-            user_data["xp"] += bonus_xp
-            update_user_data(user_id, "xp", user_data["xp"])
-            asyncio.create_task(channel.send(
-                f"🏆 You earned the **Impossible Victor** trophy and received **{bonus_xp} bonus XP**!"
-            ))
-
-    # Trophy 4: Reach Level 50
-    if user_data["level"] >= 50:
-        if award_trophy(user_id, "trophy_4"):
-            bonus_xp = 500  # Example: 500 XP for earning this trophy
-            user_data["xp"] += bonus_xp
-            update_user_data(user_id, "xp", user_data["xp"])
-            asyncio.create_task(channel.send(
-                f"🏆 You earned the **Level Master** trophy and received **{bonus_xp} bonus XP**!"
-            ))
-
-    # Trophy 5: Open 50 crates
-    if user_data.get("crates_opened", 0) >= 50:
-        if award_trophy(user_id, "trophy_5"):
-            bonus_xp = 250  # Example: 250 XP for earning this trophy
-            user_data["xp"] += bonus_xp
-            update_user_data(user_id, "xp", user_data["xp"])
-            asyncio.create_task(channel.send(
-                f"🏆 You earned the **Crate Opener** trophy and received **{bonus_xp} bonus XP**!"
-            ))
 
 # Command: Warn user
 @bot.command()
@@ -2067,19 +1506,10 @@ async def afk(ctx, *, reason="AFK"):
     afk_users[ctx.author.id] = reason
     await ctx.send(f"✅ {ctx.author.mention} is now AFK: {reason}")
 
-# Dictionary to track cooldowns for users
-message_cooldowns = {}
-
 @bot.event
 async def on_message(message):
-    print(f"📩 Message received: {message.content} from {message.author}")
     """Handle all on_message events."""
     global last_activity_time
-    global last_activity
-    print(f"{last_activity};{last_activity_time}")
-    guild_id = str(message.guild.id)
-    limitations = load_limitations()
-    level = limitations.get(guild_id, 0)  # Default to no filtering if not set
 
     # Ignore bot's own messages
     if message.author.bot:
@@ -2087,9 +1517,6 @@ async def on_message(message):
 
     # Update last activity time for inactivity monitoring
     last_activity_time = datetime.now()
-    
-    # Update the last activity time for the guild
-    last_activity[message.guild.id] = datetime.now()
 
     # Handle AFK users
     if message.author.id in afk_users:
@@ -2098,75 +1525,37 @@ async def on_message(message):
     for mention in message.mentions:
         if mention.id in afk_users:
             await message.channel.send(f"🔔 {mention.mention} is AFK: {afk_users[mention.id]}")
-    
-    # Handle XP system with custom cooldown
-    user_id = str(message.author.id)
-    now = datetime.now()
 
-    # Check if the user is on cooldown
-    if user_id in message_cooldowns:
-        cooldown_end = message_cooldowns[user_id]
-        if now < cooldown_end:
-            # User is still on cooldown, skip granting XP
-            await bot.process_commands(message)
-            return
-        
-    
-    # Get the user's data
-    user_data = get_user_data(user_id)
+    # Handle XP system
+    bucket = cooldown.get_bucket(message)
+    retry_after = bucket.update_rate_limit()
+    if not retry_after:  # Only grant XP if not in cooldown
+        user_id = message.author.id
+        user_data = get_user_data(user_id)
 
-    # Grant XP
-    user_data["xp"] += 10
-    xp_needed = user_data["level"] * 100  # XP needed to level up
+        # Grant XP
+        user_data["xp"] += 10
+        xp_needed = user_data["level"] * 100  # XP needed to level up
 
-    # Check for level up
-    if user_data["xp"] >= xp_needed:
-        user_data["xp"] -= xp_needed
-        user_data["level"] += 1
-        user_data["coins"] += 50  # Reward coins for leveling up
+        # Check for level up
+        if user_data["xp"] >= xp_needed:
+            user_data["xp"] -= xp_needed
+            user_data["level"] += 1
+            user_data["coins"] += 50  # Reward coins for leveling up
+            await message.channel.send(f"🎉 {message.author.mention} leveled up to **Level {user_data['level']}**! You earned 50 coins!")
 
-        # Determine rewards based on level
-        coins_reward = 50  # Default coin reward
-        gems_reward = 0    # Default gem reward
-        if user_data["level"] >= 50:  # Special reward for Level 50+
-            coins_reward = 100
-            gems_reward = 5
-
-        # Add rewards
-        user_data["coins"] += coins_reward
-        user_data["gems"] += gems_reward
-
-        # Calculate bonus XP based on the level reached
-        bonus_xp = user_data["level"] * 10  # Example: 10 XP per level
-        user_data["xp"] += bonus_xp
-
-        # Notify the user
-        rewards_message = (
-            f"🎉 {message.author.mention} leveled up to **Level {user_data['level']}**! "
-            f"You earned **{coins_reward} coins** and **{bonus_xp} bonus XP**"
-        )
-        if gems_reward > 0:
-            rewards_message += f", and **{gems_reward} gems**!"
-        else:
-            rewards_message += "!"
-
-        await message.channel.send(rewards_message)
-
-        # Assign level-based role
-        await assign_level_role(message.author, user_data["level"], message.channel)    
-
-    # Save updated user data
-    update_user_data(user_id, "xp", user_data["xp"])
-    update_user_data(user_id, "level", user_data["level"])
-    update_user_data(user_id, "coins", user_data["coins"])
-    logging.info(f"User {message.author.name} (ID: {user_id}) gained 10 XP. Total XP: {user_data['xp']}.")
+        # Save updated user data
+        update_user_data(user_id, "xp", user_data["xp"])
+        update_user_data(user_id, "level", user_data["level"])
+        update_user_data(user_id, "coins", user_data["coins"])
+        logging.info(f"User {message.author.name} (ID: {user_id}) gained 10 XP. Total XP: {user_data['xp']}.")
 
     user_id = str(message.author.id)
     data = load_user_data()
 
     # Ensure the user exists in the data and initialize the "messages" key if not present
     if user_id not in data:
-        user_data[user_id] = {"xp": 0, "level": 1, "coins": 100, "warnings": [], "censored_count": 0, "strikes": 0}
+        data[user_id] = {"xp": 0, "level": 1, "coins": 100, "warnings": [], "messages": []}
     elif "messages" not in data[user_id]:
         data[user_id]["messages"] = []
 
@@ -2198,97 +1587,36 @@ async def on_message(message):
         await message.author.add_roles(mute_role, reason="Spamming")
         await asyncio.sleep(10)  # Mute duration (10 seconds)
         await message.author.remove_roles(mute_role, reason="Mute expired")
-            
-        # 1% chance to spawn a gem reaction
-        if random.randint(1, 200) == 1:
-            gem_emoji = "💎"  # Gem emoji
-        await message.add_reaction(gem_emoji)
+
+    # 1% chance to spawn an egg reaction
+    if random.randint(1, 100) == 1:
+        egg_emoji = "🥚"  # Egg emoji
+        await message.add_reaction(egg_emoji)
 
         def check(reaction, user):
             return (
-                str(reaction.emoji) == gem_emoji
+                str(reaction.emoji) == egg_emoji
                 and reaction.message.id == message.id
                 and not user.bot
             )
 
         try:
             # Wait for a user to react within 10 seconds
-            reaction, user = await bot.wait_for("reaction_add", timeout=5.0, check=check)
+            reaction, user = await bot.wait_for("reaction_add", timeout=10.0, check=check)
 
-            # Add the gem to the user's count in easter.json
+            # Add the egg to the user's count in easter.json
             user_id = str(user.id)
-            update_gems(user_id, 1)
+            if user_id not in easter_data:
+                easter_data[user_id] = {"eggs": 0}
+            easter_data[user_id]["eggs"] += 1
+            save_easter_data()
 
             # Remove the reaction and notify the user
-            await message.clear_reaction(gem_emoji)
-            await message.channel.send(f"💎 {user.mention} found a gem! Total gems: {easter_data[user_id]['gems']}")
+            await message.clear_reaction(egg_emoji)
+            await message.channel.send(f"# 🎉 {user.mention} found an egg! Total eggs: {easter_data[user_id]['eggs']}")
         except asyncio.TimeoutError:
             # Remove the reaction if no one reacts within 10 seconds
-            await message.clear_reaction(gem_emoji)
-            
-    # Define offensive words for each level
-    offensive_words = {
-        1: ["nigga", "nigger", "Nigga", "Nigger", "NIGGA", "NIGGER"],
-        2: ["nigga", "nigger", "Nigga", "Nigger", "NIGGA", "NIGGER", "kys", "kms", "Kill yourself", "kill yourself"],
-        3: ["nigga", "nigger", "Nigga", "Nigger", "NIGGA", "NIGGER", "kys", "kms", "Kill yourself", "kill yourself", "fuck", "bitch", "kill", "Fuck", "Bitch", "FUCK", "BITCH"],
-        4: ["nigga", "nigger", "Nigga", "Nigger", "NIGGA", "NIGGER", "kys", "kms", "Kill yourself", "kill yourself", "fuck", "bitch", "kill", "Fuck", "Bitch", "FUCK", "BITCH", "shit", "SHIT", "Shit", "ts"],
-        5: ["nigga", "nigger", "Nigga", "Nigger", "NIGGA", "NIGGER", "kys", "kms", "Kill yourself", "kill yourself", "fuck", "bitch", "kill", "Fuck", "Bitch", "FUCK", "BITCH", "shit", "SHIT", "Shit", "ts", "dumb", "Dumb", "DUMB", "ass", "Ass", "ASS", "idiot", "Idiot", "IDIOT", "stupid", "Stupid", "STUPID", "STOOPID", "Stoopid", "stoopid"],
-    }
-    
-    # Ensure the user exists in the data and initialize missing keys
-    if user_id not in user_data:
-        user_data[user_id] = {"xp": 0, "level": 1, "coins": 100, "warnings": [], "censored_count": 0, "strikes": 0}
-    elif "censored_count" not in user_data[user_id]:
-        user_data[user_id]["censored_count"] = 0
-    
-    # Check for offensive words
-    if level > 0:
-        for word in offensive_words.get(level, []):
-            if word in message.content.lower():
-                await message.delete()
-                await message.channel.send(f"⚠️ {message.author.mention}, your message was removed for containing offensive language.")
-                # Increment the censored count
-                user_data[user_id]["censored_count"] += 1
-                censored_count = user_data[user_id]["censored_count"]
-
-                # Check if the user has reached the limit
-                if censored_count >= 15:
-                    user_data[user_id]["censored_count"] = 0  # Reset the count
-                    user_data[user_id]["strikes"] += 1  # Add a strike
-                    save_user_data(user_data)
-
-                    # Notify the user and the channel
-                    await message.channel.send(
-                        f"⚠️ {message.author.mention} has been given a **strike** for repeated offensive language. Total strikes: {user_data[user_id]['strikes']}."
-                    )
-
-                    # Take action based on the number of strikes
-                    if user_data[user_id]["strikes"] == 3:
-                        mute_role = discord.utils.get(message.guild.roles, name="Muted")
-                        if not mute_role:
-                            mute_role = await message.guild.create_role(name="Muted")
-                            for channel in message.guild.channels:
-                                await channel.set_permissions(mute_role, send_messages=False, speak=False)
-                        await message.author.add_roles(mute_role)
-                        await message.channel.send(f"🔇 {message.author.mention} has been muted for accumulating 3 strikes.")
-                    elif user_data[user_id]["strikes"] == 5:
-                        await message.author.kick(reason="Reached 5 strikes")
-                        await message.channel.send(f"👢 {message.author.mention} has been kicked for reaching 5 strikes.")
-                    elif user_data[user_id]["strikes"] >= 7:
-                        await message.author.ban(reason="Reached 7 strikes")
-                        await message.channel.send(f"⛔ {message.author.mention} has been banned for reaching 7 strikes.")
-
-                save_user_data(user_data)
-                return
-    
-    # Allow the `?start` command to bypass sleep mode
-    if is_sleeping and message.content.startswith("?start"):
-        await bot.process_commands(message)
-        return
-    
-    # Ignore all messages if the bot is in sleep mode
-    if is_sleeping:
-        return
+            await message.clear_reaction(egg_emoji)
 
     # Save updated user data
     save_user_data(data)
@@ -2390,6 +1718,11 @@ async def color(ctx, *, color_input: str):
     except ValueError:
         await ctx.send("❌ Invalid color input. Please provide a valid color name or hex code (e.g., `red` or `#FF0000`).")
 
+@bot.event
+async def on_command(ctx):
+    global last_activity_time
+    last_activity_time = datetime.now()
+
 # Background task to monitor inactivity
 async def monitor_inactivity():
     global last_activity_time
@@ -2403,32 +1736,8 @@ async def monitor_inactivity():
 # Start the background task when the bot is ready
 @bot.event
 async def on_ready():
-    global is_sleeping
-    is_sleeping = True  # Start in sleep mode
-    await bot.change_presence(status=discord.Status.idle, activity=discord.Game("[🔌⚠️] : Offline"))
-
-current_status = None
-async def change_status():
-    """Rotate statuses dynamically or use a custom status."""
-    global custom_status
-    global is_sleeping
-    statuses = itertools.cycle([
-        discord.Game("with Python 🎮"),
-        discord.Activity(type=discord.ActivityType.watching, name="[ 🔍 Looking for interesting stuff to do..]"),
-        discord.Streaming(name="clicc pls it very funni", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-    ])
-    while True:
-        if is_sleeping:
-            # If the bot is in sleep mode, stop updating the status
-            await asyncio.sleep(10)  # Check every 10 seconds if the bot is still in sleep mode
-            continue
-
-        if custom_status:  # If a custom status is set, use it
-            await bot.change_presence(status=discord.Status.online, activity=custom_status)
-        else:  # Otherwise, rotate through the default statuses
-            current_status = next(statuses)
-            await bot.change_presence(status=discord.Status.online, activity=current_status)
-        await asyncio.sleep(360)  # Change status every 360 seconds
+    logging.info(f"Logged in as {bot.user}")
+    bot.loop.create_task(monitor_inactivity())
 
 @bot.command(name="game")
 async def game(ctx, *, game_name: str):
@@ -2455,50 +1764,6 @@ async def game(ctx, *, game_name: str):
         except Exception as e:
             await ctx.send(f"❌ An error occurred while trying to deafen {ctx.author.mention}: {e}")
 
-async def ensure_level_roles(guild):
-    """Ensure all level roles exist in the server."""
-    for level, role_name in level_roles.items():
-        role = discord.utils.get(guild.roles, name=role_name)
-        if not role:
-            try:
-                # Create the role if it doesn't exist
-                await guild.create_role(name=role_name, reason="Level-based role created by the bot.")
-                logging.info(f"Role '{role_name}' created in guild '{guild.name}'.")
-            except discord.Forbidden:
-                logging.warning(f"Insufficient permissions to create role '{role_name}' in guild '{guild.name}'.")
-                owner = guild.owner
-                if owner:
-                    await owner.send(
-                        f"❌ I couldn't create the role '{role_name}' in your server **{guild.name}**. "
-                        f"Please create it manually or grant me the necessary permissions."
-                    )
-            except Exception as e:
-                logging.error(f"Error creating role '{role_name}' in guild '{guild.name}': {e}")
-
-async def assign_level_role(member, level, channel):
-    """Assign a level-based role to a user and notify in the server channel."""
-    guild = member.guild
-    role_name = level_roles.get(level)
-
-    if not role_name:
-        return  # No role for this level
-
-    # Ensure the role exists
-    role = discord.utils.get(guild.roles, name=role_name)
-    if not role:
-        await ensure_level_roles(guild)
-        role = discord.utils.get(guild.roles, name=role_name)
-
-    # Assign the role
-    if role and role not in member.roles:
-        try:
-            await member.add_roles(role, reason=f"Reached Level {level}")
-            await channel.send(f"🎉 {member.mention} has been assigned the **{role_name}** role for reaching Level {level}!")
-        except discord.Forbidden:
-            logging.warning(f"Insufficient permissions to assign role '{role_name}' to {member.name}.")
-        except Exception as e:
-            logging.error(f"Error assigning role '{role_name}' to {member.name}: {e}")
-
 @bot.command(name="stopgame")
 async def stopgame(ctx):
     """Stop gaming mode for yourself."""
@@ -2523,8 +1788,89 @@ async def stopgame(ctx):
     else:
         await ctx.send(f"❌ {ctx.author.mention}, you are not currently gaming.")
 
-ffmpeg_path = r"C:\Users\roland\Downloads\ffmpeg-2025-03-31-git-35c091f4b7-full_build\bin\ffmpeg.exe"
+if __name__ == "__main__":
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--skip-input", action="store_true", help="Skip input prompts for auto-restart")
+    args = parser.parse_args()
+
+    # Skip the input prompts if the `--skip-input` flag is provided
+    if not args.skip_input:
+        inpwhen = input(str("Update?: "))
+        if inpwhen == "yes":
+            print(f"Current version: {bot_info['version']}")
+            inpwhen2 = input(str("Version?: "))
+            print(f"Updating to {inpwhen2} from {bot_info['version']}...")
             
+            bot_info['version'] = inpwhen2
+            save_bot_info()
+
+            inpwhen2 = None
+            print(f"Current new stuff: {bot_info['new_stuff']}")
+            inpwhen2 = input(str("New stuff?: "))
+            print(f"Updating new stuff to {inpwhen2} from {bot_info['new_stuff']}...")
+
+            bot_info['new_stuff'] = inpwhen2
+            save_bot_info()
+            
+        elif inpwhen == "no":
+            print("Proceeding without update.")
+        else:
+            print("Error, try again later.")
+            time.sleep(0.6)
+            print("Proceeding without update.")
+
+        inpwhen3 = input(str("Clear all data?: "))
+        if inpwhen3 == "yes":
+            print("Are you sure?")
+            input()
+            if input() == "yes":
+                print("Deleting all data...")
+            elif input() == "no":
+                print("Proceeding...")
+            else:
+                print("Error, proceeding nonetheless.")
+
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--skip-input", action="store_true", help="Skip input prompts for auto-restart")
+    args = parser.parse_args()
+
+    if not args.skip_input:
+        inpwhen = input(str("Update?: "))
+        if inpwhen == "yes":
+            print(f"Current version: {bot_info['version']}")
+            inpwhen2 = input(str("Version?: "))
+            print(f"Updating to {inpwhen2} from {bot_info['version']}...")
+            
+            bot_info['version'] = inpwhen2
+            save_bot_info()
+
+            inpwhen2 = None
+            print(f"Current new stuff: {bot_info['new_stuff']}")
+            inpwhen2 = input(str("New stuff?: "))
+            print(f"Updating new stuff to {inpwhen2} from {bot_info['new_stuff']}...")
+
+            bot_info['new_stuff'] = inpwhen2
+            save_bot_info()
+            
+        elif inpwhen == "no":
+            print("Proceeding without update.")
+        else:
+            print("Error, try again later.")
+            time.sleep(0.6)
+            print("Proceeding without update.")
+
+        inpwhen3 = input(str("Clear all data?: "))
+        if inpwhen3 == "yes":
+            print("Are you sure?")
+            input()
+            if input() == "yes":
+                print("Deleting all data...")
+            elif input() == "no":
+                print("Proceeding...")
+            else:
+                print("Error, proceeding nonetheless.")
 
 # Ensure the music folder exists
 if not os.path.exists("music"):
@@ -2670,11 +2016,6 @@ async def play(ctx, *, query: str = None):
                     await ctx.send(f"❌ The file `{song_query}` does not exist in the music folder.")
                     return
                 await ctx.send(f"🎵 Now playing: `{song_query}` (Looping {loop_count} times)")
-                
-            # Set the status to "Playing <song>"
-            current_status = discord.Game(f"Playing {os.path.basename(song_path)}")
-            await bot.change_presence(status=discord.Status.online, activity=current_status)
-
         else:
             # Play the first song in the music folder
             songs = sorted(os.listdir("music"))
@@ -2828,6 +2169,8 @@ async def meme(ctx):
     except Exception as e:
         await ctx.send(f"❌ Failed to fetch a meme: {e}")
 
+import requests
+
 @bot.command(name="weather")
 async def weather(ctx, *, city: str):
     """Get the current weather for a city."""
@@ -2858,7 +2201,7 @@ def check_music_folder():
     """Check if the music folder has more than 50 files and return the oldest file."""
     music_folder = "music"
     files = [os.path.join(music_folder, f) for f in os.listdir(music_folder) if os.path.isfile(os.path.join(music_folder, f))]
-    if len(files) > 37:
+    if len(files) > 50:
         oldest_file = min(files, key=os.path.getctime)  # Get the oldest file based on creation time
         return oldest_file
     return None
@@ -3031,10 +2374,9 @@ async def trivia(ctx, question: str, *options):
 
 @bot.command(name="leaderboard")
 async def leaderboard(ctx, category: str = None):
-    """Display the leaderboard for level, XP, coins, or Easter Eggs."""
-    valid_categories = ["level", "xp", "coins", "eggs"]
-    if category not in valid_categories:
-        await ctx.send(f"❌ Invalid category. Use `?leaderboard level`, `?leaderboard xp`, `?leaderboard coins`, or `?leaderboard eggs`.")
+    """Display the leaderboard for level, XP, or coins."""
+    if category not in ["level", "xp", "coins"]:
+        await ctx.send("❌ Invalid category. Use `?leaderboard level`, `?leaderboard xp`, or `?leaderboard coins`.")
         return
 
     # Load user data
@@ -3050,8 +2392,7 @@ async def leaderboard(ctx, category: str = None):
                     "name": user.display_name,
                     "level": user_info.get("level", 0),
                     "xp": user_info.get("xp", 0),
-                    "coins": user_info.get("coins", 0),
-                    "eggs": easter_data.get(user_id, {}).get("eggs", 0)  # Include Easter Eggs
+                    "coins": user_info.get("coins", 0)
                 })
 
     # Sort the leaderboard based on the selected category
@@ -3074,7 +2415,7 @@ async def leaderboard(ctx, category: str = None):
     await ctx.send(embed=embed)
 
 @bot.command(name="Supdate")
-@commands.check(is_owner)
+@commands.has_permissions(administrator=True)
 async def supdate(ctx, *, args: str):
     """Send an update message to the announcements channel in all servers and restart the bot."""
     try:
@@ -3159,731 +2500,6 @@ async def eggs(ctx, member: discord.Member = None):
     eggs_collected = easter_data.get(user_id, {}).get("eggs", 0)
     await ctx.send(f"🥚 {member.mention} has collected **{eggs_collected} eggs**!")
 
-# Dictionary to track the last activity time for each guild
-last_activity = {}
-
-# List of random messages for the chat reviver
-chat_reviver_messages = [
-    "Hey everyone! What's up? 👋",
-    "Let's keep the chat alive! What's on your mind? 💬",
-    "Who's up for a fun conversation? 😄",
-    "What's your favorite movie or TV show? 🎥",
-    "If you could travel anywhere in the world, where would you go? 🌍",
-    "What's the best thing that happened to you today? 🌟",
-    "Let's play a quick game! What's 5 + 7? 🤔",
-    "Share your favorite meme! 😂",
-    "What's your favorite food? 🍕",
-    "Who's ready for some fun? 🎉"
-]
-    
-
-async def chat_reviver_task():
-    """Send a random message every hour to revive the chat if no activity has occurred."""
-    await bot.wait_until_ready()  # Ensure the bot is ready before starting the task
-    while not bot.is_closed():
-        try:
-            for guild in bot.guilds:
-                # Check if there has been activity in the last hour
-                last_active = last_activity.get(guild.id, None)
-                if last_active and (datetime.now() - last_active).total_seconds() < 18000:
-                    logging.info(f"Skipping chat reviver for {guild.name} due to recent activity.")
-                    continue
-
-                # Find a role with "chat reviver" in its name
-                chat_reviver_role = discord.utils.find(
-                    lambda r: "chat reviver" in r.name.lower(),
-                    guild.roles
-                )
-
-                # Find a general or chat-related channel
-                target_channel = discord.utils.find(
-                    lambda c: ("general" in c.name.lower() or "chat" in c.name.lower()) and isinstance(c, discord.TextChannel),
-                    guild.channels
-                )
-
-                if chat_reviver_role and target_channel:
-                    # Choose a random message and send it
-                    random_message = random.choice(chat_reviver_messages)
-                    await target_channel.send(f"{chat_reviver_role.mention} {random_message}")
-                    logging.info(f"Chat reviver message sent to {target_channel.name} in {guild.name}.")
-                else:
-                    logging.warning(f"Chat reviver role or target channel not found in {guild.name}.")
-        except Exception as e:
-            logging.error(f"Error in chat reviver task: {e}")
-
-        # Wait for 1 hour before checking again
-        await asyncio.sleep(18000)
-
-@bot.command(name="chatreviver-role")
-@commands.has_permissions(administrator=True)
-async def chatreviver_role(ctx):
-    """Send a message to allow users to get the 'Chat Reviver' role by reacting."""
-    try:
-        # Create the embed for the Chat Reviver role
-        embed = discord.Embed(
-            title="Get the Chat Reviver Role",
-            description=(
-                "React with 🛠️ to get the **Chat Reviver** role.\n"
-                "This role will be mentioned when the bot sends messages to revive the chat!"
-            ),
-            color=discord.Color.blue(),
-        )
-        embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/3593/3593455.png")  # Example icon
-
-        # Send the embed message
-        message = await ctx.send(embed=embed)
-
-        # Add the 🛠️ reaction to the message
-        await message.add_reaction("🛠️")
-
-        # Save the message ID in the user_data.json file
-        data = load_user_data()
-        data["chat_reviver_message_id"] = message.id
-        save_user_data(data)
-
-        logging.info(f"Chat Reviver role message sent in {ctx.channel.name} (ID: {ctx.channel.id}). Message ID: {message.id}")
-        await ctx.send("✅ Chat Reviver role message sent successfully!")
-    except Exception as e:
-        logging.error(f"Error in chatreviver_role command: {e}")
-        await ctx.send(f"❌ An error occurred while setting up the Chat Reviver role: {e}")
-
-def update_eggs(user_id, eggs_change):
-    """Update the user's egg count."""
-    user_id = str(user_id)
-    if user_id not in easter_data:
-        easter_data[user_id] = {"eggs": 0}
-    easter_data[user_id]["eggs"] += eggs_change
-    save_easter_data()
-
-@bot.command(name="gems")
-async def gems(ctx, member: discord.Member = None):
-    """Check how many gems a user has collected."""
-    member = member or ctx.author
-    user_id = str(member.id)
-    user_data = get_user_data(user_id)
-    gems_collected = user_data.get("gems", 0)
-    await ctx.send(f"💎 {member.mention} has collected **{gems_collected} gems**!")
-
-# Bank commands
-@bot.command(name="deposit")
-async def deposit(ctx, amount: int):
-    """Deposit coins into the bank."""
-    if amount <= 0:
-        await ctx.send("❌ You must deposit a positive amount of coins.")
-        return
-
-    user_id = ctx.author.id
-    balance = get_coins(user_id)
-
-    if balance < amount:
-        await ctx.send(f"❌ You don't have enough coins to deposit. Your balance is **{balance} coins**.")
-        return
-
-    # Deduct from user's balance and add to the bank
-    update_coins(user_id, -amount)
-    update_bank_balance(user_id, amount)
-
-    await ctx.send(f"✅ {ctx.author.mention}, you deposited **{amount} coins** into the bank.")
-
-@bot.command(name="withdraw")
-async def withdraw(ctx, amount: int):
-    """Withdraw coins from the bank."""
-    if amount <= 0:
-        await ctx.send("❌ You must withdraw a positive amount of coins.")
-        return
-
-    user_id = ctx.author.id
-    bank_balance = get_bank_balance(user_id)
-
-    if bank_balance < amount:
-        await ctx.send(f"❌ You don't have enough coins in the bank to withdraw. Your bank balance is **{bank_balance} coins**.")
-        return
-
-    # Deduct from the bank and add to user's balance
-    update_bank_balance(user_id, -amount)
-    update_coins(user_id, amount)
-
-    await ctx.send(f"✅ {ctx.author.mention}, you withdrew **{amount} coins** from the bank.")
-
-@bot.command(name="bank")
-async def bank(ctx):
-    """Check your bank balance."""
-    user_id = ctx.author.id
-    bank_balance = get_bank_balance(user_id)
-    await ctx.send(f"🏦 {ctx.author.mention}, your bank balance is **{bank_balance} coins**.")
-
-@bot.command(name="buygem")
-async def buygem(ctx):
-    """Buy a gem for 250 coins."""
-    user_id = ctx.author.id
-    cost = 250  # Cost of one gem
-
-    # Check if the user has enough coins
-    balance = get_coins(user_id)
-    if balance < cost:
-        await ctx.send(f"❌ {ctx.author.mention}, you don't have enough coins to buy a gem. You need **{cost} coins**, but you only have **{balance} coins**.")
-        return
-
-    # Deduct coins and add a gem
-    update_coins(user_id, -cost)
-    update_gems(user_id, 1)
-
-    await ctx.send(f"✅ {ctx.author.mention}, you bought **1 gem** for **{cost} coins**! 💎")
-
-crate_objects = [
-    {"name": "Golden Egg", "rarity": "Legendary", "value": {"gems": 5}},
-    {"name": "Diamond Shard", "rarity": "Legendary", "value": {"gems": 3}},
-    {"name": "Mystic Feather", "rarity": "Epic", "value": {"gems": 2}},
-    {"name": "Ancient Relic", "rarity": "Epic", "value": {"coins": 500}},
-    {"name": "Silver Coin", "rarity": "Rare", "value": {"coins": 250}},
-    {"name": "Bronze Coin", "rarity": "Rare", "value": {"coins": 100}},
-    {"name": "Magic Scroll", "rarity": "Rare", "value": {"coins": 150}},
-    {"name": "Wooden Shield", "rarity": "Uncommon", "value": {"coins": 50}},
-    {"name": "Iron Sword", "rarity": "Uncommon", "value": {"coins": 75}},
-    {"name": "Healing Potion", "rarity": "Uncommon", "value": {"coins": 30}},
-    {"name": "Rusty Key", "rarity": "Common", "value": {"coins": 10}},
-    {"name": "Old Map", "rarity": "Common", "value": {"coins": 15}},
-    {"name": "Broken Compass", "rarity": "Common", "value": {"coins": 5}},
-    {"name": "Phoenix Feather", "rarity": "Legendary", "value": {"gems": 4}},
-    {"name": "Dragon Scale", "rarity": "Epic", "value": {"gems": 2}},
-    {"name": "Enchanted Amulet", "rarity": "Epic", "value": {"coins": 400}},
-    {"name": "Crystal Orb", "rarity": "Rare", "value": {"coins": 200}},
-    {"name": "Golden Chalice", "rarity": "Rare", "value": {"coins": 300}},
-    {"name": "Emerald Ring", "rarity": "Uncommon", "value": {"coins": 60}},
-    {"name": "Sapphire Pendant", "rarity": "Uncommon", "value": {"coins": 80}},
-    {"name": "Cursed Doll", "rarity": "Common", "value": {"coins": 20}},
-    {"name": "Ancient Coin", "rarity": "Common", "value": {"coins": 25}},
-    {"name": "Pirate's Hat", "rarity": "Rare", "value": {"coins": 150}},
-    {"name": "Treasure Chest", "rarity": "Legendary", "value": {"gems": 6}},
-    {"name": "Mystic Rune", "rarity": "Epic", "value": {"gems": 3}},
-]
-
-# Rarity weights for random selection
-rarity_weights = {
-    "Legendary": 1,  # 1% chance
-    "Epic": 5,       # 5% chance
-    "Rare": 15,      # 15% chance
-    "Uncommon": 30,  # 30% chance
-    "Common": 49     # 49% chance
-}
-
-import random
-
-@bot.command(name="opencrate")
-@cooldown(1, 60, BucketType.user) 
-async def open_crate(ctx):
-    """Open a crate to receive a random object."""
-    # Select an object based on rarity
-    rarities = [obj["rarity"] for obj in crate_objects]
-    rarity = random.choices(list(rarity_weights.keys()), weights=rarity_weights.values(), k=1)[0]
-    possible_objects = [obj for obj in crate_objects if obj["rarity"] == rarity]
-    selected_object = random.choice(possible_objects)
-
-    # Add the object to the user's inventory
-    user_id = str(ctx.author.id)
-    inventory = load_inventory()
-    if user_id not in inventory:
-        inventory[user_id] = []
-    inventory[user_id].append(selected_object)
-    save_inventory(inventory)
-    
-    # Update the user's crate count and check for trophies
-    user_data = get_user_data(ctx.author.id)
-    user_data["crates_opened"] = user_data.get("crates_opened", 0) + 1
-    update_user_data(ctx.author.id, "crates_opened", user_data["crates_opened"])
-    check_trophy_goals(ctx.author.id, ctx.channel)  # Pass the channel as the second argument
-
-    # Notify the user
-    await ctx.send(
-        f"🎉 {ctx.author.mention}, you opened a crate and received a **{selected_object['name']}**! "
-        f"(Rarity: {selected_object['rarity']})"
-    )
-
-@bot.command(name="exchange")
-async def exchange(ctx, *, object_name: str):
-    """Exchange an object for coins or gems."""
-    user_id = str(ctx.author.id)
-    inventory = load_inventory()
-
-    # Check if the user owns the object
-    if user_id not in inventory or not any(obj["name"].lower() == object_name.lower() for obj in inventory[user_id]):
-        await ctx.send(f"❌ {ctx.author.mention}, you do not own an object named **{object_name}**.")
-        return
-
-    # Find the object in the user's inventory
-    for obj in inventory[user_id]:
-        if obj["name"].lower() == object_name.lower():
-            selected_object = obj
-            break
-
-    # Exchange the object for coins or gems
-    if "coins" in selected_object["value"]:
-        update_coins(user_id, selected_object["value"]["coins"])
-        await ctx.send(
-            f"✅ {ctx.author.mention}, you exchanged **{selected_object['name']}** for "
-            f"**{selected_object['value']['coins']} coins**!"
-        )
-    elif "gems" in selected_object["value"]:
-        update_gems(user_id, selected_object["value"]["gems"])
-        await ctx.send(
-            f"✅ {ctx.author.mention}, you exchanged **{selected_object['name']}** for "
-            f"**{selected_object['value']['gems']} gems**!"
-        )
-
-    # Remove the object from the user's inventory
-    inventory[user_id].remove(selected_object)
-    save_inventory(inventory)
-
-@bot.command(name="inventory")
-async def inventory(ctx):
-    """Check your inventory."""
-    user_id = str(ctx.author.id)
-    inventory = load_inventory()
-
-    if user_id not in inventory or not inventory[user_id]:
-        await ctx.send(f"📦 {ctx.author.mention}, your inventory is empty.")
-        return
-
-    # Display the user's inventory
-    embed = discord.Embed(
-        title=f"{ctx.author.name}'s Inventory",
-        description="Here are the items you own:",
-        color=discord.Color.blue()
-    )
-    for obj in inventory[user_id]:
-        # Safely get the value (either coins or gems)
-        value = obj["value"].get("coins", obj["value"].get("gems", "Unknown"))
-        value_type = "coins" if "coins" in obj["value"] else "gems"
-        embed.add_field(
-            name=obj["name"],
-            value=f"Rarity: {obj['rarity']} | Value: {value} {value_type}",
-            inline=False
-        )
-
-    await ctx.send(embed=embed)
-
-@bot.command(name="trophies")
-async def display_trophies(ctx):
-    """Display the user's trophies."""
-    user_id = str(ctx.author.id)
-    user_trophies = trophy_data.get(user_id, [])
-
-    # Create the base image
-    base = Image.new("RGBA", (800, 400), (30, 30, 30))  # Dark background
-    draw = ImageDraw.Draw(base)
-
-    # Add a title
-    font = ImageFont.truetype("arial.ttf", 40)
-    draw.text((20, 20), f"{ctx.author.name}'s Trophies", fill=(255, 255, 255), font=font)
-
-    # Add trophy icons
-    x, y = 50, 100
-    for trophy_id, trophy in trophies.items():
-        icon_path = trophy["icon"] if trophy_id in user_trophies else "icons/trophies/placeholder.png"
-        try:
-            icon = Image.open(icon_path).convert("RGBA").resize((100, 100))  # Ensure the image has an alpha channel
-            base.paste(icon, (x, y), icon)  # Paste the icon with transparency
-        except FileNotFoundError:
-            await ctx.send(f"❌ Missing file: `{icon_path}`. Please ensure the file exists.")
-            return
-        except Exception as e:
-            await ctx.send(f"❌ An error occurred while processing `{icon_path}`: {e}")
-            return
-
-        draw.text((x, y + 110), trophy["name"], fill=(255, 255, 255), font=ImageFont.truetype("arial.ttf", 20))
-        x += 150
-        if x > 650:
-            x = 50
-            y += 150
-
-    # Save the image to a BytesIO object
-    buffer = BytesIO()
-    base.save(buffer, format="PNG")
-    buffer.seek(0)
-
-    # Send the image
-    await ctx.send(file=discord.File(fp=buffer, filename="trophies.png"))
-
-@bot.command(name="sell")
-async def sell(ctx):
-    """Sell everything in your inventory for coins or gems."""
-    user_id = str(ctx.author.id)
-    inventory = load_inventory()
-
-    # Check if the user has items in their inventory
-    if user_id not in inventory or not inventory[user_id]:
-        await ctx.send(f"📦 {ctx.author.mention}, your inventory is empty. Nothing to sell.")
-        return
-
-    # Calculate the total value of the inventory
-    total_coins = sum(obj["value"].get("coins", 0) for obj in inventory[user_id])
-    total_gems = sum(obj["value"].get("gems", 0) for obj in inventory[user_id])
-
-    # Confirmation message
-    confirmation_message = await ctx.send(
-        f"⚠️ {ctx.author.mention}, are you sure you want to sell everything in your inventory?\n"
-        f"You will receive **{total_coins} coins** and **{total_gems} gems**.\n"
-        f"Type `yes` to confirm or `no` to cancel."
-    )
-
-    def check(m):
-        return m.author == ctx.author and m.channel == ctx.channel and m.content.lower() in ["yes", "no"]
-
-    try:
-        response = await bot.wait_for("message", check=check, timeout=30.0)
-        if response.content.lower() == "no":
-            await ctx.send("❌ Sale canceled. Your inventory remains untouched.")
-            return
-        elif response.content.lower() == "yes":
-            # Add the coins and gems to the user's balance
-            update_coins(user_id, total_coins)
-            update_gems(user_id, total_gems)
-
-            # Clear the user's inventory
-            inventory[user_id] = []
-            save_inventory(inventory)
-
-            await ctx.send(
-                f"✅ {ctx.author.mention}, you sold everything in your inventory and received "
-                f"**{total_coins} coins** and **{total_gems} gems**!"
-            )
-    except asyncio.TimeoutError:
-        await ctx.send("⏰ Sale timed out. Your inventory remains untouched.")
-
-@bot.command(name="modify_status")
-@commands.check(is_owner)
-async def modify_status(ctx, status_type: str, *, activity: str = None):
-    """Modify the bot's status and activity."""
-    global custom_status
-
-    if status_type.lower() == "default":
-        # Reset to default rotating statuses
-        custom_status = None
-        await ctx.send("✅ The bot's status has been reset to its default rotating behavior.")
-        return
-
-    # Validate the status type
-    valid_status_types = ["playing", "watching", "listening", "streaming"]
-    if status_type.lower() not in valid_status_types:
-        await ctx.send(f"❌ Invalid status type. Choose from: {', '.join(valid_status_types)}.")
-        return
-
-    # Set the custom status
-    if status_type.lower() == "playing":
-        custom_status = discord.Game(activity)
-    elif status_type.lower() == "watching":
-        custom_status = discord.Activity(type=discord.ActivityType.watching, name=activity)
-    elif status_type.lower() == "listening":
-        custom_status = discord.Activity(type=discord.ActivityType.listening, name=activity)
-    elif status_type.lower() == "streaming":
-        custom_status = discord.Streaming(name=activity, url="https://www.twitch.tv/your_channel")  # Replace with your Twitch URL
-
-    await bot.change_presence(status=discord.Status.online, activity=custom_status)
-    await ctx.send(f"✅ The bot's status has been updated to **{status_type.capitalize()} {activity}**.")
-
-@bot.command(name="reset")
-@commands.check(is_owner)
-async def reset(ctx):
-    """Reset all data and delete all songs with triple confirmation."""
-    # First confirmation
-    await ctx.send("⚠️ **Do you wish to proceed?** This will delete ALL data and songs. Type `yes` to proceed or `no` to cancel.")
-
-    def check(m):
-        return m.author == ctx.author and m.channel == ctx.channel and m.content.lower() in ["yes", "no"]
-
-    try:
-        response = await bot.wait_for("message", check=check, timeout=30.0)
-        if response.content.lower() == "no":
-            await ctx.send("❌ Reset canceled.")
-            return
-    except asyncio.TimeoutError:
-        await ctx.send("⏰ You took too long to respond. Reset canceled.")
-        return
-
-    # Second confirmation
-    await ctx.send("⚠️ **Are you ABSOLUTELY sure?** This will delete EVERYTHING. Type `yes` to proceed or `no` to cancel.")
-
-    try:
-        response = await bot.wait_for("message", check=check, timeout=30.0)
-        if response.content.lower() == "no":
-            await ctx.send("❌ Reset canceled.")
-            return
-    except asyncio.TimeoutError:
-        await ctx.send("⏰ You took too long to respond. Reset canceled.")
-        return
-
-    # Final confirmation
-    await ctx.send("⚠️ **ARE YOU SURE?** This is your FINAL WARNING. Type `yes` to proceed or `no` to cancel.")
-
-    try:
-        response = await bot.wait_for("message", check=check, timeout=30.0)
-        if response.content.lower() == "no":
-            await ctx.send("❌ Reset canceled.")
-            return
-    except asyncio.TimeoutError:
-        await ctx.send("⏰ You took too long to respond. Reset canceled.")
-        return
-
-    # Perform the reset
-    try:
-        # Delete all JSON files
-        data_files = ["data/user_data.json", "data/easter.json", "data/trophies.json", "data/warnings.json", "data/bank.json", "data/server_restrictions.json", "data/banned_servers.json"]
-        for file in data_files:
-            if os.path.exists(file):
-                os.remove(file)
-                await ctx.send(f"🗑️ Deleted `{file}`.")
-
-        # Delete all songs in the music folder
-        music_folder = "music"
-        if os.path.exists(music_folder):
-            for file in os.listdir(music_folder):
-                file_path = os.path.join(music_folder, file)
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
-            await ctx.send("🗑️ Deleted all songs in the `music` folder.")
-
-        await ctx.send("✅ **Reset complete. All data and songs have been deleted.**")
-        
-        # Restart the bot
-        os.execv(sys.executable, ["python", __file__, "--skip-input"])
-    except Exception as e:
-        await ctx.send(f"❌ An error occurred during the reset: {e}")
-
-@bot.command(name="exchange_gems")
-async def exchange_gems(ctx, gems: int):
-    """Exchange gems for coins."""
-    if gems <= 0:
-        await ctx.send("❌ You must exchange at least 1 gem.")
-        return
-
-    user_id = ctx.author.id
-    user_data = get_user_data(user_id)
-
-    # Check if the user has enough gems
-    if user_data["gems"] < gems:
-        await ctx.send(f"❌ {ctx.author.mention}, you don't have enough gems to exchange. You need **{gems} gems**, but you only have **{user_data['gems']} gems**.")
-        return
-
-    # Define the conversion rate
-    conversion_rate = 250  # 1 gem = 250 coins
-    coins_earned = gems * conversion_rate
-
-    # Deduct gems and add coins
-    user_data["gems"] -= gems
-    user_data["coins"] += coins_earned
-    update_user_data(user_id, "gems", user_data["gems"])
-    update_user_data(user_id, "coins", user_data["coins"])
-
-    await ctx.send(f"✅ {ctx.author.mention}, you exchanged **{gems} gems** for **{coins_earned} coins**!")
-
-@bot.command(name="announcement")
-@commands.check(is_owner)
-async def announcement(ctx, channel_name: str = None, *, message: str):
-    """
-    Send an announcement to all servers' announcement channels.
-    If a specific channel name is provided, send the message to that channel instead.
-    """
-    if not message:
-        await ctx.send("❌ You must provide a message to send.")
-        return
-
-    # Iterate through all servers the bot is in
-    for guild in bot.guilds:
-        try:
-            # If a specific channel name is provided
-            if channel_name:
-                target_channel = discord.utils.find(
-                    lambda c: channel_name.lower() in c.name.lower() and isinstance(c, discord.TextChannel),
-                    guild.channels
-                )
-            else:
-                # Default to an announcements channel
-                target_channel = discord.utils.find(
-                    lambda c: "announcement" in c.name.lower() and isinstance(c, discord.TextChannel),
-                    guild.channels
-                )
-
-            if target_channel:
-                # Send the message to the target channel
-                await target_channel.send(f"📢 **Announcement:**\n{message}")
-                logging.info(f"Announcement sent to {target_channel.name} in {guild.name}.")
-            else:
-                logging.warning(f"No suitable channel found in {guild.name}.")
-                # Optionally notify the server owner if no suitable channel is found
-                owner = guild.owner
-                if owner:
-                    await owner.send(
-                        f"❌ Could not find a suitable channel in your server **{guild.name}** "
-                        f"to send the announcement. Please ensure an announcements channel exists."
-                    )
-        except discord.Forbidden:
-            logging.warning(f"Permission denied to send message in {guild.name}.")
-        except Exception as e:
-            logging.error(f"Error sending announcement in {guild.name}: {e}")
-
-    await ctx.send("✅ Announcement sent to all servers.")
-    
-@bot.command(name="lookup")
-async def lookup(ctx, input_value: str):
-    """Look up a user by their ID or username."""
-    # Check if the input is a user ID
-    if input_value.isdigit():
-        user = await bot.fetch_user(int(input_value))
-        if user:
-            await ctx.send(f"🔍 User ID `{input_value}` belongs to: **{user.name}#{user.discriminator}**")
-        else:
-            await ctx.send(f"❌ No user found with ID `{input_value}`.")
-    else:
-        # Check if the input is a mention or username
-        user = discord.utils.get(ctx.guild.members, name=input_value) or discord.utils.get(ctx.guild.members, mention=input_value)
-        if user:
-            await ctx.send(f"🔍 User `{user.name}#{user.discriminator}` has the ID: **{user.id}**")
-        else:
-            await ctx.send(f"❌ No user found with the name or mention `{input_value}`.")
-            
-# EXCEPTIONAL DELETE AFTER EVENT.
-    
-# Add a dictionary to track user strikes
-user_strikes = {}
-
-@bot.command(name="strike")
-@commands.has_permissions(manage_roles=True)
-async def strike(ctx, member: discord.Member, *, reason: str = "No reason provided"):
-    """Give a strike to a user."""
-    user_id = str(member.id)
-    user_data = load_user_data()
-
-    # Initialize strikes if not present
-    if user_id not in user_data:
-        user_data[user_id] = {"xp": 0, "level": 1, "coins": 100, "warnings": [], "strikes": 0}
-    elif "strikes" not in user_data[user_id]:
-        user_data[user_id]["strikes"] = 0
-
-    # Increment the user's strikes
-    user_data[user_id]["strikes"] += 1
-    strikes = user_data[user_id]["strikes"]
-    save_user_data(user_data)
-
-    await ctx.send(f"⚠️ {member.mention} has been given a strike. Total strikes: **{strikes}**. Reason: {reason}")
-
-    # Take action based on the number of strikes
-    if strikes == 3:
-        mute_role = discord.utils.get(ctx.guild.roles, name="Muted")
-        if not mute_role:
-            mute_role = await ctx.guild.create_role(name="Muted")
-            for channel in ctx.guild.channels:
-                await channel.set_permissions(mute_role, send_messages=False, speak=False)
-        await member.add_roles(mute_role)
-        await ctx.send(f"🔇 {member.mention} has been muted for accumulating 3 strikes.")
-    elif strikes == 5:
-        await member.kick(reason="Reached 5 strikes")
-        await ctx.send(f"👢 {member.mention} has been kicked for reaching 5 strikes.")
-    elif strikes >= 7:
-        await member.ban(reason="Reached 7 strikes")
-        await ctx.send(f"⛔ {member.mention} has been banned for reaching 7 strikes.")
-
-@bot.command(name="clearstrikes")
-@commands.has_permissions(manage_roles=True)
-async def clearstrikes(ctx, member: discord.Member):
-    """Clear all strikes for a user."""
-    user_id = str(member.id)
-    user_data = load_user_data()
-
-    if user_id in user_data and "strikes" in user_data[user_id]:
-        user_data[user_id]["strikes"] = 0
-        save_user_data(user_data)
-        await ctx.send(f"✅ Cleared all strikes for {member.mention}.")
-    else:
-        await ctx.send(f"❌ {member.mention} has no strikes.")
-        
-@bot.command(name="infractions")
-@commands.has_permissions(manage_roles=True)
-async def infractions(ctx, member: discord.Member):
-    """View a user's strikes and warnings."""
-    user_id = str(member.id)
-    user_data = load_user_data()
-
-    # Extract strikes and warnings
-    strikes = user_data.get(user_id, {}).get("strikes", 0)
-    warnings = len(user_data.get(user_id, {}).get("warnings", []))
-
-    await ctx.send(
-        f"📋 **Infractions for {member.mention}:**\n"
-        f"- Strikes: {strikes}\n"
-        f"- Warnings: {warnings}"
-    )
-    
-@bot.command(name="setlimitations")
-@commands.has_permissions(administrator=True)
-async def setlimitations(ctx, level: str = None):
-    """Set the offensive word filtering level."""
-    if not level:
-        await ctx.send(
-            "❓ **Usage:** `?setlimitations <level>`\n"
-            "Levels:\n"
-            "1 - Minimal filtering\n"
-            "2 - Moderate filtering\n"
-            "3 - Strict filtering\n"
-            "4 - Very strict filtering\n"
-            "5 - Block all offensive words"
-        )
-        return
-
-    # Validate level
-    if level not in ["1", "2", "3", "4", "5"]:
-        await ctx.send("❌ Invalid level. Please choose a level between 1 and 5.")
-        return
-
-    # Save the level to the JSON file
-    guild_id = str(ctx.guild.id)
-    limitations = load_limitations()
-    limitations[guild_id] = int(level)
-    save_limitations(limitations)
-
-    await ctx.send(f"✅ Offensive word filtering level set to **{level}**.")
-
-@bot.command(name="setlogging")
-@commands.has_permissions(administrator=True)
-async def setlogging(ctx, action: str = None):
-    """Enable or disable logging for the server."""
-    if action not in ["enable", "disable"]:
-        await ctx.send("❓ **Usage:** `?setlogging <enable|disable>`")
-        return
-
-    guild_id = str(ctx.guild.id)
-    logging_config = load_logging_config()
-
-    if action == "enable":
-        logging_config[guild_id] = True
-        save_logging_config(logging_config)
-        await ctx.send("✅ Logging has been **enabled** for this server.")
-    elif action == "disable":
-        logging_config[guild_id] = False
-        save_logging_config(logging_config)
-        await ctx.send("✅ Logging has been **disabled** for this server.")
-    
-async def log_event(guild, message):
-    """Log an event to the logs channel if logging is enabled."""
-    logging_config = load_logging_config()
-    guild_id = str(guild.id)
-
-    if logging_config.get(guild_id, False):  # Check if logging is enabled
-        logs_channel = discord.utils.get(guild.text_channels, name="logs")
-        if logs_channel:
-            try:
-                await logs_channel.send(message)
-            except discord.Forbidden:
-                print(f"❌ Unable to send message to the logs channel in {guild.name}.")
-
-if __name__ == "__main__":
-    print("🚀 Starting the bot...")
-    # Parse command-line arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--skip-input", action="store_true", help="Skip input prompts for auto-restart")
-    args = parser.parse_args()
-    try:
-        bot.run(token)  # Replace with your bot token
-    except Exception as e:
-        print(f"❌ Error starting the bot: {e}")
-
+# Run the bot
+bot.run(token)  # Replace with your actual bot token
 save_user_data()

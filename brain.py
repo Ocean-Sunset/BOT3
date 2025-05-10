@@ -8,7 +8,6 @@ from discord.ui import Button, View
 from yt_dlp import YoutubeDL
 from discord import FFmpegPCMAudio
 from googletrans import Translator
-from discord.ui import Button, View
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 import argparse

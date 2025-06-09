@@ -1,7 +1,7 @@
 # --------------------- IMPORTS --------------------
 import discord
 from discord.ext import commands
-from ..Ediscord import utils, variables
+from Ediscord import utils, variables
 import asyncio
 import logging
 import requests

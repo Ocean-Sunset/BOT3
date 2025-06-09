@@ -46,31 +46,6 @@ BOT_DATA_FILE = "bot_data.txt"
 WEBSITE_COMMANDS_FILE = "website_commands.txt"
 LIMITATIONS_FILE = "f:\\Coding\\Discord\\BOT3\\data\\limitations.json"
 LOGGING_CONFIG_FILE = "data/logging_config.json"
-AKARI_POINTS_FILE = "data/akari_points.json"
-AKARI_EVENT_START = datetime(2025, 5, 16)  # Set to event start date
-AKARI_EVENT_END = AKARI_EVENT_START + timedelta(days=30)
-AKARI_REWARDS_FILE = "data/akari_rewards.json"
-AKARI_REWARDS = {
-    "voice": {"cost": 50, "desc": "Send 1 voice message (role removed after use)"},
-    "image": {"cost": 30, "desc": "Send 1 image (role removed after use)"},
-    "nickname": {"cost": 40, "desc": "Change your nickname for 24h"},
-    "shoutout": {"cost": 60, "desc": "Get a custom shoutout in announcements"},
-    "colorrole": {"cost": 80, "desc": "Pick a custom color role for 24h"},
-    "pin": {"cost": 25, "desc": "Pin one message of your choice"},
-    "emoji": {"cost": 100, "desc": "Add a custom emoji for 24h"},
-    "poll": {"cost": 35, "desc": "Create a server-wide poll"},
-    "highlight": {"cost": 20, "desc": "Highlight a message in #highlights"},
-    "priorityqueue": {"cost": 70, "desc": "Skip to the front of the music queue once"},
-    "gift": {"cost": 50, "desc": "Gift 100 coins to another user instantly"},
-}
-
-def load_akari_rewards():
-    """Load akari rewards"""
-    try:
-        with open(AKARI_REWARDS_FILE, "r") as file:
-            return json.load(file)
-    except FileNotFoundError:
-        return {}
 
 def load_logging_config():
     """Load logging configuration from the JSON file."""
@@ -90,21 +65,6 @@ async def grant_bot_level_roles():
     await bot.wait_until_ready()
     for guild in bot.guilds:
         await ensure_level_roles(guild)
-
-def load_akari_points():
-    try:
-        with open(AKARI_POINTS_FILE, "r") as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {}
-
-def save_akari_points(data):
-    with open(AKARI_POINTS_FILE, "w") as f:
-        json.dump(data, f)
-
-def is_akari_event_active():
-    now = datetime.now()
-    return AKARI_EVENT_START <= now <= AKARI_EVENT_END
 
 
 # Trophy definitions
@@ -2179,28 +2139,6 @@ async def on_message(message):
 
                 save_user_data(user_data)
                 return
-            
-    # Akari Points: 1 point per 10 messages during the event
-    if is_akari_event_active() and not message.author.bot:
-        akari_points = load_akari_points()
-        user_id = str(message.author.id)
-        akari_points.setdefault(user_id, {"messages": 0, "points": 0})
-        akari_points[user_id]["messages"] += 1
-        if akari_points[user_id]["messages"] >= 10:
-            akari_points[user_id]["points"] += 1
-            akari_points[user_id]["messages"] = 0
-        save_akari_points(akari_points)
-        
-    if not message.author.bot:
-        role = discord.utils.get(message.guild.roles, name="Akari Image Reward")
-        if role and role in message.author.roles and message.attachments:
-            for attachment in message.attachments:
-                if attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp")):
-                    await message.author.remove_roles(role)
-                    try:
-                        await message.author.send("🖼️ You used your Akari Image reward! The role has been removed.")
-                    except Exception:
-                        pass
     
     # Allow the `?start` command to bypass sleep mode
     if is_sleeping and message.content.startswith("?start"):
@@ -2331,8 +2269,6 @@ async def on_ready():
     print("Monitor activity task has been started.")
     asyncio.create_task(update_bot_data_periodically())
     print("Update bot through website task has started.")
-    bot.loop.create_task(akari_finale_task())
-    print("-----------AKARI EVENT STARTED DELETE AFTER i forgot-----------")
     bot.loop.create_task(refresh_leaderboard())
     print("refreshing leaderboard started ok")
     bot.loop.create_task(chat_reviver_task())
@@ -2346,15 +2282,7 @@ async def on_ready():
     logging.info(f"Chat reviver task started.")
 
 current_status = None
-async def change_status():
-    """Rotate statuses dynamically or use a custom status."""
-    global custom_status
-    global is_sleeping
-    statuses = itertools.cycle([
-        discord.Game("with Python ❤️"),
-        discord.Activity(type=discord.ActivityType.watching, name="[ 🔍 Akari's Ashed Graveyard]: https://discord.gg/HR48uPMUfK"),
-        discord.Streaming(name="DONT CLICK PLS", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-    ])
+
     while True:
         if is_sleeping:
             # If the bot is in sleep mode, stop updating the status
@@ -2958,40 +2886,8 @@ async def leaderboard(ctx, category: str = None):
             value=f"**{category.capitalize()}:** {entry[category]}",
             inline=False
         )
-    
-    if category == "akari":
-        points_data = load_akari_points()
-        leaderboard_data = []
-        for user_id, info in points_data.items():
-            user = ctx.guild.get_member(int(user_id))
-            if user:
-                leaderboard_data.append({
-                    "name": user.display_name,
-                    "akari": info.get("points", 0)
-                })
-        leaderboard_data = sorted(leaderboard_data, key=lambda x: x["akari"], reverse=True)
-        embed = discord.Embed(
-            title="🏆 Akari Points Leaderboard",
-            description="Top users by Akari Points",
-            color=discord.Color.purple()
-        )
-        for i, entry in enumerate(leaderboard_data[:10], start=1):
-            embed.add_field(
-                name=f"{i}. {entry['name']}",
-                value=f"**Akari Points:** {entry['akari']}",
-                inline=False
-            )
-        await ctx.send(embed=embed)
-        return
 
     await ctx.send(embed=embed)
-
-@bot.command(name="akari_points")
-async def akari_points(ctx):
-    """Check your Akari Points balance."""
-    points_data = load_akari_points()
-    points = points_data.get(str(ctx.author.id), {}).get("points", 0)
-    await ctx.send(f"🌸 {ctx.author.mention}, you have **{points} Akari Points**!")
 
 @bot.command(name="Supdate")
 @commands.check(is_owner)
@@ -3795,105 +3691,6 @@ async def log_event(guild, message):
             except discord.Forbidden:
                 print(f"❌ Unable to send message to the logs channel in {guild.name}.")
 
-@bot.command(name="akari_redeem")
-async def akari_redeem(ctx, reward: str, *, extra: str = None):
-    """Redeem Akari Points for rewards."""
-    reward = reward.lower()
-    if reward not in AKARI_REWARDS:
-        await ctx.send(f"❌ Invalid reward. Available: {', '.join(AKARI_REWARDS.keys())}")
-        return
-
-    points_data = load_akari_points()
-    user_id = str(ctx.author.id)
-    user_points = points_data.get(user_id, {}).get("points", 0)
-    cost = AKARI_REWARDS[reward]["cost"]
-
-    if user_points < cost:
-        await ctx.send(f"❌ You need {cost} Akari Points to redeem **{reward}**. You have {user_points}.")
-        return
-
-    points_data[user_id]["points"] -= cost
-    save_akari_points(points_data)
-
-    # Grant reward logic
-    if reward in ["voice", "image"]:
-        role_name = f"Akari {reward.capitalize()} Reward"
-        role = discord.utils.get(ctx.guild.roles, name=role_name)
-        if not role:
-            role = await ctx.guild.create_role(name=role_name, mentionable=False, hoist=False, reason="Akari Points Reward")
-        await ctx.author.add_roles(role)
-        await ctx.send(f"✅ {ctx.author.mention}, you redeemed **{cost} Akari Points** for: {AKARI_REWARDS[reward]['desc']}! Use your reward and the role will be removed automatically.")
-    elif reward == "nickname":
-        if extra:
-            await ctx.author.edit(nick=extra)
-            await ctx.send(f"✅ Nickname changed to **{extra}** for 24h!")
-            await asyncio.sleep(86400)
-            await ctx.author.edit(nick=None)
-        else:
-            await ctx.send("❌ Please provide a nickname. Usage: `?akari_redeem nickname <new_nickname>`")
-    elif reward == "shoutout":
-        channel = discord.utils.find(lambda c: "announcement" in c.name.lower(), ctx.guild.text_channels)
-        if channel:
-            await channel.send(f"🎉 Shoutout to {ctx.author.mention}: {extra or 'You are awesome!'}")
-            await ctx.send("✅ Shoutout sent!")
-        else:
-            await ctx.send("❌ Announcements channel not found.")
-    elif reward == "colorrole":
-        if extra and extra.startswith("#") and len(extra) == 7:
-            color = discord.Color(int(extra[1:], 16))
-            role_name = f"Akari Color {ctx.author.id}"
-            role = discord.utils.get(ctx.guild.roles, name=role_name)
-            if not role:
-                role = await ctx.guild.create_role(name=role_name, color=color, mentionable=False, hoist=False)
-            await ctx.author.add_roles(role)
-            await ctx.send(f"✅ Custom color role granted for 24h!")
-            await asyncio.sleep(86400)
-            await ctx.author.remove_roles(role)
-            await role.delete()
-        else:
-            await ctx.send("❌ Please provide a hex color (e.g., #FF5733). Usage: `?akari_redeem colorrole #RRGGBB`")
-    elif reward == "pin":
-        if ctx.message.reference:
-            msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-            await msg.pin()
-            await ctx.send("✅ Message pinned!")
-        else:
-            await ctx.send("❌ Reply to the message you want to pin and use this command.")
-    elif reward == "emoji":
-        if extra and ctx.message.attachments:
-            img = await ctx.message.attachments[0].read()
-            emoji = await ctx.guild.create_custom_emoji(name=extra, image=img)
-            await ctx.send(f"✅ Custom emoji `{emoji}` added for 24h!")
-            await asyncio.sleep(86400)
-            await emoji.delete()
-        else:
-            await ctx.send("❌ Attach an image and provide a name. Usage: `?akari_redeem emoji <name>`")
-    elif reward == "poll":
-        if extra:
-            await ctx.send(f"📊 Poll: {extra}\nReact with 👍 or 👎")
-        else:
-            await ctx.send("❌ Please provide a poll question. Usage: `?akari_redeem poll <question>`")
-    elif reward == "highlight":
-        highlight_channel = discord.utils.find(lambda c: "highlight" in c.name.lower(), ctx.guild.text_channels)
-        if ctx.message.reference and highlight_channel:
-            msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-            await highlight_channel.send(f"🌟 Highlighted by {ctx.author.mention}:\n{msg.content}")
-            await ctx.send("✅ Message highlighted!")
-        else:
-            await ctx.send("❌ Reply to the message you want to highlight and make sure a #highlights channel exists.")
-    elif reward == "priorityqueue":
-        await ctx.send("✅ You will be moved to the front of the music queue the next time you use `?play`!")
-        # Implement your queue logic here
-    elif reward == "gift":
-        if extra and ctx.message.mentions:
-            target = ctx.message.mentions[0]
-            update_coins(target.id, 100)
-            await ctx.send(f"🎁 {ctx.author.mention} gifted 100 coins to {target.mention}!")
-        else:
-            await ctx.send("❌ Mention a user to gift coins. Usage: `?akari_redeem gift @user`")
-    else:
-        await ctx.send("✅ Reward redeemed! (No special action for this reward yet)")
-
 # Remove temporary roles after use (example for voice and image)
 @bot.event
 async def on_voice_state_update(member, before, after):
@@ -3905,43 +3702,6 @@ async def on_voice_state_update(member, before, after):
             await member.send("🎤 You used your Akari Voice reward! The role has been removed.")
         except Exception:
             pass
-
-
-async def akari_finale_task():
-    """Automatically run the Akari Points event finale at the end of the event."""
-    await bot.wait_until_ready()
-    while True:
-        now = datetime.now()
-        if now >= AKARI_EVENT_END:
-            for guild in bot.guilds:
-                # Find the top Akari Points user in this guild
-                points_data = load_akari_points()
-                top_user_id = None
-                top_points = -1
-                for user_id, info in points_data.items():
-                    member = guild.get_member(int(user_id))
-                    if member and info.get("points", 0) > top_points:
-                        top_user_id = user_id
-                        top_points = info.get("points", 0)
-                if top_user_id:
-                    winner = guild.get_member(int(top_user_id))
-                    role_name = "Guild Owner's Assistant 👑"
-                    role = discord.utils.get(guild.roles, name=role_name)
-                    if not role:
-                        role = await guild.create_role(name=role_name, color=discord.Color.gold(), reason="Akari Points Event Winner")
-                    await winner.add_roles(role)
-                    # Announce in a general/announcement channel
-                    channel = discord.utils.find(
-                        lambda c: ("announcement" in c.name.lower() or "general" in c.name.lower()) and isinstance(c, discord.TextChannel),
-                        guild.channels
-                    )
-                    if channel:
-                        await channel.send(
-                            f"🏆 **Akari Points Event Finale!** 🏆\n"
-                            f"Congratulations {winner.mention}, you are now the **{role_name}** and must serve the Guild Owner for the next month! 🎉"
-                        )
-            break  # Only run once
-        await asyncio.sleep(3600)  # Check every hour
 
 @bot.command(name="trade")
 async def trade(ctx, member: discord.Member, trade_type: str, amount_or_item: str, *, item_name: str = None):

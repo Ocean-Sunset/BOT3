@@ -55,13 +55,13 @@ class Info(commands.Cog):
     @commands.command()
     async def info(self, ctx):
         custominfo = f"""# I am a multifunctional python Discord bot!
-        - Status: Exclusive
+        - Status: Normal
         - Version: **{variables.bot_info['version']}**
         - Developper: th3_t1sm
     
         I am multifunctional discord bot created by th3_t1sm,
-        This bot is Exclusive to Akari's Ashed Graveyard.
-        As well as this project who will receive custom updates.
+        This is just a python discord bot made with love.
+        **:D**
         """
         await ctx.send(custominfo)
 

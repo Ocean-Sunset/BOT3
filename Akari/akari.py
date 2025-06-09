@@ -4,7 +4,6 @@ from discord.ext.commands import CooldownMapping
 from discord.ext.commands import BucketType
 from discord.ext.commands import CommandOnCooldown
 from discord.ext.commands import cooldown
-from discord.ui import Button, View
 from yt_dlp import YoutubeDL
 from discord import FFmpegPCMAudio
 from googletrans import Translator
@@ -47,6 +46,31 @@ BOT_DATA_FILE = "bot_data.txt"
 WEBSITE_COMMANDS_FILE = "website_commands.txt"
 LIMITATIONS_FILE = "f:\\Coding\\Discord\\BOT3\\data\\limitations.json"
 LOGGING_CONFIG_FILE = "data/logging_config.json"
+AKARI_POINTS_FILE = "data/akari_points.json"
+AKARI_EVENT_START = datetime(2025, 5, 16)  # Set to event start date
+AKARI_EVENT_END = AKARI_EVENT_START + timedelta(days=30)
+AKARI_REWARDS_FILE = "data/akari_rewards.json"
+AKARI_REWARDS = {
+    "voice": {"cost": 50, "desc": "Send 1 voice message (role removed after use)"},
+    "image": {"cost": 30, "desc": "Send 1 image (role removed after use)"},
+    "nickname": {"cost": 40, "desc": "Change your nickname for 24h"},
+    "shoutout": {"cost": 60, "desc": "Get a custom shoutout in announcements"},
+    "colorrole": {"cost": 80, "desc": "Pick a custom color role for 24h"},
+    "pin": {"cost": 25, "desc": "Pin one message of your choice"},
+    "emoji": {"cost": 100, "desc": "Add a custom emoji for 24h"},
+    "poll": {"cost": 35, "desc": "Create a server-wide poll"},
+    "highlight": {"cost": 20, "desc": "Highlight a message in #highlights"},
+    "priorityqueue": {"cost": 70, "desc": "Skip to the front of the music queue once"},
+    "gift": {"cost": 50, "desc": "Gift 100 coins to another user instantly"},
+}
+
+def load_akari_rewards():
+    """Load akari rewards"""
+    try:
+        with open(AKARI_REWARDS_FILE, "r") as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return {}
 
 def load_logging_config():
     """Load logging configuration from the JSON file."""
@@ -60,6 +84,27 @@ def save_logging_config(data):
     """Save logging configuration to the JSON file."""
     with open(LOGGING_CONFIG_FILE, "w") as file:
         json.dump(data, file, indent=4)
+
+async def grant_bot_level_roles():
+    """Ensure all level roles exist in every guild the bot is in."""
+    await bot.wait_until_ready()
+    for guild in bot.guilds:
+        await ensure_level_roles(guild)
+
+def load_akari_points():
+    try:
+        with open(AKARI_POINTS_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+def save_akari_points(data):
+    with open(AKARI_POINTS_FILE, "w") as f:
+        json.dump(data, f)
+
+def is_akari_event_active():
+    now = datetime.now()
+    return AKARI_EVENT_START <= now <= AKARI_EVENT_END
 
 
 # Trophy definitions
@@ -102,16 +147,13 @@ intents.guilds = True
 intents.members = True
 intents.reactions = True
 
-level_roles = {
-    5: "[🌱 Novice]",
-    10: "[🔰 Apprentice]",
-    20: "[⚔️ Expert]",
-    30: "[🏆 Master]",
-    50: "[👑 Grandmaster]"
-}
-
 # Create the bot with intents
-bot = commands.Bot(command_prefix="?", intents=intents)
+bot = commands.Bot(command_prefix="?", intents=intents, help_command=None)
+
+# Load cogs
+initial_extensions = [
+    "moderation.py",  # Add more cog paths as you create them
+]
 
 ## filepath: /c:/Users/roland/Documents/Discord/BOT3/brain.py
 @bot.command(name="search_img")
@@ -869,16 +911,16 @@ async def on_raw_reaction_add(payload):
 
 @bot.event
 async def on_member_join(member):
-    """Event triggered when a user joins the server."""
+    """Event triggered when a user joins the server with a custom cat-themed welcome image."""
     try:
-        # Log the event
         logging.info(f"New member joined: {member.name}#{member.discriminator} (ID: {member.id})")
 
         # Get the welcome channel
-        welcome_channel = discord.utils.get(member.guild.text_channels, name="welcome")
+        welcome_channel_name = "👋〢「welcome」"
+        welcome_channel = discord.utils.get(member.guild.text_channels, name=welcome_channel_name)
         if not welcome_channel:
             logging.warning(f"Welcome channel not found in guild: {member.guild.name} (ID: {member.guild.id})")
-            return  # Exit if no welcome channel is found
+            return
 
         # Fetch the user's profile picture
         avatar_url = member.avatar.url if member.avatar else member.default_avatar.url
@@ -886,45 +928,93 @@ async def on_member_join(member):
         if response.status_code != 200:
             logging.error(f"Failed to fetch avatar for {member.name}#{member.discriminator}. HTTP Status: {response.status_code}")
             return
-        avatar = Image.open(BytesIO(response.content)).convert("RGBA")
+        avatar = Image.open(BytesIO(response.content)).convert("RGBA").resize((120, 120))
 
         # Load the background image
-        background_path = "icons/welcome/background.jpg"  # Replace with the path to your background image
-        try:
-            background = Image.open(background_path).convert("RGBA")
-        except FileNotFoundError:
-            logging.error(f"Background image not found at {background_path}. Please ensure the file exists.")
-            await welcome_channel.send("❌ Background image for the welcome card is missing. Please add it to `icons/welcome/background.jpg`.")
-            return
+        background_path = "assets/welcome/background.jpg"
+        background = Image.open(background_path).convert("RGBA").resize((800, 400))
 
-        # Resize the background to fit the welcome card dimensions
-        background = background.resize((800, 400))
+        # Load the border for the avatar
+        border_path = "assets/welcome/border.png"
+        border_img = Image.open(border_path).convert("RGBA").resize((140, 140))  # Slightly larger than avatar
 
         # Create the base image
-        base = Image.new("RGBA", (800, 400), (30, 30, 30, 0))  # Transparent background
-        base.paste(background, (0, 0))  # Paste the background onto the base image
+        avatar_pos = (60, 120)  # Left side, vertically centered
+        base = Image.new("RGBA", (800, 400), (255, 255, 255, 255))
+        base.paste(background, (0, 0))
 
-        # Draw the circular avatar
-        avatar = avatar.resize((150, 150))  # Resize the avatar
-        mask = Image.new("L", avatar.size, 0)
-        draw = ImageDraw.Draw(mask)
-        draw.ellipse((0, 0, avatar.size[0], avatar.size[1]), fill=255)
-        base.paste(avatar, (325, 50), mask)  # Center the avatar on the image
+        # Draw avatar and border
+        border_pos = (avatar_pos[0] - 10, avatar_pos[1] - 10)  # Border around avatar
+        avatar_mask = Image.new("L", avatar.size, 0)
+        mask_draw = ImageDraw.Draw(avatar_mask)
+        mask_draw.ellipse((0, 0, avatar.size[0], avatar.size[1]), fill=255)
+        base.paste(avatar, avatar_pos, avatar_mask)
+        base.paste(border_img, border_pos, border_img)
 
-        # Add the "WELCOME" text
-        font_path = "fonts/impact.ttf"  # Replace with the path to your bold font file
-        try:
-            font_large = ImageFont.truetype(font_path, 80)  # Big and bold font
-            font_small = ImageFont.truetype(font_path, 40)
-        except OSError:
-            await welcome_channel.send("❌ Font file not found. Please ensure the font file exists.")
-            return
+        # Paste the border image over the avatar (centered)
+        base.paste(border_img, border_pos, border_img)
+        user_rect = (210, 160, 670, 210)
+
+        # Load fonts
+        font_path = "assets/impact.ttf"
+        font_large = ImageFont.truetype(font_path, 70)
+        font_small = ImageFont.truetype(font_path, 36)
+        bubble_font = ImageFont.truetype(font_path, 24)
 
         draw = ImageDraw.Draw(base)
-        draw.text((250, 220), "WELCOME", font=font_large, fill=(255, 255, 255), align="center")
 
-        # Add the username below the "WELCOME" text
-        draw.text((250, 300), member.name, font=font_small, fill=(255, 255, 255), align="center")
+        # --- Rounded rectangle helper ---
+        def rounded_rectangle(draw, xy, radius, fill, outline, width):
+            draw.rounded_rectangle(xy, radius=radius, fill=fill, outline=outline, width=width)
+
+        # Centered text helper
+        def draw_centered_text(draw, rect, text, font, fill):
+            x1, y1, x2, y2 = rect
+            w, h = draw.textbbox((0, 0), text, font=font)[2:]
+            text_x = x1 + ((x2 - x1) - w) // 2
+            text_y = y1 + ((y2 - y1) - h) // 2
+            draw.text((text_x, text_y), text, font=font, fill=fill)
+
+        
+        def draw_centered_outlined_text(draw, rect, text, font, fill, outline, outline_width):
+            x1, y1, x2, y2 = rect
+            w, h = draw.textbbox((0, 0), text, font=font)[2:]
+            text_x = x1 + ((x2 - x1) - w) // 2
+            text_y = y1 + ((y2 - y1) - h) // 2
+            draw.text(
+                (text_x, text_y), text, font=font, fill=fill,
+                stroke_width=outline_width, stroke_fill=outline
+            )
+        # Draw "WELCOME!" with black outline, no box
+        welcome_rect = (210, 60, 670, 140)
+        draw_centered_outlined_text(draw, welcome_rect, "WELCOME!", font_large, (255, 255, 255), (0, 0, 0), 4)
+
+        # Draw username block
+        username = f"{member.name}  {member.discriminator}"
+
+        # Speech bubble (white rectangle with border, now says "Welcome!")
+        bubble_text = "Welcome!"
+        bubble_x, bubble_y = 670, 60
+        bubble_w, bubble_h = 170, 50
+        bubble_rect = (bubble_x, bubble_y, bubble_x + bubble_w, bubble_y + bubble_h)
+        draw.rounded_rectangle(bubble_rect, radius=12, fill=(255, 255, 255, 230), outline=(0, 0, 0), width=3)
+        draw_centered_text(draw, bubble_rect, "Welcome!", bubble_font, (0, 0, 0))
+
+        # Optional: Rounded corners for the whole image
+        def add_rounded_corners(im, rad):
+            circle = Image.new('L', (rad * 2, rad * 2), 0)
+            draw_c = ImageDraw.Draw(circle)
+            draw_c.ellipse((0, 0, rad * 2, rad * 2), fill=255)
+            alpha = Image.new('L', im.size, 255)
+            w, h = im.size
+            alpha.paste(circle.crop((0, 0, rad, rad)), (0, 0))
+            alpha.paste(circle.crop((0, rad, rad, rad * 2)), (0, h - rad))
+            alpha.paste(circle.crop((rad, 0, rad * 2, rad)), (w - rad, 0))
+            alpha.paste(circle.crop((rad, rad, rad * 2, rad * 2)), (w - rad, h - rad))
+            im.putalpha(alpha)
+            return im
+
+        base = add_rounded_corners(base, 30)
 
         # Save the image to a BytesIO object
         buffer = BytesIO()
@@ -939,7 +1029,6 @@ async def on_member_join(member):
         logging.info(f"Welcome message sent for {member.name}#{member.discriminator} in {welcome_channel.name}.")
     except Exception as e:
         logging.error(f"Error in on_member_join for {member.name}#{member.discriminator}: {e}")
-        # Optionally, send an error message to a logs channel
         logs_channel = discord.utils.get(member.guild.text_channels, name="logs")
         if logs_channel:
             await logs_channel.send(f"❌ An error occurred while welcoming {member.mention}: {e}")
@@ -952,7 +1041,7 @@ async def on_member_remove(member):
         logging.info(f"Member left: {member.name}#{member.discriminator} (ID: {member.id})")
 
         # Replace this with the goodbye channel name you will provide
-        goodbye_channel_name = "「ෆ-⌗-•-bye-ʚɞ」👋"  # Update this later with the actual channel name
+        goodbye_channel_name = "「💬」general-❯"  # Update this later with the actual channel name
         goodbye_channel = discord.utils.get(member.guild.text_channels, name=goodbye_channel_name)
         if not goodbye_channel:
             logging.warning(f"Goodbye channel not found in guild: {member.guild.name} (ID: {member.guild.id})")
@@ -967,7 +1056,7 @@ async def on_member_remove(member):
         avatar = Image.open(BytesIO(response.content)).convert("RGBA")
 
         # Load the background image
-        background_path = "icons/welcome/background.jpg"  # Use the same background as the welcome image
+        background_path = "assets/welcome/background.jpg"  # Use the same background as the welcome image
         try:
             background = Image.open(background_path).convert("RGBA")
         except FileNotFoundError:
@@ -1055,13 +1144,6 @@ async def rules_verify(ctx):
         logging.error(f"Error in rules_verify command: {e}")
         await ctx.send(f"❌ An error occurred while setting up rules verification: {e}")
 
-# Event: On member remove
-@bot.event
-async def on_member_leave(member):
-    bye_channel = get_channel_by_name(member.guild, ["「ෆ-⌗-•-bye-ʚɞ」👋"])
-    if bye_channel:
-        await bye_channel.send(f"Goodbye, {member.mention}. We will miss you!")
-
 # Event: On command completion
 @bot.event
 async def on_command_completion(ctx):
@@ -1069,161 +1151,47 @@ async def on_command_completion(ctx):
     if logs_channel:
         await logs_channel.send(f"{ctx.author} executed {ctx.command} in {ctx.channel}. Status: success.")
 
-@bot.command(name="Mhelp")
-async def mhelp(ctx, command_name: str = None):
-    """Provide help information for commands dynamically."""
-    # Dictionary to store command descriptions
-    command_descriptions = {
-        "help": "Show this help message.",
-        "info": "Get information about the bot.",
-        "serverinfo": "Get information about the current server.",
-        "shutdown": "Shut down the bot (Admin only).",
-        "poll": "Create a poll (Usage: ?poll <question> <option1, option2, ...>).",
-        "ask": "Ask ChatGPT (Usage: ?ask <your message>).",
-        "analyse": "Analyse a user or yourself (Usage: ?analyse @user).",
-        "createrole": "Create a role (Usage: ?createrole <name> <permissions: member, mod, or admin> <color: Hex code>).",
-        "giverole": "Give a role to a user (Usage: ?giverole <role_name> <user>).",
-        "removerole": "Remove a role from a user (Usage: ?removerole <role_name> <user>).",
-        "warn": "Warn a user (Usage: ?warn <user> <reason>).",
-        "kick": "Kick a user (Usage: ?kick <user> <reason>).",
-        "ban": "Ban a user (Usage: ?ban <user> <reason>).",
-        "givexp": "Give XP to a user (Usage: ?givexp <user> <xp>).",
-        "gainlvl": "Give a level to a user (Usage: ?gainlvl <user>).",
-        "copydm": "Send a message to a user's DM (Usage: ?copydm <user> <message>).",
-        "copychannel": "Send a message to a specific channel (Usage: ?copychannel <channel> <message>).",
-        "colorrole": "Allow users to choose a color role by reacting to emojis.",
-        "verify": "Send a verification message.",
-        "copy": "Copy text (Usage: ?copy <text>).",
-        "choose_country": "Choose your country by reacting to emojis.",
-        "startgame": "Start a Truth or Dare game (members must be in the VC).",
-        "checkvc": "Check if all users are in the Truth or Dare voice channel.",
-        "continue": "Continue the Truth or Dare game.",
-        "endgame": "End the Truth or Dare game.",
-        "timeout": "Timeout a user (Usage: ?timeout <user> <time> <reason>).",
-        "search_img": "Search for an image (Usage: ?search_img <query>).",
-        "zen": "Put a user in Zen mode (timeout) for a specified duration.",
-        "BServer": "Ban a server (Usage: ?BServer <server_name>).",
-        "UBServer": "Unban a server (Usage: ?UBServer <server_name>).",
-        "MServer": "Manage server restrictions (Usage: ?MServer <server_name> / <restriction_level>).",
-        "update": "Update the bot (Admin only).",
-        "unzen": "Remove Zen mode from a user (Admin only).",
-        "balance": "Check your balance.",
-        "daily": "Claim your daily reward.",
-        "steal": "Attempt to steal coins from another user (Usage: ?steal <user>).",
-        "give": "Give coins to another user (Usage: ?give <user> <amount>).",
-        "stealadmin": "Steal coins bypassing time limits (Admin only).",
-        "wheel": "Spin a wheel of names (Usage: ?wheel <name1 / name2 / ...>).",
-        "leaderboard": "Show the leaderboard for level, XP, or coins.",
-        "trivia": "Play a trivia game (Usage: ?trivia <question> <option1, option2, ...>).",
-        "reminder": "Set a reminder (Usage: ?reminder <time> <message>).",
-        "join": "Join a voice channel.",
-        "leave": "Leave a voice channel.",
-        "mute": "Mute a user (Usage: ?mute <user>).",
-        "unmute": "Unmute a user (Usage: ?unmute <user>).",
-        "purge": "Delete a number of messages (Usage: ?purge <number>).",
-        "rps": "Play Rock-Paper-Scissors (Usage: ?rps <choice>).",
-        "setwelcome": "Set a custom welcome message.",
-        "afk": "Set yourself as AFK (Usage: ?afk <reason>).",
-        "restart": "Restart the bot (Admin only).",
-        "changelog": "View the bot's changelog.",
-        "play": "Play a song from a URL or the music folder.",
-        "download": "Download a YouTube song or video.",
-        "upload": "Upload an audio file or provide a URL to download.",
-        "queue": "List all songs in the music folder.",
-        "easterfight": "Initiate a combat between an user or a bot"
-    }
+@bot.command(name="help")
+async def smart_help(ctx, *, command_name: str = None):
+    """
+    Show a list of all commands or detailed help for a specific command.
+    Usage:
+    - ?help : Shows all commands
+    - ?help <command> : Shows detailed help for that command
+    """
+    if not command_name:
+        # Show all commands
+        command_names = [f"`{cmd.name}`" for cmd in bot.commands if not cmd.hidden]
+        lines = []
+        for i in range(0, len(command_names), 10):
+            lines.append(" ".join(command_names[i:i+10]))
 
-    if command_name is None:
-        # If no command is specified, list all available commands
         embed = discord.Embed(
-            title="Available Commands",
-            description="Here is a list of all available commands. Use `?Mhelp <command>` for more details.",
-            color=discord.Color.blue(),
+            title="📖 Available Commands",
+            description="Use `?help <command>` for more info on a command.",
+            color=discord.Color.blue()
         )
-        embed.set_thumbnail(url="https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Blue_question_mark_icon.svg/1024px-Blue_question_mark_icon.svg.png")  # Blue question mark thumbnail
-        for command in valid_commands:
-            embed.add_field(
-                name=f"?{command}",
-                value=command_descriptions.get(command, "No description available."),
-                inline=False,
-            )
+        for idx, line in enumerate(lines):
+            embed.add_field(name=f"Commands {idx+1}", value=line, inline=False)
         await ctx.send(embed=embed)
     else:
-        # If a specific command is requested, show its details
-        command_name = command_name.lower()
-        if command_name in valid_commands:
-            embed = discord.Embed(
-                title=f"Help: ?{command_name}",
-                description=command_descriptions.get(command_name, "No description available."),
-                color=discord.Color.blue(),
-            )
-            embed.set_thumbnail(url="https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Blue_question_mark_icon.svg/1024px-Blue_question_mark_icon.svg.png")  # Blue question mark thumbnail
-            await ctx.send(embed=embed)
-        else:
-            await ctx.send(f"❌ Command `{command_name}` not found. Use `?Mhelp` to see the list of available commands.")
-
-# ?help command
-@bot.command(name="myhelp")
-async def help(ctx):
-    print(f"Help command triggered by {ctx.author} in channel {ctx.channel}.")
-    help_message = """Available commands:
-    ?help - Show this help message
-    ?info - Get information about the bot
-    ?serverinfo - Get information about the current server
-    ?shutdown - Shut down the bot (Admin only)
-    ?poll - Create a poll (Usage: ?poll <question> <option1, option2, ...>)
-    ?ask - Ask ChatGPT (Usage: ?ask <your message>)
-    ?analyse - Analyse the user you want (Usage: ?analyse @user)
-    ?createrole - Create a role (Usage: ?createrole <name> <permissions: (member, mod or admin)> <color:(Hex code)>)
-    ?giverole - Give a role (Usage: ?giverole <name> <user>)
-    ?removerole - Remove a role (Usage: ?removerole <user> <role>)
-    ?warn - Warn an user (Usage: ?warn <name> <reason>)
-    ?kick - Kick an user (Usage: ?kick <name> <reason>)
-    ?ban - Ban an user (Usage: ?ban <name> <reason>)
-    ?givexp - Give XP to a user (Usage: ?givexp <user> <xp>)
-    ?gainlvl - Give a level to a user (Usage: ?gainlvl <user>)
-    ?copydm - Copy text to a user's DM (Usage: ?copydm <user> <text>)
-    ?copychannel - Copy text to a specific channel (Usage: ?copychannel <channel> <text>)
-    ?colorrole - Create a color role
-    ?verify - Send a verification message
-    ?copy - Copy text (Usage: ?copy <text>)
-    ?choose_country - Choose your country
-    ?startgame - Starts a Truth or Dare game (members MUST be already in the VC)
-    ?checkvc - Checks wether all the users are in a voice channel or not (specifically Truth or Dare channel)
-    ?continue - Continues the Truth or Dare game
-    """
-    help_message2 = """
-    ?endgame - Ends the Truth or Dare game
-    ?timeout - Timeout a user (Usage: ?timeout <user> <time> <reason>)
-    ?search_img - Search for an image (Usage: ?search_img <query>)
-    ?zen - Zen mode (Usage: ?zen <user> <time.hh:mm:ss>)
-    ?BServer - Ban a server (Usage: ?BServer <server_name>)
-    ?UBServer - Unban a server (Usage: ?UBServer <server_name>)
-    ?MServer - Manage server restrictions (Usage: ?MServer <server_name> / <restriction_level>)
-    ?update - Update the bot (Admin only, Usage: ?update <version> / <new features>)
-    ?unzen - Unzen a user (Admin only, Usage: ?unzen <user>)
-    ?balance - Check your balance
-    ?daily - Claim your daily reward
-    ?steal - Steal money from another user (Usage: ?steal <user>)
-    ?give - Give money to another user (Usage: ?give <user> <amount>)
-    ?stealadmin - Steal money and bypassing any time limit (Usage: ?stealadmin <user> <receiveuser>) <amount>)
-    ?wheel - Spin the wheel (Usage: ?wheel any)
-    ?leaderboard - Show the leaderboard
-    ?trivia - Play trivia (Usage: ?trivia <question> <answer1, answer2, ...>)
-    ?reminder - Set a reminder (Usage: ?reminder <time> <message>)
-    ?join - Join a voice channel (Usage: ?join <channel_name>)
-    ?leave - Leave a voice channel (Usage: ?leave <channel_name>)
-    ?mute - Mute a user (Usage: ?mute <user>)
-    ?unmute - Unmute a user (Usage: ?unmute <user>)
-    ?purge - Purge messages (Usage: ?purge <number_of_messages>)
-    ?rps - Play Rock-Paper-Scissors (Usage: ?rps <choice>)
-    ?setwelcome - Set a welcome channel (Usage: ?setwelcome <channel_name>)
-    ?afk - Set yourself as AFK (Usage: ?afk <reason>)
-    ?restart - Restart the bot (Admin only)
-    """
-    
-    await ctx.send(help_message)
-    await ctx.send(help_message2)
+        # Show help for a specific command
+        cmd = bot.get_command(command_name)
+        if not cmd or cmd.hidden:
+            await ctx.send(f"❌ Command `{command_name}` not found.")
+            return
+        embed = discord.Embed(
+            title=f"Help: `{cmd.name}`",
+            description=cmd.help or "No description provided.",
+            color=discord.Color.green()
+        )
+        # Show aliases if any
+        if cmd.aliases:
+            embed.add_field(name="Aliases", value=", ".join(f"`{a}`" for a in cmd.aliases), inline=False)
+        # Show usage if in docstring
+        if cmd.brief:
+            embed.add_field(name="Usage", value=cmd.brief, inline=False)
+        await ctx.send(embed=embed)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)  # Change to DEBUG for more detailed logs
@@ -1541,13 +1509,12 @@ async def removerole(ctx, role: discord.Role, member: discord.Member):
 async def info(ctx):
     custominfo = f"""# I am a multifunctional python Discord bot!
     - Status: Exclusive
-    - Build: A-1 Exclusive
     - Version: **{bot_info['version']}**
     - Developper: th3_t1sm
     
     I am multifunctional discord bot created by th3_t1sm,
     This bot is Exclusive to Akari's Ashed Graveyard.
-    As well as the build who will receive custom updates.
+    As well as this project who will receive custom updates.
     """
     await ctx.send(custominfo)
 
@@ -1714,24 +1681,30 @@ valid_commands = [
 @bot.event
 async def on_command_error(ctx, error):
     # Ignore messages starting with "??" or more
-    if ctx.message.content.startswith("??" or "???" or "????" or "?????"):
+    if ctx.message.content.startswith("?") and ctx.message.content.count("?") > 1:
         return
-    
+
     if isinstance(error, commands.CommandNotFound):
         # Get the command name the user tried to use
         attempted_command = ctx.message.content.split()[0][1:]  # Remove the prefix (e.g., "?")
 
+        # Dynamically get all command names and aliases
+        all_commands = set()
+        for cmd in bot.commands:
+            all_commands.add(cmd.name)
+            all_commands.update(cmd.aliases)
+        # Remove hidden commands
+        all_commands = {name for name in all_commands if not bot.get_command(name) or not bot.get_command(name).hidden}
+
         # Find the closest match to the attempted command
-        closest_match = difflib.get_close_matches(attempted_command, valid_commands, n=1, cutoff=0.6)
+        closest_match = difflib.get_close_matches(attempted_command, all_commands, n=1, cutoff=0.6)
 
         if closest_match:
-            # Suggest the closest matching command
             await ctx.send(f"❌ Command not found. Did you mean: `{closest_match[0]}`?")
         else:
-            # No close match found
-            await ctx.send("❌ Command not found. Use `?Mhelp` or `?myhelp` to see the list of available commands.")
+            await ctx.send("❌ Command not found. Use `?help` to see the list of available commands.")
     else:
-        await ctx.send(f"An error occured: {error}")
+        await ctx.send(f"An error occurred: {error}")
 
 # Dictionary to track users and their message activity
 user_message_counts = {}
@@ -2129,29 +2102,29 @@ async def on_message(message):
         # 1% chance to spawn a gem reaction
         if random.randint(1, 200) == 1:
             gem_emoji = "💎"  # Gem emoji
-        await message.add_reaction(gem_emoji)
+            await message.add_reaction(gem_emoji)
 
-        def check(reaction, user):
-            return (
-                str(reaction.emoji) == gem_emoji
-                and reaction.message.id == message.id
-                and not user.bot
-            )
+            def check(reaction, user):
+                return (
+                    str(reaction.emoji) == gem_emoji
+                    and reaction.message.id == message.id
+                    and not user.bot
+                )
 
-        try:
-            # Wait for a user to react within 10 seconds
-            reaction, user = await bot.wait_for("reaction_add", timeout=5.0, check=check)
+            try:
+                # Wait for a user to react within 10 seconds
+                reaction, user = await bot.wait_for("reaction_add", timeout=5.0, check=check)
 
-            # Add the gem to the user's count in easter.json
-            user_id = str(user.id)
-            update_gems(user_id, 1)
+                # Add the gem to the user's count in easter.json
+                user_id = str(user.id)
+                update_gems(user_id, 1)
 
-            # Remove the reaction and notify the user
-            await message.clear_reaction(gem_emoji)
-            await message.channel.send(f"💎 {user.mention} found a gem! Total gems: {easter_data[user_id]['gems']}")
-        except asyncio.TimeoutError:
-            # Remove the reaction if no one reacts within 10 seconds
-            await message.clear_reaction(gem_emoji)
+                # Remove the reaction and notify the user
+                await message.clear_reaction(gem_emoji)
+                await message.channel.send(f"💎 {user.mention} found a gem! Total gems: {easter_data[user_id]['gems']}")
+            except asyncio.TimeoutError:
+                # Remove the reaction if no one reacts within 10 seconds
+                await message.clear_reaction(gem_emoji)
             
     offensive_words = {
         1: ["nigga", "nigger", "Nigga", "Nigger", "NIGGA", "NIGGER"],
@@ -2206,6 +2179,28 @@ async def on_message(message):
 
                 save_user_data(user_data)
                 return
+            
+    # Akari Points: 1 point per 10 messages during the event
+    if is_akari_event_active() and not message.author.bot:
+        akari_points = load_akari_points()
+        user_id = str(message.author.id)
+        akari_points.setdefault(user_id, {"messages": 0, "points": 0})
+        akari_points[user_id]["messages"] += 1
+        if akari_points[user_id]["messages"] >= 10:
+            akari_points[user_id]["points"] += 1
+            akari_points[user_id]["messages"] = 0
+        save_akari_points(akari_points)
+        
+    if not message.author.bot:
+        role = discord.utils.get(message.guild.roles, name="Akari Image Reward")
+        if role and role in message.author.roles and message.attachments:
+            for attachment in message.attachments:
+                if attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp")):
+                    await message.author.remove_roles(role)
+                    try:
+                        await message.author.send("🖼️ You used your Akari Image reward! The role has been removed.")
+                    except Exception:
+                        pass
     
     # Allow the `?start` command to bypass sleep mode
     if is_sleeping and message.content.startswith("?start"):
@@ -2336,6 +2331,12 @@ async def on_ready():
     print("Monitor activity task has been started.")
     asyncio.create_task(update_bot_data_periodically())
     print("Update bot through website task has started.")
+    bot.loop.create_task(akari_finale_task())
+    print("-----------AKARI EVENT STARTED DELETE AFTER i forgot-----------")
+    bot.loop.create_task(refresh_leaderboard())
+    print("refreshing leaderboard started ok")
+    bot.loop.create_task(chat_reviver_task())
+    logging.info(f"Chat reviver task started.")
     asyncio.create_task(handle_website_commands())
     print("Handling website commands task has started.")
     bot.loop.create_task(change_status())
@@ -2391,26 +2392,6 @@ async def game(ctx, *, game_name: str):
             await ctx.send(f"❌ I do not have permission to deafen {ctx.author.mention}.")
         except Exception as e:
             await ctx.send(f"❌ An error occurred while trying to deafen {ctx.author.mention}: {e}")
-
-async def ensure_level_roles(guild):
-    """Ensure all level roles exist in the server."""
-    for level, role_name in level_roles.items():
-        role = discord.utils.get(guild.roles, name=role_name)
-        if not role:
-            try:
-                # Create the role if it doesn't exist
-                await guild.create_role(name=role_name, reason="Level-based role created by the bot.")
-                logging.info(f"Role '{role_name}' created in guild '{guild.name}'.")
-            except discord.Forbidden:
-                logging.warning(f"Insufficient permissions to create role '{role_name}' in guild '{guild.name}'.")
-                owner = guild.owner
-                if owner:
-                    await owner.send(
-                        f"❌ I couldn't create the role '{role_name}' in your server **{guild.name}**. "
-                        f"Please create it manually or grant me the necessary permissions."
-                    )
-            except Exception as e:
-                logging.error(f"Error creating role '{role_name}' in guild '{guild.name}': {e}")
 
 async def assign_level_role(member, level, channel):
     """Assign a level-based role to a user and notify in the server channel."""
@@ -2860,36 +2841,6 @@ async def give(ctx, member: discord.Member, amount: int):
 
     await ctx.send(f"✅ {ctx.author.mention} gave **{amount} coins** to {member.mention}.")
 
-@bot.command(name="steal")
-@commands.cooldown(1, 60, commands.BucketType.user)  # 1 use per 60 seconds per user
-async def steal(ctx, member: discord.Member):
-    """Attempt to steal coins from another user."""
-    if member == ctx.author:
-        await ctx.send("❌ You cannot steal from yourself!")
-        return
-
-    thief_id = ctx.author.id
-    victim_id = member.id
-
-    victim_balance = get_coins(victim_id)
-    if victim_balance <= 0:
-        await ctx.send(f"❌ {member.mention} has no coins to steal.")
-        return
-
-    # Determine the amount to steal (randomized)
-    stolen_amount = random.randint(1, min(50, victim_balance))
-
-    # Deduct from victim and add to thief
-    update_coins(victim_id, -stolen_amount)
-    update_coins(thief_id, stolen_amount)
-
-    await ctx.send(f"💰 {ctx.author.mention} stole **{stolen_amount} coins** from {member.mention}!")
-
-# Handle cooldown errors
-@steal.error
-async def steal_error(ctx, error):
-    if isinstance(error, CommandOnCooldown):
-        await ctx.send(f"⏳ This command is on cooldown. Try again in {round(error.retry_after, 2)} seconds.")
 
 @bot.command(name="verify")
 @commands.has_permissions(administrator=True)
@@ -3007,8 +2958,40 @@ async def leaderboard(ctx, category: str = None):
             value=f"**{category.capitalize()}:** {entry[category]}",
             inline=False
         )
+    
+    if category == "akari":
+        points_data = load_akari_points()
+        leaderboard_data = []
+        for user_id, info in points_data.items():
+            user = ctx.guild.get_member(int(user_id))
+            if user:
+                leaderboard_data.append({
+                    "name": user.display_name,
+                    "akari": info.get("points", 0)
+                })
+        leaderboard_data = sorted(leaderboard_data, key=lambda x: x["akari"], reverse=True)
+        embed = discord.Embed(
+            title="🏆 Akari Points Leaderboard",
+            description="Top users by Akari Points",
+            color=discord.Color.purple()
+        )
+        for i, entry in enumerate(leaderboard_data[:10], start=1):
+            embed.add_field(
+                name=f"{i}. {entry['name']}",
+                value=f"**Akari Points:** {entry['akari']}",
+                inline=False
+            )
+        await ctx.send(embed=embed)
+        return
 
     await ctx.send(embed=embed)
+
+@bot.command(name="akari_points")
+async def akari_points(ctx):
+    """Check your Akari Points balance."""
+    points_data = load_akari_points()
+    points = points_data.get(str(ctx.author.id), {}).get("points", 0)
+    await ctx.send(f"🌸 {ctx.author.mention}, you have **{points} Akari Points**!")
 
 @bot.command(name="Supdate")
 @commands.check(is_owner)
@@ -3128,7 +3111,7 @@ async def chat_reviver_task():
 
                 # Find a role with "chat reviver" in its name
                 chat_reviver_role = discord.utils.find(
-                    lambda r: "chat reviver" in r.name.lower(),
+                    lambda r: "CHAT REVIVER" in r.name.lower(),
                     guild.roles
                 )
 
@@ -3268,10 +3251,10 @@ async def buygem(ctx):
     await ctx.send(f"✅ {ctx.author.mention}, you bought **1 gem** for **{cost} coins**! 💎")
 
 crate_objects = [
-    {"name": "Golden Egg", "rarity": "Legendary", "value": {"gems": 5}},
-    {"name": "Diamond Shard", "rarity": "Legendary", "value": {"gems": 3}},
-    {"name": "Mystic Feather", "rarity": "Epic", "value": {"gems": 2}},
-    {"name": "Ancient Relic", "rarity": "Epic", "value": {"coins": 500}},
+    {"name": "Golden Egg", "rarity": "Legendary", "value": {"gems": 1000}},
+    {"name": "Diamond Shard", "rarity": "Legendary", "value": {"gems": 50}},
+    {"name": "Mystic Feather", "rarity": "Epic", "value": {"gems": 5}},
+    {"name": "Ancient Relic", "rarity": "Epic", "value": {"coins": 750}},
     {"name": "Silver Coin", "rarity": "Rare", "value": {"coins": 250}},
     {"name": "Bronze Coin", "rarity": "Rare", "value": {"coins": 100}},
     {"name": "Magic Scroll", "rarity": "Rare", "value": {"coins": 150}},
@@ -3281,9 +3264,9 @@ crate_objects = [
     {"name": "Rusty Key", "rarity": "Common", "value": {"coins": 10}},
     {"name": "Old Map", "rarity": "Common", "value": {"coins": 15}},
     {"name": "Broken Compass", "rarity": "Common", "value": {"coins": 5}},
-    {"name": "Phoenix Feather", "rarity": "Legendary", "value": {"gems": 4}},
-    {"name": "Dragon Scale", "rarity": "Epic", "value": {"gems": 2}},
-    {"name": "Enchanted Amulet", "rarity": "Epic", "value": {"coins": 400}},
+    {"name": "Phoenix Feather", "rarity": "Legendary", "value": {"gems": 100}},
+    {"name": "Dragon Scale", "rarity": "Epic", "value": {"gems": 4}},
+    {"name": "Enchanted Amulet", "rarity": "Epic", "value": {"coins": 1000}},
     {"name": "Crystal Orb", "rarity": "Rare", "value": {"coins": 200}},
     {"name": "Golden Chalice", "rarity": "Rare", "value": {"coins": 300}},
     {"name": "Emerald Ring", "rarity": "Uncommon", "value": {"coins": 60}},
@@ -3291,7 +3274,7 @@ crate_objects = [
     {"name": "Cursed Doll", "rarity": "Common", "value": {"coins": 20}},
     {"name": "Ancient Coin", "rarity": "Common", "value": {"coins": 25}},
     {"name": "Pirate's Hat", "rarity": "Rare", "value": {"coins": 150}},
-    {"name": "Treasure Chest", "rarity": "Legendary", "value": {"gems": 6}},
+    {"name": "Treasure Chest", "rarity": "Legendary", "value": {"gems": 100}},
     {"name": "Mystic Rune", "rarity": "Epic", "value": {"gems": 3}},
 ]
 
@@ -3307,7 +3290,7 @@ rarity_weights = {
 import random
 
 @bot.command(name="opencrate")
-@cooldown(1, 60, BucketType.user) 
+@cooldown(1, 30, BucketType.user) 
 async def open_crate(ctx):
     """Open a crate to receive a random object."""
     # Select an object based on rarity
@@ -3779,100 +3762,6 @@ async def setlimitations(ctx, level: str = None):
 
     await ctx.send(f"✅ Offensive word filtering level set to **{level}**.")
 
-# EXCEPTIONAL DELETE AFTER EVENT.
-
-bot.command(name="easter_finale")
-@commands.check(is_owner)
-async def easter_finale(ctx):
-    """Trigger the Easter Event Finale."""
-    # Announce the finale
-    await ctx.send("🎉 **The Easter Event Finale has begun!** 🎉")
-
-    # Fetch the top 3 users with the most eggs
-    top_users = sorted(
-        easter_data.items(),
-        key=lambda x: x[1].get("eggs", 0),
-        reverse=True
-    )[:3]
-
-    # Prepare the leaderboard message
-    embed = discord.Embed(
-        title="🏆 Easter Event Leaderboard",
-        description="Here are the top 3 egg collectors:",
-        color=discord.Color.gold()
-    )
-    for rank, (user_id, data) in enumerate(top_users, start=1):
-        user = await bot.fetch_user(int(user_id))
-        embed.add_field(
-            name=f"{rank}. {user.name}#{user.discriminator}",
-            value=f"🥚 Eggs Collected: {data['eggs']}",
-            inline=False
-        )
-
-    # Send the leaderboard
-    await ctx.send(embed=embed)
-
-    # Reward the top 3 users
-    rewards = [
-        {"coins": 1000, "gems": 10, "role": "Easter Champion 🥇"},
-        {"coins": 750, "gems": 7, "role": "Easter Runner-Up 🥈"},
-        {"coins": 500, "gems": 5, "role": "Easter Participant 🥉"}
-    ]
-    for rank, (user_id, reward) in enumerate(zip(top_users, rewards), start=1):
-        user_id = user_id[0]
-        user = ctx.guild.get_member(int(user_id))
-        if user:
-            # Add coins and gems
-            update_coins(user_id, reward["coins"])
-            update_gems(user_id, reward["gems"])
-
-            # Assign the role with a random blue color
-            random_blue = discord.Color.from_rgb(
-                random.randint(0, 50),  # Low red value
-                random.randint(100, 200),  # Medium green value
-                random.randint(200, 255)  # High blue value
-            )
-            role = discord.utils.get(ctx.guild.roles, name=reward["role"])
-            if not role:
-                role = await ctx.guild.create_role(name=reward["role"], color=random_blue)
-            await user.add_roles(role)
-
-            # Notify the user
-            await ctx.send(
-                f"🎉 {user.mention} has been rewarded with **{reward['coins']} coins**, **{reward['gems']} gems**, "
-                f"and the **{reward['role']}** role!"
-            )
-
-    # Announce the end of the event
-    await ctx.send("🎊 **The Easter Event has officially ended! Thank you for participating!** 🎊")
-
-async def send_closing_message():
-    """Send a closing message to all servers."""
-    for guild in bot.guilds:
-        channel = discord.utils.find(
-            lambda c: "announcements" in c.name.lower() or "general" in c.name.lower(),
-            guild.text_channels
-        )
-        if channel:
-            await channel.send(
-                "🎊 **The Easter Event has officially ended!** 🎊\n"
-                "Thank you to everyone who participated. Stay tuned for more events in the future!"
-            )
-
-async def schedule_easter_finale():
-    """Schedule the Easter Event Finale."""
-    await bot.wait_until_ready()
-    now = datetime.now()
-    target_time = datetime.combine(now.date(), datetime.min.time()) + timedelta(days=1, hours=2)  # 00:00 UTC+2
-    wait_time = (target_time - now).total_seconds()
-
-    await asyncio.sleep(wait_time)  # Wait until the target time
-    channel = discord.utils.get(bot.get_all_channels(), name="announcements")  # Replace with your channel name
-    if channel:
-        await channel.send("🎉 **The Easter Event Finale has begun!** 🎉")
-    await easter_finale(channel)
-    await send_closing_message()
-
 @bot.command(name="setlogging")
 @commands.has_permissions(administrator=True)
 async def setlogging(ctx, action: str = None):
@@ -3906,6 +3795,402 @@ async def log_event(guild, message):
             except discord.Forbidden:
                 print(f"❌ Unable to send message to the logs channel in {guild.name}.")
 
+@bot.command(name="akari_redeem")
+async def akari_redeem(ctx, reward: str, *, extra: str = None):
+    """Redeem Akari Points for rewards."""
+    reward = reward.lower()
+    if reward not in AKARI_REWARDS:
+        await ctx.send(f"❌ Invalid reward. Available: {', '.join(AKARI_REWARDS.keys())}")
+        return
+
+    points_data = load_akari_points()
+    user_id = str(ctx.author.id)
+    user_points = points_data.get(user_id, {}).get("points", 0)
+    cost = AKARI_REWARDS[reward]["cost"]
+
+    if user_points < cost:
+        await ctx.send(f"❌ You need {cost} Akari Points to redeem **{reward}**. You have {user_points}.")
+        return
+
+    points_data[user_id]["points"] -= cost
+    save_akari_points(points_data)
+
+    # Grant reward logic
+    if reward in ["voice", "image"]:
+        role_name = f"Akari {reward.capitalize()} Reward"
+        role = discord.utils.get(ctx.guild.roles, name=role_name)
+        if not role:
+            role = await ctx.guild.create_role(name=role_name, mentionable=False, hoist=False, reason="Akari Points Reward")
+        await ctx.author.add_roles(role)
+        await ctx.send(f"✅ {ctx.author.mention}, you redeemed **{cost} Akari Points** for: {AKARI_REWARDS[reward]['desc']}! Use your reward and the role will be removed automatically.")
+    elif reward == "nickname":
+        if extra:
+            await ctx.author.edit(nick=extra)
+            await ctx.send(f"✅ Nickname changed to **{extra}** for 24h!")
+            await asyncio.sleep(86400)
+            await ctx.author.edit(nick=None)
+        else:
+            await ctx.send("❌ Please provide a nickname. Usage: `?akari_redeem nickname <new_nickname>`")
+    elif reward == "shoutout":
+        channel = discord.utils.find(lambda c: "announcement" in c.name.lower(), ctx.guild.text_channels)
+        if channel:
+            await channel.send(f"🎉 Shoutout to {ctx.author.mention}: {extra or 'You are awesome!'}")
+            await ctx.send("✅ Shoutout sent!")
+        else:
+            await ctx.send("❌ Announcements channel not found.")
+    elif reward == "colorrole":
+        if extra and extra.startswith("#") and len(extra) == 7:
+            color = discord.Color(int(extra[1:], 16))
+            role_name = f"Akari Color {ctx.author.id}"
+            role = discord.utils.get(ctx.guild.roles, name=role_name)
+            if not role:
+                role = await ctx.guild.create_role(name=role_name, color=color, mentionable=False, hoist=False)
+            await ctx.author.add_roles(role)
+            await ctx.send(f"✅ Custom color role granted for 24h!")
+            await asyncio.sleep(86400)
+            await ctx.author.remove_roles(role)
+            await role.delete()
+        else:
+            await ctx.send("❌ Please provide a hex color (e.g., #FF5733). Usage: `?akari_redeem colorrole #RRGGBB`")
+    elif reward == "pin":
+        if ctx.message.reference:
+            msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+            await msg.pin()
+            await ctx.send("✅ Message pinned!")
+        else:
+            await ctx.send("❌ Reply to the message you want to pin and use this command.")
+    elif reward == "emoji":
+        if extra and ctx.message.attachments:
+            img = await ctx.message.attachments[0].read()
+            emoji = await ctx.guild.create_custom_emoji(name=extra, image=img)
+            await ctx.send(f"✅ Custom emoji `{emoji}` added for 24h!")
+            await asyncio.sleep(86400)
+            await emoji.delete()
+        else:
+            await ctx.send("❌ Attach an image and provide a name. Usage: `?akari_redeem emoji <name>`")
+    elif reward == "poll":
+        if extra:
+            await ctx.send(f"📊 Poll: {extra}\nReact with 👍 or 👎")
+        else:
+            await ctx.send("❌ Please provide a poll question. Usage: `?akari_redeem poll <question>`")
+    elif reward == "highlight":
+        highlight_channel = discord.utils.find(lambda c: "highlight" in c.name.lower(), ctx.guild.text_channels)
+        if ctx.message.reference and highlight_channel:
+            msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+            await highlight_channel.send(f"🌟 Highlighted by {ctx.author.mention}:\n{msg.content}")
+            await ctx.send("✅ Message highlighted!")
+        else:
+            await ctx.send("❌ Reply to the message you want to highlight and make sure a #highlights channel exists.")
+    elif reward == "priorityqueue":
+        await ctx.send("✅ You will be moved to the front of the music queue the next time you use `?play`!")
+        # Implement your queue logic here
+    elif reward == "gift":
+        if extra and ctx.message.mentions:
+            target = ctx.message.mentions[0]
+            update_coins(target.id, 100)
+            await ctx.send(f"🎁 {ctx.author.mention} gifted 100 coins to {target.mention}!")
+        else:
+            await ctx.send("❌ Mention a user to gift coins. Usage: `?akari_redeem gift @user`")
+    else:
+        await ctx.send("✅ Reward redeemed! (No special action for this reward yet)")
+
+# Remove temporary roles after use (example for voice and image)
+@bot.event
+async def on_voice_state_update(member, before, after):
+    role = discord.utils.get(member.guild.roles, name="Akari Voice Reward")
+    if role and role in member.roles and after.channel and not before.channel:
+        await asyncio.sleep(2)
+        await member.remove_roles(role)
+        try:
+            await member.send("🎤 You used your Akari Voice reward! The role has been removed.")
+        except Exception:
+            pass
+
+
+async def akari_finale_task():
+    """Automatically run the Akari Points event finale at the end of the event."""
+    await bot.wait_until_ready()
+    while True:
+        now = datetime.now()
+        if now >= AKARI_EVENT_END:
+            for guild in bot.guilds:
+                # Find the top Akari Points user in this guild
+                points_data = load_akari_points()
+                top_user_id = None
+                top_points = -1
+                for user_id, info in points_data.items():
+                    member = guild.get_member(int(user_id))
+                    if member and info.get("points", 0) > top_points:
+                        top_user_id = user_id
+                        top_points = info.get("points", 0)
+                if top_user_id:
+                    winner = guild.get_member(int(top_user_id))
+                    role_name = "Guild Owner's Assistant 👑"
+                    role = discord.utils.get(guild.roles, name=role_name)
+                    if not role:
+                        role = await guild.create_role(name=role_name, color=discord.Color.gold(), reason="Akari Points Event Winner")
+                    await winner.add_roles(role)
+                    # Announce in a general/announcement channel
+                    channel = discord.utils.find(
+                        lambda c: ("announcement" in c.name.lower() or "general" in c.name.lower()) and isinstance(c, discord.TextChannel),
+                        guild.channels
+                    )
+                    if channel:
+                        await channel.send(
+                            f"🏆 **Akari Points Event Finale!** 🏆\n"
+                            f"Congratulations {winner.mention}, you are now the **{role_name}** and must serve the Guild Owner for the next month! 🎉"
+                        )
+            break  # Only run once
+        await asyncio.sleep(3600)  # Check every hour
+
+@bot.command(name="trade")
+async def trade(ctx, member: discord.Member, trade_type: str, amount_or_item: str, *, item_name: str = None):
+    """
+    Trade items, gems, or coins with another user.
+    Usage:
+    - ?trade @user coins 100
+    - ?trade @user gems 5
+    - ?trade @user item "Item Name"
+    """
+    if member == ctx.author:
+        await ctx.send("❌ You cannot trade with yourself!")
+        return
+
+    trade_type = trade_type.lower()
+    user_id = str(ctx.author.id)
+    target_id = str(member.id)
+
+    # Trade coins
+    if trade_type == "coins":
+        try:
+            amount = int(amount_or_item)
+            if amount <= 0:
+                await ctx.send("❌ Amount must be positive.")
+                return
+        except ValueError:
+            await ctx.send("❌ Invalid amount.")
+            return
+
+        user_balance = get_coins(user_id)
+        if user_balance < amount:
+            await ctx.send(f"❌ You don't have enough coins. Your balance: {user_balance}")
+            return
+
+        await ctx.send(f"🔄 {member.mention}, do you accept to receive **{amount} coins** from {ctx.author.mention}? Type `accept` to confirm.")
+        def check(m): return m.author == member and m.channel == ctx.channel and m.content.lower() == "accept"
+        try:
+            await bot.wait_for("message", check=check, timeout=30)
+            update_coins(user_id, -amount)
+            update_coins(target_id, amount)
+            await ctx.send(f"✅ Trade complete! {ctx.author.mention} sent **{amount} coins** to {member.mention}.")
+        except asyncio.TimeoutError:
+            await ctx.send("❌ Trade cancelled (no response).")
+        return
+
+    # Trade gems
+    elif trade_type == "gems":
+        try:
+            amount = int(amount_or_item)
+            if amount <= 0:
+                await ctx.send("❌ Amount must be positive.")
+                return
+        except ValueError:
+            await ctx.send("❌ Invalid amount.")
+            return
+
+        user_data = get_user_data(user_id)
+        if user_data.get("gems", 0) < amount:
+            await ctx.send(f"❌ You don't have enough gems. Your gems: {user_data.get('gems', 0)}")
+            return
+
+        await ctx.send(f"🔄 {member.mention}, do you accept to receive **{amount} gems** from {ctx.author.mention}? Type `accept` to confirm.")
+        def check(m): return m.author == member and m.channel == ctx.channel and m.content.lower() == "accept"
+        try:
+            await bot.wait_for("message", check=check, timeout=30)
+            update_gems(user_id, -amount)
+            update_gems(target_id, amount)
+            await ctx.send(f"✅ Trade complete! {ctx.author.mention} sent **{amount} gems** to {member.mention}.")
+        except asyncio.TimeoutError:
+            await ctx.send("❌ Trade cancelled (no response).")
+        return
+
+    # Trade items
+    elif trade_type == "item":
+        if not item_name:
+            item_name = amount_or_item
+        item_name = item_name.strip('"').strip("'")
+        inventory = load_inventory()
+        if user_id not in inventory or not any(obj["name"].lower() == item_name.lower() for obj in inventory[user_id]):
+            await ctx.send(f"❌ You do not own an item named **{item_name}**.")
+            return
+
+        await ctx.send(f"🔄 {member.mention}, do you accept to receive the item **{item_name}** from {ctx.author.mention}? Type `accept` to confirm.")
+        def check(m): return m.author == member and m.channel == ctx.channel and m.content.lower() == "accept"
+        try:
+            await bot.wait_for("message", check=check, timeout=30)
+            # Remove item from sender
+            for obj in inventory[user_id]:
+                if obj["name"].lower() == item_name.lower():
+                    item_obj = obj
+                    break
+            inventory[user_id].remove(item_obj)
+            # Add item to receiver
+            if target_id not in inventory:
+                inventory[target_id] = []
+            inventory[target_id].append(item_obj)
+            save_inventory(inventory)
+            await ctx.send(f"✅ Trade complete! {ctx.author.mention} sent **{item_name}** to {member.mention}.")
+        except asyncio.TimeoutError:
+            await ctx.send("❌ Trade cancelled (no response).")
+        return
+
+    else:
+        await ctx.send("❌ Invalid trade type. Use `coins`, `gems`, or `item`.")
+
+async def refresh_leaderboard():
+    await bot.wait_until_ready()
+    while not bot.is_closed():
+        for guild in bot.guilds:
+            channel = discord.utils.get(guild.text_channels, name="「🏆」tbbe-leaderboard-❯")
+            if channel:
+                # Get user data and sort by level
+                data = load_user_data()
+                leaderboard = []
+                for user_id, user_info in data.items():
+                    if user_id.isdigit():
+                        member = guild.get_member(int(user_id))
+                        if member:
+                            leaderboard.append((member.display_name, user_info.get("level", 0)))
+                leaderboard.sort(key=lambda x: x[1], reverse=True)
+                # Prepare leaderboard message
+                desc = ""
+                for i, (name, level) in enumerate(leaderboard[:10], start=1):
+                    desc += f"**{i}. {name}** — Level {level}\n"
+                embed = discord.Embed(
+                    title="🏆 Server Level Leaderboard",
+                    description=desc or "No data yet.",
+                    color=discord.Color.gold()
+                )
+                # Try to find the last leaderboard message sent by the bot
+                async for msg in channel.history(limit=10):
+                    if msg.author == bot.user and msg.embeds and msg.embeds[0].title == "🏆 Server Level Leaderboard":
+                        await msg.edit(embed=embed)
+                        break
+                else:
+                    await channel.send(embed=embed)
+        await asyncio.sleep(60)  # Refresh every minute
+
+def random_blue_color():
+    # Generate a random blue shade (RGB: R low, G medium, B high)
+    return discord.Color.from_rgb(
+        random.randint(0, 50),    # R: 0-50
+        random.randint(100, 200), # G: 100-200
+        random.randint(180, 255)  # B: 180-255
+    )
+
+# Update level_roles to use the new format (all uppercase after the dot)
+level_roles = {
+    5:  "🔵 • NOVICE",
+    10: "🔵 • APPRENTICE",
+    20: "🔵 • EXPERT",
+    30: "🔵 • MASTER",
+    50: "🔵 • GRANDMASTER",
+    100: "🔵 • GOD",
+    200: "🔵 • MASTER",
+    500: "🔵 • ABSOLUTE GOD",
+    1000: f"🔵 • error at line 4079, '1000' not su",
+}
+
+async def ensure_level_roles(guild):
+    """Ensure all level roles exist in the server with the correct name and a blue color."""
+    for level, role_name in level_roles.items():
+        role = discord.utils.get(guild.roles, name=role_name)
+        if not role:
+            try:
+                await guild.create_role(
+                    name=role_name,
+                    color=random_blue_color(),
+                    reason="Level-based role created by the bot."
+                )
+                logging.info(f"Role '{role_name}' created in guild '{guild.name}'.")
+            except discord.Forbidden:
+                logging.warning(f"Insufficient permissions to create role '{role_name}' in guild '{guild.name}'.")
+                owner = guild.owner
+                if owner:
+                    await owner.send(
+                        f"❌ I couldn't create the role '{role_name}' in your server **{guild.name}**. "
+                        f"Please create it manually or grant me the necessary permissions."
+                    )
+            except Exception as e:
+                logging.error(f"Error creating role '{role_name}' in guild '{guild.name}': {e}")
+
+async def assign_level_role(member, level, channel):
+    """Assign a level-based role to a user and notify in the server channel."""
+    guild = member.guild
+    role_name = level_roles.get(level)
+    if not role_name:
+        return  # No role for this level
+
+    # Ensure the role exists
+    role = discord.utils.get(guild.roles, name=role_name)
+    if not role:
+        await ensure_level_roles(guild)
+        role = discord.utils.get(guild.roles, name=role_name)
+
+    # Assign the role
+    if role and role not in member.roles:
+        try:
+            await member.add_roles(role, reason=f"Reached Level {level}")
+            await channel.send(f"🎉 {member.mention} has been assigned the **{role_name}** role for reaching Level {level}!")
+        except discord.Forbidden:
+            logging.warning(f"Insufficient permissions to assign role '{role_name}' to {member.name}.")
+        except Exception as e:
+            logging.error(f"Error assigning role '{role_name}' to {member.name}: {e}")
+
+@bot.command(name="program")
+@commands.check(is_owner)
+async def program(ctx, action: str, time_str: str = None, *, changelog: str = None,):
+    """
+    Schedule a bot action (mainly update) after a delay.
+    Usage: ?program update :dd:hh:mm:ss "changelog here"
+    """
+    if action.lower() != "update":
+        await ctx.send("❌ Only the 'update' action is supported for now.")
+        return
+
+    # Parse the time string :dd:hh:mm:ss
+    if not time_str or not time_str.startswith(":"):
+        await ctx.send("❌ Please provide a time in the format `:dd:hh:mm:ss`.")
+        return
+
+    try:
+        _, dd, hh, mm, ss = time_str.split(":")
+        delay_seconds = int(dd) * 86400 + int(hh) * 3600 + int(mm) * 60 + int(ss)
+    except Exception:
+        await ctx.send("❌ Invalid time format. Use `:dd:hh:mm:ss` (e.g., `:00:01:30:00` for 1 hour 30 minutes).")
+        return
+
+    if not changelog:
+        await ctx.send("❌ Please provide a changelog in quotes.")
+        return
+
+    # Confirm scheduling
+    await ctx.send(f"🕒 Scheduled a bot update in {dd}d {hh}h {mm}m {ss}s.\nChangelog: {changelog}")
+
+    async def scheduled_update():
+        await asyncio.sleep(delay_seconds)
+        # Update bot_info and restart (reuse your update logic)
+        bot_info["new_stuff"] = changelog
+        save_bot_info()
+        await ctx.send(f"🔄 Performing scheduled update!\n**Changelog:** {changelog}")
+        os.execv(sys.executable, ["python", __file__, "--skip-input"])
+
+    bot.loop.create_task(scheduled_update())
+
+async def send_error(ctx, message):
+    embed = discord.Embed(description=f"❌ {message}", color=discord.Color.red())
+    await ctx.send(embed=embed)
+
 if __name__ == "__main__":
     print("🚀 Starting the bot...")
     # Parse command-line arguments
@@ -3916,5 +4201,3 @@ if __name__ == "__main__":
         bot.run(token)  # Replace with your bot token
     except Exception as e:
         print(f"❌ Error starting the bot: {e}")
-
-save_user_data()

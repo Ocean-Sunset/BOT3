@@ -1,0 +1,8 @@
+discord.py
+yt-dlp
+googletrans
+Pillow
+openai
+transformers
+requests
+python-dotenv

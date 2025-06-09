@@ -5,6 +5,7 @@ import asyncio
 from Ediscord import variables, utils
 import requests
 import random
+import typing
 
 # --------------------- FUN COMMANDS --------------------
 print("✅ - Fun loaded.")
@@ -49,7 +50,7 @@ class Fun(commands.Cog):
 
     @commands.command(name="startgamenovc")
     @commands.has_permissions(administrator=True)
-    async def startgamenovc(self, ctx, member: discord.Member = None, member2: discord.Member = None):
+    async def startgamenovc(self, ctx, member: typing.Optional[discord.Member] = None, member2: typing.Optional[discord.Member] = None):
         global game_ongoing
         if member is None:
             member = ctx.author
@@ -147,7 +148,7 @@ class Fun(commands.Cog):
         await ctx.send(f"🪙 The coin landed on: **{result}**!")
     
     @commands.command(name="roll")
-    async def roll(ctx, sides: int = 6):
+    async def roll(self, ctx, sides: int = 6):
         """Roll a dice with a specified number of sides (default: 6)."""
         if sides < 1:
             await ctx.send("❌ The dice must have at least 1 side.")

@@ -3,6 +3,7 @@ import discord
 from discord.ext import commands
 from Ediscord import utils, variables
 import asyncio
+import typing
 
 # --------------------- MODERATION COMMANDS --------------------
 print("✅ - Moderation loaded.")
@@ -149,7 +150,7 @@ class Moderation(commands.Cog):
 
     @commands.command(name="setlimitations")
     @commands.has_permissions(administrator=True)
-    async def setlimitations(self, ctx, level: str = None):
+    async def setlimitations(self, ctx, level: typing.Optional[str] = None):
         """Set the offensive word filtering level."""
         if not level:
             await ctx.send(

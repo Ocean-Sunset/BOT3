@@ -16,6 +16,7 @@ import sys
 import random
 import itertools
 from PIL import Image, ImageDraw
+
 # --------------------- DEFINITONS --------------------
 def load_logging_config():
     """Load logging configuration from the JSON file."""

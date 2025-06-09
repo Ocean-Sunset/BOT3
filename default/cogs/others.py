@@ -8,7 +8,7 @@ import requests
 import asyncio
 import openai
 import random
-
+import typing
 # --------------------- OTHER COMMANDS --------------------
 print("✅ - Others loaded.")
 class Other(commands.Cog):
@@ -16,10 +16,13 @@ class Other(commands.Cog):
         self.bot = bot
 
     @commands.command(name="zen")
-    async def zen(self, ctx, member: discord.Member = None, time: str = None):
+    async def zen(self, ctx, member: typing.Optional[discord.Member] = None, time: typing.Optional[str] = None):
         """Put a user in Zen mode (timeout) for a specified duration."""
         if member is None:
             member = ctx.author  # If no member is mentioned, use the command author
+        if member is None:
+            await ctx.send("❌ Could not find the specified member.")
+            return
         if time is None:
             await ctx.send("❌ Please provide a time in the format `hh:mm:ss`.")
             return
@@ -55,7 +58,7 @@ class Other(commands.Cog):
     async def unzen(self, ctx, member: discord.Member):
         """Remove Zen mode (timeout) from a user."""
         try:
-            await member.timeout(until=None)  # Remove the timeout
+            await member.edit(timed_out_until=None)  # Remove the timeout
             await ctx.send(f"✅ {member.mention} has been removed from Zen mode.")
         except discord.Forbidden:
             await ctx.send("❌ I do not have permission to remove the timeout.")
@@ -86,17 +89,17 @@ class Other(commands.Cog):
         results = {
             reaction.emoji: reaction.count - 1 for reaction in poll_message.reactions
         }
-        winner = max(results, key=results.get)
+        winner = max(results, key=lambda k: results[k])
         await ctx.send(f"🏆 The winning option is: {winner}")
         
     # ?chat command (ChatGPT integration)
     @commands.command()
     async def chat(self, ctx, *, message):
         try:
-            response = openai.ChatCompletion.create(
+            response = openai.chat.completions.create(
                 model="gpt-3.5-turbo", messages=[{"role": "user", "content": message}]
             )
-            reply = response["choices"][0]["message"]["content"]
+            reply = response.choices[0].message.content
             print(
                 f"chat command triggered by {ctx.author} in channel {ctx.channel}. State: success."
             )
@@ -129,7 +132,7 @@ class Other(commands.Cog):
         await ctx.send(f"🎉 The wheel has chosen: **{chosen_name}**!")
         
     @commands.command(name="eggs")
-    async def eggs(self, ctx, member: discord.Member = None):
+    async def eggs(self, ctx, member: typing.Optional[discord.Member] = None):
         """Check how many eggs a user has collected."""
         member = member or ctx.author
         user_id = str(member.id)

@@ -6,11 +6,13 @@ from discord.ext.commands import CommandOnCooldown
 from discord.ext.commands import cooldown
 import argparse
 import os
+import sys
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 load_dotenv()
 from Ediscord import utils, variables
 import asyncio
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 
 bot = commands.Bot(command_prefix="?", intents=variables.intents, help_command=None)

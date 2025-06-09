@@ -2,6 +2,7 @@
 import discord
 from discord.ext import commands
 from Ediscord import utils, variables
+import typing
 
 # --------------------- INFO COMMANDS --------------------
 print("✅ - Info loaded.")
@@ -73,10 +74,9 @@ class Info(commands.Cog):
 
 
     @commands.command(name="analyse")
-    async def analyse(self, ctx, member: discord.Member = None):
+    async def analyse(self, ctx, member: typing.Optional[discord.Member] = None):
         """Analyse a user with all available data."""
-        if member is None:
-            member = ctx.author  # Default to the command author if no member is mentioned
+        member = member or ctx.author  # Default to the command author if no member is mentioned
 
         # Load user data
         user_id = str(member.id)
@@ -109,7 +109,7 @@ class Info(commands.Cog):
         )
         embed.add_field(
             name="Joined Server On",
-            value=member.joined_at.strftime("%d %B %Y, %H:%M:%S"),
+            value=member.joined_at.strftime("%d %B %Y, %H:%M:%S") if member.joined_at else "Unknown",
             inline=False,
         )
         embed.add_field(

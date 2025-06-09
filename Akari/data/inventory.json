@@ -6,34 +6,6 @@
             "value": {
                 "coins": 25
             }
-        },
-        {
-            "name": "Sapphire Pendant",
-            "rarity": "Uncommon",
-            "value": {
-                "coins": 80
-            }
-        },
-        {
-            "name": "Old Map",
-            "rarity": "Common",
-            "value": {
-                "coins": 15
-            }
-        },
-        {
-            "name": "Rusty Key",
-            "rarity": "Common",
-            "value": {
-                "coins": 10
-            }
-        },
-        {
-            "name": "Broken Compass",
-            "rarity": "Common",
-            "value": {
-                "coins": 5
-            }
         }
     ],
     "1294564651090186346": [],
@@ -506,12 +478,14 @@
             "value": {
                 "coins": 80
             }
-        },
+        }
+    ],
+    "1285075700738687090": [
         {
-            "name": "Ancient Coin",
-            "rarity": "Common",
+            "name": "Iron Sword",
+            "rarity": "Uncommon",
             "value": {
-                "coins": 25
+                "coins": 75
             }
         },
         {
@@ -520,9 +494,14 @@
             "value": {
                 "coins": 10
             }
-        }
-    ],
-    "1285075700738687090": [
+        },
+        {
+            "name": "Broken Compass",
+            "rarity": "Common",
+            "value": {
+                "coins": 5
+            }
+        },
         {
             "name": "Ancient Coin",
             "rarity": "Common",
@@ -531,10 +510,17 @@
             }
         },
         {
-            "name": "Ancient Coin",
-            "rarity": "Common",
+            "name": "Healing Potion",
+            "rarity": "Uncommon",
             "value": {
-                "coins": 25
+                "coins": 30
+            }
+        },
+        {
+            "name": "Sapphire Pendant",
+            "rarity": "Uncommon",
+            "value": {
+                "coins": 80
             }
         },
         {
@@ -545,6 +531,92 @@
             }
         },
         {
+            "name": "Sapphire Pendant",
+            "rarity": "Uncommon",
+            "value": {
+                "coins": 80
+            }
+        },
+        {
+            "name": "Ancient Coin",
+            "rarity": "Common",
+            "value": {
+                "coins": 25
+            }
+        },
+        {
+            "name": "Ancient Coin",
+            "rarity": "Common",
+            "value": {
+                "coins": 25
+            }
+        },
+        {
+            "name": "Ancient Coin",
+            "rarity": "Common",
+            "value": {
+                "coins": 25
+            }
+        },
+        {
+            "name": "Iron Sword",
+            "rarity": "Uncommon",
+            "value": {
+                "coins": 75
+            }
+        }
+    ],
+    "1300391173055057940": [
+        {
+            "name": "Wooden Shield",
+            "rarity": "Uncommon",
+            "value": {
+                "coins": 50
+            }
+        },
+        {
+            "name": "Crystal Orb",
+            "rarity": "Rare",
+            "value": {
+                "coins": 200
+            }
+        },
+        {
+            "name": "Emerald Ring",
+            "rarity": "Uncommon",
+            "value": {
+                "coins": 60
+            }
+        },
+        {
+            "name": "Pirate's Hat",
+            "rarity": "Rare",
+            "value": {
+                "coins": 150
+            }
+        },
+        {
+            "name": "Old Map",
+            "rarity": "Common",
+            "value": {
+                "coins": 15
+            }
+        },
+        {
+            "name": "Old Map",
+            "rarity": "Common",
+            "value": {
+                "coins": 15
+            }
+        },
+        {
+            "name": "Broken Compass",
+            "rarity": "Common",
+            "value": {
+                "coins": 5
+            }
+        },
+        {
             "name": "Rusty Key",
             "rarity": "Common",
             "value": {
@@ -552,47 +624,17 @@
             }
         },
         {
-            "name": "Broken Compass",
-            "rarity": "Common",
-            "value": {
-                "coins": 5
-            }
-        },
-        {
-            "name": "Broken Compass",
-            "rarity": "Common",
-            "value": {
-                "coins": 5
-            }
-        }
-    ],
-    "1300391173055057940": [
-        {
-            "name": "Ancient Coin",
-            "rarity": "Common",
-            "value": {
-                "coins": 25
-            }
-        },
-        {
-            "name": "Ancient Coin",
-            "rarity": "Common",
-            "value": {
-                "coins": 25
-            }
-        },
-        {
-            "name": "Broken Compass",
-            "rarity": "Common",
-            "value": {
-                "coins": 5
-            }
-        },
-        {
-            "name": "Sapphire Pendant",
+            "name": "Emerald Ring",
             "rarity": "Uncommon",
             "value": {
-                "coins": 80
+                "coins": 60
+            }
+        },
+        {
+            "name": "Golden Chalice",
+            "rarity": "Rare",
+            "value": {
+                "coins": 300
             }
         }
     ],
@@ -616,113 +658,6 @@
             "rarity": "Rare",
             "value": {
                 "coins": 100
-            }
-        }
-    ],
-    "1361096620128604230": [
-        {
-            "name": "Pirate's Hat",
-            "rarity": "Rare",
-            "value": {
-                "coins": 150
-            }
-        },
-        {
-            "name": "Broken Compass",
-            "rarity": "Common",
-            "value": {
-                "coins": 5
-            }
-        },
-        {
-            "name": "Wooden Shield",
-            "rarity": "Uncommon",
-            "value": {
-                "coins": 50
-            }
-        },
-        {
-            "name": "Broken Compass",
-            "rarity": "Common",
-            "value": {
-                "coins": 5
-            }
-        },
-        {
-            "name": "Broken Compass",
-            "rarity": "Common",
-            "value": {
-                "coins": 5
-            }
-        },
-        {
-            "name": "Rusty Key",
-            "rarity": "Common",
-            "value": {
-                "coins": 10
-            }
-        },
-        {
-            "name": "Broken Compass",
-            "rarity": "Common",
-            "value": {
-                "coins": 5
-            }
-        },
-        {
-            "name": "Sapphire Pendant",
-            "rarity": "Uncommon",
-            "value": {
-                "coins": 80
-            }
-        },
-        {
-            "name": "Old Map",
-            "rarity": "Common",
-            "value": {
-                "coins": 15
-            }
-        },
-        {
-            "name": "Old Map",
-            "rarity": "Common",
-            "value": {
-                "coins": 15
-            }
-        },
-        {
-            "name": "Mystic Rune",
-            "rarity": "Epic",
-            "value": {
-                "gems": 3
-            }
-        },
-        {
-            "name": "Ancient Coin",
-            "rarity": "Common",
-            "value": {
-                "coins": 25
-            }
-        },
-        {
-            "name": "Magic Scroll",
-            "rarity": "Rare",
-            "value": {
-                "coins": 150
-            }
-        },
-        {
-            "name": "Cursed Doll",
-            "rarity": "Common",
-            "value": {
-                "coins": 20
-            }
-        },
-        {
-            "name": "Iron Sword",
-            "rarity": "Uncommon",
-            "value": {
-                "coins": 75
             }
         }
     ]

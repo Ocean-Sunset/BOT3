@@ -14,7 +14,7 @@ import asyncio
 
 
 bot = commands.Bot(command_prefix="?", intents=variables.intents, help_command=None)
-cogs = ["events", "fun", "info", "moderation", "money", "others", "ownercommands"]
+cogs = ["events", "fun", "info", "moderation", "money", "others", "ownercommands", "utility"]
 
 async def load_cogs():
     for cog in cogs:

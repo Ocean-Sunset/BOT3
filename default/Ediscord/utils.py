@@ -508,13 +508,13 @@ async def change_status(bot):
     global custom_status
     statuses = itertools.cycle(
         [
-            discord.Game("with Python ❤️"),
+            discord.Game("with Python 🐍 "),
             discord.Activity(
                 type=discord.ActivityType.watching,
-                name="[ 🔍 Akari's Ashed Graveyard]: https://discord.gg/HR48uPMUfK",
+                name="[ 🔍 Our support server]: https://discord.gg/QgUQnxCwEk",
             ),
             discord.Streaming(
-                name="DONT CLICK PLS", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                name="do click", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
             ),
         ]
     )

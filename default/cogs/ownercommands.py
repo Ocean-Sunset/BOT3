@@ -12,6 +12,7 @@ from PIL import Image, ImageDraw, ImageFont
 import logging
 from discord.ui import Button, View
 import asyncio
+import typing
 
 # --------------------- OWNER COMMANDS --------------------
 print("✅ - Owner commands loaded.")
@@ -122,7 +123,7 @@ class Ownercommands(commands.Cog):
         await self.bot.change_presence(status=discord.Status.dnd, activity=current_status)
 
         await ctx.send("🔄 Restarting the bot...")
-        await commands.close()
+        await self.bot.close()
         os.execv(sys.executable, ["python", __file__, "--skip-input"])
     
     @commands.command(name="shutdown")
@@ -151,7 +152,7 @@ class Ownercommands(commands.Cog):
         is_sleeping = False  # Disable sleep mode
 
         # Restore the bot's normal status
-        await utils.bot.change_presence(
+        await self.bot.change_presence(
             status=discord.Status.online, activity=discord.Game("with Python 🐍")
         )
         await ctx.send("✅ The bot is now active and ready to use!")
@@ -162,7 +163,7 @@ class Ownercommands(commands.Cog):
     async def kys(self, ctx):
         """commit die the bot."""
         await ctx.send("Commiting die...")
-        await commands.close()
+        await self.bot.close()
     
 
     @commands.command()
@@ -174,7 +175,7 @@ class Ownercommands(commands.Cog):
 
         variables.user_data[user_id]["xp"] += xp
         await ctx.send(f"✅ Gave {xp} XP to {member.mention}.")
-        utils.save_user_data()
+        utils.save_user_data(variables.user_data)
 
 
 
@@ -187,7 +188,7 @@ class Ownercommands(commands.Cog):
 
         variables.user_data[user_id]["level"] += 1
         await ctx.send(f"✅ {member.mention} has gained a level.")
-        utils.save_user_data()
+        utils.save_user_data(variables.user_data)
 
 
 
@@ -205,7 +206,7 @@ class Ownercommands(commands.Cog):
 
     @commands.command()
     @commands.check(utils.is_owner)
-    async def copy(ctx, *, text: str):
+    async def copy(self, ctx, *, text: str):
         await ctx.send(text)
 
 
@@ -232,8 +233,8 @@ class Ownercommands(commands.Cog):
             return
 
         # Update the bot info
-        utils.bot_info["version"] = version
-        utils.bot_info["new_stuff"] = new_stuff
+        variables.bot_info["version"] = version
+        variables.bot_info["new_stuff"] = new_stuff
         utils.save_bot_info()
 
         # Send the update message to all servers
@@ -315,9 +316,10 @@ class Ownercommands(commands.Cog):
 
     @commands.command(name="modify_status")
     @commands.check(utils.is_owner)
-    async def modify_status(self, ctx, status_type: str, *, activity: str = None):
+    async def modify_status(self, ctx, status_type: str, *, activity: typing.Optional[str] = None):
         """Modify the bot's status and activity."""
         global custom_status
+        custom_status = None  # Ensure custom_status is always defined
 
         if status_type.lower() == "default":
             # Reset to default rotating statuses
@@ -336,6 +338,10 @@ class Ownercommands(commands.Cog):
             return
 
         # Set the custom status
+        if activity is None:
+            await ctx.send("❌ Please provide an activity name for the status.")
+            return
+
         if status_type.lower() == "playing":
             custom_status = discord.Game(activity)
         elif status_type.lower() == "watching":
@@ -374,7 +380,7 @@ class Ownercommands(commands.Cog):
             )
 
         try:
-            response = await commands.wait_for("message", check=check, timeout=30.0)
+            response = await self.bot.wait_for("message", check=check, timeout=30.0)
             if response.content.lower() == "no":
                 await ctx.send("❌ Reset canceled.")
                 return
@@ -388,7 +394,7 @@ class Ownercommands(commands.Cog):
         )
 
         try:
-            response = await commands.wait_for("message", check=check, timeout=30.0)
+            response = await self.bot.wait_for("message", check=check, timeout=30.0)
             if response.content.lower() == "no":
                 await ctx.send("❌ Reset canceled.")
                 return
@@ -402,7 +408,7 @@ class Ownercommands(commands.Cog):
         )
 
         try:
-            response = await commands.wait_for("message", check=check, timeout=30.0)
+            response = await self.bot.wait_for("message", check=check, timeout=30.0)
             if response.content.lower() == "no":
                 await ctx.send("❌ Reset canceled.")
                 return
@@ -445,7 +451,7 @@ class Ownercommands(commands.Cog):
 
     @commands.command(name="setlogging")
     @commands.has_permissions(administrator=True)
-    async def setlogging(self, ctx, action: str = None):
+    async def setlogging(self, ctx, action: typing.Optional[str] = None):
         """Enable or disable logging for the server."""
         if action not in ["enable", "disable"]:
             await ctx.send("❓ **Usage:** `?setlogging <enable|disable>`")
@@ -466,12 +472,12 @@ class Ownercommands(commands.Cog):
     @commands.command(name="program")
     @commands.check(utils.is_owner)
     async def program(
+        self,
         ctx,
         action: str,
-        self,
-        time_str: str = None,
+        time_str: typing.Optional[str] = None,
         *,
-        changelog: str = None,
+        changelog: typing.Optional[str] = None
     ):
         """
         Schedule a bot action (mainly update) after a delay.
@@ -507,7 +513,7 @@ class Ownercommands(commands.Cog):
         async def scheduled_update():
             await asyncio.sleep(delay_seconds)
             # Update bot_info and restart (reuse your update logic)
-            utils.bot_info["new_stuff"] = changelog
+            variables.bot_info["new_stuff"] = changelog
             utils.save_bot_info()
             await ctx.send(f"🔄 Performing scheduled update!\n**Changelog:** {changelog}")
             os.execv(sys.executable, ["python", __file__, "--skip-input"])

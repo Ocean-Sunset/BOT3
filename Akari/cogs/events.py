@@ -55,7 +55,7 @@ class Events(commands.Cog):
             data = utils.load_user_data()
             region_message_id = data.get("region_message_id")
             if region_message_id and payload.message_id == region_message_id:
-                guild = commands.get_guild(payload.guild_id)
+                guild = self.bot.get_guild(payload.guild_id)
                 member = guild.get_member(payload.user_id)
                 emoji_to_region = {
                     "🌍": "Africa",
@@ -80,7 +80,7 @@ class Events(commands.Cog):
                 rules_verify_message_id
                 and payload.message_id == rules_verify_message_id
             ):
-                guild = commands.get_guild(payload.guild_id)
+                guild = self.bot.get_guild(payload.guild_id)
                 member = guild.get_member(payload.user_id)
                 if str(payload.emoji) == "🔵":
                     role_name = "「 Read and agreed to the rules 」🔵"
@@ -138,7 +138,7 @@ class Events(commands.Cog):
 
             colorrole_message_id = data.get("colorrole_message_id")
             if colorrole_message_id and payload.message_id == colorrole_message_id:
-                guild = commands.get_guild(payload.guild_id)
+                guild = self.bot.get_guild(payload.guild_id)
                 member = guild.get_member(payload.user_id)
                 emoji_to_color = {
                     "🔴": "Red",
@@ -170,7 +170,7 @@ class Events(commands.Cog):
                 return
 
             if str(payload.emoji) == "✅":
-                guild = commands.get_guild(payload.guild_id)
+                guild = self.bot.get_guild(payload.guild_id)
                 if not guild:
                     logging.error(f"Guild not found for ID: {payload.guild_id}")
                     return
@@ -239,7 +239,7 @@ class Events(commands.Cog):
                 chat_reviver_message_id
                 and payload.message_id == chat_reviver_message_id
             ):
-                guild = commands.get_guild(payload.guild_id)
+                guild = self.bot.get_guild(payload.guild_id)
                 member = guild.get_member(payload.user_id)
                 if str(payload.emoji) == "🛠️":
                     role_name = "Chat Reviver"
@@ -617,7 +617,7 @@ class Events(commands.Cog):
             cooldown_end = variables.message_cooldowns[user_id]
             if now < cooldown_end:
                 # User is still on cooldown, skip granting XP
-                await commands.process_commands(message)
+                await self.bot.process_commands(message)
                 return
 
         # Get the user's data
@@ -703,8 +703,9 @@ class Events(commands.Cog):
             await message.channel.send(
                 f"⚠️ {message.author.mention}, you are sending messages too quickly. Please slow down!"
             )
+            import datetime
             data[user_id]["warnings"].append(
-                {"reason": "Spamming", "timestamp": time.time().isoformat()}
+                {"reason": "Spamming", "timestamp": datetime.datetime.now().isoformat()}
             )
 
             # Optional: Mute the user temporarily
@@ -725,9 +726,17 @@ class Events(commands.Cog):
                 await message.add_reaction(gem_emoji)
 
                 try:
-                    # Wait for a user to react within 10 seconds
-                    reaction, user = await commands.wait_for(
-                        "reaction_add", timeout=5.0, check=utils.check
+                    # Define the check function for reaction_add
+                    def check(reaction, user):
+                        return (
+                            reaction.message.id == message.id
+                            and str(reaction.emoji) == gem_emoji
+                            and not user.bot
+                        )
+
+                    # Wait for a user to react within 5 seconds
+                    reaction, user = await self.bot.wait_for(
+                        "reaction_add", timeout=5.0, check=check
                     )
 
                     # Add the gem to the user's count in easter.json
@@ -845,29 +854,6 @@ class Events(commands.Cog):
             }
         elif "censored_count" not in user_data[user_id]:
             user_data[user_id]["censored_count"] = 0
-        
-
-            # Akari Points: 1 point per 10 messages during the event
-        if utils.is_akari_event_active() and not message.author.bot:
-            akari_points = utils.load_akari_points()
-            user_id = str(message.author.id)
-            akari_points.setdefault(user_id, {"messages": 0, "points": 0})
-            akari_points[user_id]["messages"] += 1
-            if akari_points[user_id]["messages"] >= 10:
-                akari_points[user_id]["points"] += 1
-                akari_points[user_id]["messages"] = 0
-            utils.save_akari_points(akari_points)
-            
-        if not message.author.bot:
-            role = discord.utils.get(message.guild.roles, name="Akari Image Reward")
-            if role and role in message.author.roles and message.attachments:
-                for attachment in message.attachments:
-                    if attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp")):
-                        await message.author.remove_roles(role)
-                        try:
-                            await message.author.send("🖼️ You used your Akari Image reward! The role has been removed.")
-                        except Exception:
-                            pass
 
         # Check for offensive words
         if level > 0:
@@ -942,8 +928,6 @@ class Events(commands.Cog):
         print("Update bot through website task has started.")
         self.bot.loop.create_task(utils.refresh_leaderboard(self.bot))
         print("refreshing leaderboard started ok")
-        self.bot.loop.create_task(utils.akari_finale_task(self.bot))
-        print("-----------AKARI EVENT STARTED DELETE AFTER i forgot-----------")
         self.bot.loop.create_task(utils.change_status(self.bot))
         print("Status task has been sent!")
         await asyncio.sleep(18000)

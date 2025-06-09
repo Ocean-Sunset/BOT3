@@ -8,7 +8,7 @@ import requests
 import asyncio
 import openai
 import random
-
+import typing
 # --------------------- OTHER COMMANDS --------------------
 print("✅ - Others loaded.")
 class Other(commands.Cog):
@@ -16,10 +16,13 @@ class Other(commands.Cog):
         self.bot = bot
 
     @commands.command(name="zen")
-    async def zen(self, ctx, member: discord.Member = None, time: str = None):
+    async def zen(self, ctx, member: typing.Optional[discord.Member] = None, time: typing.Optional[str] = None):
         """Put a user in Zen mode (timeout) for a specified duration."""
         if member is None:
             member = ctx.author  # If no member is mentioned, use the command author
+        if member is None:
+            await ctx.send("❌ Could not find the specified member.")
+            return
         if time is None:
             await ctx.send("❌ Please provide a time in the format `hh:mm:ss`.")
             return
@@ -55,7 +58,7 @@ class Other(commands.Cog):
     async def unzen(self, ctx, member: discord.Member):
         """Remove Zen mode (timeout) from a user."""
         try:
-            await member.timeout(until=None)  # Remove the timeout
+            await member.edit(timed_out_until=None)  # Remove the timeout
             await ctx.send(f"✅ {member.mention} has been removed from Zen mode.")
         except discord.Forbidden:
             await ctx.send("❌ I do not have permission to remove the timeout.")
@@ -86,17 +89,17 @@ class Other(commands.Cog):
         results = {
             reaction.emoji: reaction.count - 1 for reaction in poll_message.reactions
         }
-        winner = max(results, key=results.get)
+        winner = max(results, key=lambda k: results[k])
         await ctx.send(f"🏆 The winning option is: {winner}")
         
     # ?chat command (ChatGPT integration)
     @commands.command()
     async def chat(self, ctx, *, message):
         try:
-            response = openai.ChatCompletion.create(
+            response = openai.chat.completions.create(
                 model="gpt-3.5-turbo", messages=[{"role": "user", "content": message}]
             )
-            reply = response["choices"][0]["message"]["content"]
+            reply = response.choices[0].message.content
             print(
                 f"chat command triggered by {ctx.author} in channel {ctx.channel}. State: success."
             )
@@ -129,118 +132,12 @@ class Other(commands.Cog):
         await ctx.send(f"🎉 The wheel has chosen: **{chosen_name}**!")
         
     @commands.command(name="eggs")
-    async def eggs(self, ctx, member: discord.Member = None):
+    async def eggs(self, ctx, member: typing.Optional[discord.Member] = None):
         """Check how many eggs a user has collected."""
         member = member or ctx.author
         user_id = str(member.id)
         eggs_collected = variables.easter_data.get(user_id, {}).get("eggs", 0)
         await ctx.send(f"🥚 {member.mention} has collected **{eggs_collected} eggs**!")
-    
-    @commands.command(name="akari_points")
-    async def akari_points(self, ctx):
-        """Check your Akari Points balance."""
-        points_data = utils.load_akari_points()
-        points = points_data.get(str(ctx.author.id), {}).get("points", 0)
-        await ctx.send(f"🌸 {ctx.author.mention}, you have **{points} Akari Points**!")
-
-    @commands.command(name="akari_redeem")
-    async def akari_redeem(self, ctx, reward: str, *, extra: str = None):
-        """Redeem Akari Points for rewards."""
-        reward = reward.lower()
-        if reward not in variables.AKARI_REWARDS:
-            await ctx.send(f"❌ Invalid reward. Available: {', '.join(variables.AKARI_REWARDS.keys())}")
-            return
-
-        points_data = utils.load_akari_points()
-        user_id = str(ctx.author.id)
-        user_points = points_data.get(user_id, {}).get("points", 0)
-        cost = variables.AKARI_REWARDS[reward]["cost"]
-
-        if user_points < cost:
-            await ctx.send(f"❌ You need {cost} Akari Points to redeem **{reward}**. You have {user_points}.")
-            return
-
-        points_data[user_id]["points"] -= cost
-        utils.save_akari_points(points_data)
-
-        # Grant reward logic
-        if reward in ["voice", "image"]:
-            role_name = f"Akari {reward.capitalize()} Reward"
-            role = discord.utils.get(ctx.guild.roles, name=role_name)
-            if not role:
-                role = await ctx.guild.create_role(name=role_name, mentionable=False, hoist=False, reason="Akari Points Reward")
-            await ctx.author.add_roles(role)
-            await ctx.send(f"✅ {ctx.author.mention}, you redeemed **{cost} Akari Points** for: {variables.AKARI_REWARDS[reward]['desc']}! Use your reward and the role will be removed automatically.")
-        elif reward == "nickname":
-            if extra:
-                await ctx.author.edit(nick=extra)
-                await ctx.send(f"✅ Nickname changed to **{extra}** for 24h!")
-                await asyncio.sleep(86400)
-                await ctx.author.edit(nick=None)
-            else:
-                await ctx.send("❌ Please provide a nickname. Usage: `?akari_redeem nickname <new_nickname>`")
-        elif reward == "shoutout":
-            channel = discord.utils.find(lambda c: "announcement" in c.name.lower(), ctx.guild.text_channels)
-            if channel:
-                await channel.send(f"🎉 Shoutout to {ctx.author.mention}: {extra or 'You are awesome!'}")
-                await ctx.send("✅ Shoutout sent!")
-            else:
-                await ctx.send("❌ Announcements channel not found.")
-        elif reward == "colorrole":
-            if extra and extra.startswith("#") and len(extra) == 7:
-                color = discord.Color(int(extra[1:], 16))
-                role_name = f"Akari Color {ctx.author.id}"
-                role = discord.utils.get(ctx.guild.roles, name=role_name)
-                if not role:
-                    role = await ctx.guild.create_role(name=role_name, color=color, mentionable=False, hoist=False)
-                await ctx.author.add_roles(role)
-                await ctx.send(f"✅ Custom color role granted for 24h!")
-                await asyncio.sleep(86400)
-                await ctx.author.remove_roles(role)
-                await role.delete()
-            else:
-                await ctx.send("❌ Please provide a hex color (e.g., #FF5733). Usage: `?akari_redeem colorrole #RRGGBB`")
-        elif reward == "pin":
-            if ctx.message.reference:
-                msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-                await msg.pin()
-                await ctx.send("✅ Message pinned!")
-            else:
-                await ctx.send("❌ Reply to the message you want to pin and use this command.")
-        elif reward == "emoji":
-            if extra and ctx.message.attachments:
-                img = await ctx.message.attachments[0].read()
-                emoji = await ctx.guild.create_custom_emoji(name=extra, image=img)
-                await ctx.send(f"✅ Custom emoji `{emoji}` added for 24h!")
-                await asyncio.sleep(86400)
-                await emoji.delete()
-            else:
-                await ctx.send("❌ Attach an image and provide a name. Usage: `?akari_redeem emoji <name>`")
-        elif reward == "poll":
-            if extra:
-                await ctx.send(f"📊 Poll: {extra}\nReact with 👍 or 👎")
-            else:
-                await ctx.send("❌ Please provide a poll question. Usage: `?akari_redeem poll <question>`")
-        elif reward == "highlight":
-            highlight_channel = discord.utils.find(lambda c: "highlight" in c.name.lower(), ctx.guild.text_channels)
-            if ctx.message.reference and highlight_channel:
-                msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-                await highlight_channel.send(f"🌟 Highlighted by {ctx.author.mention}:\n{msg.content}")
-                await ctx.send("✅ Message highlighted!")
-            else:
-                await ctx.send("❌ Reply to the message you want to highlight and make sure a #highlights channel exists.")
-        elif reward == "priorityqueue":
-            await ctx.send("✅ You will be moved to the front of the music queue the next time you use `?play`!")
-            # Implement your queue logic here
-        elif reward == "gift":
-            if extra and ctx.message.mentions:
-                target = ctx.message.mentions[0]
-                utils.update_coins(target.id, 100)
-                await ctx.send(f"🎁 {ctx.author.mention} gifted 100 coins to {target.mention}!")
-            else:
-                await ctx.send("❌ Mention a user to gift coins. Usage: `?akari_redeem gift @user`")
-        else:
-            await ctx.send("✅ Reward redeemed! (No special action for this reward yet)")
 
             
 

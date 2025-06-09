@@ -9,6 +9,7 @@ import os
 from yt_dlp import YoutubeDL
 from discord import FFmpegPCMAudio
 from googletrans import Translator
+import typing
 
 # --------------------- UTILITY COMMANDS --------------------
 print("✅ - Utility loaded.")
@@ -359,7 +360,7 @@ class Utility(commands.Cog):
             )
         
     @commands.command(name="upload")
-    async def upload(self, ctx, *, url: str = None):
+    async def upload(self, ctx, *, url: typing.Optional[str] = None):
         """Allow users to upload .mp3 files or provide a URL to download."""
         # Check if the music folder has more than 50 files
         oldest_file = utils.check_music_folder()
@@ -436,7 +437,7 @@ class Utility(commands.Cog):
 
 
     @commands.command(name="play")
-    async def play(self, ctx, *, query: str = None):
+    async def play(self, ctx, *, query: typing.Optional[str] = None):
         """Play a song from a URL, the music folder, or by its number, with an optional loop count."""
         # Check if the music folder has more than 50 files
         oldest_file = utils.check_music_folder()
@@ -750,7 +751,7 @@ class Utility(commands.Cog):
             await ctx.send(f"❌ An error occurred while setting up verification: {e}")
 
     @commands.command(name="leaderboard")
-    async def leaderboard(self, ctx, category: str = None):
+    async def leaderboard(self, ctx, category: typing.Optional[str] = None):
         """Display the leaderboard for level, XP, coins, or Easter Eggs."""
         valid_categories = ["level", "xp", "coins", "eggs"]
         if category not in valid_categories:
@@ -796,31 +797,6 @@ class Utility(commands.Cog):
                 value=f"**{category.capitalize()}:** {entry[category]}",
                 inline=False,
             )
-        
-            if category == "akari":
-                points_data = utils.load_akari_points()
-                leaderboard_data = []
-                for user_id, info in points_data.items():
-                    user = ctx.guild.get_member(int(user_id))
-                    if user:
-                        leaderboard_data.append({
-                            "name": user.display_name,
-                            "akari": info.get("points", 0)
-                        })
-                leaderboard_data = sorted(leaderboard_data, key=lambda x: x["akari"], reverse=True)
-                embed = discord.Embed(
-                    title="🏆 Akari Points Leaderboard",
-                    description="Top users by Akari Points",
-                    color=discord.Color.purple()
-                )
-                for i, entry in enumerate(leaderboard_data[:10], start=1):
-                    embed.add_field(
-                        name=f"{i}. {entry['name']}",
-                        value=f"**Akari Points:** {entry['akari']}",
-                        inline=False
-                    )
-                await ctx.send(embed=embed)
-                return
 
         await ctx.send(embed=embed)
     
@@ -865,7 +841,7 @@ class Utility(commands.Cog):
             
     @commands.command(name="announcement")
     @commands.check(utils.is_owner)
-    async def announcement(self, ctx, channel_name: str = None, *, message: str):
+    async def announcement(self, ctx, channel_name: typing.Optional[str] = None, *, message: str):
         """
         Send an announcement to all servers' announcement channels.
         If a specific channel name is provided, send the message to that channel instead.

@@ -23,53 +23,31 @@ from googletrans import Translator
 from PIL import Image, ImageDraw, ImageFont
 from Ediscord import utils
 from io import BytesIO
-# --------------------- CONSTANTS VARIABLES --------------------
+# --------------------- VARIABLES --------------------
+start_time = time.time()
+is_sleeping = False  # Tracks whether the bot is in sleep mode
+custom_status = None  # Tracks the custom status and activity
+token = os.environ["TOKEN"]
 SPAM_THRESHOLD = 5  # Number of messages allowed within the time window
 TIME_WINDOW = 10  # Time window in seconds
+last_activity_time = datetime.now()
 EASTER_FILE = "data/easter.json"
 TROPHY_FILE = "data/trophies.json"
 BOT_DATA_FILE = "bot_data.txt"
 WEBSITE_COMMANDS_FILE = "website_commands.txt"
 LIMITATIONS_FILE = "f:\\Coding\\Discord\\BOT3\\data\\limitations.json"
 LOGGING_CONFIG_FILE = "data/logging_config.json"
-AKARI_POINTS_FILE = "data/akari_points.json"
-AKARI_EVENT_START = datetime(2025, 5, 16)  # Set to event start date
-AKARI_EVENT_END = AKARI_EVENT_START + timedelta(days=30)
-AKARI_REWARDS_FILE = "data/akari_rewards.json"
-AKARI_REWARDS = {
-    "voice": {"cost": 50, "desc": "Send 1 voice message (role removed after use)"},
-    "image": {"cost": 30, "desc": "Send 1 image (role removed after use)"},
-    "nickname": {"cost": 40, "desc": "Change your nickname for 24h"},
-    "shoutout": {"cost": 60, "desc": "Get a custom shoutout in announcements"},
-    "colorrole": {"cost": 80, "desc": "Pick a custom color role for 24h"},
-    "pin": {"cost": 25, "desc": "Pin one message of your choice"},
-    "emoji": {"cost": 100, "desc": "Add a custom emoji for 24h"},
-    "poll": {"cost": 35, "desc": "Create a server-wide poll"},
-    "highlight": {"cost": 20, "desc": "Highlight a message in #highlights"},
-    "priorityqueue": {"cost": 70, "desc": "Skip to the front of the music queue once"},
-    "gift": {"cost": 50, "desc": "Gift 100 coins to another user instantly"},
+trophies = {
+    "trophy_1": {"name": "Coin Collector", "goal": "Collect 1,000 coins", "icon": "icons/coin_collector.png"},
+    "trophy_2": {"name": "Gem Hoarder", "goal": "Collect 10 gems", "icon": "icons/gem_hoarder.png"},
+    "trophy_3": {"name": "Impossible Victor", "goal": "Win 10 Impossible Easter fights", "icon": "icons/impossible_victor.png"},
+    "trophy_4": {"name": "Level Master", "goal": "Reach Level 50", "icon": "icons/level_master.png"},
+    "trophy_5": {"name": "Crate Opener", "goal": "Open 50 crates", "icon": "icons/crate_opener.png"},
 }
 OPENAI_API_KEY = environ.get("OPEN_API_KEY")
+openai.api_key = OPENAI_API_KEY
 UNSPLACH_API_KEY = os.environ.get("UNSPLASH_API_KEY")
 OPENWHEATHER_KEY = os.environ.get("OPENWEATHER_KEY")
-BANK_FILE = "data/bank.json"
-INVENTORY_FILE = "data/inventory.json"
-USER_DATA_FILE = "data/user_data.json"
-# --------------------- VARIABLES --------------------
-current_status = None
-level_roles = {
-    5: "🔵 • NOVICE",
-    10: "🔵 • APPRENTICE",
-    20: "🔵 • EXPERT",
-    30: "🔵 • MASTER",
-    50: "🔵 • GRANDMASTER",
-}
-bot_info_file = "data/bot_info.json"
-game_ongoing = False
-board = [" " for _ in range(9)]
-custom_cooldown = CooldownMapping.from_cooldown(
-    1, 10, BucketType.user
-)  # 1 message per 60 seconds
 openwheather = OPENWHEATHER_KEY
 intents = discord.Intents.default()
 intents.message_content = True  # This is required for processing commands
@@ -78,16 +56,24 @@ intents.members = True
 intents.reactions = True
 banned_servers_file = "data/banned_servers.json"
 server_restrictions_file = "data/server_restrictions.json"
-last_activity_time = datetime.now()
-last_activity = {}
-openai.api_key = OPENAI_API_KEY
-trophies = {
-    "trophy_1": {"name": "Coin Collector", "goal": "Collect 1,000 coins", "icon": "icons/coin_collector.png"},
-    "trophy_2": {"name": "Gem Hoarder", "goal": "Collect 10 gems", "icon": "icons/gem_hoarder.png"},
-    "trophy_3": {"name": "Impossible Victor", "goal": "Win 10 Impossible Easter fights", "icon": "icons/impossible_victor.png"},
-    "trophy_4": {"name": "Level Master", "goal": "Reach Level 50", "icon": "icons/level_master.png"},
-    "trophy_5": {"name": "Crate Opener", "goal": "Open 50 crates", "icon": "icons/crate_opener.png"},
+BANK_FILE = "data/bank.json"
+bot_info_file = "data/bot_info.json"
+game_ongoing = False
+board = [" " for _ in range(9)]
+custom_cooldown = CooldownMapping.from_cooldown(
+    1, 10, BucketType.user
+)  # 1 message per 60 seconds
+INVENTORY_FILE = "data/inventory.json"
+USER_DATA_FILE = "data/user_data.json"
+current_status = None
+level_roles = {
+    5: "🔵 • NOVICE",
+    10: "🔵 • APPRENTICE",
+    20: "🔵 • EXPERT",
+    30: "🔵 • MASTER",
+    50: "🔵 • GRANDMASTER",
 }
+last_activity = {}
 chat_reviver_messages = [
     "Hey everyone! What's up? 👋",
     "Let's keep the chat alive! What's on your mind? 💬",
@@ -207,10 +193,6 @@ bubble_text = "Welcome!"
 bubble_x, bubble_y = 670, 60
 bubble_w, bubble_h = 170, 50
 bubble_rect = (bubble_x, bubble_y, bubble_x + bubble_w, bubble_y + bubble_h)
-start_time = time.time()
-is_sleeping = False  # Tracks whether the bot is in sleep mode
-custom_status = None  # Tracks the custom status and activity
-token = os.environ["TOKEN"]
 # --------------------- CONDITIONAL VARIABLES --------------------
 if os.path.exists(TROPHY_FILE):
     with open(TROPHY_FILE, "r") as f:

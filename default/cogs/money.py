@@ -12,6 +12,7 @@ from discord.ext.commands import cooldown
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 import asyncio
+import typing
 
 # --------------------- MONEY COMMANDS --------------------
 print("✅ - Money loaded.")
@@ -131,7 +132,7 @@ class Money(commands.Cog):
                 f"⏳ This command is on cooldown. Try again in {round(error.retry_after, 2)} seconds."
             )
     @commands.command(name="gems")
-    async def gems(self, ctx, member: discord.Member = None):
+    async def gems(self, ctx, member: typing.Optional[discord.Member] = None):
         """Check how many gems a user has collected."""
         member = member or ctx.author
         user_id = str(member.id)
@@ -230,7 +231,7 @@ class Money(commands.Cog):
         # Select an object based on rarity
         rarities = [obj["rarity"] for obj in variables.crate_objects]
         rarity = random.choices(
-            list(variables.rarity_weights.keys()), weights=variables.rarity_weights.values(), k=1
+            list(variables.rarity_weights.keys()), weights=list(variables.rarity_weights.values()), k=1
         )[0]
         possible_objects = [obj for obj in variables.crate_objects if obj["rarity"] == rarity]
         selected_object = random.choice(possible_objects)
@@ -274,10 +275,17 @@ class Money(commands.Cog):
             return
 
         # Find the object in the user's inventory
+        selected_object = None
         for obj in inventory[user_id]:
             if obj["name"].lower() == object_name.lower():
                 selected_object = obj
                 break
+
+        if not selected_object:
+            await ctx.send(
+                f"❌ {ctx.author.mention}, you do not own an object named **{object_name}**."
+            )
+            return
 
         # Exchange the object for coins or gems
         if "coins" in selected_object["value"]:
@@ -417,7 +425,7 @@ class Money(commands.Cog):
             )
 
         try:
-            response = await commands.wait_for("message", check=check, timeout=30.0)
+            response = await self.bot.wait_for("message", check=check, timeout=30.0)
             if response.content.lower() == "no":
                 await ctx.send("❌ Sale canceled. Your inventory remains untouched.")
                 return
@@ -470,13 +478,13 @@ class Money(commands.Cog):
     
     @commands.command(name="trade")
     async def trade(
+        self,
         ctx,
         member: discord.Member,
         trade_type: str,
         amount_or_item: str,
         *,
-        item_name: str = None,
-        self
+        item_name: typing.Optional[str] = None,
     ):
         """
         Trade items, gems, or coins with another user.
@@ -523,7 +531,7 @@ class Money(commands.Cog):
                 )
 
             try:
-                await commands.wait_for("message", check=check, timeout=30)
+                await self.bot.wait_for("message", check=check, timeout=30)
                 utils.update_coins(user_id, -amount)
                 utils.update_coins(target_id, amount)
                 await ctx.send(
@@ -563,7 +571,7 @@ class Money(commands.Cog):
                 )
 
             try:
-                await commands.wait_for("message", check=check, timeout=30)
+                await self.bot.wait_for("message", check=check, timeout=30)
                 utils.update_gems(user_id, -amount)
                 utils.update_gems(target_id, amount)
                 await ctx.send(
@@ -597,12 +605,16 @@ class Money(commands.Cog):
                 )
 
             try:
-                await commands.wait_for("message", check=check, timeout=30)
+                await self.bot.wait_for("message", check=check, timeout=30)
                 # Remove item from sender
+                item_obj = None
                 for obj in inventory[user_id]:
                     if obj["name"].lower() == item_name.lower():
                         item_obj = obj
                         break
+                if item_obj is None:
+                    await ctx.send(f"❌ Could not find the item **{item_name}** in your inventory.")
+                    return
                 inventory[user_id].remove(item_obj)
                 # Add item to receiver
                 if target_id not in inventory:

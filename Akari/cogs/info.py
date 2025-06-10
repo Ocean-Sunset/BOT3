@@ -61,8 +61,8 @@ class Info(commands.Cog):
         - Developper: th3_t1sm
     
         I am multifunctional discord bot created by th3_t1sm,
-        This is just a python discord bot made with love.
-        **:D**
+        This bot is exclusive to Akari's Ashed Graveyard.
+        It will also receive custom updates.
         """
         await ctx.send(custominfo)
 

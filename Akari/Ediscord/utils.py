@@ -481,6 +481,30 @@ def add_rounded_corners(im, rad):
     )
     im.putalpha(alpha)
     return im
+
+def load_akari_rewards():
+    """Load akari rewards"""
+    try:
+        with open(variables.AKARI_REWARDS_FILE, "r") as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return {}
+
+def load_akari_points():
+    try:
+        with open(variables.AKARI_POINTS_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+def save_akari_points(data):
+    with open(variables.AKARI_POINTS_FILE, "w") as f:
+        json.dump(data, f)
+
+def is_akari_event_active():
+    now = datetime.now()
+    return variables.AKARI_EVENT_START <= now <= variables.AKARI_EVENT_END
+
 # --------------------- ASYNC DEFINITONS ---------------------
 async def update_bot_data_periodically(bot):
     """Periodically update bot_data.txt."""
@@ -696,3 +720,39 @@ async def assign_level_role(member, level, channel):
             )
         except Exception as e:
             logging.error(f"Error assigning role '{role_name}' to {member.name}: {e}")
+
+async def akari_finale_task(bot):
+    """Automatically run the Akari Points event finale at the end of the event."""
+    await bot.wait_until_ready()
+    while True:
+        now = datetime.now()
+        if now >= variables.AKARI_EVENT_END:
+            for guild in bot.guilds:
+                # Find the top Akari Points user in this guild
+                points_data = load_akari_points()
+                top_user_id = None
+                top_points = -1
+                for user_id, info in points_data.items():
+                    member = guild.get_member(int(user_id))
+                    if member and info.get("points", 0) > top_points:
+                        top_user_id = user_id
+                        top_points = info.get("points", 0)
+                if top_user_id:
+                    winner = guild.get_member(int(top_user_id))
+                    role_name = "Guild Owner's Assistant 👑"
+                    role = discord.utils.get(guild.roles, name=role_name)
+                    if not role:
+                        role = await guild.create_role(name=role_name, color=discord.Color.gold(), reason="Akari Points Event Winner")
+                    await winner.add_roles(role)
+                    # Announce in a general/announcement channel
+                    channel = discord.utils.find(
+                        lambda c: ("announcement" in c.name.lower() or "general" in c.name.lower()) and isinstance(c, discord.TextChannel),
+                        guild.channels
+                    )
+                    if channel:
+                        await channel.send(
+                            f"🏆 **Akari Points Event Finale!** 🏆\n"
+                            f"Congratulations {winner.mention}, you are now the **{role_name}** and must serve the Guild Owner for the next month! 🎉"
+                        )
+            break  # Only run once
+        await asyncio.sleep(3600)  # Check every hour

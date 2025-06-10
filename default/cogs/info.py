@@ -62,7 +62,6 @@ class Info(commands.Cog):
     
         I am multifunctional discord bot created by th3_t1sm,
         This is just a python discord bot made with love.
-        **:D**
         """
         await ctx.send(custominfo)
 

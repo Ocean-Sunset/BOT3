@@ -781,6 +781,32 @@ class Utility(commands.Cog):
                         }
                     )
 
+                    if category == "akari":
+                            points_data = utils.load_akari_points()
+                            leaderboard_data = []
+                            for user_id, info in points_data.items():
+                                user = ctx.guild.get_member(int(user_id))
+                                if user:
+                                    leaderboard_data.append({
+                                        "name": user.display_name,
+                                        "akari": info.get("points", 0)
+                                    })
+                            leaderboard_data = sorted(leaderboard_data, key=lambda x: x["akari"], reverse=True)
+                            embed = discord.Embed(
+                                title="🏆 Akari Points Leaderboard",
+                                description="Top users by Akari Points",
+                                color=discord.Color.purple()
+                            )
+                            for i, entry in enumerate(leaderboard_data[:10], start=1):
+                                embed.add_field(
+                                    name=f"{i}. {entry['name']}",
+                                    value=f"**Akari Points:** {entry['akari']}",
+                                    inline=False
+                                )
+                            await ctx.send(embed=embed)
+                            return
+        
+
         # Sort the leaderboard based on the selected category
         leaderboard_data = sorted(leaderboard_data, key=lambda x: x[category], reverse=True)
 

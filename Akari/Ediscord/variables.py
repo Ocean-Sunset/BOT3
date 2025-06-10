@@ -193,6 +193,23 @@ bubble_text = "Welcome!"
 bubble_x, bubble_y = 670, 60
 bubble_w, bubble_h = 170, 50
 bubble_rect = (bubble_x, bubble_y, bubble_x + bubble_w, bubble_y + bubble_h)
+AKARI_POINTS_FILE = "data/akari_points.json"
+AKARI_EVENT_START = datetime(2025, 5, 16)  # Set to event start date
+AKARI_EVENT_END = AKARI_EVENT_START + timedelta(days=30)
+AKARI_REWARDS_FILE = "data/akari_rewards.json"
+AKARI_REWARDS = {
+    "voice": {"cost": 50, "desc": "Send 1 voice message (role removed after use)"},
+    "image": {"cost": 30, "desc": "Send 1 image (role removed after use)"},
+    "nickname": {"cost": 40, "desc": "Change your nickname for 24h"},
+    "shoutout": {"cost": 60, "desc": "Get a custom shoutout in announcements"},
+    "colorrole": {"cost": 80, "desc": "Pick a custom color role for 24h"},
+    "pin": {"cost": 25, "desc": "Pin one message of your choice"},
+    "emoji": {"cost": 100, "desc": "Add a custom emoji for 24h"},
+    "poll": {"cost": 35, "desc": "Create a server-wide poll"},
+    "highlight": {"cost": 20, "desc": "Highlight a message in #highlights"},
+    "priorityqueue": {"cost": 70, "desc": "Skip to the front of the music queue once"},
+    "gift": {"cost": 50, "desc": "Gift 100 coins to another user instantly"},
+}
 # --------------------- CONDITIONAL VARIABLES --------------------
 if os.path.exists(TROPHY_FILE):
     with open(TROPHY_FILE, "r") as f:

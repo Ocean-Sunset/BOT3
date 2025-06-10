@@ -1,0 +1,6 @@
+total_users=52
+active_users=1
+total_commands=500
+uptime=0h 1m 21s
+bot_status=Running
+leaderboard=917515232065228890:100

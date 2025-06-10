@@ -854,6 +854,28 @@ class Events(commands.Cog):
             }
         elif "censored_count" not in user_data[user_id]:
             user_data[user_id]["censored_count"] = 0
+        
+        # Akari Points: 1 point per 10 messages during the eventAdd commentMore actions
+        if utils.is_akari_event_active() and not message.author.bot:
+            akari_points = utils.load_akari_points()
+            user_id = str(message.author.id)
+            akari_points.setdefault(user_id, {"messages": 0, "points": 0})
+            akari_points[user_id]["messages"] += 1
+            if akari_points[user_id]["messages"] >= 10:
+                akari_points[user_id]["points"] += 1
+                akari_points[user_id]["messages"] = 0
+            utils.save_akari_points(akari_points)
+            
+        if not message.author.bot:
+            role = discord.utils.get(message.guild.roles, name="Akari Image Reward")
+            if role and role in message.author.roles and message.attachments:
+                for attachment in message.attachments:
+                    if attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp")):
+                        await message.author.remove_roles(role)
+                        try:
+                            await message.author.send("🖼️ You used your Akari Image reward! The role has been removed.")
+                        except Exception:
+                            pass
 
         # Check for offensive words
         if level > 0:
@@ -928,6 +950,8 @@ class Events(commands.Cog):
         print("Update bot through website task has started.")
         self.bot.loop.create_task(utils.refresh_leaderboard(self.bot))
         print("refreshing leaderboard started ok")
+        self.bot.loop.create_task(utils.akari_finale_task(self.bot))
+        print("-----------AKARI EVENT STARTED DELETE AFTER i forgot-----------")
         self.bot.loop.create_task(utils.change_status(self.bot))
         print("Status task has been sent!")
         await asyncio.sleep(18000)

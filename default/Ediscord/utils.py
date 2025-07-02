@@ -16,6 +16,7 @@ import sys
 import random
 import itertools
 from PIL import Image, ImageDraw
+import psutil
 
 # --------------------- DEFINITONS --------------------
 def load_logging_config():
@@ -154,21 +155,24 @@ def save_limitations(data):
 def get_user_data(user_id):
     """Get data for a specific user."""
     data = load_user_data()
-    if str(user_id) not in data:
-        # Initialize default values for new users
-        data[str(user_id)] = {"xp": 0, "level": 1, "coins": 100, "gems": 0, "balance": 0, "warnings": []}
+    user_id_str = str(user_id) # Convert user_id to string once
+
+    if user_id_str not in data or not isinstance(data[user_id_str], dict):
+        # Initialize default values for new users or if data is corrupted/not a dict
+        data[user_id_str] = {"xp": 0, "level": 1, "coins": 100, "gems": 0, "balance": 0, "warnings": []}
         save_user_data(data)
     else:
         # Ensure all required keys exist for existing users
-        user_data = data[str(user_id)]
+        user_data = data[user_id_str]
         user_data.setdefault("xp", 0)
         user_data.setdefault("level", 1)
         user_data.setdefault("coins", 100)
-        user_data.setdefault("gems", 0)  # Initialize gems if missing
+        user_data.setdefault("gems", 0)
         user_data.setdefault("warnings", [])
-        data[str(user_id)] = user_data
-        save_user_data(data)
-    return data[str(user_id)]
+        user_data.setdefault("balance", 0) # Added 'balance' for consistency
+        data[user_id_str] = user_data # Reassign after setdefault calls
+
+    return data[user_id_str]
 
 def update_user_data(user_id, key, value):
     """Update a specific field for a user."""
@@ -205,13 +209,39 @@ def save_server_restrictions():
 def write_bot_data(bot):
     """Write bot stats and leaderboard to bot_data.txt."""
     # Load user data
+    try:
+        process = psutil.Process(os.getpid())
+        mem = process.memory_info().rss // 1024 // 1024  # MB
+        cpu = process.cpu_percent()
+    except ImportError:
+        mem = cpu = "N/A"
+
     user_data = load_user_data()
 
-    # Generate leaderboard data (sorted by coins in descending order)
+    total_users = len(bot.users)
+    active_users = sum(1 for m in bot.get_all_members() if m.status != discord.Status.offline)
+    total_commands = getattr(bot, "total_commands", 0)
+    uptime_seconds = int(time.time() - bot.launch_time) if hasattr(bot, "launch_time") else 0
+    uptime_str = time.strftime("%Hh %Mm %Ss", time.gmtime(uptime_seconds))
+    bot_status = "Running" if bot.is_ready() else "Not Running"
+    bot_version = getattr(bot, "version", "unknown")
+    python_version = sys.version.replace("\n", " ")
+    guilds = list(bot.guilds)
+    num_guilds = len(guilds)
+    guild_ids = [str(g.id) for g in guilds]
+    num_channels = sum(len(g.channels) for g in guilds)
+    num_roles = sum(len(g.roles) for g in guilds)
+    num_emojis = sum(len(g.emojis) for g in guilds)
+    loaded_cogs = list(bot.cogs.keys())
+    all_commands = [cmd.name for cmd in bot.commands]
+    last_restart = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(bot.launch_time)) if hasattr(bot, "launch_time") else "unknown"
+
+
     leaderboard = sorted(
         [
             {"user_id": user_id, "coins": user_info.get("coins", 0)}
             for user_id, user_info in user_data.items()
+            if isinstance(user_info, dict)
         ],
         key=lambda x: x["coins"],
         reverse=True
@@ -223,18 +253,31 @@ def write_bot_data(bot):
     )
 
     # Prepare data to write to the file
-    data = [
-        f"total_users={len(bot.guilds[0].members) if bot.guilds else 0}",
-        f"active_users={sum(1 for member in bot.guilds[0].members if member.status != discord.Status.offline) if bot.guilds else 0}",
-        f"total_commands=500",  # Replace with actual command count
-        f"uptime={get_uptime()}",
-        f"bot_status=Running",
-        f"leaderboard={leaderboard_str if leaderboard_str else '[404], No data.'}"  # Default if no data
-    ]
+    data = (
+        f"total_users={total_users}\n"
+        f"active_users={active_users}\n"
+        f"total_commands={total_commands}\n"
+        f"uptime={uptime_str}\n"
+        f"bot_status={bot_status}\n"
+        f"leaderboard={leaderboard_str}\n"
+        f"bot_version={bot_version}\n"
+        f"python_version={python_version}\n"
+        f"num_guilds={num_guilds}\n"
+        f"guild_ids={json.dumps(guild_ids)}\n"
+        f"num_channels={num_channels}\n"
+        f"num_roles={num_roles}\n"
+        f"num_emojis={num_emojis}\n"
+        f"loaded_cogs={json.dumps(loaded_cogs)}\n"
+        f"all_commands={json.dumps(all_commands)}\n"
+        f"memory_usage_mb={mem}\n"
+        f"cpu_usage_percent={cpu}\n"
+        f"last_restart={last_restart}\n"
+    )
 
     print("Writing data to bot_data.txt:", data)  # Debug log
     with open(variables.BOT_DATA_FILE, "w", encoding="utf-8") as f:
         f.write("\n".join(data))
+
 def read_website_command():
     """Read the latest command from website_commands.txt."""
     if not os.path.exists(variables.WEBSITE_COMMANDS_FILE):
@@ -481,28 +524,220 @@ def add_rounded_corners(im, rad):
     )
     im.putalpha(alpha)
     return im
+
+def load_server_settings():
+    if os.path.exists(variables.SERVER_SETTINGS_FILE):
+        with open(variables.SERVER_SETTINGS_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+def save_server_settings(data):
+    with open(variables.SERVER_SETTINGS_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
+def get_guild_prefix(guild_id):
+    settings = load_server_settings()
+    return settings.get(str(guild_id), {}).get("prefix", "?")
+
+def set_guild_prefix(guild_id, prefix):
+    settings = load_server_settings()
+    guild_settings = settings.get(str(guild_id), {})
+    guild_settings["prefix"] = prefix
+    settings[str(guild_id)] = guild_settings
+    save_server_settings(settings)
+
+def load_role_reactions():
+    settings = load_server_settings()
+    # Returns {message_id: {emoji: role_id, ...}, ...} or {}
+    return {gid: s.get("role_reactions", {}) for gid, s in settings.items()}
+
+def get_guild_role_reactions(guild_id):
+    settings = load_server_settings()
+    return settings.get(str(guild_id), {}).get("role_reactions", {})
+
+def set_guild_role_reaction(guild_id, message_id, emoji, role_id):
+    settings = load_server_settings()
+    guild_settings = settings.get(str(guild_id), {})
+    role_reactions = guild_settings.get("role_reactions", {})
+    if str(message_id) not in role_reactions:
+        role_reactions[str(message_id)] = {}
+    role_reactions[str(message_id)][emoji] = role_id
+    guild_settings["role_reactions"] = role_reactions
+    settings[str(guild_id)] = guild_settings
+    save_server_settings(settings)
+
+def remove_guild_role_reaction(guild_id, message_id, emoji):
+    settings = load_server_settings()
+    guild_settings = settings.get(str(guild_id), {})
+    role_reactions = guild_settings.get("role_reactions", {})
+    if str(message_id) in role_reactions:
+        role_reactions[str(message_id)].pop(emoji, None)
+        if not role_reactions[str(message_id)]:
+            role_reactions.pop(str(message_id))
+    guild_settings["role_reactions"] = role_reactions
+    settings[str(guild_id)] = guild_settings
+    save_server_settings(settings)
+
+def get_guild_welcome_message(guild_id):
+    settings = load_server_settings()
+    return settings.get(str(guild_id), {}).get("welcome_message", None)
+
+def set_guild_welcome_message(guild_id, message):
+    settings = load_server_settings()
+    guild_settings = settings.get(str(guild_id), {})
+    guild_settings["welcome_message"] = message
+    settings[str(guild_id)] = guild_settings
+    save_server_settings(settings)
+
+def get_guild_goodbye_message(guild_id):
+    settings = load_server_settings()
+    return settings.get(str(guild_id), {}).get("goodbye_message", None)
+
+def set_guild_goodbye_message(guild_id, message):
+    settings = load_server_settings()
+    guild_settings = settings.get(str(guild_id), {})
+    guild_settings["goodbye_message"] = message
+    settings[str(guild_id)] = guild_settings
+    save_server_settings(settings)
+
+def get_guild_level_roles(guild_id):
+    settings = load_server_settings()
+    return settings.get(str(guild_id), {}).get("level_roles", {})
+
+def set_guild_level_role(guild_id, level: int, role_name: str):
+    settings = load_server_settings()
+    guild_settings = settings.get(str(guild_id), {})
+    level_roles = guild_settings.get("level_roles", {})
+    level_roles[str(level)] = role_name
+    guild_settings["level_roles"] = level_roles
+    settings[str(guild_id)] = guild_settings
+    save_server_settings(settings)
+
+def remove_guild_level_role(guild_id, level: int):
+    settings = load_server_settings()
+    guild_settings = settings.get(str(guild_id), {})
+    level_roles = guild_settings.get("level_roles", {})
+    level_roles.pop(str(level), None)
+    guild_settings["level_roles"] = level_roles
+    settings[str(guild_id)] = guild_settings
+    save_server_settings(settings)
+
+def get_guild_self_roles(guild_id):
+    settings = load_server_settings()
+    return settings.get(str(guild_id), {}).get("self_roles", [])
+
+def add_guild_self_role(guild_id, role_name):
+    settings = load_server_settings()
+    guild_settings = settings.get(str(guild_id), {})
+    self_roles = set(guild_settings.get("self_roles", []))
+    self_roles.add(role_name)
+    guild_settings["self_roles"] = list(self_roles)
+    settings[str(guild_id)] = guild_settings
+    save_server_settings(settings)
+
+def remove_guild_self_role(guild_id, role_name):
+    settings = load_server_settings()
+    guild_settings = settings.get(str(guild_id), {})
+    self_roles = set(guild_settings.get("self_roles", []))
+    self_roles.discard(role_name)
+    guild_settings["self_roles"] = list(self_roles)
+    settings[str(guild_id)] = guild_settings
+    save_server_settings(settings)
+
+def get_guild_tags(guild_id):
+    settings = load_server_settings()
+    return settings.get(str(guild_id), {}).get("tags", {})
+
+def set_guild_tag(guild_id, tag_name, tag_content):
+    settings = load_server_settings()
+    guild_settings = settings.get(str(guild_id), {})
+    tags = guild_settings.get("tags", {})
+    tags[tag_name.lower()] = tag_content
+    guild_settings["tags"] = tags
+    settings[str(guild_id)] = guild_settings
+    save_server_settings(settings)
+
+def remove_guild_tag(guild_id, tag_name):
+    settings = load_server_settings()
+    guild_settings = settings.get(str(guild_id), {})
+    tags = guild_settings.get("tags", {})
+    tags.pop(tag_name.lower(), None)
+    guild_settings["tags"] = tags
+    settings[str(guild_id)] = guild_settings
+    save_server_settings(settings)
+
+def get_guild_achievements(guild_id):
+    settings = load_server_settings()
+    return settings.get(str(guild_id), {}).get("achievements", {})
+
+def set_guild_achievement(guild_id, ach_id, name, description, power, asset_url):
+    settings = load_server_settings()
+    guild_settings = settings.get(str(guild_id), {})
+    achievements = guild_settings.get("achievements", {})
+    achievements[ach_id] = {
+        "name": name,
+        "description": description,
+        "power": power,
+        "asset_url": asset_url,
+    }
+    guild_settings["achievements"] = achievements
+    settings[str(guild_id)] = guild_settings
+    save_server_settings(settings)
+
+def remove_guild_achievement(guild_id, ach_id):
+    settings = load_server_settings()
+    guild_settings = settings.get(str(guild_id), {})
+    achievements = guild_settings.get("achievements", {})
+    achievements.pop(ach_id, None)
+    guild_settings["achievements"] = achievements
+    settings[str(guild_id)] = guild_settings
+    save_server_settings(settings)
+
+def get_user_achievements(user_id):
+    data = load_user_data()
+    return data.get(str(user_id), {}).get("achievements", [])
+
+def add_user_achievement(user_id, ach_id):
+    data = load_user_data()
+    user = data.setdefault(str(user_id), {})
+    achievements = user.setdefault("achievements", [])
+    if ach_id not in achievements:
+        achievements.append(ach_id)
+        save_user_data(data)
+        return True
+    return False
+
+def signal_error(error_message):
+    signals_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "default-handler", "signals"))
+    os.makedirs(signals_dir, exist_ok=True)
+    with open(os.path.join(signals_dir, "error.txt"), "w", encoding="utf-8") as f:
+        f.write(error_message)
+        print(f"[signal_error] The error has been sent.")
+    time.sleep(3)
+
+def signal_update(update_message):
+    signals_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "default-handler", "signals"))
+    os.makedirs(signals_dir, exist_ok=True)
+    file_path = os.path.join(signals_dir, "update.txt")
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(update_message)
+        print(f"[signal_update] Wrote update to {file_path}.")
+    time.sleep(3)
+
+def write_last_command(channel_id, message_id):
+    signals_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "default-handler", "signals"))
+    os.makedirs(signals_dir, exist_ok=True)
+    with open(os.path.join(signals_dir, "last_command.txt"), "w", encoding="utf-8") as f:
+        f.write(f"{channel_id},{message_id}")
+        print(f"[signal_update] Registered last command")
+    time.sleep(3)
+
 # --------------------- ASYNC DEFINITONS ---------------------
 async def update_bot_data_periodically(bot):
     """Periodically update bot_data.txt."""
     while True:
         write_bot_data(bot)
         await asyncio.sleep(5)  # Update every 5 seconds
-
-# Background task to monitor inactivity
-async def monitor_inactivity():
-    global last_activity_time
-    
-    # Update last activity time for inactivity monitoring
-    last_activity_time = time.time()
-    
-    while True:
-        await asyncio.sleep(60)  # Check every minute
-        time_since_last_activity = time.time() - last_activity_time
-        if time_since_last_activity > 1200:  # 20 minutes = 1200 seconds
-            logging.info("No activity detected for 20 minutes. Restarting the bot...")
-            os.execv(
-                sys.executable, ["python", __file__, "--skip-input"]
-            )  # Restart the bot
 
 async def change_status(bot):
     """Rotate statuses dynamically or use a custom status."""
@@ -673,15 +908,26 @@ async def ensure_level_roles(guild):
 async def assign_level_role(member, level, channel):
     """Assign a level-based role to a user and notify in the server channel."""
     guild = member.guild
-    role_name = variables.level_roles.get(level)
+    # Try per-guild custom level roles first
+    level_roles = get_guild_level_roles(guild.id)
+    role_name = level_roles.get(str(level))
+    if not role_name:
+        # Fallback to global variables.level_roles if not set
+        role_name = variables.level_roles.get(level)
     if not role_name:
         return  # No role for this level
 
     # Ensure the role exists
     role = discord.utils.get(guild.roles, name=role_name)
     if not role:
-        await ensure_level_roles(guild)
-        role = discord.utils.get(guild.roles, name=role_name)
+        try:
+            role = await guild.create_role(
+                name=role_name,
+                color=random_blue_color(),
+                reason="Level-based role created by the bot.",
+            )
+        except Exception:
+            return
 
     # Assign the role
     if role and role not in member.roles:
@@ -696,3 +942,5 @@ async def assign_level_role(member, level, channel):
             )
         except Exception as e:
             logging.error(f"Error assigning role '{role_name}' to {member.name}: {e}")
+
+

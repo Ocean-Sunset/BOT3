@@ -1,10 +1,10 @@
 {
     "917515232065228890": [
         {
-            "name": "Ancient Coin",
+            "name": "Broken Compass",
             "rarity": "Common",
             "value": {
-                "coins": 25
+                "coins": 5
             }
         }
     ],
@@ -660,5 +660,51 @@
                 "coins": 100
             }
         }
-    ]
+    ],
+    "915644319183036426": [
+        {
+            "name": "Wooden Shield",
+            "rarity": "Uncommon",
+            "value": {
+                "coins": 50
+            }
+        },
+        {
+            "name": "Rusty Key",
+            "rarity": "Common",
+            "value": {
+                "coins": 10
+            }
+        },
+        {
+            "name": "Emerald Ring",
+            "rarity": "Uncommon",
+            "value": {
+                "coins": 60
+            }
+        },
+        {
+            "name": "ABSOLUTE GIGA CHAD MONSTROSITY",
+            "rarity": "**EXCLUSIVE**",
+            "value": {
+                "coins": 1000000000000000000,
+                "gems": 1000000000000
+            }
+        },
+        {
+            "name": "Dragon Scale",
+            "rarity": "Epic",
+            "value": {
+                "gems": 4
+            }
+        },
+        {
+            "name": "Cursed Doll",
+            "rarity": "Common",
+            "value": {
+                "coins": 20
+            }
+        }
+    ],
+    "780122217593044992": []
 }

@@ -1,0 +1,4 @@
+MissingRequiredArgument: message is a required argument that is missing.
+Command: setwelcome
+User: th3_t1sm
+Message: ?setwelcome

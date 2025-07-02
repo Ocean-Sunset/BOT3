@@ -1,2 +1,11 @@
-Utility has not loaded correctly
-Moderation has not loaded correctly
+Add more customization - DONE
+Fix the omega command
+Build a level image
+Fix spam messages warnings to send over DM's and delete the spam messages too
+REplace throphies to achievements - make those customizalble with ID power based Server direcotries and custom assets
+Build a ticketing system with generic buttons
+Fix polls
+allow people to send messages every {set_hour}
+youtube alerts
+images the inventory and anything money related
+add giveways

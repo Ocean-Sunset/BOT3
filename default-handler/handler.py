@@ -1,8 +1,9 @@
 import discord
 from discord.ext import tasks, commands
 import os
-
-TOKEN = "MTM1Nzk4ODA1OTYwOTgyOTUzMg.Glq7Yq.VTYg5iMZWEAkYFR_vd_udn9CSv4dLXpe8rBhsA"  
+from dotenv import load_dotenv
+load_dotenv()
+TOKEN = os.getenv("TOKEN")
 ERROR_CHANNEL_ID = 1389940334578106470
 UPDATE_CHANNEL_ID = 1389940334578106470
 

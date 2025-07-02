@@ -411,6 +411,7 @@ class Ownercommands(commands.Cog):
         action: str,
         time_str: typing.Optional[str] = None,
         *,
+        version: typing.Optional[int]= None,
         changelog: typing.Optional[str] = None
     ):
         """
@@ -434,6 +435,9 @@ class Ownercommands(commands.Cog):
                 "❌ Invalid time format. Use `:dd:hh:mm:ss` (e.g., `:00:01:30:00` for 1 hour 30 minutes)."
             )
             return
+        if not version:
+            await ctx.send("❌ Please provide a number or something for the version")
+            return
 
         if not changelog:
             await ctx.send("❌ Please provide a changelog in quotes.")
@@ -448,9 +452,10 @@ class Ownercommands(commands.Cog):
             await asyncio.sleep(delay_seconds)
             # Update bot_info and restart (reuse your update logic)
             variables.bot_info["new_stuff"] = changelog
+            variables.bot_info["version"] = version
             utils.save_bot_info()
             await ctx.send(f"🔄 Performing scheduled update!\n**Changelog:** {changelog}")
-            os.execv(sys.executable, ["python", __file__, "--skip-input"])
+            os.execv(sys.executable, [sys.executable] + sys.argv)
 
         self.bot.loop.create_task(scheduled_update())
 

@@ -14,6 +14,9 @@ class Moderation(commands.Cog):
     @commands.command()
     @commands.has_permissions(manage_roles=True)
     async def warn(self, ctx, member: discord.Member, *, reason=None):
+        if member == None:
+            await ctx.send("❌ You have to have a member to warn!")
+            return
         user_id = str(member.id)
         if user_id not in variables.warnings_data:
             variables.warnings_data[user_id] = {"messages": [], "warnings": 0}
@@ -57,6 +60,9 @@ class Moderation(commands.Cog):
     # Ban command
     @commands.command()
     async def ban(self, ctx, member: discord.Member, *, reason=None):
+        if member == None:
+            await ctx.send("❌ You have to have a member to ban!")
+            return
         if reason is None:
             reason = "No reason provided"
 
@@ -70,6 +76,9 @@ class Moderation(commands.Cog):
     @commands.has_permissions(manage_roles=True)
     async def strike(self, ctx, member: discord.Member, *, reason: str = "No reason provided"):
         """Give a strike to a user."""
+        if member == None:
+            await ctx.send("❌ You have to have a member to strike!")
+            return
         user_id = str(member.id)
         user_data = utils.load_user_data()
 
@@ -119,6 +128,9 @@ class Moderation(commands.Cog):
     @commands.has_permissions(manage_roles=True)
     async def clearstrikes(self, ctx, member: discord.Member):
         """Clear all strikes for a user."""
+        if member == None:
+            await ctx.send("❌ You have to have a member to clear their strikes!")
+            return
         user_id = str(member.id)
         user_data = utils.load_user_data()
 
@@ -134,6 +146,9 @@ class Moderation(commands.Cog):
     @commands.has_permissions(manage_roles=True)
     async def infractions(self, ctx, member: discord.Member):
         """View a user's strikes and warnings."""
+        if member == None:
+            await ctx.send("❌ You have to have a member to see their infractions!")
+            return
         user_id = str(member.id)
         user_data = utils.load_user_data()
 

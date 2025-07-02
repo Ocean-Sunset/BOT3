@@ -22,6 +22,9 @@ class Money(commands.Cog):
     
     @commands.command(name="buylevel")
     async def buylevel(self, ctx, levels: str):
+        if levels == None:
+            await ctx.send("❌ No level has been specified!")
+            return
         """
         Buy one or more levels with coins. Use a number or 'max'.
         """
@@ -87,6 +90,9 @@ class Money(commands.Cog):
     @commands.command(name="give")
     async def give(self, ctx, member: discord.Member, amount: int):
         """Give coins to another user."""
+        if member == None:
+            await ctx.send("❌ You have to have a member to give them coins!")
+            return
         if amount <= 0:
             await ctx.send("❌ You must give a positive amount of coins.")
             return
@@ -117,6 +123,9 @@ class Money(commands.Cog):
         if member == ctx.author:
             await ctx.send("❌ You cannot steal from yourself!")
             return
+        if member == None:
+            await ctx.send("❌ You have to have a member to steal!")
+            return
 
         thief_id = ctx.author.id
         victim_id = member.id
@@ -145,6 +154,7 @@ class Money(commands.Cog):
             await ctx.send(
                 f"⏳ This command is on cooldown. Try again in {round(error.retry_after, 2)} seconds."
             )
+
     @commands.command(name="gems")
     async def gems(self, ctx, member: typing.Optional[discord.Member] = None):
         """Check how many gems a user has collected."""
@@ -161,6 +171,9 @@ class Money(commands.Cog):
         """Deposit coins into the bank."""
         if amount <= 0:
             await ctx.send("❌ You must deposit a positive amount of coins.")
+            return
+        if amount == None:
+            await ctx.send("❌ You have to put an amount for you to deposit coins!")
             return
 
         user_id = ctx.author.id
@@ -186,6 +199,9 @@ class Money(commands.Cog):
         """Withdraw coins from the bank."""
         if amount <= 0:
             await ctx.send("❌ You must withdraw a positive amount of coins.")
+            return
+        if amount == None:
+            await ctx.send("❌ You have to put an amount for you to withdraw coins!")
             return
 
         user_id = ctx.author.id
@@ -276,6 +292,9 @@ class Money(commands.Cog):
     @commands.command(name="exchange")
     async def exchange(self, ctx, *, object_name: str):
         """Exchange an object for coins or gems."""
+        if object_name == None:
+            await ctx.send("❌ You have to have an object name!")
+            return
         user_id = str(ctx.author.id)
         inventory = utils.load_inventory()
 
@@ -465,7 +484,9 @@ class Money(commands.Cog):
         if gems <= 0:
             await ctx.send("❌ You must exchange at least 1 gem.")
             return
-
+        if gems == None:
+            await ctx.send("❌ You put an aount for you to exchange gems")
+            return
         user_id = ctx.author.id
         user_data = utils.get_user_data(user_id)
 
@@ -509,6 +530,9 @@ class Money(commands.Cog):
         """
         if member == ctx.author:
             await ctx.send("❌ You cannot trade with yourself!")
+            return
+        if member == None:
+            await ctx.send("❌ You have to have a member to trade with them")
             return
 
         trade_type = trade_type.lower()

@@ -576,7 +576,7 @@ class Events(commands.Cog):
             )
 
             welcome_channel = discord.utils.find(
-            lambda c: c.name.lower() in ["welcome", "chat", "general"], member.guild.text_channels
+                lambda c: c.name.lower() in ["welcome", "chat", "general"], member.guild.text_channels
             )
             if not welcome_channel:
                 logging.warning(
@@ -584,136 +584,67 @@ class Events(commands.Cog):
                 )
                 return
 
-            avatar_url = (
-                member.avatar.url if member.avatar else member.default_avatar.url
-            )
+            avatar_url = member.avatar.url if member.avatar else member.default_avatar.url
             response = requests.get(avatar_url)
             if response.status_code != 200:
                 logging.error(
                     f"Failed to fetch avatar for {member.name}#{member.discriminator}. HTTP Status: {response.status_code}"
                 )
                 return
-            avatar = (
-                Image.open(BytesIO(response.content)).convert("RGBA").resize((120, 120))
-            )
+            avatar = Image.open(BytesIO(response.content)).convert("RGBA").resize((120, 120))
 
-            background_path = "assets/welcome/background.jpg"
-            background = Image.open(background_path).convert("RGBA").resize((800, 400))
+            # Create a circular mask for the avatar
+            mask = Image.new("L", (120, 120), 0)
+            draw_mask = ImageDraw.Draw(mask)
+            draw_mask.ellipse((0, 0, 120, 120), fill=255)
+            avatar_rounded = Image.new("RGBA", (120, 120))
+            avatar_rounded.paste(avatar, (0, 0), mask=mask)
 
-            border_path = "assets/welcome/border.png"
-            border_img = (
-                Image.open(border_path).convert("RGBA").resize((140, 140))
-            )  
+            # Background (simple gray, or use your own image)
+            base = Image.new("RGBA", (500, 180), (140, 140, 140, 255))
 
-            avatar_pos = (60, 120)  
-            base = Image.new("RGBA", (800, 400), (255, 255, 255, 255))
-            base.paste(background, (0, 0))
+            # Optionally, paste your cat drawing here
+            # cat_img = Image.open("assets/welcome/cat.png").convert("RGBA").resize((350, 120))
+            # base.paste(cat_img, (150, 30), cat_img)
 
-            border_pos = (
-                avatar_pos[0] - 10,
-                avatar_pos[1] - 10,
-            )  
-            avatar_mask = Image.new("L", avatar.size, 0)
-            mask_draw = ImageDraw.Draw(avatar_mask)
-            mask_draw.ellipse((0, 0, avatar.size[0], avatar.size[1]), fill=255)
-            base.paste(avatar, avatar_pos, avatar_mask)
-            base.paste(border_img, border_pos, border_img)
+            # Paste avatar
+            base.paste(avatar_rounded, (20, 30), avatar_rounded)
 
-            base.paste(border_img, border_pos, border_img)
-            user_rect = (210, 160, 670, 210)
-
-            font_path = "assets/impact.ttf"
-            font_large = ImageFont.truetype(font_path, 70)
-            font_small = ImageFont.truetype(font_path, 36)
-            bubble_font = ImageFont.truetype(font_path, 24)
-
+            # Draw text
             draw = ImageDraw.Draw(base)
+            font_large = ImageFont.truetype("assets/impact.ttf", 28)
+            font_small = ImageFont.truetype("assets/impact.ttf", 18)
 
-            def rounded_rectangle(draw, xy, radius, fill, outline, width):
-                draw.rounded_rectangle(
-                    xy, radius=radius, fill=fill, outline=outline, width=width
-                )
+            username = member.display_name
+            welcome_text = f"Welcome, {username}!"
+            sub_text = "We hope you enjoy your stay"
 
-            def draw_centered_text(draw, rect, text, font, fill):
-                x1, y1, x2, y2 = rect
-                w, h = draw.textbbox((0, 0), text, font=font)[2:]
-                text_x = x1 + ((x2 - x1) - w) // 2
-                text_y = y1 + ((y2 - y1) - h) // 2
-                draw.text((text_x, text_y), text, font=font, fill=fill)
+            # Draw main welcome text
+            draw.text((160, 50), welcome_text, font=font_large, fill=(255, 255, 255, 255))
+            # Draw subtext
+            draw.text((160, 90), sub_text, font=font_small, fill=(220, 220, 220, 255))
 
-            def draw_centered_outlined_text(
-                draw, rect, text, font, fill, outline, outline_width
-            ):
-                x1, y1, x2, y2 = rect
-                w, h = draw.textbbox((0, 0), text, font=font)[2:]
-                text_x = x1 + ((x2 - x1) - w) // 2
-                text_y = y1 + ((y2 - y1) - h) // 2
-                draw.text(
-                    (text_x, text_y),
-                    text,
-                    font=font,
-                    fill=fill,
-                    stroke_width=outline_width,
-                    stroke_fill=outline,
-                )
+            # Optionally, draw member number
+            member_count = member.guild.member_count
+            member_num_text = f"Member #{member_count}"
+            draw.text((160, 120), member_num_text, font=font_small, fill=(200, 200, 200, 255))
 
-            welcome_rect = (210, 60, 670, 140)
-            draw_centered_outlined_text(
-                draw,
-                welcome_rect,
-                "WELCOME!",
-                font_large,
-                (255, 255, 255),
-                (0, 0, 0),
-                4,
-            )
-
-            username = f"{member.name}  {member.discriminator}"
-
-            bubble_text = "Welcome!"
-            bubble_x, bubble_y = 670, 60
-            bubble_w, bubble_h = 170, 50
-            bubble_rect = (bubble_x, bubble_y, bubble_x + bubble_w, bubble_y + bubble_h)
-            draw.rounded_rectangle(
-                bubble_rect,
-                radius=12,
-                fill=(255, 255, 255, 230),
-                outline=(0, 0, 0),
-                width=3,
-            )
-            draw_centered_text(draw, bubble_rect, "Welcome!", bubble_font, (0, 0, 0))
-
-            def add_rounded_corners(im, rad):
-                circle = Image.new("L", (rad * 2, rad * 2), 0)
-                draw_c = ImageDraw.Draw(circle)
-                draw_c.ellipse((0, 0, rad * 2, rad * 2), fill=255)
-                alpha = Image.new("L", im.size, 255)
-                w, h = im.size
-                alpha.paste(circle.crop((0, 0, rad, rad)), (0, 0))
-                alpha.paste(circle.crop((0, rad, rad, rad * 2)), (0, h - rad))
-                alpha.paste(circle.crop((rad, 0, rad * 2, rad)), (w - rad, 0))
-                alpha.paste(
-                    circle.crop((rad, rad, rad * 2, rad * 2)), (w - rad, h - rad)
-                )
-                im.putalpha(alpha)
-                return im
-
-            base = add_rounded_corners(base, 30)
-
+            # Save to buffer
             buffer = BytesIO()
             base.save(buffer, format="PNG")
             buffer.seek(0)
 
-            # Send the image and custom message
-            welcome_msg = utils.get_guild_welcome_message(member.guild.id) or f"🎉 Welcome to the server, {member.mention}!"
+            # Send image
             await welcome_channel.send(
-                welcome_msg,
-                file=discord.File(fp=buffer, filename="welcome.png"),
+                f"Welcome, {member.mention}!",
+                file=discord.File(buffer, filename="welcome.png")
             )
             logging.info(
-                f"Welcome message sent for {member.name}#{member.discriminator} in {welcome_channel.name}."
-            )
+                        f"Welcome message sent for {member.name}#{member.discriminator} in {welcome_channel.name}."
+                    )
         except Exception as e:
+            logging.error(f"Error in on_member_join: {e}")
+
             logging.error(
                 f"Error in on_member_join for {member.name}#{member.discriminator}: {e}"
             )
@@ -722,6 +653,7 @@ class Events(commands.Cog):
                 await logs_channel.send(
                     f"❌ An error occurred while welcoming {member.mention}: {e}"
                 )
+
     @commands.Cog.listener()
     async def on_member_remove(self, member):
         """Event triggered when a user leaves the server."""

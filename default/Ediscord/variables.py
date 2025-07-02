@@ -23,20 +23,32 @@ from googletrans import Translator
 from PIL import Image, ImageDraw, ImageFont
 from Ediscord import utils
 from io import BytesIO
-# --------------------- VARIABLES --------------------
-start_time = time.time()
-is_sleeping = False  # Tracks whether the bot is in sleep mode
-custom_status = None  # Tracks the custom status and activity
-token = os.environ["TOKEN"]
+# --------------------- CONSTANT VARIABLES --------------------
 SPAM_THRESHOLD = 5  # Number of messages allowed within the time window
 TIME_WINDOW = 10  # Time window in seconds
-last_activity_time = datetime.now()
 EASTER_FILE = "data/easter.json"
 TROPHY_FILE = "data/trophies.json"
 BOT_DATA_FILE = "bot_data.txt"
 WEBSITE_COMMANDS_FILE = "website_commands.txt"
 LIMITATIONS_FILE = "f:\\Coding\\Discord\\BOT3\\data\\limitations.json"
 LOGGING_CONFIG_FILE = "data/logging_config.json"
+OPENAI_API_KEY = environ.get("OPEN_API_KEY")
+UNSPLACH_API_KEY = os.environ.get("UNSPLASH_API_KEY")
+OPENWHEATHER_KEY = os.environ.get("OPENWEATHER_KEY")
+BANK_FILE = "data/bank.json"
+INVENTORY_FILE = "data/inventory.json"
+USER_DATA_FILE = "data/user_data.json"
+COGS_DIR = "../default/Components"
+DATA_DIR = "../default/data"
+LOG_FILE = "../default/logs/super_command.log"
+PREFIXES_FILE = "data/prefixes.json"
+SERVER_SETTINGS_FILE = "data/server_settings.json"
+# --------------------- VARIABLES --------------------
+start_time = time.time()
+is_sleeping = False  # Tracks whether the bot is in sleep mode
+custom_status = None  # Tracks the custom status and activity
+token = os.environ["TOKEN"]
+last_activity_time = datetime.now()
 trophies = {
     "trophy_1": {"name": "Coin Collector", "goal": "Collect 1,000 coins", "icon": "icons/coin_collector.png"},
     "trophy_2": {"name": "Gem Hoarder", "goal": "Collect 10 gems", "icon": "icons/gem_hoarder.png"},
@@ -44,10 +56,7 @@ trophies = {
     "trophy_4": {"name": "Level Master", "goal": "Reach Level 50", "icon": "icons/level_master.png"},
     "trophy_5": {"name": "Crate Opener", "goal": "Open 50 crates", "icon": "icons/crate_opener.png"},
 }
-OPENAI_API_KEY = environ.get("OPEN_API_KEY")
 openai.api_key = OPENAI_API_KEY
-UNSPLACH_API_KEY = os.environ.get("UNSPLASH_API_KEY")
-OPENWHEATHER_KEY = os.environ.get("OPENWEATHER_KEY")
 openwheather = OPENWHEATHER_KEY
 intents = discord.Intents.default()
 intents.message_content = True  # This is required for processing commands
@@ -56,15 +65,12 @@ intents.members = True
 intents.reactions = True
 banned_servers_file = "data/banned_servers.json"
 server_restrictions_file = "data/server_restrictions.json"
-BANK_FILE = "data/bank.json"
 bot_info_file = "data/bot_info.json"
 game_ongoing = False
 board = [" " for _ in range(9)]
 custom_cooldown = CooldownMapping.from_cooldown(
     1, 10, BucketType.user
 )  # 1 message per 60 seconds
-INVENTORY_FILE = "data/inventory.json"
-USER_DATA_FILE = "data/user_data.json"
 current_status = None
 level_roles = {
     5: "🔵 • NOVICE",

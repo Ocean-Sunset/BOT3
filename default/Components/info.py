@@ -77,6 +77,7 @@ class Info(commands.Cog):
     async def info(self, ctx):
         custominfo = f"""# I am a multifunctional python Discord bot!
         - Status: Normal
+        - Build: Elysia
         - Version: **{variables.bot_info['version']}**
         - Developper: th3_t1sm
     

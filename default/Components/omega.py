@@ -33,8 +33,6 @@ class Omega(commands.Cog):
             await self.list_backups(ctx, file)
         elif flag.upper() == "RESTORE":
             await self.restore_backup(ctx, file)
-        else:
-            await ctx.send("❌ Unknown omega flag.")
 
     async def show(self, ctx, file, key_path):
         file_path = os.path.join(DATA_DIR, f"{file}.json")

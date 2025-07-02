@@ -57,6 +57,9 @@ class Other(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def unzen(self, ctx, member: discord.Member):
         """Remove Zen mode (timeout) from a user."""
+        if member == None:
+            await ctx.send("❌ You didn't input an user!")
+            return
         try:
             await member.edit(timed_out_until=None)  # Remove the timeout
             await ctx.send(f"✅ {member.mention} has been removed from Zen mode.")
@@ -71,6 +74,9 @@ class Other(commands.Cog):
         """Create a poll with a time limit."""
         if len(options) < 2:
             await ctx.send("❌ You need at least two options to create a poll.")
+            return
+        if options == None:
+            await ctx.send("❌ You need to have questions!")
             return
 
         embed = discord.Embed(title=question, description="React to vote!")
@@ -95,6 +101,9 @@ class Other(commands.Cog):
     # ?chat command (ChatGPT integration)
     @commands.command()
     async def chat(self, ctx, *, message):
+        if message == None:
+            await ctx.send("❌ You need to have a message!")
+            return
         try:
             response = openai.chat.completions.create(
                 model="gpt-3.5-turbo", messages=[{"role": "user", "content": message}]
@@ -112,6 +121,10 @@ class Other(commands.Cog):
     
     @commands.command(name="wheel")
     async def wheel(self, ctx, *, names: str):
+        print(names)
+        if names == None:
+            await ctx.send("❌ You didn't put any options")
+            return
         """Spin a wheel of names and pick one randomly."""
         # Split the input into a list of names
         name_list = [name.strip() for name in names.split("/") if name.strip()]
@@ -133,6 +146,9 @@ class Other(commands.Cog):
         
     @commands.command(name="eggs")
     async def eggs(self, ctx, member: typing.Optional[discord.Member] = None):
+        if member == None:
+            await ctx.send("❌ You have to input a member!")
+            return
         """Check how many eggs a user has collected."""
         member = member or ctx.author
         user_id = str(member.id)

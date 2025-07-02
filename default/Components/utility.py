@@ -16,84 +16,6 @@ print("✅ - Utility loaded.")
 class Utility(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-    
-
-    @commands.group(name="sewer", invoke_without_command=True)
-    async def sewer(self, ctx):
-        """Sewer system entry point."""
-        await ctx.send("Use `?sewer enter` to enter or `?sewer exit` to leave the sewers.")
-    
-    @sewer.command(name="enter")
-    async def sewer_enter(self, ctx, wing: typing.Optional[str] = None):
-        """Enter the left or right sewer wing from the sewers-entrance channel."""
-        if isinstance(ctx.channel, discord.Thread) or "sewers-entrance" not in ctx.channel.name.lower():
-            await ctx.send("❌ You must use this command in the 'sewers-entrance' channel.")
-            return
-
-        if wing is None or wing.lower() not in ["left", "right"]:
-            await ctx.send("❌ Please specify which wing to enter: `?sewer enter left` or `?sewer enter right`.")
-            return
-
-        left_role_name = "Left Sewer Wing."
-        right_role_name = "Right Sewer Wing."
-        left_role = discord.utils.get(ctx.guild.roles, name=left_role_name)
-        right_role = discord.utils.get(ctx.guild.roles, name=right_role_name)
-
-        # Create roles if they don't exist
-        if not left_role:
-            left_role = await ctx.guild.create_role(name=left_role_name, reason="Sewer system access role (left side)")
-        if not right_role:
-            right_role = await ctx.guild.create_role(name=right_role_name, reason="Sewer system access role (right side)")
-
-        # Remove the other wing's role if present
-        if wing.lower() == "left":
-            if right_role in ctx.author.roles:
-                await ctx.author.remove_roles(right_role)
-            if left_role in ctx.author.roles:
-                await ctx.send("🕳️ You are already in the left sewer wing!")
-                return
-            await ctx.author.add_roles(left_role)
-            await ctx.send(f"🕳️ {ctx.author.mention} has entered the **Left Sewer Wing**! Beware of what lurks below...")
-        else:
-            if left_role in ctx.author.roles:
-                await ctx.author.remove_roles(left_role)
-            if right_role in ctx.author.roles:
-                await ctx.send("🕳️ You are already in the right sewer wing!")
-                return
-            await ctx.author.add_roles(right_role)
-            await ctx.send(f"🕳️ {ctx.author.mention} has entered the **Right Sewer Wing**! Beware of what lurks below...")
-
-    @sewer.command(name="exit")
-    async def sewer_exit(self, ctx):
-        """Exit the sewer wing you are currently in. Use this in the correct wing channel."""
-        channel_name = ctx.channel.name.lower()
-        left_role_name = "Left Sewer Wing."
-        right_role_name = "Right Sewer Wing."
-        left_role = discord.utils.get(ctx.guild.roles, name=left_role_name)
-        right_role = discord.utils.get(ctx.guild.roles, name=right_role_name)
-
-        # Check for left wing exit
-        if "left-system-wing" in channel_name:
-            if not left_role or left_role not in ctx.author.roles:
-                await ctx.send("❌ You are not in the left sewer wing or do not have the role.")
-                return
-            await ctx.send(f"🌞 {ctx.author.mention} has exited the **Left Sewer Wing**. Welcome back to the surface!")
-            await asyncio.sleep(2)
-            await ctx.author.remove_roles(left_role)
-            return
-
-        # Check for right wing exit
-        if "right-system-wing" in channel_name:
-            if not right_role or right_role not in ctx.author.roles:
-                await ctx.send("❌ You are not in the right sewer wing or do not have the role.")
-                return
-            
-            await ctx.send(f"🌞 {ctx.author.mention} has exited the **Right Sewer Wing**. Welcome back to the surface!")
-            await asyncio.sleep(2)
-            await ctx.author.remove_roles(right_role)
-            return
-
-        await ctx.send("❌ You must use this command in either the left or right sewer wing channel.")
 
     @commands.command(name="choose_region")
     @commands.has_permissions(administrator=True)
@@ -155,6 +77,9 @@ class Utility(commands.Cog):
     
     @commands.command(name="search_img")
     async def search_img(self, ctx, *, query: str):
+        if query == None:
+            await ctx.send("❌ No query has been implemented")
+            return
         headers = {"Authorization": f"Client-ID {variables.UNSPLACH_API_KEY}"}
         search_url = "https://api.unsplash.com/search/photos"
         params = {"query": query, "per_page": 1}
@@ -187,7 +112,17 @@ class Utility(commands.Cog):
     @commands.command()
     @commands.check(utils.is_owner)  # Ensure the user has the required permissions
     async def createrole(self, ctx, name: str, power: str, color: str):
+        if name == None:
+            await ctx.send("❌ No name has been put!")
+            return
+        if power == None:
+            await ctx.send("❌ No administration / level power put!")
+            return
+        if color == None:
+            await ctx.send("❌ No color has been implemented!")
+            return
         """Create a role with a specified name, power level, and color."""
+        
         # Map power levels to Discord permissions
         permissions_map = {
             "member": discord.Permissions(permissions=0),  # No special permissions
@@ -245,6 +180,12 @@ class Utility(commands.Cog):
     @commands.command()
     @commands.check(utils.is_owner)  # Ensure the user has the required permissions
     async def giverole(self, ctx, role_name: str, member: discord.Member):
+        if role_name == None:
+            await ctx.send("❌ No role name has been specified!")
+            return
+        if member == None:
+            await ctx.send("❌ No member has been specified!")
+            return
         """Assign a role to a specified user."""
         # Find the role in the server
         role = discord.utils.find(lambda r: r.name == role_name, ctx.guild.roles)
@@ -297,6 +238,12 @@ class Utility(commands.Cog):
     @commands.command()
     @commands.check(utils.is_owner)
     async def removerole(self, ctx, role: discord.Role, member: discord.Member):
+        if role == None:
+            await ctx.send("❌ No role name has been specified!")
+            return
+        if member == None:
+            await ctx.send("❌ No member has been specified!")
+            return
         if role in member.roles:
             await member.remove_roles(role)
             await ctx.send(f"✅ Removed role **{role.name}** from {member.mention}.")
@@ -330,6 +277,12 @@ class Utility(commands.Cog):
     @commands.command(name="reminder")
     async def remindme(self, ctx, time: int, *, reminder: str):
         """Set a reminder."""
+        if time == None:
+            await ctx.send("❌ No time has been specified")
+            return
+        if reminder == None:
+            await ctx.send("❌ No description reminder has been specified!")
+            return
         await ctx.send(f"⏰ I will remind you in {time} seconds: {reminder}")
         await asyncio.sleep(time)
         await ctx.send(f"🔔 {ctx.author.mention}, here is your reminder: {reminder}")
@@ -339,6 +292,11 @@ class Utility(commands.Cog):
     @commands.has_permissions(manage_roles=True)
     async def mute(self, ctx, member: discord.Member, *, reason=None):
         """Mute a user."""
+        if member == None:
+            await ctx.send("❌ No member has been specified!")
+            return
+        if reason == None:
+            reason = "No reason has been specified"
         mute_role = discord.utils.get(ctx.guild.roles, name="Muted")
         if not mute_role:
             mute_role = await ctx.guild.create_role(name="Muted")
@@ -351,7 +309,10 @@ class Utility(commands.Cog):
     @commands.command(name="unmute")
     @commands.has_permissions(manage_roles=True)
     async def unmute(self, ctx, member: discord.Member):
-        """Unmute a user."""
+        """"Unmute a user."""
+        if member == None:
+            await ctx.send("❌ No member has been specified!")
+            return
         mute_role = discord.utils.get(ctx.guild.roles, name="Muted")
         if mute_role in member.roles:
             await member.remove_roles(mute_role)
@@ -364,6 +325,9 @@ class Utility(commands.Cog):
     @commands.has_permissions(manage_messages=True)
     async def purge(self, ctx, amount: int):
         """Delete a number of messages."""
+        if amount == None:
+            await ctx.send("❌ No amount has been specified!")
+            return
         await ctx.channel.purge(limit=amount)
         await ctx.send(f"✅ Deleted {amount} messages.", delete_after=5)
     
@@ -371,6 +335,9 @@ class Utility(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def set_welcome_message(self, ctx, *, message: str):
         """Set a custom welcome message for this server."""
+        if message == None:
+            await ctx.send("❌ No message has been specified!")
+            return
         utils.set_guild_welcome_message(ctx.guild.id, message)
         await ctx.send("✅ Custom welcome message set!")
 
@@ -378,18 +345,18 @@ class Utility(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def set_goodbye_message(self, ctx, *, message: str):
         """Set a custom goodbye message for this server."""
+        if message == None:
+            await ctx.send("❌ No message has been specified!")
+            return
         utils.set_guild_goodbye_message(ctx.guild.id, message)
         await ctx.send("✅ Custom goodbye message set!")
-
-    @commands.command(name="afk")
-    async def afk(self, ctx, *, reason="AFK"):
-        """Set yourself as AFK."""
-        variables.afk_users[ctx.author.id] = reason
-        await ctx.send(f"✅ {ctx.author.mention} is now AFK: {reason}")
 
     @commands.command(name="color")
     async def color(self, ctx, *, color_input: str):
         """Display the exact color based on a name or hex code."""
+        if color_input == None:
+            await ctx.send("❌ No color has been specified!")
+            return
         try:
             # Use a predefined dictionary of color names and their hex values
             color_names = {
@@ -446,6 +413,9 @@ class Utility(commands.Cog):
     @commands.command(name="upload")
     async def upload(self, ctx, *, url: typing.Optional[str] = None):
         """Allow users to upload .mp3 files or provide a URL to download."""
+        if url == None:
+            await ctx.send("❌ No url or file has been specified and or sent!")
+            return
         # Check if the music folder has more than 50 files
         oldest_file = utils.check_music_folder()
         if oldest_file:
@@ -523,6 +493,9 @@ class Utility(commands.Cog):
     @commands.command(name="play")
     async def play(self, ctx, *, query: typing.Optional[str] = None):
         """Play a song from a URL, the music folder, or by its number, with an optional loop count."""
+        if query == None:
+            await ctx.send("❌ No query (url or file) has been specified!")
+            return
         # Check if the music folder has more than 50 files
         oldest_file = utils.check_music_folder()
         if oldest_file:
@@ -719,6 +692,9 @@ class Utility(commands.Cog):
     @commands.command(name="download")
     async def download(self, ctx, url: str):
         """Download a YouTube song or video and save it to the music folder."""
+        if url == None:
+            await ctx.send("❌ No URL message has been specified!")
+            return
         if not (url.startswith("http://") or url.startswith("https://")):
             await ctx.send(
                 "❌ Invalid URL. Please provide a valid YouTube URL starting with `http://` or `https://`."
@@ -747,6 +723,9 @@ class Utility(commands.Cog):
     @commands.command(name="ask")
     async def ask(self, ctx, *, question: str):
         """Answer a question using a local AI model."""
+        if question == None:
+            await ctx.send("❌ No question has been specified!")
+            return
         try:
             # Generate a response using the Hugging Face model
             response_gen = variables.qa_pipeline(question, max_length=400, num_return_sequences=1)
@@ -768,6 +747,12 @@ class Utility(commands.Cog):
     @commands.command(name="translate")
     async def translate(self, ctx, target_language: str, *, text: str):
         """Translate text to a specified language."""
+        if target_language == None:
+            await ctx.send("❌ No target language has been specified!")
+            return
+        if text == None:
+            await ctx.send(f"❌ No text to translate to {target_language} has been specified!")
+            return
         try:
             translation = await variables.translator.translate(text, dest=target_language)
             await ctx.send(f"🌐 **Translation ({target_language}):** {translation.text}")
@@ -777,6 +762,9 @@ class Utility(commands.Cog):
     @commands.command(name="weather")
     async def weather(self, ctx, *, city: str):
         """Get the current weather for a city."""
+        if city == None:
+            await ctx.send("❌ No city has been specified!")
+            return
         api_key = variables.openwheather  # Replace with your API key
         url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
         try:
@@ -838,6 +826,9 @@ class Utility(commands.Cog):
     async def leaderboard(self, ctx, category: typing.Optional[str] = None):
         """Display the leaderboard for level, XP, coins, or Easter Eggs."""
         valid_categories = ["level", "xp", "coins", "eggs"]
+        if category == None:
+            await ctx.send("❌ No category has been specified!")
+            return
         if category not in valid_categories:
             await ctx.send(
                 f"❌ Invalid category. Use `?leaderboard level`, `?leaderboard xp`, `?leaderboard coins`, or `?leaderboard eggs`."
@@ -930,6 +921,12 @@ class Utility(commands.Cog):
         Send an announcement to all servers' announcement channels.
         If a specific channel name is provided, send the message to that channel instead.
         """
+        if channel_name == None:
+            await ctx.send("❌ No channel name for the announcement has been specified!")
+            return
+        if message == None:
+            await ctx.send("❌ No message has been specified!")
+            return
         if not message:
             await ctx.send("❌ You must provide a message to send.")
             return
@@ -978,6 +975,15 @@ class Utility(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def add_role_reaction(self, ctx, message_id: int, emoji: str, *, role: discord.Role):
         """Link an emoji to a role for a specific message (for reaction roles)."""
+        if message_id == None:
+            await ctx.send("❌ No message ID has been specified! ( Right click on a message to get your ID (DEV MODE MUST BE ON) )")
+            return
+        if emoji == None:
+            await ctx.send("❌ No emoji has been specified!")
+            return
+        if role == None:
+            await ctx.send("❌ No role has been specified!")
+            return
         utils.set_guild_role_reaction(ctx.guild.id, message_id, emoji, role.id)
         await ctx.send(f"✅ Reaction role set: {emoji} → {role.name} on message {message_id}")
 
@@ -985,12 +991,21 @@ class Utility(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def remove_role_reaction(self, ctx, message_id: int, emoji: str):
         """Remove a reaction role mapping."""
+        if message_id == None:
+            await ctx.send("❌ No message ID has been specified!")
+            return
+        if emoji == None:
+            await ctx.send("❌ No emoji has been specified!")
+            return
         utils.remove_guild_role_reaction(ctx.guild.id, message_id, emoji)
         await ctx.send(f"✅ Removed reaction role for {emoji} on message {message_id}")
 
     @commands.command(name="lookup")
     async def lookup(self, ctx, input_value: str):
         """Look up a user by their ID or username."""
+        if input_value == None:
+            await ctx.send("❌ No input value has been specified!")
+            return
         # Check if the input is a user ID
         if input_value.isdigit():
             user = await self.bot.fetch_user(int(input_value))
@@ -1018,6 +1033,12 @@ class Utility(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def set_level_role(self, ctx, level: int, *, role: discord.Role):
         """Set a custom role for a specific level (per server)."""
+        if level == None:
+            await ctx.send("❌ No level has been specified!")
+            return
+        if role == None:
+            await ctx.send("❌ No role has been specified!")
+            return
         utils.set_guild_level_role(ctx.guild.id, level, role.name)
         await ctx.send(f"✅ Level {level} will now grant the role: {role.name}")
 
@@ -1025,6 +1046,9 @@ class Utility(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def remove_level_role(self, ctx, level: int):
         """Remove the custom role for a specific level (per server)."""
+        if level == None:
+            await ctx.send("❌ No level has been specified!")
+            return
         utils.remove_guild_level_role(ctx.guild.id, level)
         await ctx.send(f"✅ Removed custom role for level {level}.")
 
@@ -1043,6 +1067,9 @@ class Utility(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def add_selfrole(self, ctx, *, role: discord.Role):
         """Add a role to the list of self-assignable roles."""
+        if role == None:
+            await ctx.send("❌ No role has been specified!")
+            return
         utils.add_guild_self_role(ctx.guild.id, role.name)
         await ctx.send(f"✅ `{role.name}` is now self-assignable.")
 
@@ -1050,6 +1077,9 @@ class Utility(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def remove_selfrole(self, ctx, *, role: discord.Role):
         """Remove a role from the list of self-assignable roles."""
+        if role == None:
+            await ctx.send("❌ No role has been specified!")
+            return
         utils.remove_guild_self_role(ctx.guild.id, role.name)
         await ctx.send(f"✅ `{role.name}` is no longer self-assignable.")
 
@@ -1065,6 +1095,9 @@ class Utility(commands.Cog):
     @commands.command(name="iam")
     async def iam(self, ctx, *, role: discord.Role):
         """Assign yourself a self-assignable role."""
+        if role == None:
+            await ctx.send("❌ No role has been specified!")
+            return
         roles = utils.get_guild_self_roles(ctx.guild.id)
         if role.name not in roles:
             await ctx.send("❌ That role is not self-assignable.")
@@ -1078,6 +1111,9 @@ class Utility(commands.Cog):
     @commands.command(name="iamnot")
     async def iamnot(self, ctx, *, role: discord.Role):
         """Remove a self-assignable role from yourself."""
+        if role == None:
+            await ctx.send("❌ No role has been specified!")
+            return
         roles = utils.get_guild_self_roles(ctx.guild.id)
         if role.name not in roles:
             await ctx.send("❌ That role is not self-assignable.")
@@ -1136,6 +1172,12 @@ class Utility(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def add_tag(self, ctx, tag: str, *, content: str):
         """Add a custom tag for this server."""
+        if tag == None:
+            await ctx.send("❌ No tag has been specified!")
+            return
+        if content == None:
+            await ctx.send("❌ No content for the tag has been specified!")
+            return
         utils.set_guild_tag(ctx.guild.id, tag, content)
         await ctx.send(f"✅ Tag `{tag}` added.")
 
@@ -1143,6 +1185,9 @@ class Utility(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def remove_tag(self, ctx, tag: str):
         """Remove a custom tag from this server."""
+        if tag == None:
+            await ctx.send("❌ No tag has been specified!")
+            return
         utils.remove_guild_tag(ctx.guild.id, tag)
         await ctx.send(f"✅ Tag `{tag}` removed.")
 
@@ -1158,6 +1203,9 @@ class Utility(commands.Cog):
     @commands.command(name="tag")
     async def get_tag(self, ctx, tag: str):
         """Show the content of a tag."""
+        if tag == None:
+            await ctx.send("❌ No tag has been specified!")
+            return
         tags = utils.get_guild_tags(ctx.guild.id)
         content = tags.get(tag.lower())
         if content:
@@ -1169,6 +1217,21 @@ class Utility(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def add_achievement(self, ctx, ach_id: str, name: str, power: int, asset_url: str, *, description: str):
         """Add a custom achievement (ID, name, power, asset_url, description)."""
+        if ach_id == None:
+            await ctx.send("❌ No achievement ID has been specified!")
+            return
+        if name == None:
+            await ctx.send("❌ No name for the ID has been specified!")
+            return
+        if power == None:
+            await ctx.send("❌ No power has been specified!")
+            return
+        if asset_url == None:
+            await ctx.send("❌ No asset_url (pfp) has been specified!")
+            return
+        if description == None:
+            await ctx.send("❌ No description of this achievement has been specified!")
+            return
         utils.set_guild_achievement(ctx.guild.id, ach_id, name, description, power, asset_url)
         await ctx.send(f"✅ Achievement `{name}` added with ID `{ach_id}`.")
 
@@ -1176,12 +1239,18 @@ class Utility(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def remove_achievement(self, ctx, ach_id: str):
         """Remove an achievement by ID."""
+        if ach_id == None:
+            await ctx.send("❌ No achievement ID has been specified!")
+            return
         utils.remove_guild_achievement(ctx.guild.id, ach_id)
         await ctx.send(f"✅ Achievement `{ach_id}` removed.")
 
     @commands.command(name="achievements")
     async def list_achievements(self, ctx, member: typing.Optional[discord.Member] = None):
         """Show your or another user's achievements."""
+        if member == None:
+            await ctx.send("❌ No member has been specified!")
+            return
         member = member or ctx.author
         user_ach_ids = utils.get_user_achievements(member.id)
         achievements = utils.get_guild_achievements(ctx.guild.id)

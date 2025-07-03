@@ -25,7 +25,7 @@ from Ediscord import utils
 from io import BytesIO
 # --------------------- CONSTANT VARIABLES --------------------
 SPAM_THRESHOLD = 5  # Number of messages allowed within the time window
-TIME_WINDOW = 10  # Time window in seconds
+TIME_WINDOW = 7.5  # Time window in seconds
 EASTER_FILE = "data/easter.json"
 TROPHY_FILE = "data/trophies.json"
 BOT_DATA_FILE = "bot_data.txt"

@@ -37,8 +37,8 @@ def save_trophy_data():
     with open(variables.TROPHY_FILE, "w") as f:
         json.dump(variables.trophy_data, f, indent=4)
 
-def is_owner(user):
-    return user.id == 917515232065228890
+def is_owner(ctx):
+    return ctx.author.id == 917515232065228890
 
 def save_easter_data():
     """Save the easter data to the JSON file."""

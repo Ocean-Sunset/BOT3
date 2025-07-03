@@ -379,7 +379,7 @@ class Ownercommands(commands.Cog):
             await ctx.send("✅ **Reset complete. All data and songs have been deleted.**")
 
             # Restart the bot
-            os.execv(sys.executable, ["python", __file__, "--skip-input"])
+            os.execv(sys.executable, [sys.executable] + sys.argv)
         except Exception as e:
             await ctx.send(f"❌ An error occurred during the reset: {e}")
 

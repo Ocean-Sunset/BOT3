@@ -5,17 +5,27 @@ from dotenv import load_dotenv
 load_dotenv()
 from EdiscordH import variables, utils 
 import sys
+import difflib
 import asyncio
 TOKEN = os.getenv("TOKEN")
 ERROR_CHANNEL_ID = 1389940334578106470
 UPDATE_CHANNEL_ID = 1389940334578106470
-
+ANNOUNCEMENT_CHANNEL_IDS = [
+    1368353297253138435, # thatguy's server
+    1366939146949496893, # hangout test
+    1362911721328742491, # hangout
+    1389709510561628300, # kepershi's server
+    1367500237668749372, # ducky's servr
+    1365292101205758085, # death corp
+    1325857545880993903 # void room
+]
 SIGNALS_DIR = os.path.join(os.path.dirname(__file__), "signals")
 ERROR_FILE = os.path.join(SIGNALS_DIR, "error.txt")
 UPDATE_FILE = os.path.join(SIGNALS_DIR, "update.txt")
 LAST_COMMAND_FILE = os.path.join(SIGNALS_DIR, "last_command.txt")
 
 intents = discord.Intents.default()
+intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
@@ -49,11 +59,11 @@ async def update(ctx, *, args: str):
         )
 
         await ctx.send(
-            f"✅ Bot updated to version **{version}** with new features: **{new_stuff}**."
+            f"✅ Handler updated to version **{version}** with new features: **{new_stuff}**."
         )
         await ctx.send("🔄 Restarting the bot...")
 
-        utils.signal_update(f"New version: {version}\nNew stuff: {new_stuff}")
+        utils.signal_update(f"**HANDLER** New version: {version}\n**HANDLER** New stuff: {new_stuff}")
 
         # Restart the bot
         os.execv(sys.executable, [sys.executable] + sys.argv)
@@ -79,7 +89,7 @@ async def changelog(ctx):
 @bot.command(name="restart")
 @commands.check(utils.is_owner)
 async def restart(ctx):
-        await ctx.send("🔄 Restarting the bot...")
+        await ctx.send("🔄 Restarting the handler...")
         await bot.close()
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
@@ -87,82 +97,103 @@ async def restart(ctx):
 @bot.command(name="shutdown")
 @commands.check(utils.is_owner)
 async def shutdown(ctx):
-        await ctx.send("🔌 Coming in 1.1..")
+        await ctx.send("🔌 Coming in 1.2..")
 
 
 @bot.command(name="start")
 @commands.check(utils.is_owner)
 async def start(ctx):
-        await ctx.send("✅ Coming in 1.1..")
+        await ctx.send("✅ Coming in 1.2..")
+
+@bot.event
+async def on_command_error(ctx, error):
+        # Ignore messages starting with "??" or more
+        if ctx.message.content.startswith("!") and ctx.message.content.count("!") > 1:
+            return
+
+        if isinstance(error, commands.CommandNotFound):
+            # Get the command name the user tried to use
+            attempted_command = ctx.message.content.split()[0][
+                1:
+            ]  # Remove the prefix (e.g., "?")
+
+            # Dynamically get all command names and aliases
+            all_commands = set()
+            for cmd in bot.commands:
+                all_commands.add(cmd.name)
+                all_commands.update(cmd.aliases)
+            # Remove hidden commands
+            all_commands = {
+                name
+                for name in all_commands
+                if not bot.get_command(name) or not bot.get_command(name).hidden
+            }
+
+            # Find the closest match to the attempted command
+            closest_match = difflib.get_close_matches(
+                attempted_command, all_commands, n=1, cutoff=0.6
+        )
+
+            if closest_match:
+                await ctx.send(f"❌ Did you mean: `{closest_match[0]}`?")
+            else:
+                await ctx.send(
+                    "❌ Command not found."
+                )
+        else:
+            await ctx.send(f"An error occurred: {error}")
+            # Signal the handler bot about the error
+            try:
+                utils.signal_error(f"{type(error).__name__}: {error}\nCommand: {ctx.command}\nUser: {ctx.author}\nMessage: {ctx.message.content}")
+            except Exception as e:
+                print(f"Failed to signal error: {e}")
 
 @tasks.loop(seconds=1)
 async def check_signals():
-    # Handle error signal
-    if os.path.exists(ERROR_FILE):
+    # Wait until both error and last_command files exist
+    if os.path.exists(ERROR_FILE) and os.path.exists(LAST_COMMAND_FILE):
         await asyncio.sleep(1)
         with open(ERROR_FILE, "r", encoding="utf-8") as f:
             error_details = f.read()
-        if os.path.exists(LAST_COMMAND_FILE):
-            with open(LAST_COMMAND_FILE, "r", encoding="utf-8") as f:
-                line = f.read().strip()
-                if "," in line:
-                    channel_id, message_id = map(int, line.split(","))
-                    channel = bot.get_channel(channel_id)
-                    if channel:
-                        try:
-                            msg = await channel.fetch_message(message_id)
-                            await msg.reply(f"# ⚠️ The main bot has crashed.\nPlease try again later or contact support.\n-# If you do end up contacting support, please make sure to explain precisly what happened.")
-                        except Exception:
-                            # Fallback: just send to the channel
-                            await channel.send(f"# ⚠️ The main bot has crashed.\nPlease try again later or contact support.\n-# If you do end up contacting support, please make sure to explain precisly what happened.\n-# (B.error, reply failed)")
+        with open(LAST_COMMAND_FILE, "r", encoding="utf-8") as f:
+            line = f.read().strip()
+            if "," in line:
+                channel_id, message_id = map(int, line.split(","))
+                channel = bot.get_channel(channel_id)
+                if channel:
+                    try:
+                        msg = await channel.fetch_message(message_id)
+                        await msg.reply(
+                            "# ⚠️ The main bot has encountered an error and now maybe disabled.\nPlease try again later or contact support.\n-# If you do end up contacting support, please make sure to explain precisely what happened."
+                        )
+                    except Exception:
+                        await channel.send(
+                            "-# B.error, reply failed\n# ⚠️ The main bot has encountered an error and now maybe disabled.\nPlease try again later or contact support.\n-# If you do end up contacting support, please make sure to explain precisely what happened."
+                        )
         channel = bot.get_channel(ERROR_CHANNEL_ID)
         if channel:
             await channel.send(
-                f"# A CRITICAL ERROR OCCURED \nDetails:\n```{error_details}```"
+                f"# A CRITICAL ERROR OCCURRED \nDetails:\n```{error_details}```"
             )
-        else:
-            # Retry logic if last_command.txt not ready yet
-            await asyncio.sleep(2)
-            if os.path.exists(LAST_COMMAND_FILE):
-                with open(LAST_COMMAND_FILE, "r", encoding="utf-8") as f:
-                    line = f.read().strip()
-                    if "," in line:
-                        channel_id, message_id = map(int, line.split(","))
-                        channel = bot.get_channel(channel_id)
-                        if channel:
-                            try:
-                                msg = await channel.fetch_message(message_id)
-                                await msg.reply("# ⚠️ The main bot has crashed.\nPlease try again later or contact support.\n-# If you do end up contacting support, please make sure to explain precisly what happened.\n-# (B.success, retry success)")
-                            except Exception:
-                                await channel.send("# ⚠️ The main bot has crashed.\nPlease try again later or contact support.\n-# If you do end up contacting support, please make sure to explain precisly what happened.\n-# (B.error, reply failed || B.success, retry success)")
+        # Now remove both files
         os.remove(ERROR_FILE)
+        os.remove(LAST_COMMAND_FILE)
     
 
-    # Handle update signal
+    # In your check_signals update section:
     if os.path.exists(UPDATE_FILE):
         with open(UPDATE_FILE, "r", encoding="utf-8") as f:
             update_details = f.read()
         channel = bot.get_channel(UPDATE_CHANNEL_ID)
         if channel:
-            await channel.send(
-                f"# 📢 **BOT Update Announcement:**\n{update_details}"
-            )
-        for guild in bot.guilds:
-            for text_channel in guild.text_channels:
-                if text_channel.name.lower() in [
-                    "announcement",
-                    "announcements",  
-                    "⌞-announcements-⌝-📢", 
-                    "📣︱annnouncements",
-                    "│announcements"
-                    "🧪| test-lab"
-                    ]:
-                    try:
-                        await text_channel.send(
-                            f"# 📢 **BOT Update Announcement:**\n{update_details}"
-                        )
-                    except Exception as e:
-                        print(f"Failed to send update to {text_channel}: {e}")
+            await channel.send(f"# 📢 **BOT Update Announcement:**\n{update_details}")
+        for channel_id in ANNOUNCEMENT_CHANNEL_IDS:
+            channel = bot.get_channel(channel_id)
+            if channel:
+                try:
+                    await channel.send(f"# 📢 **BOT Update Announcement:**\n{update_details}")
+                except Exception as e:
+                    print(f"Failed to send update to channel {channel_id}: {e}")
         os.remove(UPDATE_FILE)
 
 @tasks.loop(minutes=2)

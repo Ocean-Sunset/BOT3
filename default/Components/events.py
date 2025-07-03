@@ -1,6 +1,16 @@
 # --------------------- IMPORTS --------------------
 from Ediscord import utils, variables
 import discord
+from discord.ext.commands import (
+    CommandNotFound,
+    MissingRequiredArgument,
+    BadArgument,
+    CommandOnCooldown,
+    CheckFailure,
+    DisabledCommand,
+    NoPrivateMessage,
+    CommandInvokeError,
+)
 from discord.ext import commands
 import discord.ext.commands
 import time
@@ -24,7 +34,7 @@ class Events(commands.Cog):
         # Replace with your own logic as needed
         if hasattr(self, "_last_message"):
             last = self._last_message.get(message.author.id)
-            if last and last["content"] == message.content and (message.created_at - last["time"]).total_seconds() < 5:
+            if last and last["content"] == message.content and (message.created_at - last["time"]).total_seconds() < 3:
                 return True
         else:
             self._last_message = {}
@@ -767,9 +777,7 @@ class Events(commands.Cog):
 
         if isinstance(error, commands.CommandNotFound):
             # Get the command name the user tried to use
-            attempted_command = ctx.message.content.split()[0][
-                1:
-            ]  # Remove the prefix (e.g., "?")
+            attempted_command = ctx.message.content.split()[0][1:]  # Remove the prefix (e.g., "?")
 
             # Dynamically get all command names and aliases
             all_commands = set()
@@ -786,7 +794,7 @@ class Events(commands.Cog):
             # Find the closest match to the attempted command
             closest_match = difflib.get_close_matches(
                 attempted_command, all_commands, n=1, cutoff=0.6
-        )
+            )
 
             if closest_match:
                 await ctx.send(f"❌ Command not found. Did you mean: `{closest_match[0]}`?")
@@ -794,14 +802,36 @@ class Events(commands.Cog):
                 await ctx.send(
                     "❌ Command not found. Use `?help` to see the list of available commands."
                 )
-        else:
-            await ctx.send(f"An error occurred: {error}")
-            # Signal the handler bot about the error
-            try:
-                utils.signal_error(f"{type(error).__name__}: {error}\nCommand: {ctx.command}\nUser: {ctx.author}\nMessage: {ctx.message.content}")
-            except Exception as e:
-                print(f"Failed to signal error: {e}")
-    
+            return  # <-- THIS IS IMPORTANT
+
+        elif isinstance(error, MissingRequiredArgument):
+            await ctx.send("❌ Missing required argument. Please check your command usage.")
+            return
+        elif isinstance(error, BadArgument):
+            await ctx.send("❌ Invalid argument. Please check your input.")
+            return
+        elif isinstance(error, CommandOnCooldown):
+            await ctx.send(f"⏳ This command is on cooldown. Try again in {error.retry_after:.2f} seconds.")
+            return
+        elif isinstance(error, CheckFailure):
+            await ctx.send("❌ You do not have permission to use this command.")
+            return
+        elif isinstance(error, DisabledCommand):
+            await ctx.send("❌ This command is currently disabled.")
+            return
+        elif isinstance(error, NoPrivateMessage):
+            await ctx.send("❌ This command cannot be used in private messages.")
+            return
+
+        # Only signal the handler for unhandled/critical errors
+        await ctx.send(f"An error occurred: {error}")
+        try:
+            utils.signal_error(
+                f"{type(error).__name__}: {error}\nCommand: {ctx.command}\nUser: {ctx.author}\nMessage: {ctx.message.content}"
+            )
+        except Exception as e:
+            print(f"Failed to signal error: {e}")
+        
     @commands.Cog.listener()
     async def on_message(self, message):
         print(f"📩 Message received: {message.content} from {message.author}")

@@ -254,18 +254,24 @@ class Utility(commands.Cog):
     async def colorrole(self, ctx):
         """Allow users to choose a color role by reacting to emojis."""
         message = await ctx.send(
-            "Which color do you want?\n"
+            "# Which color do you want?\n"
             "React with:\n"
-            "🔴 for Red\n"
-            "🟠 for Orange\n"
-            "🟡 for Yellow\n"
-            "🟢 for Green\n"
-            "🔵 for Blue\n"
-            "🟣 for Violet\n"
-                "⚪ for White\n"
-            "⚫ for Black"
-    )
-        reactions = ["🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "⚪", "⚫"]
+            "🔴 for **Red**\n"
+            "🟠 for **Orange**\n"
+            "🟡 for **Yellow**\n"
+            "🟢 for **Green**\n"
+            "🔵 for **Blue**\n"
+            "🟣 for **Violet**\n"
+            "⚪ for **White**\n"
+            "⚫ for **Black**\n"
+            "🟫 for **Brown**\n"
+            "🟦 for **Cyan**\n"
+            "🟪 for **Magenta**\n"
+            "🩵 for **Light Blue**\n"
+            "🩷 for **Pink**\n"
+            "🩶 for **Grey**"
+        )
+        reactions = ["🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "⚪", "⚫", "🟫", "🟦", "🟪", "🩵", "🩷", "🩶"]
         for reaction in reactions:
             await message.add_reaction(reaction)
 
@@ -283,9 +289,9 @@ class Utility(commands.Cog):
         if reminder == None:
             await ctx.send("❌ No description reminder has been specified!")
             return
-        await ctx.send(f"⏰ I will remind you in {time} seconds: {reminder}")
+        await ctx.send(f"⏰ I will remind you in **{time}** seconds: {reminder}")
         await asyncio.sleep(time)
-        await ctx.send(f"🔔 {ctx.author.mention}, here is your reminder: {reminder}")
+        await ctx.send(f"🔔 {ctx.author.mention}, here is your **reminder**: {reminder}")
 
 
     @commands.command(name="mute")

@@ -163,28 +163,54 @@ class Events(commands.Cog):
                 return
 
             colorrole_message_id = data.get("colorrole_message_id")
-            if colorrole_message_id and payload.message_id == colorrole_message_id:
-                guild = self.bot.get_guild(payload.guild_id)
+            if payload.message_id == colorrole_message_id:
                 member = guild.get_member(payload.user_id)
-                emoji_to_color = {
-                    "🔴": "Red",
-                    "🟠": "Orange",
-                    "🟡": "Yellow",
-                    "🟢": "Green",
-                    "🔵": "Blue",
-                    "🟣": "Violet",
-                    "⚪": "White",
-                    "⚫": "Black",
+                if member is None or member.bot:
+                    return
+
+                emoji = str(payload.emoji)
+                
+                # Define your color roles and their corresponding emojis
+                color_roles_map = {
+                    "🔴": "Red Role",
+                    "🟠": "Orange Role",
+                    "🟡": "Yellow Role",
+                    "🟢": "Green Role",
+                    "🔵": "Blue Role",
+                    "🟣": "Violet Role",
+                    "⚪": "White Role",
+                    "⚫": "Black Role",
+                    "🟫": "Brown Role",
+                    "🟦": "Cyan Role",
+                    "🟪": "Magenta Role",
+                    "🩵": "Light Blue Role",
+                    "🩷": "Pink Role",
+                    "🩶": "Grey Role",
                 }
-                role_name = emoji_to_color.get(str(payload.emoji))
+
+                role_name = color_roles_map.get(emoji)
                 if role_name:
                     role = discord.utils.get(guild.roles, name=role_name)
-                    if not role:
-                        role = await guild.create_role(name=role_name)
-                    await member.add_roles(role)
-                    await member.send(
-                        f"✅ You have been given the **{role_name}** role."
-                    )
+                    if role and role not in member.roles:
+                        try:
+                            await member.add_roles(role)
+                            print(f"Assigned {role.name} to {member.display_name}")
+                            
+                            # --- Send DM Notification for role gained ---
+                            try:
+                                await member.send(f"🎉 You've successfully been given the **{role.name}** role in {guild.name}!")
+                            except discord.Forbidden:
+                                print(f"Could not send DM to {member.display_name}. DMs might be disabled.")
+                            except Exception as e:
+                                print(f"Error sending DM to {member.display_name}: {e}")
+                            # --- End DM Notification ---
+
+                        except discord.Forbidden:
+                            print(f"Bot lacks permissions to add role {role.name} to {member.display_name}.")
+                        except Exception as e:
+                            print(f"Error adding role {role.name} to {member.display_name}: {e}")
+                    else:
+                        print(f"{member.display_name} already has the {role.name} role.")
                 return
 
             verify_message_id = data.get("verify_message_id")
@@ -416,28 +442,54 @@ class Events(commands.Cog):
                 return
 
             colorrole_message_id = data.get("colorrole_message_id")
-            if colorrole_message_id and payload.message_id == colorrole_message_id:
-                guild = self.bot.get_guild(payload.guild_id)
+            if payload.message_id == colorrole_message_id:
                 member = guild.get_member(payload.user_id)
-                emoji_to_color = {
-                    "🔴": "Red",
-                    "🟠": "Orange",
-                    "🟡": "Yellow",
-                    "🟢": "Green",
-                    "🔵": "Blue",
-                    "🟣": "Violet",
-                    "⚪": "White",
-                    "⚫": "Black",
+                if member is None or member.bot:
+                    return
+
+                emoji = str(payload.emoji)
+
+                # Define your color roles and their corresponding emojis
+                color_roles_map = {
+                    "🔴": "Red Role",
+                    "🟠": "Orange Role",
+                    "🟡": "Yellow Role",
+                    "🟢": "Green Role",
+                    "🔵": "Blue Role",
+                    "🟣": "Violet Role",
+                    "⚪": "White Role",
+                    "⚫": "Black Role",
+                    "🟫": "Brown Role",
+                    "🟦": "Cyan Role",
+                    "🟪": "Magenta Role",
+                    "🩵": "Light Blue Role",
+                    "🩷": "Pink Role",
+                    "🩶": "Grey Role",
                 }
-                role_name = emoji_to_color.get(str(payload.emoji))
+
+                role_name = color_roles_map.get(emoji)
                 if role_name:
                     role = discord.utils.get(guild.roles, name=role_name)
-                    if not role:
-                        role = await guild.create_role(name=role_name)
-                    await member.add_roles(role)
-                    await member.send(
-                        f"✅ You have been given the **{role_name}** role."
-                    )
+                    if role and role in member.roles:
+                        try:
+                            await member.remove_roles(role)
+                            print(f"Removed {role.name} from {member.display_name}")
+
+                            # --- Send DM Notification for role lost ---
+                            try:
+                                await member.send(f"👋 You've successfully lost the **{role.name}** role in {guild.name}.")
+                            except discord.Forbidden:
+                                print(f"Could not send DM to {member.display_name}. DMs might be disabled.")
+                            except Exception as e:
+                                print(f"Error sending DM to {member.display_name}: {e}")
+                            # --- End DM Notification ---
+
+                        except discord.Forbidden:
+                            print(f"Bot lacks permissions to remove role {role.name} from {member.display_name}.")
+                        except Exception as e:
+                            print(f"Error removing role {role.name} from {member.display_name}: {e}")
+                    else:
+                        print(f"{member.display_name} did not have the {role.name} role.")
                 return
 
             verify_message_id = data.get("verify_message_id")
@@ -1226,6 +1278,13 @@ class Events(commands.Cog):
     
     @commands.Cog.listener()
     async def on_ready(self):
+        # In your on_ready event or at startup:
+        if not hasattr(self.bot, "launch_time"):
+            self.bot.launch_time = time.time()
+        if not hasattr(self.bot, "version"):
+            self.bot.version = variables.bot_info["version"]
+        if not hasattr(self.bot, "total_commands"):
+            self.bot.total_commands = variables.total_commands
         print(f"✅ Bot is ready! Logged in as {self.bot.user}")
         print(f"Connected to {len(self.bot.guilds)} guild(s).")
         logging.info(f"Logged in as {self.bot.user}")

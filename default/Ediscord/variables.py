@@ -43,7 +43,9 @@ DATA_DIR = "../default/data"
 LOG_FILE = "../default/logs/super_command.log"
 PREFIXES_FILE = "data/prefixes.json"
 SERVER_SETTINGS_FILE = "data/server_settings.json"
+BETA_FILE = "data/beta_servers.json"
 # --------------------- VARIABLES --------------------
+total_commands = 0
 start_time = time.time()
 is_sleeping = False  # Tracks whether the bot is in sleep mode
 custom_status = None  # Tracks the custom status and activity
@@ -73,11 +75,12 @@ custom_cooldown = CooldownMapping.from_cooldown(
 )  # 1 message per 60 seconds
 current_status = None
 level_roles = {
-    5: "🔵 • NOVICE",
-    10: "🔵 • APPRENTICE",
-    20: "🔵 • EXPERT",
-    30: "🔵 • MASTER",
-    50: "🔵 • GRANDMASTER",
+    5: "[🌱 Novice]",
+    10: "[🔰 Apprentice]",
+    20: "[⚔️ Expert]",
+    30: "[🏆 Master]",
+    50: "[👑 Grandmaster]",
+    100: "[💬 God of talking]"
 }
 last_activity = {}
 chat_reviver_messages = [

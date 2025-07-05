@@ -447,7 +447,7 @@ def write_bot_data():
 
     print("Writing data to bot_data.txt:", data)  # Debug log
     with open(BOT_DATA_FILE, "w", encoding="utf-8") as f:
-        f.write("\n".join(data))
+        f.write(data)
 
 async def update_bot_data_periodically():
     """Periodically update bot_data.txt."""

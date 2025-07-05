@@ -275,7 +275,7 @@ def write_bot_data(bot):
 
     print("Writing data to bot_data.txt:", data)  # Debug log
     with open(variables.BOT_DATA_FILE, "w", encoding="utf-8") as f:
-        f.write("\n".join(data))
+        f.write(data)
 
 def read_website_command():
     """Read the latest command from website_commands.txt."""

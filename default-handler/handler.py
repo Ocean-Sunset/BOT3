@@ -7,6 +7,8 @@ from EdiscordH import variables, utils
 import sys
 import difflib
 import asyncio
+import logging
+import random
 TOKEN = os.getenv("TOKEN")
 ERROR_CHANNEL_ID = 1389940334578106470
 UPDATE_CHANNEL_ID = 1389940334578106470
@@ -23,6 +25,22 @@ SIGNALS_DIR = os.path.join(os.path.dirname(__file__), "signals")
 ERROR_FILE = os.path.join(SIGNALS_DIR, "error.txt")
 UPDATE_FILE = os.path.join(SIGNALS_DIR, "update.txt")
 LAST_COMMAND_FILE = os.path.join(SIGNALS_DIR, "last_command.txt")
+lil_text = [
+     "fishh :D",
+     "did you know? i know :)",
+     "nantedo 2 is costy",
+     "here my token: MTM...",
+     "i hardcoded this text to be random :D",
+     "null",
+     "boblox sucks :(",
+     "ur addictied to discorde",
+     "is mi gramar gud?",
+     "Your grammar is more than not acceptable.",
+     "lalalalalalalala",
+     "did u know? this is an announcement",
+     "THIS IS AN ALERT, MY KFC IS CLOSING TONIGHT :((((("
+]
+
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -104,6 +122,59 @@ async def shutdown(ctx):
 @commands.check(utils.is_owner)
 async def start(ctx):
         await ctx.send("✅ Coming in 1.2..")
+
+@bot.command(name="announcement")
+@commands.check(utils.is_owner)
+async def announcement(ctx, channel_name: str = None, *, message: str):
+    """
+    Send an announcement to all servers' announcement channels.
+    If a specific channel name is provided, send the message to that channel instead.
+    """
+    # To get a random text:
+    random_text = random.choice(lil_text)
+    if not message:
+        await ctx.send("❌ You must provide a message to send.")
+        return
+
+    # Iterate through all servers the bot is in
+    for guild in bot.guilds:
+        try:
+            # If a specific channel name is provided
+            if channel_name:
+                target_channel = discord.utils.find(
+                    lambda c: channel_name.lower() in c.name.lower() and isinstance(c, discord.TextChannel),
+                    guild.channels
+                )
+            else:
+                # Default to an announcements channel
+                target_channel = ANNOUNCEMENT_CHANNEL_IDS
+
+            if target_channel:
+                # Send the message to the target channel
+                await target_channel.send(f"# 📢 Announcement:\n{message}\n-# {random_text}")
+                logging.info(f"Announcement sent to {target_channel.name} in {guild.name}.")
+            else:
+                logging.warning(f"No suitable channel found in {guild.name}.")
+                # Optionally notify the server owner if no suitable channel is found
+                owner = guild.owner
+                if owner:
+                    await owner.send(
+                        f"❌ Could not find a suitable channel in your server **{guild.name}** "
+                        f"to send the announcement. Please ensure an announcements channel exists."
+                    )
+        except discord.Forbidden:
+            logging.warning(f"Permission denied to send message in {guild.name}.")
+        except Exception as e:
+            logging.error(f"Error sending announcement in {guild.name}: {e}")
+
+    await ctx.send("✅ Announcement sent to all servers.")
+
+@bot.command(name="kys")
+@commands.check(utils.is_owner)
+async def kys(self, ctx):
+        """commit die the bot."""
+        await ctx.send("Commiting die...")
+        await bot.close()
 
 @bot.event
 async def on_command_error(ctx, error):

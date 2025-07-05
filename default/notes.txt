@@ -1,3 +1,32 @@
+--------------------------------------------------------------------------------------------------------
+-------------------------------------- IDEAS FOR BUILD NAMES -------------------------------------------
+--------------------------------------------------------------------------------------------------------
+
+🌿 Inspired by Elysia & macOS naming style:
+Celestara — sounds celestial and refined, like "Elysia" but more grounded like a place.
+
+Lunara — evokes the moon, soft and serene.
+
+Solandra — sunny, vivid, and has a Californian coast vibe.
+
+Velora — elegant and futuristic, yet place-name-like.
+
+Auralis — echoes "aurora" and "Elysia" combined.
+
+Serava — serene, flowing, almost like a macOS mountain range or coastal city.
+
+Oralya — mythic yet plausible as a high-end software codename.
+
+Caelira — from "caelum" (sky in Latin), fantasy-modern hybrid.
+
+Zephara — inspired by "zephyr" (a soft breeze), light and sleek.
+
+Mystralyn — mysterious and refined, nodding to "mistral" winds.
+
+--------------------------------------------------------------------------------------------------------
+---------------------------------------- IDEAS FOR 3.0 Celestara ---------------------------------------
+--------------------------------------------------------------------------------------------------------
+
 Add more customization - DONE
 Fix the omega command
 Build a level image
@@ -92,3 +121,24 @@ add giveways
             return
 
         await ctx.send("❌ You must use this command in either the left or right sewer wing channel.")
+
+
+
+--------------------------------------------------------------------------------------------------------
+---------------------------------- WHAT HAS BEEN DONE FOR VERSION 2.4 ----------------------------------
+--------------------------------------------------------------------------------------------------------
+
+- Fixed color roles
+- Added more commands to handler
+- More backlogging incase unnecessary errors occur
+- Fixed spam threshold and time window
+- Handler is smarter at detecting errors
+- ?colorrole command style revamped
+
+--------------------------------------------------------------------------------------------------------
+---------------------------------- WHAT WILL BE DONE FOR VERSION 2.4 -----------------------------------
+--------------------------------------------------------------------------------------------------------
+
+- More revamping of the style of the commands
+- Handler being able to detect it's own errors (yes this still hasn't been added)
+- ASK IDEAS TO THE NIGGA 9 guild_ids NOWWWWWW

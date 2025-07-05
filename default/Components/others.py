@@ -155,7 +155,152 @@ class Other(commands.Cog):
         eggs_collected = variables.easter_data.get(user_id, {}).get("eggs", 0)
         await ctx.send(f"🥚 {member.mention} has collected **{eggs_collected} eggs**!")
 
+    @commands.command(name="trivia")
+    async def trivia(self, ctx):
+        """Start a trivia game."""
+        questions = {
+            "What is the capital of France?": "Paris",
+            "What is 757.124964164? + 64565*(6454/15)": "27799991.524964165",
+            "Who wrote 'To Kill a Mockingbird'?": "Harper Lee",
+            "What is the largest planet in our solar system?": "Jupiter",
+            "What is the chemical symbol for gold?": "Au",
+            "What is the smallest prime number?": "2",
+            "Who painted the Mona Lisa?": "Leonardo da Vinci",
+            "What is the largest mammal?": "Blue Whale",
+            "What is the capital of Japan?": "Tokyo",
+            "What is the hardest natural substance on Earth?": "Diamond",
+            "What is the main ingredient in guacamole?": "Avocado",
+            "What is the longest river in the world?": "Nile",
+            "What is the largest desert in the world?": "Sahara",
+            "What is the speed of light?": "299792458 m/s",
+            "What is the boiling point of water?": "100°C",
+            "What is the largest ocean on Earth?": "Pacific Ocean",
+            "What is the most spoken language in the world?": "Mandarin Chinese",
+            "What is the capital of Canada?": "Ottawa",
+            "What is the currency of Japan?": "Yen",
+            "What is the tallest mountain in the world?": "Mount Everest",
+            "What is the largest continent?": "Asia",
+            "What is the main ingredient in sushi?": "Rice",
+            "What is the capital of Italy?": "Rome",
+            "What is the largest country in the world?": "Russia",
+            "What is the most populous country?": "China",
+            "What is the capital of Australia?": "Canberra",
+            "What is the largest island in the world?": "Greenland",
+            "What is the main ingredient in hummus?": "Chickpeas",
+            "What is the capital of Germany?": "Berlin",
+            "What is the largest volcano in the world?": "Mauna Loa",
+            "What is the chemical symbol for silver?": "Ag",
+            "What is the largest city in the world?": "Tokyo",
+            "What is the main ingredient in chocolate?": "Cocoa",
+            "What is the capital of Spain?": "Madrid",
+            "What is the largest lake in the world?": "Caspian Sea",
+            "What is the main ingredient in bread?": "Flour",
+            "What is the capital of Russia?": "Moscow",
+            "What is the largest animal on land?": "African Elephant",
+            "What is the main ingredient in pizza?": "Dough",
+            "What is the capital of Egypt?": "Cairo",
+            "What is the largest city in the USA?": "New York City",
+            "What is the main ingredient in curry?": "Spices",
+            "What is the capital of Brazil?": "Brasilia",
+            "What is the largest organ in the human body?": "Skin",
+            "What is the main ingredient in pancakes?": "Flour",
+            "What is the capital of India?": "New Delhi",
+            "What is the largest city in Canada?": "Toronto",
+            "What is the main ingredient in salad?": "Vegetables",
+            "What is the capital of Mexico?": "Mexico City",
+            "What is the largest city in Australia?": "Sydney",
+            "What is the main ingredient in soup?": "Broth",
+            "What is the capital of Argentina?": "Buenos Aires",
+            "What is the largest city in Europe?": "Moscow",
+            "What is the main ingredient in ice cream?": "Cream",
+            "What is the capital of South Africa?": "Pretoria",
+            "What is the main ingredient in cheese?": "Milk",
+            "What is the capital of Turkey?": "Ankara",
+            "What is the main ingredient in jelly?": "Fruit",
+            "What is the capital of Thailand?": "Bangkok",
+            "What is the main ingredient in mayonnaise?": "Eggs",
+            "What is the capital of Greece?": "Athens",
+            "What is the main ingredient in ketchup?": "Tomatoes",
+            "What is the capital of Portugal?": "Lisbon",
+            "What is the main ingredient in mustard?": "Mustard seeds",
+            "What is the capital of Sweden?": "Stockholm",
+            "What is the main ingredient in salsa?": "Tomatoes",
+            "What is the capital of Norway?": "Oslo",
+            "What is the main ingredient in pesto?": "Basil",
+            "What is the capital of Denmark?": "Copenhagen",
+            "What is the main ingredient in guacamole?": "Avocado",
+            "What is the capital of Finland?": "Helsinki",
+            "What is the main ingredient in tzatziki?": "Yogurt",
+            "What is the capital of Hungary?": "Budapest",
+            "What is the main ingredient in hummus?": "Chickpeas",
+            "What is the capital of Czech Republic?": "Prague",
+            "What is the main ingredient in falafel?": "Chickpeas",
+            "What is the capital of Slovakia?": "Bratislava",
+            "What is the main ingredient in tabbouleh?": "Bulgur",
+            "What is the capital of Romania?": "Bucharest",
+            "What is the main ingredient in moussaka?": "Eggplant",
+            "What is the capital of Bulgaria?": "Sofia",
+            "What is the main ingredient in baklava?": "Phyllo dough",
+            "What is the capital of Serbia?": "Belgrade",
+            "What is the main ingredient in goulash?": "Beef",
+            "What is the capital of Croatia?": "Zagreb",
+            "What is the chemical symbol for iron?": "Fe",
+            "What is the main ingredient in paella?": "Rice",
+            "What is the capital of Slovenia?": "Ljubljana",
+            "What is the main ingredient in risotto?": "Rice",
+            "What is the capital of Bosnia and Herzegovina?": "Sarajevo",
+            "What is the main ingredient in borscht?": "Beets",
+            "What is the capital of Montenegro?": "Podgorica",
+            "What is the main ingredient in cevapi?": "Ground meat",
+            "What is the capital of North Macedonia?": "Skopje",
+            "What is the main ingredient in ajvar?": "Red peppers",
+            "What is the capital of Albania?": "Tirana",
+            "What is the main ingredient in sarma?": "Cabbage",
+            "What is the capital of Kosovo?": "Pristina",
+            "What is the main ingredient in burek?": "Phyllo dough",
+            "What is the capital of Malta?": "Valletta",
+            "What is the main ingredient in pastizzi?": "Ricotta",
+            "What is the capital of Cyprus?": "Nicosia",
+            "What is the main ingredient in halloumi?": "Cheese",
+            "What is the capital of Luxembourg?": "Luxembourg City",
+            "What is the main ingredient in quiche?": "Eggs",
+            "What is the capital of Liechtenstein?": "Vaduz",
+            "What is the main ingredient in fondue?": "Cheese",
+            "What is the capital of Monaco?": "Monaco",
+            "What is the main ingredient in ratatouille?": "Vegetables",
+            "What is the capital of San Marino?": "San Marino",
+            "What is the main ingredient in tiramisu?": "Coffee",
+            "What is the capital of Vatican City?": "Vatican City",
+            "What is the main ingredient in panna cotta?": "Cream",
+            "What is the capital of Andorra?": "Andorra la Vella",
+            "What is the main ingredient in churros?": "Dough",
+            "What is the capital of Monaco?": "Monaco",
+            "What is the main ingredient in croissants?": "Dough",
+            "What is the capital of Gibraltar?": "Gibraltar",
+            "What is the main ingredient in scones?": "Flour",
+            "What is the capital of Bermuda?": "Hamilton",
+            "What is the main ingredient in shortbread?": "Butter",
+            "What is the capital of the Bahamas?": "Nassau",
             
+
+        }
+        question, answer = random.choice(list(questions.items()))
+        await ctx.send(f"❓ {question}")
+
+        def check(m):
+            return m.author == ctx.author and m.channel == ctx.channel
+
+        try:
+            response = await self.bot.wait_for("message", check=check, timeout=60.0)
+            if response.content.lower() == answer.lower():
+                reward = random.random(0, 1000)
+                user_id = str(ctx.author.id)
+                utils.update_coins(user_id, reward)
+                await ctx.send(f"✅ Correct! You earned {reward} coins.")
+            else:
+                await ctx.send(f"❌ Wrong! The correct answer was **{answer}**.")
+        except asyncio.TimeoutError:
+            await ctx.send("⏰ Time's up! You didn't answer in time.")
 
 async def setup(bot):
     await bot.add_cog(Other(bot))

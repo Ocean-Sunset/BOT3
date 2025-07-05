@@ -220,11 +220,12 @@ def write_bot_data(bot):
 
     total_users = len(bot.users)
     active_users = sum(1 for m in bot.get_all_members() if m.status != discord.Status.offline)
-    total_commands = getattr(bot, "total_commands", 0)
-    uptime_seconds = int(time.time() - bot.launch_time) if hasattr(bot, "launch_time") else 0
+    total_commands = getattr(bot, "total_commands", 0)  # Only works if you set this attribute yourself
+    launch_time = getattr(bot, "launch_time", None)
+    uptime_seconds = int(time.time() - launch_time) if launch_time else 0
     uptime_str = time.strftime("%Hh %Mm %Ss", time.gmtime(uptime_seconds))
     bot_status = "Running" if bot.is_ready() else "Not Running"
-    bot_version = getattr(bot, "version", "unknown")
+    bot_version = getattr(bot, "version", "unknown")  # Only works if you set this attribute yourself
     python_version = sys.version.replace("\n", " ")
     guilds = list(bot.guilds)
     num_guilds = len(guilds)
@@ -234,7 +235,7 @@ def write_bot_data(bot):
     num_emojis = sum(len(g.emojis) for g in guilds)
     loaded_cogs = list(bot.cogs.keys())
     all_commands = [cmd.name for cmd in bot.commands]
-    last_restart = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(bot.launch_time)) if hasattr(bot, "launch_time") else "unknown"
+    last_restart = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(launch_time)) if launch_time else "unknown"
 
 
     leaderboard = sorted(
@@ -276,7 +277,7 @@ def write_bot_data(bot):
 
     print("Writing data to bot_data.txt:", data)  # Debug log
     with open(variables.BOT_DATA_FILE, "w", encoding="utf-8") as f:
-        f.write("\n".join(data))
+        f.write(data)
 
 def read_website_command():
     """Read the latest command from website_commands.txt."""
@@ -731,6 +732,26 @@ def write_last_command(channel_id, message_id):
         f.write(f"{channel_id},{message_id}")
         print(f"[signal_update] Registered last command")
     time.sleep(3)
+
+def is_beta_server(guild_id: int) -> bool:
+    if not os.path.exists(variables.BETA_FILE):
+        return False
+    with open(variables.BETA_FILE, "r", encoding="utf-8") as f:
+        try:
+            servers = json.load(f)
+            return guild_id in servers
+        except json.JSONDecodeError:
+            return False
+
+def load_beta_servers():
+    if not os.path.exists(variables.BETA_FILE):
+        return []
+    with open(variables.BETA_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_beta_servers(servers):
+    with open(variables.BETA_FILE, "w", encoding="utf-8") as f:
+        json.dump(servers, f, indent=2)
 
 # --------------------- ASYNC DEFINITONS ---------------------
 async def update_bot_data_periodically(bot):

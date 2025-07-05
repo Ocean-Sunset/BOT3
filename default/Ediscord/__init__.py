@@ -17,6 +17,6 @@ import typing
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-__version__ = "1.1.0"
+__version__ = "1.6.3"
 __author__ = "th3_t1sm"
 __doc__ = "A somewhat 'cog' package for a discord bot i made, please don't mess with it, it's not the best but it does the job."

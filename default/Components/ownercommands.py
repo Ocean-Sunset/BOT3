@@ -31,10 +31,10 @@ class Ownercommands(commands.Cog):
                 variables.banned_servers.append(guild.id)
                 utils.save_banned_servers()
                 await ctx.send(
-                    f"✅ Server **{server_name}** has been banned. The bot will no longer work there."
+                    f"# ✅ Server **{server_name}** has been banned.\nThe bot will no longer work there unless the removal of this ban."
                 )
                 return
-        await ctx.send(f"❌ Server **{server_name}** not found.")
+        await ctx.send(f"❓ Server **{server_name}** not found.")
 
     @commands.command(name="UBServer")
     @commands.check(utils.is_owner)
@@ -85,33 +85,52 @@ class Ownercommands(commands.Cog):
     @commands.command(name="update")
     @commands.check(utils.is_owner)
     async def update(self, ctx, *, args: str):
-        """Update the bot's version and new features, then restart."""
+        """
+        Update the bot's version and new features, then restart.
+        Usage:
+        ?update <version> / <new features>
+        ?update beta <version> / <new features>
+        """
         global current_status
+        is_beta = False
+
+        # Check for beta flag
+        if args.lower().startswith("beta "):
+            is_beta = True
+            args = args[5:].strip()
+
         try:
             version, new_stuff = args.split(" / ")
         except ValueError:
             await ctx.send(
-                "❌ Invalid format. Use `?update <version> / <new features>`."
+                "❌ Invalid format. Use `?update <version> / <new features>` or `?update beta <version> / <new features>`."
             )
             return
 
-        # Update the bot info
-        variables.bot_info["version"] = version
-        variables.bot_info["new_stuff"] = new_stuff
-        utils.save_bot_info()
-
-        # Set the status to "Updating..."
-        current_status = discord.Game("Updating...")
-        await self.bot.change_presence(
-            status=discord.Status.dnd, activity=current_status
-        )
-
-        await ctx.send(
-            f"✅ Bot updated to version **{version}** with new features: **{new_stuff}**."
-        )
-        await ctx.send("🔄 Restarting the bot...")
-
-        utils.signal_update(f"New version: {version}\nNew stuff: {new_stuff}")
+        if is_beta:
+            # Update only beta info (you may want to store this separately)
+            variables.bot_info["beta_version"] = version
+            variables.bot_info["beta_new_stuff"] = new_stuff
+            utils.save_bot_info()
+            await ctx.send(
+                f"✅ Beta updated to version **{version}** with new features: **{new_stuff}**."
+            )
+            await ctx.send("🔄 Restarting the bot for beta testers only...")
+            utils.signal_update(f"beta|New version: {version}\nNew stuff: {new_stuff}")
+        else:
+            # Update the main info
+            variables.bot_info["version"] = version
+            variables.bot_info["new_stuff"] = new_stuff
+            utils.save_bot_info()
+            current_status = discord.Game("Updating...")
+            await self.bot.change_presence(
+                status=discord.Status.dnd, activity=current_status
+            )
+            await ctx.send(
+                f"✅ Bot updated to version **{version}** with new features: **{new_stuff}**."
+            )
+            await ctx.send("🔄 Restarting the bot...")
+            utils.signal_update(f"main|New version: {version}\nNew stuff: {new_stuff}")
 
         # Restart the bot
         os.execv(sys.executable, [sys.executable] + sys.argv)

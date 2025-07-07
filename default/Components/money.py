@@ -23,7 +23,7 @@ class Money(commands.Cog):
     @commands.command(name="buylevel")
     async def buylevel(self, ctx, levels: str):
         if levels == None:
-            await ctx.send("❌ No level has been specified!")
+            await ctx.send("# ❌ No level has been specified!\n-# Usage: `?buylevel <number of levels>`")
             return
         """
         Buy one or more levels with coins. Use a number or 'max'.
@@ -37,20 +37,20 @@ class Money(commands.Cog):
         if levels.lower() == "max":
             max_levels = coins // level_cost
             if max_levels < 1:
-                await ctx.send("❌ You don't have enough coins to buy any levels.")
+                await ctx.send("# ❌ You don't have enough coins to buy **any** levels.\n-# You should try those commands to get money!: `?sell, ?daily, ?steal, etc..`")
                 return
             bought = max_levels
         else:
             try:
                 bought = int(levels)
                 if bought < 1:
-                    await ctx.send("❌ You must buy at least 1 level.")
+                    await ctx.send(f"# ❌ You must specificy at least 1 positive level.\n-# {utils.little_text}")
                     return
             except ValueError:
                 await ctx.send("❌ Please enter a number of levels or 'max'.")
                 return
             if coins < bought * level_cost:
-                await ctx.send("❌ You don't have enough coins.")
+                await ctx.send(f"# ❌ You don't have enough coins.\n{utils.little_text}")
                 return
 
         # Deduct coins and add levels
@@ -66,7 +66,7 @@ class Money(commands.Cog):
         user_id = ctx.author.id
         balance = utils.get_coins(user_id)
         await ctx.send(
-            f"💰 {ctx.author.mention}, your current balance is **{balance} coins**."
+            f"# 💰 {ctx.author.mention}, your current balance is **{balance} coins**.\n-# Try running `?daily, ?opencrate` to get more money!"
         )
 
 
@@ -83,7 +83,7 @@ class Money(commands.Cog):
             )
         else:
             await ctx.send(
-                f"❌ {ctx.author.mention}, you have already claimed your daily reward. Try again tomorrow!"
+                f"❌ {ctx.author.mention}, you have already claimed your daily reward. Try again tomorrow!\n-# {utils.little_text}"
             )
 
 
@@ -91,10 +91,10 @@ class Money(commands.Cog):
     async def give(self, ctx, member: discord.Member, amount: int):
         """Give coins to another user."""
         if member == None:
-            await ctx.send("❌ You have to have a member to give them coins!")
+            await ctx.send("# ❌ You have to have a member to give them coins!\n-# Usage: `?give @user1234 <amount of money>`")
             return
         if amount <= 0:
-            await ctx.send("❌ You must give a positive amount of coins.")
+            await ctx.send(f"# ❌ You must specify a positive amount of coins.\n-# {utils.little_text}")
             return
 
         giver_id = ctx.author.id
@@ -103,7 +103,7 @@ class Money(commands.Cog):
         giver_balance = utils.get_coins(giver_id)
         if giver_balance < amount:
             await ctx.send(
-                f"❌ {ctx.author.mention}, you don't have enough coins to give. Your balance is **{giver_balance} coins**."
+                f"# ❌ {ctx.author.mention}, you don't have enough coins to give!\nYour balance is **{giver_balance} coins**."
             )
             return
 
@@ -112,7 +112,7 @@ class Money(commands.Cog):
         utils.update_coins(receiver_id, amount)
 
         await ctx.send(
-            f"✅ {ctx.author.mention} gave **{amount} coins** to {member.mention}."
+            f"# ✅ {ctx.author.mention} gave **{amount} coins** to {member.mention}."
         )
 
 
@@ -121,10 +121,10 @@ class Money(commands.Cog):
     async def steal(self, ctx, member: discord.Member):
         """Attempt to steal coins from another user."""
         if member == ctx.author:
-            await ctx.send("❌ You cannot steal from yourself!")
+            await ctx.send("# ❌ You cannot steal from yourself!\n-# Try using another member!")
             return
         if member == None:
-            await ctx.send("❌ You have to have a member to steal!")
+            await ctx.send("# ❌ You have to have a member to steal!\n-# Usage: `?steal @user1234 `(the amount of money is randomized :D)")
             return
 
         thief_id = ctx.author.id
@@ -132,7 +132,7 @@ class Money(commands.Cog):
 
         victim_balance = utils.get_coins(victim_id)
         if victim_balance <= 0:
-            await ctx.send(f"❌ {member.mention} has no coins to steal.")
+            await ctx.send(f"# ❌ {member.mention} has no coins to steal.\n-# Damn he's actually broke..\n-# {utils.little_text}")
             return
 
         # Determine the amount to steal (randomized)
@@ -152,7 +152,7 @@ class Money(commands.Cog):
     async def steal_error(self, ctx, error):
         if isinstance(error, CommandOnCooldown):
             await ctx.send(
-                f"⏳ This command is on cooldown. Try again in {round(error.retry_after, 2)} seconds."
+                f"# ⏳ This command is on cooldown!\nTry again in {round(error.retry_after, 2)} seconds."
             )
 
     @commands.command(name="gems")
@@ -162,7 +162,7 @@ class Money(commands.Cog):
         user_id = str(member.id)
         user_data = utils.get_user_data(user_id)
         gems_collected = user_data.get("gems", 0)
-        await ctx.send(f"💎 {member.mention} has collected **{gems_collected} gems**!")
+        await ctx.send(f"💎 {member.mention} has collected **{gems_collected}** gems!")
 
 
     # Bank commands
@@ -170,10 +170,10 @@ class Money(commands.Cog):
     async def deposit(self, ctx, amount: int):
         """Deposit coins into the bank."""
         if amount <= 0:
-            await ctx.send("❌ You must deposit a positive amount of coins.")
+            await ctx.send(f"# ❌ You must specify a positive amount of coins.\n-# {utils.little_text}")
             return
         if amount == None:
-            await ctx.send("❌ You have to put an amount for you to deposit coins!")
+            await ctx.send(f"# ❌ You have to put an amount for you to deposit coins!\n-# Usage: `?deposit <amount of money you want to deposit>`!")
             return
 
         user_id = ctx.author.id
@@ -181,7 +181,7 @@ class Money(commands.Cog):
 
         if balance < amount:
             await ctx.send(
-                f"❌ You don't have enough coins to deposit. Your balance is **{balance} coins**."
+                f"# ❌ You don't have enough coins to deposit\nYour balance is **{balance}** coins."
             )
             return
 
@@ -190,7 +190,7 @@ class Money(commands.Cog):
         utils.update_bank_balance(user_id, amount)
 
         await ctx.send(
-            f"✅ {ctx.author.mention}, you deposited **{amount} coins** into the bank."
+            f"✅ {ctx.author.mention}, you deposited **{amount}** coins into the bank."
         )
 
 
@@ -198,10 +198,10 @@ class Money(commands.Cog):
     async def withdraw(self, ctx, amount: int):
         """Withdraw coins from the bank."""
         if amount <= 0:
-            await ctx.send("❌ You must withdraw a positive amount of coins.")
+            await ctx.send(f"# ❌ You must specify a positive amount of coins.\n-# {utils.little_text}")
             return
         if amount == None:
-            await ctx.send("❌ You have to put an amount for you to withdraw coins!")
+            await ctx.send("# ❌ You have to put an amount for you to withdraw coins!\n-# Usage: `?withdraw <amount of money you want to withdraw>`!")
             return
 
         user_id = ctx.author.id
@@ -209,7 +209,7 @@ class Money(commands.Cog):
 
         if bank_balance < amount:
             await ctx.send(
-                f"❌ You don't have enough coins in the bank to withdraw. Your bank balance is **{bank_balance} coins**."
+                f"# ❌ You don't have enough coins in the bank to withdraw\nYour bank balance is **{bank_balance} coins**."
             )
             return
 

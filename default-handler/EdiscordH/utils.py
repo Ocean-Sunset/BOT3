@@ -731,6 +731,26 @@ def write_last_command(channel_id, message_id):
         print(f"[signal_update] Registered last command")
     time.sleep(3)
 
+def is_beta_server(guild_id: int) -> bool:
+    if not os.path.exists(variables.BETA_FILE):
+        return False
+    with open(variables.BETA_FILE, "r", encoding="utf-8") as f:
+        try:
+            servers = json.load(f)
+            return guild_id in servers
+        except json.JSONDecodeError:
+            return False
+
+def load_beta_servers():
+    if not os.path.exists(variables.BETA_FILE):
+        return []
+    with open(variables.BETA_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_beta_servers(servers):
+    with open(variables.BETA_FILE, "w", encoding="utf-8") as f:
+        json.dump(servers, f, indent=2)
+
 # --------------------- ASYNC DEFINITONS ---------------------
 async def update_bot_data_periodically(bot):
     """Periodically update bot_data.txt."""

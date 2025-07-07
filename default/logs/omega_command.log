@@ -35,3 +35,36 @@
 [2025-07-03T18:06:10.250532] th3_t1sm | user_data.json | 917515232065228890.level = 19 (was: 20)
 [2025-07-03T18:06:27.752601] th3_t1sm | user_data.json | 917515232065228890.xp = 1980 (was: 320)
 [2025-07-04T17:29:02.352304] th3_t1sm | user_data.json | 917515232065228890.coins + 1000 (was: 100300)
+[2025-07-05T11:04:51.519909] th3_t1sm | user_data.json | 1391006306554478656.level = -10 (was: 2)
+[2025-07-05T11:06:23.913679] th3_t1sm | user_data.json | 1391006306554478656.level = 1 (was: -8)
+[2025-07-05T11:06:53.975895] th3_t1sm | user_data.json | 1391006306554478656.xp = 10 (was: 1710)
+[2025-07-05T14:26:46.265108] th3_t1sm | inventory.json | 1391006306554478656 = {} (was: [{'name': 'Old Map', 'rarity': 'Common', 'value': {'coins': 15}}])
+[2025-07-05T14:26:56.386685] th3_t1sm | inventory.json | 1391006306554478656 =  (was: {})
+[2025-07-05T14:29:31.959140] th3_t1sm | inventory.json | 1391006306554478656 = [
+{
+"name": "Old Map",
+"rarity": "Common",
+"value": {
+"coins": 15
+}
+}
+] (was: )
+[2025-07-05T14:30:26.120948] th3_t1sm | inventory.json | 1391006306554478656 =  (was: [{'name': 'Old Map', 'rarity': 'Common', 'value': {'coins': 15}}])
+[2025-07-05T14:32:42.956540] th3_t1sm | inventory.json | 1391006306554478656 = [
+{
+"name": "Old Map",
+"rarity": "Common",
+"value": {
+"coins": 15
+}
+}
+{
+"name": "ABSOLUTE GIGA CHAD MONSTROSITY",
+"rarity": "**EXCLUSIVE**",
+"value": {
+"coins": 10000000000000000000,
+"gems": 100000000
+}
+}
+] (was: )
+[2025-07-06T19:09:52.887871] th3_t1sm | user_data.json | 1391006306554478656.level = 0 (was: 2)

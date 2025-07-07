@@ -1,11 +1,13 @@
 # --------------------- IMPORTS --------------------
 import discord
 from discord.ext import commands
+from discord.ui import View, Button
 from Ediscord import utils, variables
 import typing
 from PIL import Image, ImageDraw, ImageFont
 import io
 import requests
+import textwrap
 
 # --------------------- INFO COMMANDS --------------------
 print("✅ - Info loaded.")
@@ -27,24 +29,19 @@ class Info(commands.Cog):
         )  # Retrieve the user's bank balance
 
         await ctx.send(
-            f"📜 **{ctx.author.name}'s Profile**:\n"
-            f"🔹 XP: {xp}\n"
-            f"🔹 Level: {level}\n"
-            f"🔹 Coins: {coins}\n"
-            f"🔹 Deposited Coins: {deposited_coins}"
+            f"# 📜 **{ctx.author.name}'s Profile**:\n"
+            f"🔹 XP: **{xp}**\n"
+            f"🔹 Level: **{level}**\n"
+            f"🔹 Coins: **{coins}**\n"
+            f"🔹 Deposited Coins: **{deposited_coins}**"
         )
 
     @commands.command(name="help")
     async def smart_help(self, ctx):
         """
-        Show a list of all commands grouped by category (cog), truncating long lists.
+        Show a list of all commands grouped by category (cog), paginated with buttons.
         """
         prefix = ctx.prefix
-        embed = discord.Embed(
-            title="📖 Bot Commands",
-            description=f"Use `{prefix}help <command>` for more info.",
-            color=discord.Color.blue(),
-        )
 
         # Group commands by cog
         categories = {}
@@ -54,42 +51,99 @@ class Info(commands.Cog):
             cog = command.cog_name or "Other"
             categories.setdefault(cog, []).append(command)
 
+        # Prepare pages (one page per category/cog)
+        pages = []
         for cog, cmds in categories.items():
             lines = [f"`{prefix}{cmd.name}`: {cmd.short_doc or 'No description'}" for cmd in cmds]
             value = ""
             more = False
             for line in lines:
-                if len(value) + len(line) + 1 > 1000:  # leave space for "...and more"
+                if len(value) + len(line) + 1 > 1000:
                     more = True
                     break
                 value += line + "\n"
             if more:
                 value += "...and more"
+            embed = discord.Embed(
+                title="📖 Bot Commands",
+                description=f"Use `{prefix}help <command>` for more info.",
+                color=discord.Color.blue(),
+            )
             embed.add_field(
                 name=cog,
                 value=value or "No commands.",
                 inline=False
             )
+            pages.append(embed)
 
-        await ctx.send(embed=embed)
+        if not pages:
+            await ctx.send("No commands available.")
+            return
+
+        class HelpView(View):
+            def __init__(self, pages):
+                super().__init__(timeout=60)
+                self.pages = pages
+                self.index = 0
+
+            async def update_message(self, interaction):
+                for child in self.children:
+                    if isinstance(child, Button):
+                        child.disabled = False
+                if self.index == 0:
+                    self.children[0].disabled = True  # Previous
+                if self.index == len(self.pages) - 1:
+                    self.children[1].disabled = True  # Next
+                await interaction.response.edit_message(embed=self.pages[self.index], view=self)
+
+            @discord.ui.button(label="Previous", style=discord.ButtonStyle.secondary, disabled=True)
+            async def previous(self, interaction: discord.Interaction, button: Button):
+                if self.index > 0:
+                    self.index -= 1
+                    await self.update_message(interaction)
+
+            @discord.ui.button(label="Next", style=discord.ButtonStyle.secondary)
+            async def next(self, interaction: discord.Interaction, button: Button):
+                if self.index < len(self.pages) - 1:
+                    self.index += 1
+                    await self.update_message(interaction)
+
+        view = HelpView(pages)
+        await ctx.send(embed=pages[0], view=view)
     
     @commands.command()
     async def info(self, ctx):
-        custominfo = f"""# I am a multifunctional python Discord bot!
-        - Status: Normal
-        - Build: Elysia
-        - Version: **{variables.bot_info['version']}**
-        - Developper: th3_t1sm
-    
-        I am multifunctional discord bot created by th3_t1sm,
-        This is just a python discord bot made with love.
-        """
+        # List of beta program server IDs
+        beta_server_ids = utils.load_beta_servers()
+        if ctx.guild and ctx.guild.id in beta_server_ids:
+            custominfo = textwrap.dedent(f"""\
+                # I am a multifunctional python Discord bot!
+                - Status: Beta Program
+                - Build: Celestra-beta
+                - Version: **{variables.bot_info['version']}**-beta
+                - Developer: th3_t1sm
+
+                You are using the exclusive Beta Program build of the bot, codenamed Celestra.
+                This version includes upcoming features and experimental changes.
+                Thank you for helping test and improve the bot!
+            """)
+        else:
+            custominfo = textwrap.dedent(f"""\
+                # I am a multifunctional python Discord bot!
+                - Status: Normal
+                - Build: Elysia
+                - Version: **{variables.bot_info['version']}**
+                - Developper: th3_t1sm
+
+                I am multifunctional discord bot created by th3_t1sm,
+                This is just a python discord bot made with love.
+            """)
         await ctx.send(custominfo)
 
 
     @commands.command(name="changelog")
     async def changelog(self, ctx):
-        changelog = f"Here is the changelog for the {variables.bot_info['version']} version: {variables.bot_info['new_stuff']}"
+        changelog = f"# Here is the changelog for the **{variables.bot_info['version']}**: {variables.bot_info['new_stuff']}"
         await ctx.send(changelog)
 
 

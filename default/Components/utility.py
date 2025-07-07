@@ -1278,6 +1278,55 @@ class Utility(commands.Cog):
                 inline=False
             )
         await ctx.send(embed=embed)
+    
+    @commands.group(name="adminmsg", invoke_without_command=True)
+    @commands.has_permissions(administrator=True)
+    async def adminmsg(self, ctx):
+        """Admin message scheduler. Use subcommands: set, send, list, remove."""
+        await ctx.send("Use `?adminmsg set <name> <message>`, `?adminmsg send <name>`, `?adminmsg list`, or `?adminmsg remove <name>`.")
+
+    @adminmsg.command(name="set")
+    @commands.has_permissions(administrator=True)
+    async def adminmsg_set(self, ctx, name: str, *, message: str):
+        """Set a scheduled message with a name."""
+        data = utils.load_scheduled_messages()
+        data[name] = message
+        utils.save_scheduled_messages(data)
+        await ctx.send(f"✅ Message '{name}' saved.")
+
+    @adminmsg.command(name="send")
+    @commands.has_permissions(administrator=True)
+    async def adminmsg_send(self, ctx, name: str):
+        """Send a scheduled message by name."""
+        data = utils.load_scheduled_messages()
+        msg = data.get(name)
+        if not msg:
+            await ctx.send(f"❌ No message found with name '{name}'.")
+            return
+        await ctx.send(msg)
+
+    @adminmsg.command(name="list")
+    @commands.has_permissions(administrator=True)
+    async def adminmsg_list(self, ctx):
+        """List all scheduled message names."""
+        data = utils.load_scheduled_messages()
+        if not data:
+            await ctx.send("No scheduled messages found.")
+            return
+        await ctx.send("Scheduled messages: " + ", ".join(data.keys()))
+
+    @adminmsg.command(name="remove")
+    @commands.has_permissions(administrator=True)
+    async def adminmsg_remove(self, ctx, name: str):
+        """Remove a scheduled message by name."""
+        data = utils.load_scheduled_messages()
+        if name in data:
+            del data[name]
+            utils.save_scheduled_messages(data)
+            await ctx.send(f"✅ Message '{name}' removed.")
+        else:
+            await ctx.send(f"❌ No message found with name '{name}'.")
+
 
 async def setup(bot):
     await bot.add_cog(Utility(bot))

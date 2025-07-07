@@ -15,7 +15,7 @@ class Moderation(commands.Cog):
     @commands.has_permissions(manage_roles=True)
     async def warn(self, ctx, member: discord.Member, *, reason=None):
         if member == None:
-            await ctx.send("❌ You have to have a member to warn!")
+            await ctx.send("# ❌ You have to have a member to warn!\n-# Usage: `?warn @user1234 reason`")
             return
         user_id = str(member.id)
         if user_id not in variables.warnings_data:
@@ -25,7 +25,7 @@ class Moderation(commands.Cog):
         utils.save_warnings_data()
 
         await ctx.send(
-            f"✅ {member.mention} has been warned. Total warnings: {variables.warnings_data[user_id]['warnings']}"
+            f"# ✅ {member.mention} has been warned.\nTotal warnings: {variables.warnings_data[user_id]['warnings']}"
         )
         logs_channel = utils.get_logs_channel(ctx.guild)
         if logs_channel:
@@ -44,7 +44,7 @@ class Moderation(commands.Cog):
                     )
             await member.add_roles(mute_role)
             await ctx.send(
-                f"{member.mention} has been muted for 10 minutes due to excessive warnings."
+                f"❗{member.mention} has been muted for **10 minutes due to excessive warnings.**"
             )
             if logs_channel:
                 await logs_channel.send(
@@ -52,7 +52,7 @@ class Moderation(commands.Cog):
                 )
             await asyncio.sleep(600)  # 10 minutes
             await member.remove_roles(mute_role)
-            await ctx.send(f"{member.mention} has been unmuted.")
+            await ctx.send(f"✔️ {member.mention} has been unmuted.")
             if logs_channel:
                 await logs_channel.send(f"{member.mention} has been unmuted.")
 
@@ -61,7 +61,7 @@ class Moderation(commands.Cog):
     @commands.command()
     async def ban(self, ctx, member: discord.Member, *, reason=None):
         if member == None:
-            await ctx.send("❌ You have to have a member to ban!")
+            await ctx.send("# ❌ You have to have a member to ban!\n-# Usage: `?ban @user1234 reason(optional)`")
             return
         if reason is None:
             reason = "No reason provided"
@@ -70,14 +70,14 @@ class Moderation(commands.Cog):
         print(
             f"{ctx.author} Banned {ctx.member} in channel {ctx.channel}. Reason: {reason}."
         )
-        await ctx.send(f"✅{member.mention} has successfully been banned for: {reason}")
+        await ctx.send(f"# ✅ {member.mention} has successfully been banned\nReason: {reason}")
 
     @commands.command(name="strike")
     @commands.has_permissions(manage_roles=True)
     async def strike(self, ctx, member: discord.Member, *, reason: str = "No reason provided"):
         """Give a strike to a user."""
         if member == None:
-            await ctx.send("❌ You have to have a member to strike!")
+            await ctx.send("# ❌ You have to have a member to strike!\n-# Usage: `?strike @user1234 reason(optional)`")
             return
         user_id = str(member.id)
         user_data = utils.load_user_data()
@@ -100,7 +100,7 @@ class Moderation(commands.Cog):
         utils.save_user_data(user_data)
 
         await ctx.send(
-            f"⚠️ {member.mention} has been given a strike. Total strikes: **{strikes}**. Reason: {reason}"
+            f"# ⚠️ {member.mention} has been given a strike.\nTotal strikes: **{strikes}**.\nReason: {reason}"
         )
 
         # Take action based on the number of strikes
@@ -114,14 +114,14 @@ class Moderation(commands.Cog):
                     )
             await member.add_roles(mute_role)
             await ctx.send(
-                f"🔇 {member.mention} has been muted for accumulating 3 strikes."
+                f"🔇 {member.mention} has also been muted for accumulating 3 strikes."
             )
         elif strikes == 5:
             await member.kick(reason="Reached 5 strikes")
-            await ctx.send(f"👢 {member.mention} has been kicked for reaching 5 strikes.")
+            await ctx.send(f"👢 {member.mention} has also been kicked for reaching 5 strikes.")
         elif strikes >= 7:
             await member.ban(reason="Reached 7 strikes")
-            await ctx.send(f"⛔ {member.mention} has been banned for reaching 7 strikes.")
+            await ctx.send(f"⛔ {member.mention} has also been banned for reaching 7 strikes.\n-# bye!!")
 
 
     @commands.command(name="clearstrikes")
@@ -129,7 +129,7 @@ class Moderation(commands.Cog):
     async def clearstrikes(self, ctx, member: discord.Member):
         """Clear all strikes for a user."""
         if member == None:
-            await ctx.send("❌ You have to have a member to clear their strikes!")
+            await ctx.send("❌ You have to have a member to clear their strikes!\n-# Usage: `?clearstrikes @user1234`")
             return
         user_id = str(member.id)
         user_data = utils.load_user_data()
@@ -147,7 +147,7 @@ class Moderation(commands.Cog):
     async def infractions(self, ctx, member: discord.Member):
         """View a user's strikes and warnings."""
         if member == None:
-            await ctx.send("❌ You have to have a member to see their infractions!")
+            await ctx.send("❌ You have to have a member to see their infractions!\n-# Usage: `?infractions @user1234`")
             return
         user_id = str(member.id)
         user_data = utils.load_user_data()
@@ -157,9 +157,9 @@ class Moderation(commands.Cog):
         warnings = len(user_data.get(user_id, {}).get("warnings", []))
 
         await ctx.send(
-            f"📋 **Infractions for {member.mention}:**\n"
-            f"- Strikes: {strikes}\n"
-            f"- Warnings: {warnings}"
+            f"# 📋 **Infractions for {member.mention}:**\n"
+            f"- Strikes: **{strikes}**\n"
+            f"- Warnings: **{warnings}**"
         )
 
 
@@ -181,7 +181,7 @@ class Moderation(commands.Cog):
 
         # Validate level
         if level not in ["1", "2", "3", "4", "5"]:
-            await ctx.send("❌ Invalid level. Please choose a level between 1 and 5.")
+            await ctx.send("# ❌ Invalid level.\nPlease choose a level between 1 and 5.")
             return
 
         # Save the level to the JSON file

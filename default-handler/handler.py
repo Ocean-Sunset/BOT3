@@ -251,20 +251,38 @@ async def check_signals():
         os.remove(LAST_COMMAND_FILE)
     
 
-    # In your check_signals update section:
     if os.path.exists(UPDATE_FILE):
         with open(UPDATE_FILE, "r", encoding="utf-8") as f:
             update_details = f.read()
-        channel = bot.get_channel(UPDATE_CHANNEL_ID)
-        if channel:
-            await channel.send(f"# 📢 **BOT Update Announcement:**\n{update_details}")
-        for channel_id in ANNOUNCEMENT_CHANNEL_IDS:
-            channel = bot.get_channel(channel_id)
+        # Check if this is a beta-only update
+        if update_details.startswith("beta|"):
+            update_details = update_details[len("beta|"):]
+            # Dynamically get beta server IDs
+            beta_server_ids = utils.load_beta_servers()  # This should return a list of server IDs
+            for guild in bot.guilds:
+                if guild.id in beta_server_ids:
+                    # Try to find an announcement-like channel
+                    announcement_channel = ANNOUNCEMENT_CHANNEL_IDS
+                    # Fallback: use the first text channel
+                    if not announcement_channel and guild.text_channels:
+                        announcement_channel = guild.text_channels[0]
+                    if announcement_channel:
+                        try:
+                            await announcement_channel.send(f"# 📢 **BETA Update Announcement:**\n{update_details}")
+                        except Exception as e:
+                            print(f"Failed to send beta update to channel {announcement_channel.id}: {e}")
+        else:
+            # Main update, send to all announcement channels
+            channel = bot.get_channel(UPDATE_CHANNEL_ID)
             if channel:
-                try:
-                    await channel.send(f"# 📢 **BOT Update Announcement:**\n{update_details}")
-                except Exception as e:
-                    print(f"Failed to send update to channel {channel_id}: {e}")
+                await channel.send(f"# 📢 **BOT Update Announcement:**\n{update_details}")
+            for channel_id in ANNOUNCEMENT_CHANNEL_IDS:
+                channel = bot.get_channel(channel_id)
+                if channel:
+                    try:
+                        await channel.send(f"# 📢 **BOT Update Announcement:**\n{update_details}")
+                    except Exception as e:
+                        print(f"Failed to send update to channel {channel_id}: {e}")
         os.remove(UPDATE_FILE)
 
 @tasks.loop(minutes=2)

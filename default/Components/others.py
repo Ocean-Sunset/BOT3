@@ -293,7 +293,7 @@ class Other(commands.Cog):
         try:
             response = await self.bot.wait_for("message", check=check, timeout=60.0)
             if response.content.lower() == answer.lower():
-                reward = random.random(0, 1000)
+                reward = random.randrange(0, 1000)
                 user_id = str(ctx.author.id)
                 utils.update_coins(user_id, reward)
                 await ctx.send(f"✅ Correct! You earned {reward} coins.")

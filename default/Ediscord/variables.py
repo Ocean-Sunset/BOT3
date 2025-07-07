@@ -44,6 +44,7 @@ LOG_FILE = "../default/logs/super_command.log"
 PREFIXES_FILE = "data/prefixes.json"
 SERVER_SETTINGS_FILE = "data/server_settings.json"
 BETA_FILE = "data/beta_servers.json"
+SCHEDULED_MSGS_FILE = "data/scheduled_messages.json"
 # --------------------- VARIABLES --------------------
 total_commands = 0
 start_time = time.time()

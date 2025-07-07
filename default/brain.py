@@ -33,7 +33,7 @@ def get_prefix(bot, message):
         return "?"
 
 bot = commands.Bot(command_prefix=get_prefix, intents=variables.intents, help_command=None)
-Components = ["events", "fun", "info", "moderation", "money", "others", "ownercommands", "utility", "super", "omega"]
+Components = ["events", "fun", "info", "moderation", "money", "others", "ownercommands", "utility", "super", "omega", "beta", "betarequest"]
 # --------------------- ASYNC DEFINITON (important) ---------------------
 # Background task to monitor inactivity
 async def monitor_inactivity():

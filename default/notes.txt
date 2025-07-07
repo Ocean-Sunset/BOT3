@@ -27,17 +27,14 @@ Mystralyn — mysterious and refined, nodding to "mistral" winds.
 ---------------------------------------- IDEAS FOR 3.0 Celestara ---------------------------------------
 --------------------------------------------------------------------------------------------------------
 
-Add more customization - DONE
-Fix the omega command
-Build a level image
-Fix spam messages warnings to send over DM's and delete the spam messages too
-REplace throphies to achievements - make those customizalble with ID power based Server direcotries and custom assets
-Build a ticketing system with generic buttons
-Fix polls
-allow people to send messages every {set_hour}
-youtube alerts
-images the inventory and anything money related
-add giveways
+
+REplace throphies to achievements - make those customizalble with ID power based Server direcotries and custom assets - IGNORED
+Build a ticketing system with generic buttons- WILL DO
+Fix polls - WILL DO
+allow people to send messages every {set_hour} - DONE
+youtube alerts - BETA
+images the inventory and anything money related - IMPOSSIBLE
+add giveways - MAYBE WILL do
 
 
 --------------------------------------------------------------------------------------------------------
@@ -125,9 +122,10 @@ add giveways
 
 
 --------------------------------------------------------------------------------------------------------
----------------------------------- WHAT HAS BEEN DONE FOR VERSION 2.4 ----------------------------------
+---------------------------------- WHAT HAS BEEN DONE FOR 3.0 Celestara --------------------------------
 --------------------------------------------------------------------------------------------------------
 
+Date: Unknown
 - Fixed color roles
 - Added more commands to handler
 - More backlogging incase unnecessary errors occur
@@ -135,10 +133,18 @@ add giveways
 - Handler is smarter at detecting errors
 - ?colorrole command style revamped
 
+Date: 07/07/2025
+- Now halfway there with the command redesign (basically at the halfway mark of money.py)
+- Did some more stuff with some beta commands
+- The help command is so much better now, buttons and everything, UGHH
+
+Date: 08/07/2025    
+- Nothing for now.
 --------------------------------------------------------------------------------------------------------
----------------------------------- WHAT WILL BE DONE FOR VERSION 2.4 -----------------------------------
+---------------------------------- WHAT WILL BE DONE FOR 3.0 Celestara ---------------------------------
 --------------------------------------------------------------------------------------------------------
 
-- More revamping of the style of the commands
+- COMPLETE RENOVATION OF COMMAND STYLE
 - Handler being able to detect it's own errors (yes this still hasn't been added)
+- Fix the ?colorrole command not actually giving you the roles i'm gonna kms
 - ASK IDEAS TO THE NIGGA 9 guild_ids NOWWWWWW

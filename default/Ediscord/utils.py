@@ -753,6 +753,33 @@ def save_beta_servers(servers):
     with open(variables.BETA_FILE, "w", encoding="utf-8") as f:
         json.dump(servers, f, indent=2)
 
+def load_scheduled_messages():
+    if not os.path.exists(variables.SCHEDULED_MSGS_FILE):
+        return {}
+    with open(variables.SCHEDULED_MSGS_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_scheduled_messages(data):
+    with open(variables.SCHEDULED_MSGS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+def little_text():
+    tips = [
+        "TIP: Use `?daily` every day to get free coins!",
+        "TIP: You can trade items with friends using `?trade`.",
+        "TIP: Deposit your coins in the bank to keep them safe from thieves.",
+        "TIP: Use `?buylevel max` to buy as many levels as you can afford.",
+        "TIP: Open crates for a chance to get rare items!",
+        "TIP: You can exchange gems for coins with `?exchange_gems`.",
+        "TIP: Check your inventory with `?inventory`.",
+        "TIP: Use `?profile` to see your stats.",
+        "TIP: Invite your friends to the server for more fun!",
+        "TIP: fishh"
+        "TIP: This is supposed to be a TIP but you got so lucky i won't even display anything :D"
+        "TIP: fart :PIT"
+    ]
+    return random.choice(tips)
+
 # --------------------- ASYNC DEFINITONS ---------------------
 async def update_bot_data_periodically(bot):
     """Periodically update bot_data.txt."""

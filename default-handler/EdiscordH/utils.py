@@ -17,6 +17,7 @@ import random
 import itertools
 from PIL import Image, ImageDraw
 import psutil
+import shutil
 
 # --------------------- DEFINITONS --------------------
 def load_logging_config():
@@ -110,14 +111,17 @@ def update_coins(user_id, amount):
     save_user_data(data)
 
 def save_user_data(data):
-    """Save user data to the JSON file."""
     try:
-        # Ensure the directory exists
         os.makedirs(os.path.dirname(variables.USER_DATA_FILE), exist_ok=True)
 
-        # Write the data to the file
+        # 🔒 BACKUP first
+        backup_path = variables.USER_DATA_FILE + ".bak"
+        if os.path.exists(variables.USER_DATA_FILE):
+            shutil.copy2(variables.USER_DATA_FILE, backup_path)
+
         with open(variables.USER_DATA_FILE, "w") as f:
             json.dump(data, f, indent=4)
+
     except Exception as e:
         print(f"❌ Error saving user data: {e}")
 
@@ -174,13 +178,24 @@ def get_user_data(user_id):
     return data[user_id_str]
 
 def update_user_data(user_id, key, value):
-    """Update a specific field for a user."""
+    """Update a single key for a specific user in the user_data file."""
     data = load_user_data()
-    if str(user_id) not in data:
-        data[str(user_id)] = {"xp": 0, "level": 1, "coins": 100, "balance": 0, "warnings": []}
-    data[str(user_id)][key] = value
+    user_id = str(user_id)
+
+    if user_id not in data:
+        data[user_id] = {
+            "xp": 0,
+            "level": 1,
+            "coins": 100,
+            "warnings": [],
+            "censored_count": 0,
+            "strikes": 0,
+            "gems": 0,
+            "balance": 0,
+        }
+
+    data[user_id][key] = value
     save_user_data(data)
-    logging.info(f"Updated {key} for user {user_id}: {value}")
 
 # Save warnings data
 def save_warnings_data():
@@ -731,25 +746,40 @@ def write_last_command(channel_id, message_id):
         print(f"[signal_update] Registered last command")
     time.sleep(3)
 
-def is_beta_server(guild_id: int) -> bool:
-    if not os.path.exists(variables.BETA_FILE):
+def is_insider_server(guild_id: int) -> bool:
+    if not os.path.exists(variables.insider_FILE):
         return False
-    with open(variables.BETA_FILE, "r", encoding="utf-8") as f:
+    with open(variables.insider_FILE, "r", encoding="utf-8") as f:
         try:
             servers = json.load(f)
             return guild_id in servers
         except json.JSONDecodeError:
             return False
 
-def load_beta_servers():
-    if not os.path.exists(variables.BETA_FILE):
+def load_insider_servers():
+    if not os.path.exists(variables.insider_FILE):
         return []
-    with open(variables.BETA_FILE, "r", encoding="utf-8") as f:
+    with open(variables.insider_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def save_beta_servers(servers):
-    with open(variables.BETA_FILE, "w", encoding="utf-8") as f:
+def save_insider_servers(servers):
+    with open(variables.insider_FILE, "w", encoding="utf-8") as f:
         json.dump(servers, f, indent=2)
+
+def silly_confirmation():
+    print("⚠️ WARNING: You are about to send an *Update Announcement* to all guilds.")
+    print("To confirm, please solve this very serious captcha: ")
+    num1 = random.randint(10, 99)
+    num2 = random.randint(10, 99)
+    correct = num1 + num2
+    answer = input(f"What is {num1} + {num2}? ")
+
+    if answer.strip() == str(correct):
+        print("✅ Captcha passed. Proceeding with announcements...")
+        return True
+    else:
+        print("❌ Captcha failed. Aborting.")
+        return False
 
 # --------------------- ASYNC DEFINITONS ---------------------
 async def update_bot_data_periodically(bot):

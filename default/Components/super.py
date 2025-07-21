@@ -110,24 +110,41 @@ class SuperCommands(commands.Cog):
         except Exception as e:
             await ctx.send(f"❌ Failed to edit JSON: `{e}`")
 
+    async def append_to_cog(self, filename, code_block):
+        path = os.path.join(variables.COGS_DIR, "supercommands.py")
+        class_decl = "class SuperGeneratedCog(commands.Cog):"
+        setup_func = "\ndef setup(bot):\n    bot.add_cog(SuperGeneratedCog(bot))\n"
+
+        if not os.path.exists(path):
+            with open(path, "w") as f:
+                f.write("from discord.ext import commands\n\n")
+                f.write(f"{class_decl}\n")
+                f.write("    def __init__(self, bot):\n        self.bot = bot\n\n")
+                f.write(self.indent_code(code_block, 1))  # Indent to fit inside class
+                f.write(setup_func)
+        else:
+            with open(path, "r") as f:
+                content = f.read()
+
+            # Insert inside the class, before the setup()
+            if setup_func in content:
+                content = content.replace(setup_func, self.indent_code(code_block, 1) + setup_func)
+            else:
+                content += self.indent_code(code_block, 1) + setup_func
+
+            with open(path, "w") as f:
+                f.write(content)
+
+    def indent_code(self, code, levels=1):
+        indent = "    " * levels
+        return "\n".join(indent + line if line.strip() else line for line in code.splitlines()) + "\n"
+
+
     def format_function(self, kind, name, args, code):
         header = "@commands.command()\n" if kind == "command" else "@commands.Cog.listener()\n"
         signature = f"async def {name}({args}):\n"
         body = "\n".join(f"    {line}" for line in code.split("\\n"))
         return f"{header}{signature}{body}\n"
-
-    async def append_to_cog(self, filename, code_block):
-        path = os.path.join(variables.COGS_DIR, filename)
-        if not os.path.exists(path):
-            with open(path, "w") as f:
-                f.write("from discord.ext import commands\n\n")
-                f.write("class SuperCog(commands.Cog):\n")
-                f.write("    def __init__(self, bot):\n        self.bot = bot\n\n")
-                f.write(code_block)
-                f.write("\n\ndef setup(bot):\n    bot.add_cog(SuperCog(bot))\n")
-        else:
-            with open(path, "a") as f:
-                f.write("\n" + code_block)
 
 async def setup(bot):
     await bot.add_cog(SuperCommands(bot))

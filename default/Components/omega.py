@@ -5,6 +5,7 @@ import json
 from datetime import datetime
 import difflib
 import shutil
+from Ediscord import utils
 
 DATA_DIR = "data"
 LOG_FILE = "logs/omega_command.log"
@@ -15,10 +16,12 @@ class Omega(commands.Cog):
         self.bot = bot
         os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
         os.makedirs(BACKUP_DIR, exist_ok=True)
+        os.makedirs(DATA_DIR, exist_ok=True) # Ensure DATA_DIR exists
 
     @commands.command(name="omega")
     @commands.is_owner()
-    async def omega(self, ctx, flag: str, file: str = "", key_path: str = "", *, value: str = ""):
+    async def omega(self, ctx, flag: str, file: str = None, key_path: str = "", *, value: str = ""):
+        # Changed file: str = "" to file: str = None
         if flag.upper() == "S":
             await self.show(ctx, file, key_path)
         elif flag.upper() == "LS":
@@ -35,9 +38,18 @@ class Omega(commands.Cog):
             await self.restore_backup(ctx, file)
 
     async def show(self, ctx, file, key_path):
+        if file is None: # Added this check for when file is not provided
+            json_files = [f for f in os.listdir(DATA_DIR) if f.endswith(".json")]
+            if json_files:
+                file_list = "\n".join([f"- `{os.path.splitext(f)[0]}`" for f in json_files])
+                await ctx.send(f"📚 Available JSON files in `{DATA_DIR}`:\n{file_list}")
+            else:
+                await ctx.send(f"❌ No JSON files found in `{DATA_DIR}`.")
+            return
+
         file_path = os.path.join(DATA_DIR, f"{file}.json")
         if not os.path.exists(file_path):
-            await ctx.send(f"❌ File `{file}.json` not found.")
+            await ctx.send(f"# ❌ File `{file}.json` not found.\nTry again!")
             return
 
         try:
@@ -54,9 +66,9 @@ class Omega(commands.Cog):
                         all_keys = self._get_all_nested_keys(data)
                         matches = difflib.get_close_matches(key_path, all_keys, n=3)
                         if matches:
-                            await ctx.send(f"❌ Key not found. Did you mean: {', '.join(matches)}?")
+                            await ctx.send(f"# ❌ Key not found.\nDid you mean: {', '.join(matches)}?")
                         else:
-                            await ctx.send(f"❌ Key `{key_path}` not found.")
+                            await ctx.send(f"# ❌ Key `{key_path}` not found.\n-# {utils.little_text()}") # Uncomment if utils is available
                         return
 
             json_output = json.dumps(display_data, indent=4)
@@ -65,12 +77,12 @@ class Omega(commands.Cog):
             else:
                 await ctx.send(f"```json\n{json_output}\n```")
         except Exception as e:
-            await ctx.send(f"❌ Error reading file: {e}")
+            await ctx.send(f"# ❌ Error reading file:\n{e}")
 
     async def list_keys(self, ctx, file, key_path):
         path = os.path.join(DATA_DIR, f"{file}.json")
         if not os.path.exists(path):
-            await ctx.send(f"❌ File `{file}.json` not found.")
+            await ctx.send(f"# ❌ File `{file}.json` not found.\nTry again!")
             return
         try:
             with open(path, "r") as f:
@@ -82,21 +94,21 @@ class Omega(commands.Cog):
                     if isinstance(target, dict) and k in target:
                         target = target[k]
                     else:
-                        await ctx.send(f"❌ Invalid key path `{key_path}`.")
+                        await ctx.send(f"# ❌ Invalid key path `{key_path}`.\nTry again maybe?..")
                         return
 
             if isinstance(target, dict):
                 keys = ", ".join(target.keys()) or "(empty)"
                 await ctx.send(f"🔑 Keys in `{key_path or 'root'}`: `{keys}`")
             else:
-                await ctx.send("❌ Target is not a dictionary.")
+                await ctx.send(f"# ❌ Target is not a dictionary.\n-# {utils.little_text()}") # Uncomment if utils is available
         except Exception as e:
-            await ctx.send(f"❌ Error: {e}")
+            await ctx.send(f"# ❌ Error:\n{e}")
 
     async def edit(self, ctx, file, key_path, op, value):
         path = os.path.join(DATA_DIR, f"{file}.json")
         if not os.path.exists(path):
-            await ctx.send(f"❌ File `{file}.json` not found.")
+            await ctx.send(f"# ❌ File `{file}.json` not found.\nTry again!")
             return
 
         self._backup_file(path)
@@ -128,7 +140,7 @@ class Omega(commands.Cog):
                     del ref[last_key]
                     action = f"Deleted `{key_path}`"
                 else:
-                    await ctx.send(f"⚠️ Key `{key_path}` not found.")
+                    await ctx.send(f"# ⚠️ Key `{key_path}` not found.\nUse the flag 'S' to see key_paths!")
                     return
 
             with open(path, "w") as f:

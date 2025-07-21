@@ -10,6 +10,7 @@ from yt_dlp import YoutubeDL
 from discord import FFmpegPCMAudio
 from googletrans import Translator
 import typing
+import re
 
 # --------------------- UTILITY COMMANDS --------------------
 print("✅ - Utility loaded.")
@@ -18,16 +19,16 @@ class Utility(commands.Cog):
         self.bot = bot
 
     @commands.command(name="choose_region")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def choose_region(self, ctx):
         """Allow users to choose a region by reacting to emojis."""
         message = await ctx.send(
-            "Choose your region by reacting with the corresponding emoji:\n"
-            "🌍 for Africa\n"
-            "🌎 for Americas\n"
-            "🌏 for Asia\n"
-            "🇪🇺 for Europe\n"
-            "🇦🇺 for Oceania"
+            "# Choose your region by reacting with the corresponding emoji:\n"
+            "🌍 for **Africa**\n"
+            "🌎 for **America**s\n"
+            "🌏 for **Asia**\n"
+            "🇪🇺 for **Europe**\n"
+            "🇦🇺 for **Oceania**"
         )
         reactions = ["🌍", "🌎", "🌏", "🇪🇺", "🇦🇺"]
         for reaction in reactions:
@@ -37,48 +38,11 @@ class Utility(commands.Cog):
         data = utils.load_user_data()
         data["region_message_id"] = message.id
         utils.save_user_data(data)
-
-    @commands.command(name="rules-verify")
-    @commands.has_permissions(administrator=True)
-    async def rules_verify(self, ctx):
-        """Send a rules verification message and assign the role '.・🍨︴Member ✰' when reacted to."""
-        try:
-            # Create the embed for the rules verification message
-            embed = discord.Embed(
-                title="Rules Verification",
-                description=(
-                    "Please read the rules before verifying yourself again!:\n\n"
-                    "React with 🔵 to verify that you agree to the rules and gain access to the server."
-                ),
-                color=discord.Color.blue(),
-            )
-            embed.set_thumbnail(
-                url="https://cdn-icons-png.flaticon.com/512/1828/1828640.png"
-            )  # Blue checkmark icon
-
-            # Send the embed message
-            message = await ctx.send(embed=embed)
-
-            # Add the 🔵 reaction to the message
-            await message.add_reaction("🔵")
-
-            # Save the message ID in the user_data.json file
-            data = utils.load_user_data()
-            data["rules_verify_message_id"] = message.id
-            utils.save_user_data(data)
-
-            logging.info(
-                f"Rules verification message sent in {ctx.channel.name} (ID: {ctx.channel.id}). Message ID: {message.id}"
-            )
-            await ctx.send("✅ Rules verification message sent successfully!")
-        except Exception as e:
-            logging.error(f"Error in rules_verify command: {e}")
-            await ctx.send(f"❌ An error occurred while setting up rules verification: {e}")
     
     @commands.command(name="search_img")
     async def search_img(self, ctx, *, query: str):
         if query == None:
-            await ctx.send("❌ No query has been implemented")
+            await ctx.send("# ❌  No query has been implemented!\nTry typing: `cute dogs` or something else.")
             return
         headers = {"Authorization": f"Client-ID {variables.UNSPLACH_API_KEY}"}
         search_url = "https://api.unsplash.com/search/photos"
@@ -92,34 +56,19 @@ class Utility(commands.Cog):
             img_url = search_results["results"][0]["urls"]["regular"]
             await ctx.send(img_url)
         else:
-            await ctx.send("No results found.")
-    
-    @commands.command(name="checkvc")
-    async def checkvc(self, ctx):
-        vc_channel = utils.get_truth_or_dare_vc(ctx.guild)
-        if not vc_channel:
-            await ctx.send("Truth or Dare voice channel not found!")
-            return
-
-        members_in_vc = [member for member in vc_channel.members if not member.bot]
-        if members_in_vc:
-            await ctx.send(
-                f"Members in the Truth or Dare voice channel: {', '.join(member.mention for member in members_in_vc)}"
-            )
-        else:
-            await ctx.send("No members in the Truth or Dare voice channel.")
+            await ctx.send("# ❓ No results found.\nMaybe try typing something else?")
     
     @commands.command()
     @commands.check(utils.is_owner)  # Ensure the user has the required permissions
     async def createrole(self, ctx, name: str, power: str, color: str):
         if name == None:
-            await ctx.send("❌ No name has been put!")
+            await ctx.send("# ❌ No name has been put!\n-# Use `Member` for example!")
             return
         if power == None:
-            await ctx.send("❌ No administration / level power put!")
+            await ctx.send("# ❌ No administration / level power put!\n-# You can use member, mod or admin!")
             return
         if color == None:
-            await ctx.send("❌ No color has been implemented!")
+            await ctx.send("# ❌ No color has been implemented!\n-# The colors are HEX-CODE! search them with `?color`")
             return
         """Create a role with a specified name, power level, and color."""
         
@@ -135,7 +84,7 @@ class Utility(commands.Cog):
             print(
                 f"Create role command triggered by {ctx.author} in channel {ctx.channel}. State: failed. Reason: Invalid power level."
             )
-            await ctx.send("❌ Invalid power level. Use `member`, `mod`, or `admin`.")
+            await ctx.send("# ❌ Invalid power level.\nUse `member`, `mod`, or `admin`.")
             return
 
         # Validate color
@@ -147,7 +96,7 @@ class Utility(commands.Cog):
                 f"Create role command triggered by {ctx.author} in channel {ctx.channel}. State: failed. Reason: Invalid color."
             )
             await ctx.send(
-                "❌ Invalid color. Please provide a valid hex color (e.g., `#FF5733`)."
+                "# ❌ Invalid color.\nPlease provide a valid hex color (e.g., `#FF5733`)."
             )
             return
 
@@ -170,21 +119,21 @@ class Utility(commands.Cog):
             print(
                 f"Create role command triggered by {ctx.author} in channel {ctx.channel}. State: failed. Reason: Forbidden."
             )
-            await ctx.send("❌ I do not have permission to create roles.")
+            await ctx.send("# ❌ I do not have permission to create roles.\nPlease grant me a higher permission for me to create roles.")
         except Exception as e:
             print(
                 f"Create role command triggered by {ctx.author} in channel {ctx.channel}. State: failed. Reason: {e}"
             )
-            await ctx.send(f"❌ An error occurred: {e}")
+            await ctx.send(f"# ❌ An error occurred:\n{e}")
             
     @commands.command()
     @commands.check(utils.is_owner)  # Ensure the user has the required permissions
     async def giverole(self, ctx, role_name: str, member: discord.Member):
         if role_name == None:
-            await ctx.send("❌ No role name has been specified!")
+            await ctx.send("# ❌ No role name has been specified!\n-# Try inserting a already existing role name!")
             return
         if member == None:
-            await ctx.send("❌ No member has been specified!")
+            await ctx.send("# ❌ No member has been specified!\n-# Please specify a member so that i can give him his role!")
             return
         """Assign a role to a specified user."""
         # Find the role in the server
@@ -194,7 +143,7 @@ class Utility(commands.Cog):
             print(
                 f"Give role command triggered by {ctx.author} in channel {ctx.channel}. State: failed. Reason: Role not found."
             )
-            await ctx.send(f"❌ Role **{role_name}** not found in this server.")
+            await ctx.send(f"# ❌ Role **{role_name}** not found in this server.\nThe bot couldn't find the role!\n-# does it exist?")
             return
 
         # Check if the bot has permission to assign this role
@@ -203,73 +152,74 @@ class Utility(commands.Cog):
                 f"Give role command triggered by {ctx.author} in channel {ctx.channel}. State: failed. Reason: Insufficient permissions."
             )
             await ctx.send(
-                "❌ I cannot assign this role because it is higher or equal to my highest role."
+                f"# ❌ I cannot assign this role because it is higher or equal to my highest role.\n-# Sorry.. here's a tip btw: {utils.little_text()}"
             )
             return
 
         # Assign the role
         try:
-            await member.add_roles(role, reason=f"Role assigned by {ctx.author}")
-            print(
-                f"Give role command triggered by {ctx.author} in channel {ctx.channel}. State: success."
-            )
-            await ctx.send(
-                f"✅ Role **{role.name}** assigned to {member.mention} successfully!"
-            )
             if role in member.roles:
                 print(
                     f"Give role command triggered by {ctx.author} in channel {ctx.channel}. State: failed. Reason: Role already assigned."
                 )
                 await ctx.send(
-                    f":grey_question: {member.mention} already has the **{role.name}** role."
+                    f"# :grey_question: {member.mention} already has the **{role.name}** role.\n{utils.little_text()}"
+                )
+            else:
+                await member.add_roles(role, reason=f"Role assigned by {ctx.author}")
+                print(
+                    f"Give role command triggered by {ctx.author} in channel {ctx.channel}. State: success."
+                )
+                await ctx.send(
+                    f"# ✅ Role **{role.name}** assigned to {member.mention} successfully!"
                 )
             return
         except discord.Forbidden:
             print(
                 f"Give role command triggered by {ctx.author} in channel {ctx.channel}. State: failed. Reason: Forbidden."
             )
-            await ctx.send("❌ I do not have permission to assign this role.")
+            await ctx.send("# ❌ I do not have permission to assign this role.\nMaybe try giving me more permissions?\n-# You can do that by giving me a higher role!")
         except Exception as e:
             print(
                 f"Give role command triggered by {ctx.author} in channel {ctx.channel}. State: failed. Reason: {e}"
             )
-            await ctx.send(f"❌ An error occurred: {e}")
+            await ctx.send(f"# ❌ An error occurred:\n{e}")
 
     @commands.command()
     @commands.check(utils.is_owner)
     async def removerole(self, ctx, role: discord.Role, member: discord.Member):
         if role == None:
-            await ctx.send("❌ No role name has been specified!")
+            await ctx.send("# ❌ No role name has been specified!\n-# Try inserting a already existing role name!")
             return
         if member == None:
-            await ctx.send("❌ No member has been specified!")
+            await ctx.send("❌ No member has been specified!\n-# Please specify a member so that i can remove his role!")
             return
         if role in member.roles:
             await member.remove_roles(role)
-            await ctx.send(f"✅ Removed role **{role.name}** from {member.mention}.")
+            await ctx.send(f"# ✅ Removed role **{role.name}** from {member.mention}.")
         else:
-            await ctx.send(f"❌ {member.mention} does not have the role **{role.name}**.")
+            await ctx.send(f"# ❌ {member.mention} does not have the role **{role.name}**.\n-# Maybe you spelt it wrong? Try again!")
     
-    @commands.command(name="colorrole")
-    async def colorrole(self, ctx):
+    @commands.command(name="OLDcolorrole")
+    async def OLDcolorrole(self, ctx):
         """Allow users to choose a color role by reacting to emojis."""
         message = await ctx.send(
             "# Which color do you want?\n"
             "React with:\n"
-            "🔴 for **Red**\n"
-            "🟠 for **Orange**\n"
-            "🟡 for **Yellow**\n"
-            "🟢 for **Green**\n"
-            "🔵 for **Blue**\n"
-            "🟣 for **Violet**\n"
-            "⚪ for **White**\n"
-            "⚫ for **Black**\n"
-            "🟫 for **Brown**\n"
-            "🟦 for **Cyan**\n"
-            "🟪 for **Magenta**\n"
-            "🩵 for **Light Blue**\n"
-            "🩷 for **Pink**\n"
-            "🩶 for **Grey**"
+            "- 🔴 for **Red**\n"
+            "- 🟠 for **Orange**\n"
+            "- 🟡 for **Yellow**\n"
+            "- 🟢 for **Green**\n"
+            "- 🔵 for **Blue**\n"
+            "- 🟣 for **Violet**\n"
+            "- ⚪ for **White**\n"
+            "- ⚫ for **Black**\n"
+            "- 🟫f or **Brown**\n"
+            "- 🟦 for **Cyan**\n"
+            "- 🟪 for **Magenta**\n"
+            "- 🩵 for **Light Blue**\n"
+            "- 🩷 for **Pink**\n"
+            "- 🩶 for **Grey**"
         )
         reactions = ["🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "⚪", "⚫", "🟫", "🟦", "🟪", "🩵", "🩷", "🩶"]
         for reaction in reactions:
@@ -280,18 +230,103 @@ class Utility(commands.Cog):
         data["colorrole_message_id"] = message.id
         utils.save_user_data(data)
     
+    @commands.command(name="colorrole")
+    async def colorrole(self, ctx, *, color_input: str = None):
+        """Assigns or resets a shared color role."""
+        if not color_input:
+            return await ctx.send("# ⚠️ WARNING!\nPlease provide a color name, HEX code, or `reset` to remove your color.")
+
+        guild = ctx.guild
+        member = ctx.author
+
+        # Reset command
+        if color_input.lower() == "reset":
+            removed = False
+            for role in member.roles:
+                if role.name.startswith("Color: "):
+                    try:
+                        await member.remove_roles(role)
+                        removed = True
+                    except discord.Forbidden:
+                        return await ctx.send("# ❌ I don't have permission to remove your old color role. Please check my role permissions.")
+                    except Exception as e:
+                        return await ctx.send(f"# ❌ Failed to remove old color role: {e}")
+            if removed:
+                await ctx.send("# 🗑️ Your color role has been removed.\n-# Are you gonna choose another color? maybe?..")
+            else:
+                await ctx.send("# ❌ You don’t have a color role.\n-# Sure you spelt it right? Try again!")
+            return
+
+        # Get color
+        color_input = color_input.lower().replace(" ", "")
+        if color_input in variables.COLOR_MAP:
+            hex_value = variables.COLOR_MAP[color_input]
+            role_name = f"Color: {color_input.capitalize()}"
+        else:
+            match = re.match(variables.HEX_REGEX, color_input)
+            if match:
+                hex_value = int(match.group(1), 16)
+                role_name = f"Color: #{match.group(1).upper()}"
+            else:
+                return await ctx.send(f"# ❌ Invalid color.\nUse a name like `red` or a HEX code like `#00ffcc`.\n-# {utils.little_error_variant()}")
+
+        for role in member.roles:
+            if role.name.startswith("Color: "):
+                try:
+                    await member.remove_roles(role)
+                except discord.Forbidden:
+                    return await ctx.send("# ❌ I don't have permission to remove old color roles. Please check my role permissions.")
+                except Exception as e:
+                    return await ctx.send(f"# ❌ Failed to remove old color role: {e}")
+
+        # Look for existing role
+        role = discord.utils.get(guild.roles, name=role_name)
+        if not role:
+            # Create role if it doesn't exist
+            bot_member = guild.get_member(self.bot.user.id)
+            target_position = 1 
+            sorted_roles_desc = sorted(guild.roles, key=lambda r: r.position, reverse=True)
+            effective_ceiling_position = 0 # Default to @everyone position
+            for r in sorted_roles_desc:
+                if not r.permissions.administrator and not r.managed:
+                    effective_ceiling_position = r.position 
+                    break
+
+            new_role_position = effective_ceiling_position + 1
+            if bot_member and bot_member.top_role:
+                new_role_position = min(new_role_position, bot_member.top_role.position - 1)
+            
+            new_role_position = max(1, new_role_position)
+            
+            try:
+                role = await guild.create_role(name=role_name, colour=discord.Colour(hex_value), reason="New shared color role")
+                await role.edit(position=new_role_position)
+            except discord.Forbidden:
+                return await ctx.send("# ❌ I don't have permission to manage roles (create/position). Please check my role permissions.")
+            except Exception as e:
+                return await ctx.send(f"# ❌ Failed to create/assign role: {e}")
+
+        # Assign role
+        try:
+            await member.add_roles(role)
+            await ctx.send(f"# ✅ You now have the `{role_name}` role!\n-# {utils.little_text()}", delete_after=5)
+        except discord.Forbidden:
+            await ctx.send("# ❌ I don't have permission to assign roles. Please check my role permissions.", delete_after=5)
+        except Exception as e:
+            await ctx.send(f"# ❌ Failed to assign role: {e}", delete_after=5)
+    
     @commands.command(name="reminder")
     async def remindme(self, ctx, time: int, *, reminder: str):
         """Set a reminder."""
         if time == None:
-            await ctx.send("❌ No time has been specified")
+            await ctx.send(f"# ❌ No time has been specified\n-# {utils.little_error_variant()}")
             return
         if reminder == None:
-            await ctx.send("❌ No description reminder has been specified!")
+            await ctx.send(f"# ❌ No description reminder has been specified!\n {utils.little_error_variant()}")
             return
-        await ctx.send(f"⏰ I will remind you in **{time}** seconds: {reminder}")
+        await ctx.send(f"# ⏰ I will remind you in **{time}** seconds:\n{reminder}")
         await asyncio.sleep(time)
-        await ctx.send(f"🔔 {ctx.author.mention}, here is your **reminder**: {reminder}")
+        await ctx.send(f"🔔 {ctx.author.mention}, here is your **reminder**:\n# {reminder}")
 
 
     @commands.command(name="mute")
@@ -299,7 +334,7 @@ class Utility(commands.Cog):
     async def mute(self, ctx, member: discord.Member, *, reason=None):
         """Mute a user."""
         if member == None:
-            await ctx.send("❌ No member has been specified!")
+            await ctx.send(f"# ❌ No member has been specified!\n-# {utils.little_error_variant()}")
             return
         if reason == None:
             reason = "No reason has been specified"
@@ -309,7 +344,7 @@ class Utility(commands.Cog):
             for channel in ctx.guild.channels:
                 await channel.set_permissions(mute_role, send_messages=False, speak=False)
         await member.add_roles(mute_role, reason=reason)
-        await ctx.send(f"✅ {member.mention} has been muted. Reason: {reason}")
+        await ctx.send(f"# ✅ {member.mention} has been muted.\nReason: {reason}")
 
 
     @commands.command(name="unmute")
@@ -317,14 +352,14 @@ class Utility(commands.Cog):
     async def unmute(self, ctx, member: discord.Member):
         """"Unmute a user."""
         if member == None:
-            await ctx.send("❌ No member has been specified!")
+            await ctx.send(f"# ❌ No member has been specified!\n-# {utils.little_error_variant()}")
             return
         mute_role = discord.utils.get(ctx.guild.roles, name="Muted")
         if mute_role in member.roles:
             await member.remove_roles(mute_role)
-            await ctx.send(f"✅ {member.mention} has been unmuted.")
+            await ctx.send(f"# ✅ {member.mention} has been unmuted.")
         else:
-            await ctx.send(f"❌ {member.mention} is not muted.")
+            await ctx.send(f"# ❌ {member.mention} is not muted.\n-# {utils.little_error_variant()}")
 
 
     @commands.command(name="purge")
@@ -332,36 +367,36 @@ class Utility(commands.Cog):
     async def purge(self, ctx, amount: int):
         """Delete a number of messages."""
         if amount == None:
-            await ctx.send("❌ No amount has been specified!")
+            await ctx.send(f"# ❌ No amount has been specified!\nInput an amount like this: `?purge 3`\n-# {utils.little_error_variant()}")
             return
         await ctx.channel.purge(limit=amount)
-        await ctx.send(f"✅ Deleted {amount} messages.", delete_after=5)
+        await ctx.send(f"# ✅ Deleted {amount} messages.", delete_after=5)
     
     @commands.command(name="setwelcome")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def set_welcome_message(self, ctx, *, message: str):
         """Set a custom welcome message for this server."""
         if message == None:
-            await ctx.send("❌ No message has been specified!")
+            await ctx.send(f"# ❌ No message has been specified!\nType a message like this: `?setwelcome Hi welcome!`\n-# {utils.little_error_variant()}")
             return
         utils.set_guild_welcome_message(ctx.guild.id, message)
-        await ctx.send("✅ Custom welcome message set!")
+        await ctx.send("# ✅ Custom welcome message set!")
 
     @commands.command(name="setgoodbye")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def set_goodbye_message(self, ctx, *, message: str):
         """Set a custom goodbye message for this server."""
         if message == None:
-            await ctx.send("❌ No message has been specified!")
+            await ctx.send(f"# ❌ No message has been specified!\nType a message like this: `?setgoodbye Oh ok.. bye...`\n-# {utils.little_error_variant()}")
             return
         utils.set_guild_goodbye_message(ctx.guild.id, message)
-        await ctx.send("✅ Custom goodbye message set!")
+        await ctx.send("# ✅ Custom goodbye message set!")
 
     @commands.command(name="color")
     async def color(self, ctx, *, color_input: str):
         """Display the exact color based on a name or hex code."""
         if color_input == None:
-            await ctx.send("❌ No color has been specified!")
+            await ctx.send("# ❌ No color has been specified!")
             return
         try:
             # Use a predefined dictionary of color names and their hex values
@@ -386,7 +421,7 @@ class Utility(commands.Cog):
                 color_value = discord.Color(int(color_input.lstrip("#"), 16))
             else:
                 if color_input.lower() not in color_names:
-                    await ctx.send("❌ Invalid color name or hex code. Please try again.")
+                    await ctx.send(f"# ❌ Invalid color name or hex code.\n-# {utils.little_error_variant()}")
                     return
                 color_value = discord.Color(
                     int(color_names[color_input.lower()].lstrip("#"), 16)
@@ -413,20 +448,21 @@ class Utility(commands.Cog):
 
         except ValueError:
             await ctx.send(
-                "❌ Invalid color input. Please provide a valid color name or hex code (e.g., `red` or `#FF0000`)."
+                f"# ❌ Invalid color input.\nPlease provide a valid color name or hex code (e.g., `red` or `#FF0000`).\n-# {utils.little_error_variant()}"
             )
         
     @commands.command(name="upload")
     async def upload(self, ctx, *, url: typing.Optional[str] = None):
+        await ctx.send("-# WARNING: The current music system doesn't work, we are working to fix this issue.")
         """Allow users to upload .mp3 files or provide a URL to download."""
         if url == None:
-            await ctx.send("❌ No url or file has been specified and or sent!")
+            await ctx.send(f"# ❌ No url or file has been specified and or sent!\n-# {utils.little_error_variant()}")
             return
         # Check if the music folder has more than 50 files
         oldest_file = utils.check_music_folder()
         if oldest_file:
             await ctx.send(
-                f"⚠️ The music folder has more than 50 songs. Continuing will delete the oldest file: `{os.path.basename(oldest_file)}`. Do you want to proceed? (yes/no)"
+                f"# ⚠️ WARNING:\n The music folder has more than 50 songs. Continuing will delete the oldest file: `{os.path.basename(oldest_file)}`. Do you want to proceed? (yes/no)\n-# {utils.little_unsure_variant()}"
             )
 
             def check(m):
@@ -439,20 +475,20 @@ class Utility(commands.Cog):
             try:
                 response = await ctx.bot.wait_for("message", check=check, timeout=30.0)
                 if response.content.lower() == "no":
-                    await ctx.send("❌ Operation canceled.")
+                    await ctx.send("# ❌ Operation canceled.")
                     return
                 else:
                     os.remove(oldest_file)  # Delete the oldest file
                     await ctx.send(
-                        f"🗑️ Deleted the oldest file: `{os.path.basename(oldest_file)}`."
+                        f"# 🗑️ Deleted the oldest file:\n`{os.path.basename(oldest_file)}`."
                     )
             except asyncio.TimeoutError:
-                await ctx.send("⏰ You took too long to respond. Operation canceled.")
+                await ctx.send("# ⏰ You took too long to respond.\nAs a result of this the operation canceled.")
                 return
 
         # Proceed with the upload logic
         if not ctx.message.attachments and not url:
-            await ctx.send("❌ Please attach an audio file or provide a URL to upload.")
+            await ctx.send(f"# ❌ Please attach an audio file or provide a URL to upload.\n-# {utils.little_error_variant()}")
             return
 
         # Handle file attachments
@@ -462,11 +498,11 @@ class Utility(commands.Cog):
                     file_path = os.path.join("music", attachment.filename)
                     await attachment.save(file_path)
                     await ctx.send(
-                        f"✅ File `{attachment.filename}` has been uploaded and saved."
+                        f"# ✅ File `{attachment.filename}` has been uploaded and saved."
                     )
                 else:
                     await ctx.send(
-                        f"❌ `{attachment.filename}` is not a supported audio format. Please upload .mp3, .wav, or .ogg files."
+                        f"# ❌ `{attachment.filename}` is not a supported audio format.\nPlease upload .mp3, .wav, or .ogg files.\n-# More support for custom sound files (.wma, .aiff, etc..) are coming soon!"
                     )
 
         # Handle URL input
@@ -484,29 +520,30 @@ class Utility(commands.Cog):
                         if info is not None and 'title' in info:
                             file_name = ydl.prepare_filename(info)
                             await ctx.send(
-                                f"✅ Downloaded `{info['title']}` and saved to the music folder."
+                                f"# ✅ Downloaded `{info['title']}`\nand saved to the music folder."
                             )
                         else:
-                            await ctx.send("❌ Failed to retrieve video information after download.")
+                            await ctx.send(f"# ❌ Failed to retrieve video information after download.\n{utils.little_error_variant()}")
                 except Exception as e:
-                    await ctx.send(f"❌ Failed to download from URL: {e}")
+                    await ctx.send(f"# ❌ Failed to download from URL:\n{e}")
             else:
                 await ctx.send(
-                    "❌ Invalid URL. Please provide a valid URL starting with `http://` or `https://`."
+                    "# ❌ Invalid URL.\nPlease provide a valid URL starting with `http://` or `https://`."
                 )
 
 
     @commands.command(name="play")
     async def play(self, ctx, *, query: typing.Optional[str] = None):
+        await ctx.send("-# WARNING: The current music system doesn't work, we are working to fix this issue.")
         """Play a song from a URL, the music folder, or by its number, with an optional loop count."""
         if query == None:
-            await ctx.send("❌ No query (url or file) has been specified!")
+            await ctx.send("# ❌ No query (url or file) has been specified!\n-# If you want more info of our current soung file systems, run `?queue`!")
             return
         # Check if the music folder has more than 50 files
         oldest_file = utils.check_music_folder()
         if oldest_file:
             await ctx.send(
-                f"⚠️ The music folder has more than 50 songs. Continuing will delete the oldest file: `{os.path.basename(oldest_file)}`. Do you want to proceed? (yes/no)"
+                f"# ⚠️ WARNING:\n The music folder has more than 50 songs. Continuing will delete the oldest file: `{os.path.basename(oldest_file)}`. Do you want to proceed? (yes/no)\n-# {utils.little_unsure_variant()}"
             )
 
             def check(m):
@@ -519,20 +556,20 @@ class Utility(commands.Cog):
             try:
                 response = await ctx.bot.wait_for("message", check=check, timeout=30.0)
                 if response.content.lower() == "no":
-                    await ctx.send("❌ Operation canceled.")
+                    await ctx.send("# ❌ Operation canceled.")
                     return
                 else:
                     os.remove(oldest_file)  # Delete the oldest file
                     await ctx.send(
-                        f"🗑️ Deleted the oldest file: `{os.path.basename(oldest_file)}`."
+                        f"# 🗑️ Deleted the oldest file:\n`{os.path.basename(oldest_file)}`."
                     )
             except asyncio.TimeoutError:
-                await ctx.send("⏰ You took too long to respond. Operation canceled.")
+                await ctx.send("# ⏰ You took too long to respond.\nAs a result of this the operation canceled.")
                 return
 
         # Proceed with the play logic
         if not ctx.author.voice:
-            await ctx.send("❌ You must be in a voice channel to use this command.")
+            await ctx.send("# ❌ You must be in a voice channel to use this command.!\n-# Don't have an *easy-to-access* channel? just ask a mod to help you!")
             return
 
         voice_channel = ctx.author.voice.channel
@@ -551,7 +588,7 @@ class Utility(commands.Cog):
                 loop_count = int(parts[-1]) if parts[-1].isdigit() else 1
 
                 if loop_count < 1:
-                    await ctx.send("❌ Loop count must be at least 1.")
+                    await ctx.send("# ❌ Loop count must be at least 1.\n-# Ex. `?play <number>`")
                     return
 
                 # Determine the song path
@@ -562,16 +599,16 @@ class Utility(commands.Cog):
                     if 0 <= song_index < len(songs):
                         song_path = os.path.join("music", songs[song_index])
                         await ctx.send(
-                            f"🎵 Now playing: `{songs[song_index]}` (Looping {loop_count} times)"
+                            f"# 🎵 Now playing: `{songs[song_index]}`\n-# (Looping {loop_count} times)\n-# That must be a cool song! right?.."
                         )
                     else:
                         await ctx.send(
-                            f"❌ Invalid song number. Please use a number between 1 and {len(songs)}."
+                            f"# ❌ Invalid song number.\nPlease use a number between 1 and {len(songs)}.\nIf you want more info on our current song file system, use `?queue`!"
                         )
                         return
                 elif song_query.startswith("http://") or song_query.startswith("https://"):
                     # Play a song from a URL
-                    await ctx.send(f"🔍 Searching for `{song_query}`...")
+                    await ctx.send(f"# 🔍 Now downloading..\n`{song_query}`...")
                     ydl_opts = {
                         "format": "bestaudio/best",
                         "outtmpl": "music/%(title)s.%(ext)s",
@@ -582,22 +619,25 @@ class Utility(commands.Cog):
                         song_path = ydl.prepare_filename(info)
                         if info is not None and 'title' in info:
                             await ctx.send(
-                                f"✅ Downloaded `{info['title']}`. Now playing (Looping {loop_count} times)..."
+                                f"-# ✅ Downloaded `{info['title']}`."
+                            )
+                            await ctx.send(
+                                f"# 🎵 Now playing: `{songs[song_index]}`\n-# (Looping {loop_count} times)\n-# That must be a cool song! right?.."
                             )
                         else:
                             await ctx.send(
-                                "❌ Failed to retrieve video information after download."
+                                f"# ❌ Failed to retrieve video information after download.\n{utils.little_error_variant()}"
                             )
                 else:
                     # Play a song by its name
                     song_path = os.path.join("music", song_query)
                     if not os.path.exists(song_path):
                         await ctx.send(
-                            f"❌ The file `{song_query}` does not exist in the music folder."
+                            f"# ❌ The file `{song_query}` does not exist in the music folder.\nCheck the songs with `?queue` for more help!\n-# {utils.little_error_variant()}"
                         )
                         return
                     await ctx.send(
-                        f"🎵 Now playing: `{song_query}` (Looping {loop_count} times)"
+                        f"# 🎵 Now playing: `{song_query}`\n-# (Looping {loop_count} times)\n-# That must be a cool song! right?.."
                     )
 
                 # Set the status to "Playing <song>"
@@ -611,13 +651,13 @@ class Utility(commands.Cog):
                 songs = sorted(os.listdir("music"))
                 if not songs:
                     await ctx.send(
-                        "❌ The music folder is empty. Upload some songs using `?upload` or provide a URL."
+                        f"# ❌ The music folder is empty.\nUpload some songs using `?upload` or provide a URL.\n-# {utils.little_error_variant()}"
                     )
                     return
                 song = songs[0]
                 song_path = os.path.join("music", song)
                 loop_count = 1
-                await ctx.send(f"🎵 Now playing: `{song}` (Looping {loop_count} times)")
+                await ctx.send(f"# 🎵 Now playing: `{song}`\n-# (Looping {loop_count} times)\n-# That must be a cool song! right?..")
 
             # Play the song with looping
             for i in range(loop_count):
@@ -629,43 +669,46 @@ class Utility(commands.Cog):
                     await asyncio.sleep(1)  # Wait for the song to finish before looping
         except Exception as e:
             variables.logger.error(f"An error occurred in the play command: {e}")
-            await ctx.send(f"❌ An error occurred: {e}")
+            await ctx.send(f"# ❌ An error occurred:\n{e}")
 
 
     @commands.command(name="queue")
     async def queue(self, ctx):
+        await ctx.send("-# WARNING: The current music system doesn't work, we are working to fix this issue.")
         """List all songs in the music folder."""
         songs = sorted(os.listdir("music"))
         if not songs:
             await ctx.send(
-                "❌ The music folder is empty. Upload some songs using `?upload`."
+                "# ❌ The music folder is empty.\nUpload some songs using `?upload`."
             )
             return
 
         song_list = "\n".join(f"{i + 1}. {song}" for i, song in enumerate(songs))
-        await ctx.send(f"🎶 **Music Queue:**\n{song_list}")
+        await ctx.send(f"# 🎶 **Music Queue:**\n{song_list}")
 
 
     @commands.command(name="skip")
     async def skip(self, ctx):
+        await ctx.send("-# WARNING: The current music system doesn't work, we are working to fix this issue.")
         """Skip the currently playing song."""
         if not ctx.voice_client or not ctx.voice_client.is_playing():
-            await ctx.send("❌ No song is currently playing.")
+            await ctx.send("# ❌ No song is currently playing.\nPlay a song using `?play`")
             return
 
         ctx.voice_client.stop()
-        await ctx.send("⏭️ Skipped the current song.")
+        await ctx.send("# ⏭️ Skipped the current song.")
 
 
     @commands.command(name="stop")
     async def stop(self, ctx):
+        await ctx.send("-# WARNING: The current music system doesn't work, we are working to fix this issue.")
         """Stop the music and disconnect the bot."""
         if not ctx.voice_client:
             await ctx.send("❌ The bot is not connected to a voice channel.")
             return
 
         await ctx.voice_client.disconnect()
-        await ctx.send("⏹️ Stopped the music and disconnected.")
+        await ctx.send("# ⏹️ Stopped the music and disconnected.\n-# If you ever wish to play a music again, just do `?play`!")
 
 
     @commands.command(name="check_ffmpeg")
@@ -687,27 +730,28 @@ class Utility(commands.Cog):
                 variables.logger.info(f"FFmpeg is accessible: {result.stdout.splitlines()[0]}")
             else:
                 await ctx.send(
-                    "❌ FFmpeg is not accessible. Please check your installation."
+                    "# ❌ FFmpeg is not accessible.\nPlease check your installation."
                 )
                 variables.logger.error(f"FFmpeg error: {result.stderr}")
         except FileNotFoundError:
-            await ctx.send("❌ FFmpeg is not installed or not in PATH.")
+            await ctx.send("# ❌ FFmpeg is not installed or not in PATH.")
             variables.logger.error("FFmpeg executable not found.")
 
 
     @commands.command(name="download")
     async def download(self, ctx, url: str):
+        await ctx.send("-# WARNING: The current music system doesn't work, we are working to fix this issue.")
         """Download a YouTube song or video and save it to the music folder."""
         if url == None:
-            await ctx.send("❌ No URL message has been specified!")
+            await ctx.send("# ❌ No URL message has been specified!\n-# Do remember to use `https` or `http`!")
             return
         if not (url.startswith("http://") or url.startswith("https://")):
             await ctx.send(
-                "❌ Invalid URL. Please provide a valid YouTube URL starting with `http://` or `https://`."
+                "# ❌ Invalid URL.\nPlease provide a valid YouTube URL starting with `http://` or `https://`."
             )
             return
 
-        await ctx.send(f"🔍 Downloading from URL: `{url}`...")
+        await ctx.send(f"# 🔍 Downloading from URL:\n`{url}`...")
         ydl_opts = {
             "format": "bestaudio/best",  # Download the best audio format
             "outtmpl": "music/%(title)s.%(ext)s",  # Save to the music folder with the title as the filename
@@ -719,24 +763,25 @@ class Utility(commands.Cog):
                 if info is not None and 'title' in info:
                     file_name = ydl.prepare_filename(info)
                     await ctx.send(
-                        f"✅ Downloaded `{info['title']}` and saved to the music folder as `{file_name}`."
+                        f"# ✅ Downloaded `{info['title']}`\nand saved to the music folder as `{file_name}`."
                     )
                 else:
-                    await ctx.send("❌ Failed to retrieve video information after download.")
+                    await ctx.send("# ❌ Failed to retrieve video information after download.")
         except Exception as e:
-            await ctx.send(f"❌ Failed to download from URL: {e}")
+            await ctx.send(f"# ❌ Failed to download from URL:\n{e}")
     
     @commands.command(name="ask")
     async def ask(self, ctx, *, question: str):
+        await ctx.send("-# WARNING: This AI model is not trained to respond to your messages, **it will only create stories.**")
         """Answer a question using a local AI model."""
         if question == None:
-            await ctx.send("❌ No question has been specified!")
+            await ctx.send("# ❌ No question has been specified!\n-# it's not really a question lol :P")
             return
         try:
             # Generate a response using the Hugging Face model
             response_gen = variables.qa_pipeline(question, max_length=400, num_return_sequences=1)
             if response_gen is None:
-                await ctx.send("❌ No answer could be generated.")
+                await ctx.send("# ❌ No answer could be generated.")
                 return
             if hasattr(response_gen, "__iter__") and not isinstance(response_gen, (str, bytes, dict)):
                 response = list(response_gen)
@@ -746,30 +791,30 @@ class Utility(commands.Cog):
                 answer = response[0]["generated_text"]
                 await ctx.send(answer)
             else:
-                await ctx.send("❌ No answer could be generated.")
+                await ctx.send("# ❌ No answer could be generated.")
         except Exception as e:
-            await ctx.send(f"❌ An error occurred: {e}")
+            await ctx.send(f"# ❌ An error occurred:\n{e}")
         
     @commands.command(name="translate")
     async def translate(self, ctx, target_language: str, *, text: str):
         """Translate text to a specified language."""
         if target_language == None:
-            await ctx.send("❌ No target language has been specified!")
+            await ctx.send("# ❌ No target language has been specified!\nPlease be sure to spell your language correctly!")
             return
         if text == None:
-            await ctx.send(f"❌ No text to translate to {target_language} has been specified!")
+            await ctx.send(f"# ❌ No text to translate to {target_language} has been specified!")
             return
         try:
             translation = await variables.translator.translate(text, dest=target_language)
-            await ctx.send(f"🌐 **Translation ({target_language}):** {translation.text}")
+            await ctx.send(f"# 🌐 **Translation ({target_language}):** {translation.text}")
         except Exception as e:
-            await ctx.send(f"❌ Failed to translate: {e}")
+            await ctx.send(f"# ❌ Failed to translate:\n{e}")
         
     @commands.command(name="weather")
     async def weather(self, ctx, *, city: str):
         """Get the current weather for a city."""
         if city == None:
-            await ctx.send("❌ No city has been specified!")
+            await ctx.send("# ❌ No city has been specified!\nBe sure to specify a city too! not a country >:(")
             return
         api_key = variables.openwheather  # Replace with your API key
         url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
@@ -794,15 +839,53 @@ class Utility(commands.Cog):
         except Exception as e:
             await ctx.send(f"❌ An error occurred: {e}")
     
+    @commands.command(name="setverifyrole")
+    @utils.admin_or_owner()
+    async def set_verify_role(self, ctx, *, role: discord.Role):
+        """Set the role to be given on verification for this server."""
+        if not role:
+            await ctx.send("# ❌ No role specified!")
+            return
+        settings = utils.load_server_settings()
+        guild_settings = settings.get(str(ctx.guild.id), {})
+        guild_settings["verify_role"] = role.name
+        settings[str(ctx.guild.id)] = guild_settings
+        utils.save_server_settings(settings)
+        await ctx.send(f"✅ Verification role set to `{role.name}` for this server.")
+
+    @commands.command()
+    @utils.admin_or_owner()
+    async def disable_variants(self, ctx):
+        if ctx.guild:
+            utils.disabled_variants.add(ctx.guild.id)
+            await ctx.send("✅ Little variants have been **disabled** in this server.")
+            utils.save_disabled_variants(ctx.guild.id)
+        else:
+            await ctx.send("⚠️ This command must be used in a server.")
+
+    @commands.command()
+    @utils.admin_or_owner()
+    async def enable_variants(self, ctx):
+        if ctx.guild:
+            utils.disabled_variants.discard(ctx.guild.id)
+            await ctx.send("✅ Little variants have been **re-enabled** in this server.")
+        else:
+            await ctx.send("⚠️ This command must be used in a server.")
+
     @commands.command(name="verify")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def verify(self, ctx):
-        """Send a verification message and assign the role '.・🍨︴Member ✰' when reacted to."""
+        """Send a verification message and assign the custom verification role when reacted to."""
         try:
+            # Get the custom verify role or default
+            settings = utils.load_server_settings()
+            guild_settings = settings.get(str(ctx.guild.id), {})
+            verify_role_name = guild_settings.get("verify_role", ".・🍨︴Member ✰")
+
             # Create the embed for the verification message
             embed = discord.Embed(
                 title="Verification",
-                description="React with ✅ to verify yourself and gain access to the server!",
+                description=f"React with ✅ to verify yourself and gain access to the server!\n(You will get the `{verify_role_name}` role.)",
                 color=discord.Color.green(),
             )
             embed.set_thumbnail(
@@ -882,7 +965,7 @@ class Utility(commands.Cog):
         await ctx.send(embed=embed)
     
     @commands.command(name="chatreviver-role")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def chatreviver_role(self, ctx):
         """Send a message to allow users to get the 'Chat Reviver' role by reacting."""
         try:
@@ -978,7 +1061,7 @@ class Utility(commands.Cog):
         await ctx.send("✅ Announcement sent to all servers.")
 
     @commands.command(name="addrolereaction")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def add_role_reaction(self, ctx, message_id: int, emoji: str, *, role: discord.Role):
         """Link an emoji to a role for a specific message (for reaction roles)."""
         if message_id == None:
@@ -994,7 +1077,7 @@ class Utility(commands.Cog):
         await ctx.send(f"✅ Reaction role set: {emoji} → {role.name} on message {message_id}")
 
     @commands.command(name="removerolereaction")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def remove_role_reaction(self, ctx, message_id: int, emoji: str):
         """Remove a reaction role mapping."""
         if message_id == None:
@@ -1036,7 +1119,7 @@ class Utility(commands.Cog):
                 )
 
     @commands.command(name="setlevelrole")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def set_level_role(self, ctx, level: int, *, role: discord.Role):
         """Set a custom role for a specific level (per server)."""
         if level == None:
@@ -1049,7 +1132,7 @@ class Utility(commands.Cog):
         await ctx.send(f"✅ Level {level} will now grant the role: {role.name}")
 
     @commands.command(name="removelevelrole")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def remove_level_role(self, ctx, level: int):
         """Remove the custom role for a specific level (per server)."""
         if level == None:
@@ -1059,7 +1142,7 @@ class Utility(commands.Cog):
         await ctx.send(f"✅ Removed custom role for level {level}.")
 
     @commands.command(name="listlevelroles")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def list_level_roles(self, ctx):
         """List all custom level-role mappings for this server."""
         level_roles = utils.get_guild_level_roles(ctx.guild.id)
@@ -1070,7 +1153,7 @@ class Utility(commands.Cog):
             await ctx.send(f"Custom level-role mappings:\n{msg}")
 
     @commands.command(name="addselfrole")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def add_selfrole(self, ctx, *, role: discord.Role):
         """Add a role to the list of self-assignable roles."""
         if role == None:
@@ -1080,7 +1163,7 @@ class Utility(commands.Cog):
         await ctx.send(f"✅ `{role.name}` is now self-assignable.")
 
     @commands.command(name="removeselfrole")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def remove_selfrole(self, ctx, *, role: discord.Role):
         """Remove a role from the list of self-assignable roles."""
         if role == None:
@@ -1131,7 +1214,7 @@ class Utility(commands.Cog):
         await ctx.send(f"✅ `{role.name}` role removed from you.")
         
     @commands.command(name="servercustom")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def server_customization(self, ctx):
         """Show all customizations for this server."""
         guild_id = ctx.guild.id
@@ -1175,7 +1258,7 @@ class Utility(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command(name="addtag")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def add_tag(self, ctx, tag: str, *, content: str):
         """Add a custom tag for this server."""
         if tag == None:
@@ -1188,7 +1271,7 @@ class Utility(commands.Cog):
         await ctx.send(f"✅ Tag `{tag}` added.")
 
     @commands.command(name="removetag")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def remove_tag(self, ctx, tag: str):
         """Remove a custom tag from this server."""
         if tag == None:
@@ -1220,7 +1303,7 @@ class Utility(commands.Cog):
             await ctx.send("❌ Tag not found.")
     
     @commands.command(name="addachievement")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def add_achievement(self, ctx, ach_id: str, name: str, power: int, asset_url: str, *, description: str):
         """Add a custom achievement (ID, name, power, asset_url, description)."""
         if ach_id == None:
@@ -1242,7 +1325,7 @@ class Utility(commands.Cog):
         await ctx.send(f"✅ Achievement `{name}` added with ID `{ach_id}`.")
 
     @commands.command(name="removeachievement")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def remove_achievement(self, ctx, ach_id: str):
         """Remove an achievement by ID."""
         if ach_id == None:
@@ -1280,13 +1363,13 @@ class Utility(commands.Cog):
         await ctx.send(embed=embed)
     
     @commands.group(name="adminmsg", invoke_without_command=True)
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def adminmsg(self, ctx):
         """Admin message scheduler. Use subcommands: set, send, list, remove."""
         await ctx.send("Use `?adminmsg set <name> <message>`, `?adminmsg send <name>`, `?adminmsg list`, or `?adminmsg remove <name>`.")
 
     @adminmsg.command(name="set")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def adminmsg_set(self, ctx, name: str, *, message: str):
         """Set a scheduled message with a name."""
         data = utils.load_scheduled_messages()
@@ -1295,7 +1378,7 @@ class Utility(commands.Cog):
         await ctx.send(f"✅ Message '{name}' saved.")
 
     @adminmsg.command(name="send")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def adminmsg_send(self, ctx, name: str):
         """Send a scheduled message by name."""
         data = utils.load_scheduled_messages()
@@ -1306,7 +1389,7 @@ class Utility(commands.Cog):
         await ctx.send(msg)
 
     @adminmsg.command(name="list")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def adminmsg_list(self, ctx):
         """List all scheduled message names."""
         data = utils.load_scheduled_messages()
@@ -1316,7 +1399,7 @@ class Utility(commands.Cog):
         await ctx.send("Scheduled messages: " + ", ".join(data.keys()))
 
     @adminmsg.command(name="remove")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def adminmsg_remove(self, ctx, name: str):
         """Remove a scheduled message by name."""
         data = utils.load_scheduled_messages()

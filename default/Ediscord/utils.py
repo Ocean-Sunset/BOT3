@@ -5,9 +5,12 @@ Utility package for Ediscord.
 Contains:
 - Helper fonctions for easier maintenance.
 """
+# ---------------------------------------------------------------------------------------------------
+# --------------------------------------------- IMPORTS ---------------------------------------------
+# ---------------------------------------------------------------------------------------------------
 
-# --------------------- IMPORTS --------------------
 import json, os, logging, discord
+from discord.ext import commands
 from datetime import datetime
 from Ediscord import variables
 import asyncio
@@ -17,8 +20,14 @@ import random
 import itertools
 from PIL import Image, ImageDraw
 import psutil
+import shutil
+import glob
+disabled_variants = set()
 
-# --------------------- DEFINITONS --------------------
+# ---------------------------------------------------------------------------------------------------
+# -------------------------------------------- DEFINITONS -------------------------------------------
+# ---------------------------------------------------------------------------------------------------
+
 def load_logging_config():
     """Load logging configuration from the JSON file."""
     try:
@@ -40,6 +49,15 @@ def save_trophy_data():
 def is_owner(ctx):
     """Check if the command issuer is the bot owner."""
     return ctx.author.id == 917515232065228890  # Replace with your Discord user ID
+
+async def is_owner_async(ctx):
+    """Async version for use in command checks."""
+    return ctx.author.id == 917515232065228890  # Same logic, but async
+
+def admin_or_owner():
+    async def predicate(ctx):
+        return ctx.author.guild_permissions.administrator or await is_owner_async(ctx)
+    return commands.check(predicate)
 
 def save_easter_data():
     """Save the easter data to the JSON file."""
@@ -110,15 +128,37 @@ def update_coins(user_id, amount):
     data[str(user_id)]["coins"] = data[str(user_id)].get("coins", 0) + amount
     save_user_data(data)
 
-def save_user_data(data):
-    """Save user data to the JSON file."""
+def save_user_data(data: dict):
     try:
-        # Ensure the directory exists
-        os.makedirs(os.path.dirname(variables.USER_DATA_FILE), exist_ok=True)
+        # Ensure correct structure: all keys must be user IDs
+        cleaned_data = {}
+        for k, v in data.items():
+            if k.isdigit():
+                cleaned_data[k] = v
+            else:
+                print(f"⚠️ Warning: Skipping malformed root key '{k}'")
 
-        # Write the data to the file
-        with open(variables.USER_DATA_FILE, "w") as f:
-            json.dump(data, f, indent=4)
+        # Backup before saving
+        os.makedirs(variables.BACKUP_FOLDER, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_filename = f"{timestamp}_user_data.json"
+        backup_path = os.path.join(variables.BACKUP_FOLDER, backup_filename)
+        with open(backup_path, "w", encoding="utf-8") as f:
+            json.dump(cleaned_data, f, indent=4)
+
+        # Write to log
+        with open(variables.LOG_FILE, "a", encoding="utf-8") as log:
+            log.write(f"{datetime.now()}: {backup_filename}\n")
+
+        # Delete oldest if too many backups
+        backups = sorted(os.listdir(variables.BACKUP_FOLDER))
+        while len(backups) > variables.MAX_BACKUPS:
+            os.remove(os.path.join(variables.BACKUP_FOLDER, backups.pop(0)))
+
+        # Final write to main file
+        with open(variables.USER_DATA_PATH, "w", encoding="utf-8") as f:
+            json.dump(cleaned_data, f, indent=4)
+
     except Exception as e:
         print(f"❌ Error saving user data: {e}")
 
@@ -175,13 +215,25 @@ def get_user_data(user_id):
     return data[user_id_str]
 
 def update_user_data(user_id, key, value):
-    """Update a specific field for a user."""
+    """Update a single key for a specific user in the user_data file."""
     data = load_user_data()
-    if str(user_id) not in data:
-        data[str(user_id)] = {"xp": 0, "level": 1, "coins": 100, "balance": 0, "warnings": []}
-    data[str(user_id)][key] = value
+    user_id = str(user_id)
+
+    if user_id not in data:
+        data[user_id] = {
+            "xp": 0,
+            "level": 1,
+            "coins": 100,
+            "warnings": [],
+            "censored_count": 0,
+            "strikes": 0,
+            "gems": 0,
+            "balance": 0,
+        }
+
+    data[user_id][key] = value
     save_user_data(data)
-    logging.info(f"Updated {key} for user {user_id}: {value}")
+
 
 # Save warnings data
 def save_warnings_data():
@@ -205,6 +257,45 @@ def save_banned_servers():
 def save_server_restrictions():
     with open(variables.server_restrictions_file, "w") as f:
         json.dump(variables.server_restrictions, f)
+
+def backup_file(json_path, max_backups=10):
+    """Create a dated backup of the given JSON file, organized by folder, and purge oldest if needed."""
+    if not os.path.exists(json_path):
+        print(f"⚠️ Tried to back up missing file: {json_path}")
+        return
+
+    filename = os.path.basename(json_path)
+    base_name = os.path.splitext(filename)[0]
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+    backup_folder = os.path.join("backups", base_name)
+    os.makedirs(backup_folder, exist_ok=True)
+
+    backup_filename = f"{timestamp}_{filename}"
+    backup_path = os.path.join(backup_folder, backup_filename)
+
+    try:
+        shutil.copy2(json_path, backup_path)
+
+        # Log only after successful backup
+        log_path = os.path.join("backups", "backup_log.txt")
+        log_entry = f"[{timestamp}] Backed up '{json_path}' to '{backup_path}'\n"
+        with open(log_path, "a") as log_file:
+            log_file.write(log_entry)
+
+        # Clean old backups
+        existing_backups = sorted(glob.glob(os.path.join(backup_folder, f"*_{filename}")))
+        if len(existing_backups) > max_backups:
+            to_delete = existing_backups[:-max_backups]
+            for path in to_delete:
+                try:
+                    os.remove(path)
+                    print(f"🗑️ Removed old backup: {path}")
+                except Exception as e:
+                    print(f"❌ Failed to delete backup {path}: {e}")
+
+    except Exception as e:
+        print(f"❌ Failed to back up {json_path}: {e}")
 
 def write_bot_data(bot):
     """Write bot stats and leaderboard to bot_data.txt."""
@@ -275,7 +366,7 @@ def write_bot_data(bot):
         f"last_restart={last_restart}\n"
     )
 
-    print("Writing data to bot_data.txt:", data)  # Debug log
+    print("Writing data to bot_data.txt.")  # Debug log
     with open(variables.BOT_DATA_FILE, "w", encoding="utf-8") as f:
         f.write(data)
 
@@ -733,24 +824,24 @@ def write_last_command(channel_id, message_id):
         print(f"[signal_update] Registered last command")
     time.sleep(3)
 
-def is_beta_server(guild_id: int) -> bool:
-    if not os.path.exists(variables.BETA_FILE):
+def is_insider_server(guild_id: int) -> bool:
+    if not os.path.exists(variables.insider_FILE):
         return False
-    with open(variables.BETA_FILE, "r", encoding="utf-8") as f:
+    with open(variables.insider_FILE, "r", encoding="utf-8") as f:
         try:
             servers = json.load(f)
             return guild_id in servers
         except json.JSONDecodeError:
             return False
 
-def load_beta_servers():
-    if not os.path.exists(variables.BETA_FILE):
+def load_insider_servers():
+    if not os.path.exists(variables.insider_FILE):
         return []
-    with open(variables.BETA_FILE, "r", encoding="utf-8") as f:
+    with open(variables.insider_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def save_beta_servers(servers):
-    with open(variables.BETA_FILE, "w", encoding="utf-8") as f:
+def save_insider_servers(servers):
+    with open(variables.insider_FILE, "w", encoding="utf-8") as f:
         json.dump(servers, f, indent=2)
 
 def load_scheduled_messages():
@@ -763,7 +854,9 @@ def save_scheduled_messages(data):
     with open(variables.SCHEDULED_MSGS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
-def little_text():
+def little_text(ctx=None):
+    if ctx and ctx.guild and ctx.guild.id in disabled_variants:
+        return ""
     tips = [
         "TIP: Use `?daily` every day to get free coins!",
         "TIP: You can trade items with friends using `?trade`.",
@@ -774,13 +867,144 @@ def little_text():
         "TIP: Check your inventory with `?inventory`.",
         "TIP: Use `?profile` to see your stats.",
         "TIP: Invite your friends to the server for more fun!",
-        "TIP: fishh"
-        "TIP: This is supposed to be a TIP but you got so lucky i won't even display anything :D"
+        "TIP: fishh",
+        "TIP: This is supposed to be a TIP but you got so lucky I won't even display anything :D",
         "TIP: fart :PIT"
     ]
     return random.choice(tips)
 
-# --------------------- ASYNC DEFINITONS ---------------------
+def little_unknowncommand_variant(ctx=None):
+    if ctx and ctx.guild and ctx.guild.id in disabled_variants:
+        return ""
+    messages = [
+        "Hmm... that command doesn't exist. Did you spell it right?",
+        "Sure you spelt that command right?",
+        "I don’t recognize that… are you sure it’s a thing?",
+        "Ouch! That looks wrong. Want to double-check your spelling?",
+        "Checked if that command exists, nope.",
+        "Command not found! But hey, nobody’s perfect.",
+        "Welp, that's not a command..",
+        "Nope. Not the right command..",
+        "Try again! maybe you spelt it wrong.?",
+        "Did you just make that up? >xD"
+    ]
+    return random.choice(messages)
+
+def little_error_variant(ctx=None):
+    if ctx and ctx.guild and ctx.guild.id in disabled_variants:
+        return ""
+    messages = [
+        "Hmm... seems like an error occured.",
+        "That didn't work. Try again maybe?",
+        "Oh well! Try again and again!",
+        "Ouch! That hurt.. :(",
+        "Well that failed miserably...",
+        "The command broke!? But hey, nobody’s perfect.",
+        "I tried my best. It wasn’t good enough.",
+        "Nope. Still doesn’t work.",
+        "Hmm. Not sure what to do with that.",
+        "Try again and again and again.."
+    ]
+    return random.choice(messages)
+
+def little_unsure_variant(ctx=None):
+    if ctx and ctx.guild and ctx.guild.id in disabled_variants:
+        return ""
+    messages = [
+        "You sure about that?",
+        "That’s a bold move.",
+        "Well… okay then.",
+        "I wouldn't do that, but go off I guess.",
+        "This could backfire. Just saying.",
+        "Hmm... interesting choice.",
+        "Alright... if you're really sure.",
+        "Well, alrighty then.",
+        "Proceeding... cautiously."
+    ]
+    return random.choice(messages)
+
+def little_try_again_variant(ctx=None):
+    if ctx and ctx.guild and ctx.guild.id in disabled_variants:
+        return ""
+    messages = [
+        "Give it another shot?",
+        "Try again, maybe?",
+        "You got this!",
+        "Want to try that one more time?",
+        "Oops! Wanna try again?",
+        "Could be a typo… go again!",
+        "Don’t give up yet!",
+        "Retry, retry, retry!",
+        "That one got away. Try once more?",
+        "Failure is the first step to greatness!"
+    ]
+    return random.choice(messages)
+
+def save_disabled_variants():
+    with open('data/disabled_variants.json', 'w') as f:
+        json.dump(list(disabled_variants), f)
+
+def load_disabled_variants():
+    global disabled_variants
+    try:
+        with open('data/disabled_variants.json', 'r') as f:
+            disabled_variants = set(json.load(f))
+    except FileNotFoundError:
+        disabled_variants = set()
+
+def load_flags():
+    global IS_LOCKDOWN
+    if os.path.exists("data/system_flags.json"):
+        try:
+            with open("data/system_flags.json", "r") as f:
+                flags = json.load(f)
+                IS_LOCKDOWN = flags.get("IS_LOCKDOWN", False)
+        except Exception:
+            print("⚠️ Could not load system flags. Lockdown defaults to OFF.")
+
+def save_flags():
+    try:
+        with open("data/system_flags.json", "w") as f:
+            json.dump({
+                "IS_LOCKDOWN": IS_LOCKDOWN
+            }, f, indent=4)
+    except Exception as e:
+        print(f"❌ Failed to save system flags: {e}")
+
+def get_user(user_data, user_id: str) -> dict:
+    """Ensures the user ID exists in the data with all required keys."""
+    if user_id not in user_data:
+        user_data[user_id] = {
+            "xp": 0,
+            "level": 1,
+            "coins": 100,
+            "gems": 0,
+            "balance": 0,
+            "warnings": [],
+            "censored_count": 0,
+            "strikes": 0
+        }
+    else:
+        # Patch missing keys in case of partial data
+        defaults = {
+            "xp": 0,
+            "level": 1,
+            "coins": 100,
+            "gems": 0,
+            "balance": 0,
+            "warnings": [],
+            "censored_count": 0,
+            "strikes": 0
+        }
+        for key, default in defaults.items():
+            user_data[user_id].setdefault(key, default)
+
+    return user_data[user_id]
+
+# ---------------------------------------------------------------------------------------------------
+# --------------------------------------- ASYNC DEFINITONS ------------------------------------------
+# ---------------------------------------------------------------------------------------------------
+
 async def update_bot_data_periodically(bot):
     """Periodically update bot_data.txt."""
     while True:
@@ -792,7 +1016,7 @@ async def change_status(bot):
     global custom_status
     statuses = itertools.cycle(
         [
-            discord.Game("with Python 🐍 "),
+            discord.Game("insider testing Celestra! 🐍 "),
             discord.Activity(
                 type=discord.ActivityType.watching,
                 name="[ 🔍 Our support server]: https://discord.gg/QgUQnxCwEk",

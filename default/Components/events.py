@@ -97,7 +97,7 @@ class Events(commands.Cog):
                         role = await guild.create_role(name=role_name)
                     await member.add_roles(role)
                     await member.send(
-                        f"✅ You have been given the **{role_name}** role."
+                        f"# ✅ You have been given the **{role_name}** role."
                     )
                 return
             
@@ -122,7 +122,7 @@ class Events(commands.Cog):
                                 f"Insufficient permissions to create role '{role_name}' in guild '{guild.name}'."
                             )
                             await member.send(
-                                "❌ I do not have permission to create the verification role. Please contact an administrator."
+                                "# ❌ Permission error.\nI do not have permission to create the verification role. Please contact an administrator."
                             )
                             return
                         except Exception as e:
@@ -234,25 +234,14 @@ class Events(commands.Cog):
                         logging.error(f"Member not found for ID: {payload.user_id}")
                         return
 
-                role_name = ".・🍨︴Member ✰"
-                role = discord.utils.get(guild.roles, name=role_name)
+                # In on_raw_reaction_add and on_raw_reaction_remove, for verification:
+
+                settings = utils.load_server_settings()
+                guild_settings = settings.get(str(guild.id), {})
+                verify_role_name = guild_settings.get("verify_role", ".・🍨︴Member ✰")
+                role = discord.utils.get(guild.roles, name=verify_role_name)
                 if not role:
-                    try:
-                        role = await guild.create_role(name=role_name)
-                        logging.info(
-                            f"Role '{role_name}' created in guild '{guild.name}' (ID: {guild.id})."
-                        )
-                    except discord.Forbidden:
-                        logging.error(
-                            f"Insufficient permissions to create role '{role_name}' in guild '{guild.name}'."
-                        )
-                        await member.send(
-                            "❌ I do not have permission to create the verification role. Please contact an administrator."
-                        )
-                        return
-                    except Exception as e:
-                        logging.error(f"Error creating role '{role_name}': {e}")
-                        return
+                    role = await guild.create_role(name=verify_role_name)
 
                 try:
                     await member.add_roles(role)
@@ -513,25 +502,14 @@ class Events(commands.Cog):
                         logging.error(f"Member not found for ID: {payload.user_id}")
                         return
 
-                role_name = ".・🍨︴Member ✰"
-                role = discord.utils.get(guild.roles, name=role_name)
+                # In on_raw_reaction_add and on_raw_reaction_remove, for verification:
+
+                settings = utils.load_server_settings()
+                guild_settings = settings.get(str(guild.id), {})
+                verify_role_name = guild_settings.get("verify_role", ".・🍨︴Member ✰")
+                role = discord.utils.get(guild.roles, name=verify_role_name)
                 if not role:
-                    try:
-                        role = await guild.create_role(name=role_name)
-                        logging.info(
-                            f"Role '{role_name}' created in guild '{guild.name}' (ID: {guild.id})."
-                        )
-                    except discord.Forbidden:
-                        logging.error(
-                            f"Insufficient permissions to create role '{role_name}' in guild '{guild.name}'."
-                        )
-                        await member.send(
-                            "❌ I do not have permission to create the verification role. Please contact an administrator."
-                        )
-                        return
-                    except Exception as e:
-                        logging.error(f"Error creating role '{role_name}': {e}")
-                        return
+                    role = await guild.create_role(name=verify_role_name)
 
                 try:
                     await member.add_roles(role)
@@ -715,26 +693,24 @@ class Events(commands.Cog):
                 await logs_channel.send(
                     f"❌ An error occurred while welcoming {member.mention}: {e}"
                 )
-
+    
     @commands.Cog.listener()
     async def on_member_remove(self, member):
-        """Event triggered when a user leaves the server."""
+        """Event triggered when a user leaves the server with a custom goodbye image."""
         try:
             logging.info(
-            f"Member left: {member.name}#{member.discriminator} (ID: {member.id})"
+                f"New member left: {member.name}#{member.discriminator} (ID: {member.id})"
             )
 
-            goodbye_channel_name = discord.utils.find(
-                lambda c: c.name.lower() in ["goodbye", "chat", "general"], member.guild.text_channels
+            goodbye_channel = discord.utils.find(
+                lambda c: c.name.lower() in ["goodbye", "chat", "departure", "general"], member.guild.text_channels
             )
-            goodbye_channel = discord.utils.get(
-                member.guild.text_channels, name=goodbye_channel_name
-            )
+
             if not goodbye_channel:
                 logging.warning(
                     f"Goodbye channel not found in guild: {member.guild.name} (ID: {member.guild.id})"
                 )
-                return  
+                return 
 
             avatar_url = member.avatar.url if member.avatar else member.default_avatar.url
             response = requests.get(avatar_url)
@@ -743,84 +719,71 @@ class Events(commands.Cog):
                     f"Failed to fetch avatar for {member.name}#{member.discriminator}. HTTP Status: {response.status_code}"
                 )
                 return
-            avatar = Image.open(BytesIO(response.content)).convert("RGBA")
+            avatar = Image.open(BytesIO(response.content)).convert("RGBA").resize((120, 120))
 
-            # Load the background image
-            background_path = "assets/welcome/background.jpg"  # Use the same background as the welcome image
-            try:
-                background = Image.open(background_path).convert("RGBA")
-            except FileNotFoundError:
-                logging.error(
-                    f"Background image not found at {background_path}. Please ensure the file exists."
-                )
-                await goodbye_channel.send(
-                    "❌ Background image for the goodbye card is missing. Please add it to `icons/welcome/background.jpg`."
-                )
-                return
+            # Create a circular mask for the avatar
+            mask = Image.new("L", (120, 120), 0)
+            draw_mask = ImageDraw.Draw(mask)
+            draw_mask.ellipse((0, 0, 120, 120), fill=255)
+            avatar_rounded = Image.new("RGBA", (120, 120))
+            avatar_rounded.paste(avatar, (0, 0), mask=mask)
 
-            # Resize the background to fit the goodbye card dimensions
-            background = background.resize((800, 400))
+            # Background (simple gray, or use your own image)
+            base = Image.new("RGBA", (500, 180), (140, 140, 140, 255))
 
-            # Create the base image
-            base = Image.new("RGBA", (800, 400), (30, 30, 30, 0))  # Transparent background
-            base.paste(background, (0, 0))  # Paste the background onto the base image
+            # Optionally, paste your cat drawing here
+            # cat_img = Image.open("assets/welcome/cat.png").convert("RGBA").resize((350, 120))
+            # base.paste(cat_img, (150, 30), cat_img)
 
-            # Draw the circular avatar
-            avatar = avatar.resize((150, 150))  # Resize the avatar
-            mask = Image.new("L", avatar.size, 0)
-            draw = ImageDraw.Draw(mask)
-            draw.ellipse((0, 0, avatar.size[0], avatar.size[1]), fill=255)
-            base.paste(avatar, (325, 50), mask)  # Center the avatar on the image
+            # Paste avatar
+            base.paste(avatar_rounded, (20, 30), avatar_rounded)
 
-            # Add the "GOODBYE" text
-            font_path = "fonts/impact.ttf"  # Replace with the path to your bold font file
-            try:
-                font_large = ImageFont.truetype(font_path, 80)  # Big and bold font
-                font_small = ImageFont.truetype(font_path, 40)
-            except OSError:
-                await goodbye_channel.send(
-                    "❌ Font file not found. Please ensure the font file exists."
-                )
-                return
-
+            # Draw text
             draw = ImageDraw.Draw(base)
-            draw.text(
-                (250, 220), "GOODBYE", font=font_large, fill=(255, 255, 255), align="center"
-            )
+            font_large = ImageFont.truetype("assets/impact.ttf", 28)
+            font_small = ImageFont.truetype("assets/impact.ttf", 18)
 
-            # Add the username below the "GOODBYE" text
-            draw.text(
-                (250, 300),
-                member.name,
-                font=font_small,
-                fill=(255, 255, 255),
-                align="center",
-            )
+            username = member.display_name
+            welcome_text = f"Goodbye, {username}.."
+            sub_text = "We hope you enjoyed your stay.."
 
-            # Save the image to a BytesIO object
+            # Draw main welcome text
+            draw.text((160, 50), welcome_text, font=font_large, fill=(255, 255, 255, 255))
+            # Draw subtext
+            draw.text((160, 90), sub_text, font=font_small, fill=(220, 220, 220, 255))
+
+            # Optionally, draw member number
+            member_count = member.guild.member_count
+            member_num_text = f"Member #{member_count}"
+            draw.text((160, 120), member_num_text, font=font_small, fill=(200, 200, 200, 255))
+
+            # Save to buffer
             buffer = BytesIO()
             base.save(buffer, format="PNG")
             buffer.seek(0)
 
-            # Send the image and custom message
-            goodbye_msg = utils.get_guild_goodbye_message(member.guild.id) or f"👋 Goodbye, {member.mention}. We will miss you!"
+            # Send image
             await goodbye_channel.send(
-                goodbye_msg,
-                file=discord.File(fp=buffer, filename="goodbye.png"),
+                f"Bye, {member.mention}..\n# We will miss you 👋",
+                file=discord.File(buffer, filename="welcome.png")
             )
             logging.info(
-                f"Goodbye message sent for {member.name}#{member.discriminator} in {goodbye_channel.name}."
-            )
+                        f"Goodbye message sent for {member.name}#{member.discriminator} in {goodbye_channel.name}."
+                    )
         except Exception as e:
+            logging.error(f"Error in on_member_remove: {e}")
+
             logging.error(
                 f"Error in on_member_remove for {member.name}#{member.discriminator}: {e}"
             )
-            # Optionally, send an error message to a logs channel
-            logs_channel = utils.get_logs_channel(member.guild)
+            logs_channel = discord.utils.get(member.guild.text_channels, name="logs")
             if logs_channel:
                 await logs_channel.send(
-                    f"❌ An error occurred while saying goodbye to {member.mention}: {e}"
+                    f"❌ An error occurred while goodbying {member.mention}: {e}"
                 )
+
+
+
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
         # Ignore messages starting with "??" or more
@@ -849,34 +812,34 @@ class Events(commands.Cog):
             )
 
             if closest_match:
-                await ctx.send(f"❌ Command not found. Did you mean: `{closest_match[0]}`?")
+                await ctx.send(f"# ❌ Command not found.\nDid you mean: `{closest_match[0]}`?\n-# {utils.little_unknowncommand_variant()}")
             else:
                 await ctx.send(
-                    "❌ Command not found. Use `?help` to see the list of available commands."
+                    f"# ❌ Command not found.\nUse `?help` to see the list of available commands.\n-# {utils.little_unknowncommand_variant()}"
                 )
             return  # <-- THIS IS IMPORTANT
 
         elif isinstance(error, MissingRequiredArgument):
-            await ctx.send("❌ Missing required argument. Please check your command usage.")
+            await ctx.send(f"# ❌ Missing required argument.\nPlease check your command usage.\n-# {utils.little_error_variant()}")
             return
         elif isinstance(error, BadArgument):
-            await ctx.send("❌ Invalid argument. Please check your input.")
+            await ctx.send(f"# ❌ Invalid argument.\nPlease check your input.\n-# {utils.little_error_variant()}")
             return
         elif isinstance(error, CommandOnCooldown):
-            await ctx.send(f"⏳ This command is on cooldown. Try again in {error.retry_after:.2f} seconds.")
+            await ctx.send(f"# ⏳ This command is on cooldown.\nTry again in {error.retry_after:.2f} seconds.\n-# {utils.little_error_variant()}")
             return
         elif isinstance(error, CheckFailure):
-            await ctx.send("❌ You do not have permission to use this command.")
+            await ctx.send(f"# ❌ You do not have permission to use this command.\n-# Maybe try and get higher permission? idk..")
             return
         elif isinstance(error, DisabledCommand):
-            await ctx.send("❌ This command is currently disabled.")
+            await ctx.send(f"# ❌ This command is currently disabled.\n-# Well that's pretty rare, seems like that command was too dangerous for me to keep..")
             return
         elif isinstance(error, NoPrivateMessage):
-            await ctx.send("❌ This command cannot be used in private messages.")
+            await ctx.send(f"# ❌ This command cannot be used in private messages.\n-# Hey um, just asking to not use commands in private messages since that doesn't work.")
             return
 
         # Only signal the handler for unhandled/critical errors
-        await ctx.send(f"An error occurred: {error}")
+        await ctx.send(f"# ❌ An error occurred: ❌\n{error}")
         try:
             utils.signal_error(
                 f"{type(error).__name__}: {error}\nCommand: {ctx.command}\nUser: {ctx.author}\nMessage: {ctx.message.content}"
@@ -892,13 +855,14 @@ class Events(commands.Cog):
         if message.guild is None:
             # This is a DM, handle accordingly or just return
             return
+        
+        # Ignore bot's own messages early
+        if message.author.bot:
+            return
+
         guild_id = str(message.guild.id)
         limitations = utils.load_limitations()
         level = limitations.get(guild_id, 0)  # Default to no filtering if not set
-
-        # Ignore bot's own messages
-        if message.author.bot:
-            return
 
         # Update the last activity time for the guild
         variables.last_activity[message.guild.id] = time.time()
@@ -935,41 +899,71 @@ class Events(commands.Cog):
         if user_id in variables.message_cooldowns:
             cooldown_end = variables.message_cooldowns[user_id]
             if now < cooldown_end:
-                # User is still on cooldown, skip granting XP
-                await self.bot.process_commands(message)
+                # User is still on cooldown, skip granting XP and command processing for this message
                 return
 
-        # Get the user's data
-        user_data = utils.get_user_data(user_id)
+        # Load full user data at the beginning of on_message for consistent updates
+        full_data = utils.load_user_data()
+        user_id_str = str(message.author.id)
+
+        # Ensure the user exists in the full_data and initialize keys if not present
+        if user_id_str not in full_data:
+            full_data[user_id_str] = {
+                "xp": 0,
+                "level": 1,
+                "coins": 100,
+                "warnings": [],
+                "censored_count": 0,
+                "strikes": 0,
+                "gems": 0,
+                "balance": 0,
+                "messages": [], # Initialize messages list here
+            }
+        else:
+            # Ensure new keys are added to existing users
+            if "censored_count" not in full_data[user_id_str]:
+                full_data[user_id_str]["censored_count"] = 0
+            if "strikes" not in full_data[user_id_str]:
+                full_data[user_id_str]["strikes"] = 0
+            if "gems" not in full_data[user_id_str]:
+                full_data[user_id_str]["gems"] = 0
+            if "balance" not in full_data[user_id_str]:
+                full_data[user_id_str]["balance"] = 0
+            if "messages" not in full_data[user_id_str]: # Ensure messages list is initialized
+                full_data[user_id_str]["messages"] = []
+
+        # Reference the user's data from full_data for all operations
+        user_data_entry = full_data[user_id_str]
 
         # Grant XP
-        user_data["xp"] += 10
-        xp_needed = user_data["level"] * 100  # XP needed to level up
+        user_data_entry["xp"] += 10
+        xp_needed = user_data_entry["level"] * 100  # XP needed to level up
 
         # Check for level up
-        if user_data["xp"] >= xp_needed:
-            user_data["xp"] -= xp_needed
-            user_data["level"] += 1
-            user_data["coins"] += 50  # Reward coins for leveling up
+        if user_data_entry["xp"] >= xp_needed:
+            user_data_entry["xp"] -= xp_needed
+            user_data_entry["level"] += 1
+            user_data_entry["coins"] += 50  # Reward coins for leveling up
 
             # Determine rewards based on level
             coins_reward = 50  # Default coin reward
             gems_reward = 0  # Default gem reward
-            if user_data["level"] >= 50:  # Special reward for Level 50+
+            if user_data_entry["level"] >= 50:  # Special reward for Level 50+
                 coins_reward = 100
                 gems_reward = 5
 
             # Add rewards
-            user_data["coins"] += coins_reward
-            user_data["gems"] += gems_reward
+            user_data_entry["coins"] += coins_reward
+            user_data_entry["gems"] += gems_reward
 
             # Calculate bonus XP based on the level reached
-            bonus_xp = user_data["level"] * 10  # Example: 10 XP per level
-            user_data["xp"] += bonus_xp
+            bonus_xp = user_data_entry["level"] * 10  # Example: 10 XP per level
+            user_data_entry["xp"] += bonus_xp
 
-            # Notify the user
+            # --- Send level-up notification to the dedicated bot channel ---
+            bot_channel = discord.utils.get(message.guild.text_channels, name="bot-channel")
             rewards_message = (
-                f"🎉 {message.author.mention} leveled up to **Level {user_data['level']}**! "
+                f"🎉 {message.author.mention} leveled up to **Level {user_data_entry['level']}**! "
                 f"You earned **{coins_reward} coins** and **{bonus_xp} bonus XP**"
             )
             if gems_reward > 0:
@@ -977,53 +971,38 @@ class Events(commands.Cog):
             else:
                 rewards_message += "!"
 
-            await message.channel.send(rewards_message)
+            if bot_channel:
+                await bot_channel.send(rewards_message)
+            else:
+                # Fallback: send in the current channel if bot-channel doesn't exist
+                await message.channel.send(rewards_message)
 
             # Assign level-based role
-            await utils.assign_level_role(message.author, user_data["level"], message.channel)
+            await utils.assign_level_role(message.author, user_data_entry["level"], message.channel)
 
-        # Save updated user data
-        utils.update_user_data(user_id, "xp", user_data["xp"])
-        utils.update_user_data(user_id, "level", user_data["level"])
-        utils.update_user_data(user_id, "coins", user_data["coins"])
         logging.info(
-            f"User {message.author.name} (ID: {user_id}) gained 10 XP. Total XP: {user_data['xp']}."
+            f"User {message.author.name} (ID: {user_id}) gained 10 XP. Total XP: {user_data_entry['xp']}."
         )
 
-        user_id = str(message.author.id)
-        data = utils.load_user_data()
-
-        # Ensure the user exists in the data and initialize the "messages" key if not present
-        if user_id not in data:
-            data[user_id] = {
-                "xp": 0,
-                "level": 1,
-                "coins": 100,
-                "warnings": [],
-                "messages": [],
-            }
-        elif "messages" not in data[user_id]:
-            data[user_id]["messages"] = []
-
-        # Track message timestamps
+        # Track message timestamps for spam detection
         current_time = time.time()
-        data[user_id]["messages"].append(current_time)
+        user_data_entry["messages"].append(current_time)
 
         # Remove messages outside the time window
-        data[user_id]["messages"] = [
+        user_data_entry["messages"] = [
             timestamp
-            for timestamp in data[user_id]["messages"]
+            for timestamp in user_data_entry["messages"]
             if current_time - timestamp <= variables.TIME_WINDOW
         ]
 
         # Check if the user exceeds the spam threshold
-        if len(data[user_id]["messages"]) > variables.SPAM_THRESHOLD:
+        if len(user_data_entry["messages"]) > variables.SPAM_THRESHOLD:
             # Take action for spamming
             await message.channel.send(
                 f"⚠️ {message.author.mention}, you are sending messages too quickly. Please slow down!"
             )
             import datetime
-            data[user_id]["warnings"].append(
+            user_data_entry["warnings"].append(
                 {"reason": "Spamming", "timestamp": datetime.datetime.now().isoformat()}
             )
 
@@ -1059,18 +1038,18 @@ class Events(commands.Cog):
                     )
 
                     # Add the gem to the user's count in easter.json
-                    user_id = str(user.id)
-                    utils.update_gems(user_id, 1)
+                    user_id_str_gem = str(user.id) # Use a different variable name to avoid conflict
+                    utils.update_gems(user_id_str_gem, 1)
 
                     # Remove the reaction and notify the user
                     await message.clear_reaction(gem_emoji)
                     await message.channel.send(
-                        f"💎 {user.mention} found a gem! Total gems: {variables.easter_data[user_id]['gems']}"
+                        f"💎 {user.mention} found a gem! Total gems: {variables.easter_data[user_id_str_gem]['gems']}"
                     )
                 except asyncio.TimeoutError:
                     # Remove the reaction if no one reacts within 10 seconds
                     await message.clear_reaction(gem_emoji)
-
+        
         offensive_words = {
             1: ["nigga", "nigger", "Nigga", "Nigger", "NIGGA", "NIGGER"],
             2: [
@@ -1084,7 +1063,7 @@ class Events(commands.Cog):
                 "kms",
                 "Kill yourself",
                 "kill yourself",
-        ],
+            ],
             3: [
                 "nigga",
                 "nigger",
@@ -1103,6 +1082,22 @@ class Events(commands.Cog):
                 "Bitch",
                 "FUCK",
                 "BITCH",
+                "Kill myself", # Corrected typo: removed extra "
+                "kill myself",
+                "faggot",
+                "Faggot",
+                "FAGGOT",
+                "Negro",
+                "negro",
+                "chigga",
+                "Chigga",
+                "CHIGGA",
+                "ching",
+                "Ching",
+                "CHING",
+                "CHONG",
+                "Chong",
+                "chong"
             ],
             4: [
                 "nigga",
@@ -1161,81 +1156,59 @@ class Events(commands.Cog):
             ],
         }
 
-        # Ensure the user exists in the data and initialize missing keys
-        if user_id not in user_data:
-            user_data[user_id] = {
-                "xp": 0,
-                "level": 1,
-                "coins": 100,
-                "warnings": [],
-                "censored_count": 0,
-                "strikes": 0,
-            }
-        elif "censored_count" not in user_data[user_id]:
-            user_data[user_id]["censored_count"] = 0
-
         # Check for offensive words
         if level > 0:
             for word in offensive_words.get(level, []):
-                if word in message.content.lower():
-                    await message.delete()
-                    await message.channel.send(
-                        f"⚠️ {message.author.mention}, your message was removed for containing offensive language."
-                    )
-                    # Increment the censored count
-                    user_data[user_id]["censored_count"] += 1
-                    censored_count = user_data[user_id]["censored_count"]
-
-                    # Check if the user has reached the limit
-                    if censored_count >= 15:
-                        user_data[user_id]["censored_count"] = 0  # Reset the count
-                        user_data[user_id]["strikes"] += 1  # Add a strike
-                        utils.save_user_data(user_data)
-
-                        # Notify the user and the channel
+                # Use difflib to check similarity
+                for msg_word in message.content.lower().split():
+                    similarity = difflib.SequenceMatcher(None, word.lower(), msg_word).ratio()
+                    if similarity > 0.85:  # Adjust threshold as needed
+                        # Bypass for admins/owner
+                        if message.author.guild_permissions.administrator or await utils.is_owner_async(message):
+                            continue
+                        await message.delete()
                         await message.channel.send(
-                            f"⚠️ {message.author.mention} has been given a **strike** for repeated offensive language. Total strikes: {user_data[user_id]['strikes']}."
+                            f"⚠️ {message.author.mention}, your message was removed for containing offensive language."
                         )
+                        # Increment the censored count
+                        user_data_entry["censored_count"] += 1
 
-                        # Take action based on the number of strikes
-                        if user_data[user_id]["strikes"] == 3:
-                            mute_role = discord.utils.get(message.guild.roles, name="Muted")
-                            if not mute_role:
-                                mute_role = await message.guild.create_role(name="Muted")
-                                for channel in message.guild.channels:
-                                    await channel.set_permissions(
-                                        mute_role, send_messages=False, speak=False
-                                    )
-                            await message.author.add_roles(mute_role)
+                        # Check if the user has reached the limit
+                        if user_data_entry["censored_count"] >= 15:
+                            user_data_entry["censored_count"] = 0  # Reset the count
+                            user_data_entry["strikes"] += 1  # Add a strike
+                            
+                            # Notify the user and the channel
                             await message.channel.send(
-                                f"🔇 {message.author.mention} has been muted for accumulating 3 strikes."
-                            )
-                        elif user_data[user_id]["strikes"] == 5:
-                            await message.author.kick(reason="Reached 5 strikes")
-                            await message.channel.send(
-                                f"👢 {message.author.mention} has been kicked for reaching 5 strikes."
-                            )
-                        elif user_data[user_id]["strikes"] >= 7:
-                            await message.author.ban(reason="Reached 7 strikes")
-                            await message.channel.send(
-                                f"⛔ {message.author.mention} has been banned for reaching 7 strikes."
+                                f"⚠️ {message.author.mention} has been given a **strike** for repeated offensive language. Total strikes: {user_data_entry['strikes']}."
                             )
 
-                    utils.save_user_data(user_data)
-                    return
-                
-        async def cog_checrk(self, ctx):
-            # Allow all commands to run as normal
-            return True
-
-        # Allow the `?start` command to bypass sleep mode
-        if variables.is_sleeping and message.content.startswith("?start"):
-            await self.bot.process_commands(message)
-            return
+                            # Take action based on the number of strikes
+                            if user_data_entry["strikes"] == 3:
+                                mute_role = discord.utils.get(message.guild.roles, name="Muted")
+                                if not mute_role:
+                                    mute_role = await message.guild.create_role(name="Muted")
+                                    for channel in message.guild.channels:
+                                        await channel.set_permissions(
+                                            mute_role, send_messages=False, speak=False
+                                        )
+                                await message.author.add_roles(mute_role)
+                                await message.channel.send(
+                                    f"🔇 {message.author.mention} has been muted for accumulating 3 strikes."
+                                )
+                            elif user_data_entry["strikes"] == 5:
+                                await message.author.kick(reason="Reached 5 strikes")
+                                await message.channel.send(
+                                    f"👢 {message.author.mention} has been kicked for reaching 5 strikes."
+                                )
+                            elif user_data_entry["strikes"] >= 7:
+                                await message.author.ban(reason="Reached 7 strikes")
+                                await message.channel.send(
+                                    f"⛔ {message.author.mention} has been banned for reaching 7 strikes."
+                                )
+                        utils.save_user_data(full_data) # Save full_data after changes
+                        return # Important: return after handling offensive word
             
-        if message.author.bot:
-            return
-
         channel_name = message.channel.name.lower()
 
         # Restrict sewers-entrance: only allow ?sewer enter
@@ -1250,7 +1223,7 @@ class Events(commands.Cog):
                     await warn.delete()
                 except Exception:
                     pass
-            return
+            return #
 
         # Restrict left/right wing channels: only allow ?sewer exit
         if channel_name in ["⚠️・left-system-wing", "⚠️・right-system-wing"]:
@@ -1264,17 +1237,10 @@ class Events(commands.Cog):
                     await warn.delete()
                 except Exception:
                     pass
+            return #
 
-        # Ignore all messages if the bot is in sleep mode
-        if variables.is_sleeping:
-            return
-        
-        
-        if message.author.bot:
-            return
-
-        # Save updated user data
-        utils.save_user_data(data)
+        # Save updated user data (full_data is already updated throughout the function)
+        utils.save_user_data(full_data)
     
     @commands.Cog.listener()
     async def on_ready(self):

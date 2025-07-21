@@ -44,13 +44,13 @@ class Money(commands.Cog):
             try:
                 bought = int(levels)
                 if bought < 1:
-                    await ctx.send(f"# ❌ You must specificy at least 1 positive level.\n-# {utils.little_text}")
+                    await ctx.send(f"# ❌ You must specificy at least 1 positive level.\n-# {utils.little_text()}")
                     return
             except ValueError:
                 await ctx.send("❌ Please enter a number of levels or 'max'.")
                 return
             if coins < bought * level_cost:
-                await ctx.send(f"# ❌ You don't have enough coins.\n{utils.little_text}")
+                await ctx.send(f"# ❌ You don't have enough coins.\n{utils.little_text()}")
                 return
 
         # Deduct coins and add levels
@@ -83,7 +83,7 @@ class Money(commands.Cog):
             )
         else:
             await ctx.send(
-                f"❌ {ctx.author.mention}, you have already claimed your daily reward. Try again tomorrow!\n-# {utils.little_text}"
+                f"❌ {ctx.author.mention}, you have already claimed your daily reward. Try again tomorrow!\n-# {utils.little_text()}"
             )
 
 
@@ -94,7 +94,7 @@ class Money(commands.Cog):
             await ctx.send("# ❌ You have to have a member to give them coins!\n-# Usage: `?give @user1234 <amount of money>`")
             return
         if amount <= 0:
-            await ctx.send(f"# ❌ You must specify a positive amount of coins.\n-# {utils.little_text}")
+            await ctx.send(f"# ❌ You must specify a positive amount of coins.\n-# {utils.little_text()}")
             return
 
         giver_id = ctx.author.id
@@ -132,7 +132,7 @@ class Money(commands.Cog):
 
         victim_balance = utils.get_coins(victim_id)
         if victim_balance <= 0:
-            await ctx.send(f"# ❌ {member.mention} has no coins to steal.\n-# Damn he's actually broke..\n-# {utils.little_text}")
+            await ctx.send(f"# ❌ {member.mention} has no coins to steal.\n-# Damn he's actually broke..\n-# {utils.little_text()}")
             return
 
         # Determine the amount to steal (randomized)
@@ -170,7 +170,7 @@ class Money(commands.Cog):
     async def deposit(self, ctx, amount: int):
         """Deposit coins into the bank."""
         if amount <= 0:
-            await ctx.send(f"# ❌ You must specify a positive amount of coins.\n-# {utils.little_text}")
+            await ctx.send(f"# ❌ You must specify a positive amount of coins.\n-# {utils.little_text()}")
             return
         if amount == None:
             await ctx.send(f"# ❌ You have to put an amount for you to deposit coins!\n-# Usage: `?deposit <amount of money you want to deposit>`!")
@@ -198,7 +198,7 @@ class Money(commands.Cog):
     async def withdraw(self, ctx, amount: int):
         """Withdraw coins from the bank."""
         if amount <= 0:
-            await ctx.send(f"# ❌ You must specify a positive amount of coins.\n-# {utils.little_text}")
+            await ctx.send(f"# ❌ You must specify a positive amount of coins.\n-# {utils.little_text()}")
             return
         if amount == None:
             await ctx.send("# ❌ You have to put an amount for you to withdraw coins!\n-# Usage: `?withdraw <amount of money you want to withdraw>`!")
@@ -233,25 +233,24 @@ class Money(commands.Cog):
 
 
     @commands.command(name="buygem")
-    async def buygem(self, ctx):
-        """Buy a gem for 250 coins."""
+    async def buygem(self, ctx, amount: typing.Optional[int] = 1):
+        """Buy one or more gems for 250 coins each."""
         user_id = ctx.author.id
-        cost = 250  # Cost of one gem
-
-        # Check if the user has enough coins
+        cost = 250
+        if amount is None or amount < 1:
+            await ctx.send("❌ Please specify a positive number of gems to buy.")
+            return
+        total_cost = cost * amount
         balance = utils.get_coins(user_id)
-        if balance < cost:
+        if balance < total_cost:
             await ctx.send(
-                f"❌ {ctx.author.mention}, you don't have enough coins to buy a gem. You need **{cost} coins**, but you only have **{balance} coins**."
+                f"❌ {ctx.author.mention}, you don't have enough coins to buy {amount} gem(s). You need **{total_cost} coins**, but you only have **{balance} coins**."
             )
             return
-
-        # Deduct coins and add a gem
-        utils.update_coins(user_id, -cost)
-        utils.update_gems(user_id, 1)
-
+        utils.update_coins(user_id, -total_cost)
+        utils.update_gems(user_id, amount)
         await ctx.send(
-            f"✅ {ctx.author.mention}, you bought **1 gem** for **{cost} coins**! 💎"
+            f"✅ {ctx.author.mention}, you bought **{amount} gem(s)** for **{total_cost} coins**! 💎"
         )
         
     @commands.command(name="opencrate")
@@ -283,61 +282,12 @@ class Money(commands.Cog):
         )  # Pass the channel as the second argument
 
         # Notify the user
+        # Notify the user
+        wow = "WOW!!" if selected_object['rarity'] == "Legendary" else ""
         await ctx.send(
-            f"🎉 {ctx.author.mention}, you opened a crate and received a **{selected_object['name']}**! "
-            f"(Rarity: {selected_object['rarity']})"
+            f"# 🎉 {ctx.author.mention}, you opened a crate and received a **{selected_object['name']}**!\n"
+            f"-# (Rarity: {selected_object['rarity']} {wow})"
         )
-
-
-    @commands.command(name="exchange")
-    async def exchange(self, ctx, *, object_name: str):
-        """Exchange an object for coins or gems."""
-        if object_name == None:
-            await ctx.send("❌ You have to have an object name!")
-            return
-        user_id = str(ctx.author.id)
-        inventory = utils.load_inventory()
-
-        # Check if the user owns the object
-        if user_id not in inventory or not any(
-            obj["name"].lower() == object_name.lower() for obj in inventory[user_id]
-        ):
-            await ctx.send(
-                f"❌ {ctx.author.mention}, you do not own an object named **{object_name}**."
-            )
-            return
-
-        # Find the object in the user's inventory
-        selected_object = None
-        for obj in inventory[user_id]:
-            if obj["name"].lower() == object_name.lower():
-                selected_object = obj
-                break
-
-        if not selected_object:
-            await ctx.send(
-                f"❌ {ctx.author.mention}, you do not own an object named **{object_name}**."
-            )
-            return
-
-        # Exchange the object for coins or gems
-        if "coins" in selected_object["value"]:
-            utils.update_coins(user_id, selected_object["value"]["coins"])
-            await ctx.send(
-                f"✅ {ctx.author.mention}, you exchanged **{selected_object['name']}** for "
-                f"**{selected_object['value']['coins']} coins**!"
-            )
-        elif "gems" in selected_object["value"]:
-            utils.update_gems(user_id, selected_object["value"]["gems"])
-            await ctx.send(
-                f"✅ {ctx.author.mention}, you exchanged **{selected_object['name']}** for "
-                f"**{selected_object['value']['gems']} gems**!"
-            )
-
-        # Remove the object from the user's inventory
-        inventory[user_id].remove(selected_object)
-        utils.save_inventory(inventory)
-
 
     @commands.command(name="inventory")
     async def inventory(self, ctx):
@@ -346,7 +296,7 @@ class Money(commands.Cog):
         inventory = utils.load_inventory()
 
         if user_id not in inventory or not inventory[user_id]:
-            await ctx.send(f"📦 {ctx.author.mention}, your inventory is empty.")
+            await ctx.send(f"# 📦❔ {ctx.author.mention}, your inventory is empty.\n-# Try running ?opencrate to get items!")
             return
 
         # Display the user's inventory
@@ -435,7 +385,7 @@ class Money(commands.Cog):
         # Check if the user has items in their inventory
         if user_id not in inventory or not inventory[user_id]:
             await ctx.send(
-                f"📦 {ctx.author.mention}, your inventory is empty. Nothing to sell."
+                f"# 📦❔ {ctx.author.mention}, your inventory is empty.\n-# Try running ?opencrate to get items!"
             )
             return
 
@@ -445,8 +395,8 @@ class Money(commands.Cog):
 
         # Confirmation message
         confirmation_message = await ctx.send(
-            f"⚠️ {ctx.author.mention}, are you sure you want to sell everything in your inventory?\n"
-            f"You will receive **{total_coins} coins** and **{total_gems} gems**.\n"
+            f"# ⚠️ {ctx.author.mention}, are you sure you want to sell everything in your inventory?\n"
+            f"You will receive **{total_coins} coins** and **{total_gems} gems**.\n\n"
             f"Type `yes` to confirm or `no` to cancel."
         )
 
@@ -460,7 +410,7 @@ class Money(commands.Cog):
         try:
             response = await self.bot.wait_for("message", check=check, timeout=30.0)
             if response.content.lower() == "no":
-                await ctx.send("❌ Sale canceled. Your inventory remains untouched.")
+                await ctx.send(f"# ❌ Sale canceled.\nYour inventory remains untouched.\n{utils.little_text()}")
                 return
             elif response.content.lower() == "yes":
                 # Add the coins and gems to the user's balance
@@ -472,20 +422,20 @@ class Money(commands.Cog):
                 utils.save_inventory(inventory)
 
                 await ctx.send(
-                    f"✅ {ctx.author.mention}, you sold everything in your inventory and received "
-                    f"**{total_coins} coins** and **{total_gems} gems**!"
+                    f"# ✅ {ctx.author.mention}, you sold everything in your inventory and\n"
+                    f"received: **{total_coins} coins** and **{total_gems} gems**!"
                 )
         except asyncio.TimeoutError:
-            await ctx.send("⏰ Sale timed out. Your inventory remains untouched.")
+            await ctx.send(f"# ⏰ Sale timed out\nYour inventory remains untouched.\n{utils.little_text()}")
     
     @commands.command(name="exchange_gems")
     async def exchange_gems(self, ctx, gems: int):
         """Exchange gems for coins."""
         if gems <= 0:
-            await ctx.send("❌ You must exchange at least 1 gem.")
+            await ctx.send(f"# ❌ You must exchange at least 1 gem.\n{utils.little_text()}")
             return
         if gems == None:
-            await ctx.send("❌ You put an aount for you to exchange gems")
+            await ctx.send("# ❌ You put an aount for you to exchange gems\n-# Usage: `?exchange <the number of gems you want to exchange>`!")
             return
         user_id = ctx.author.id
         user_data = utils.get_user_data(user_id)
@@ -529,10 +479,10 @@ class Money(commands.Cog):
         - ?trade @user item "Item Name"
         """
         if member == ctx.author:
-            await ctx.send("❌ You cannot trade with yourself!")
+            await ctx.send(f"# ❌ You cannot trade with yourself!\n{utils.little_text()}")
             return
         if member == None:
-            await ctx.send("❌ You have to have a member to trade with them")
+            await ctx.send(f"# ❌ You have to have a member to trade with them\n-# Usage: `?trade @user1234 (coins or gems or an item) (number of coins or gems or item name depending on what you chose)`")
             return
 
         trade_type = trade_type.lower()
@@ -544,21 +494,21 @@ class Money(commands.Cog):
             try:
                 amount = int(amount_or_item)
                 if amount <= 0:
-                    await ctx.send("❌ Amount must be positive.")
+                    await ctx.send(f"# ❌ Amount must be positive.\n-# {utils.little_text()}")
                     return
             except ValueError:
-                await ctx.send("❌ Invalid amount.")
+                await ctx.send(f"# ❌ Invalid amount.\n-# {utils.little_text()}")
                 return
 
             user_balance = utils.get_coins(user_id)
             if user_balance < amount:
                 await ctx.send(
-                    f"❌ You don't have enough coins. Your balance: {user_balance}"
+                    f"# ❌ You don't have enough coins.\nYour balance: {user_balance}\n-# Try to get more coins using ?daily!"
                 )
                 return
 
             await ctx.send(
-                f"🔄 {member.mention}, do you accept to receive **{amount} coins** from {ctx.author.mention}? Type `accept` to confirm."
+                f"# 🔄 {member.mention}, do you accept to receive **{amount} coins** from {ctx.author.mention}?\nType `accept` to confirm."
             )
 
             def check(m):
@@ -573,10 +523,10 @@ class Money(commands.Cog):
                 utils.update_coins(user_id, -amount)
                 utils.update_coins(target_id, amount)
                 await ctx.send(
-                    f"✅ Trade complete! {ctx.author.mention} sent **{amount} coins** to {member.mention}."
+                    f"# ✅ Trade complete!\n{ctx.author.mention} sent **{amount} coins** to {member.mention}."
                 )
             except asyncio.TimeoutError:
-                await ctx.send("❌ Trade cancelled (no response).")
+                await ctx.send("# ❌ Trade cancelled.\nNo response..\n-# Maybe try again??")
             return
 
         # Trade gems
@@ -584,21 +534,21 @@ class Money(commands.Cog):
             try:
                 amount = int(amount_or_item)
                 if amount <= 0:
-                    await ctx.send("❌ Amount must be positive.")
+                    await ctx.send(f"# ❌ Amount must be positive.\n-# {utils.little_text()}")
                     return
             except ValueError:
-                await ctx.send("❌ Invalid amount.")
+                await ctx.send(f"# ❌ Invalid amount.\n-# {utils.little_text()}")
                 return
 
             user_data = utils.get_user_data(user_id)
             if user_data.get("gems", 0) < amount:
                 await ctx.send(
-                    f"❌ You don't have enough gems. Your gems: {user_data.get('gems', 0)}"
+                    f"# ❌ You don't have enough gems. Your gems: {user_data.get('gems', 0)}\n-# Try to get more gems using ?opencrate!"
                 )
                 return
 
             await ctx.send(
-                f"🔄 {member.mention}, do you accept to receive **{amount} gems** from {ctx.author.mention}? Type `accept` to confirm."
+                f"# 🔄 {member.mention}, do you accept to receive **{amount} gems** from {ctx.author.mention}?\nType `accept` to confirm."
             )
 
             def check(m):
@@ -613,10 +563,10 @@ class Money(commands.Cog):
                 utils.update_gems(user_id, -amount)
                 utils.update_gems(target_id, amount)
                 await ctx.send(
-                    f"✅ Trade complete! {ctx.author.mention} sent **{amount} gems** to {member.mention}."
+                    f"# ✅ Trade complete!\n{ctx.author.mention} sent **{amount} gems** to {member.mention}."
                 )
             except asyncio.TimeoutError:
-                await ctx.send("❌ Trade cancelled (no response).")
+                await ctx.send("# ❌ Trade cancelled.\nNo response..\n-# Maybe try again??")
             return
 
         # Trade items
@@ -628,11 +578,11 @@ class Money(commands.Cog):
             if user_id not in inventory or not any(
                 obj["name"].lower() == item_name.lower() for obj in inventory[user_id]
             ):
-                await ctx.send(f"❌ You do not own an item named **{item_name}**.")
+                await ctx.send(f"# ❌ You do not own an item named **{item_name}**.\n-# Try running `?opencrate` to get more items?")
                 return
 
             await ctx.send(
-                f"🔄 {member.mention}, do you accept to receive the item **{item_name}** from {ctx.author.mention}? Type `accept` to confirm."
+                f"# 🔄 {member.mention}, do you accept to receive the item **{item_name}** from {ctx.author.mention}?\nType `accept` to confirm."
             )
 
             def check(m):
@@ -651,7 +601,7 @@ class Money(commands.Cog):
                         item_obj = obj
                         break
                 if item_obj is None:
-                    await ctx.send(f"❌ Could not find the item **{item_name}** in your inventory.")
+                    await ctx.send(f"# ❌ Could not find the item **{item_name}** in your inventory.\n-# Try running `?opencrate` to get more items!")
                     return
                 inventory[user_id].remove(item_obj)
                 # Add item to receiver
@@ -660,14 +610,14 @@ class Money(commands.Cog):
                 inventory[target_id].append(item_obj)
                 utils.save_inventory(inventory)
                 await ctx.send(
-                    f"✅ Trade complete! {ctx.author.mention} sent **{item_name}** to {member.mention}."
+                    f"# ✅ Trade complete!\n{ctx.author.mention} sent **{item_name}** to {member.mention}."
                 )
             except asyncio.TimeoutError:
-                await ctx.send("❌ Trade cancelled (no response).")
+                await ctx.send("# ❌ Trade cancelled.\nNo response..\n-# Maybe try again??")
             return
 
         else:
-            await ctx.send("❌ Invalid trade type. Use `coins`, `gems`, or `item`.")
+            await ctx.send("# ❌ Invalid trade type.\nUse `coins`, `gems`, or `item`.")
 
 
 async def setup(bot):

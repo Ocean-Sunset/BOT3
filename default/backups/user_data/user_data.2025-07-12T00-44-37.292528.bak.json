@@ -1,0 +1,43 @@
+{
+    "xp": 10,
+    "level": 1,
+    "coins": 100,
+    "warnings": [],
+    "censored_count": 1,
+    "strikes": 0,
+    "gems": 0,
+    "balance": 0,
+    "917515232065228890": {
+        "xp": 70,
+        "level": 2,
+        "coins": 200,
+        "warnings": [],
+        "censored_count": 1,
+        "strikes": 0,
+        "messages": [
+            1752281006.247428
+        ]
+    },
+    "1145132042846212136": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1752280646.3197212
+        ]
+    },
+    "1211010144742154273": {
+        "xp": 40,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1752280680.061267
+        ]
+    }
+}

@@ -2,7 +2,6 @@ import discord
 from discord.ext import tasks, commands
 import os
 from dotenv import load_dotenv
-load_dotenv()
 from EdiscordH import variables, utils 
 import sys
 import difflib

@@ -1,7 +1,7 @@
 total_users=222
 active_users=8
 total_commands=138
-uptime=00h 01m 52s
+uptime=00h 06m 27s
 bot_status=Running
 leaderboard=917515232065228890:101905.0,1294564651090186346:1954,1361096620128604230:1200,1123603598044057711:800,1284296446291607585:700,1354537233016815731:500.0,965030081284145163:500,771197570704998470:500,1391006306554478656:500,920633494164606986:400
 bot_version=2.4
@@ -13,6 +13,6 @@ num_roles=446
 num_emojis=132
 loaded_cogs=["Events", "Fun", "Info", "Moderation", "Money", "Other", "Ownercommands", "Utility", "SuperCommands", "Omega", "insiderCore", "insider"]
 all_commands=["ban", "listlevelroles", "bprofile", "joke", "daily", "program", "unmute", "strike", "addselfrole", "flip", "give", "selfkick", "purge", "bprofile_public", "clearstrikes", "removeselfrole", "roll", "steal", "lockdown", "setwelcome", "profilemusic", "infractions", "selfroles", "balance", "meme", "gems", "unlockdown", "setgoodbye", "insiderdaily", "setlimitations", "iam", "deposit", "backuplog", "color", "insiderlevels", "iamnot", "mute", "withdraw", "upload", "insidergiveaway", "servercustom", "forceinsider", "play", "bank", "insiderrank", "addtag", "insiderrequest", "buygem", "queue", "insiderquest", "rps", "removetag", "insiderremove", "opencrate", "skip", "submitidea", "tags", "inventory", "stop", "insiderbadges", "tag", "trophies", "check_ffmpeg", "insiderpoll", "addachievement", "sell", "download", "reactiontheme", "removeachievement", "adminmsg", "ask", "profile", "exchange_gems", "testembed", "achievements", "trade", "help", "translate", "crashreport", "info", "weather", "earlyfeature", "changelog", "setverifyrole", "insidersecret", "super", "analyse", "disable_variants", "insider", "BServer", "levelcard", "enable_variants", "serverstats", "UBServer", "serverinfo", "verify", "insiderfeedback", "MServer", "poll", "leaderboard", "insiderchangelog", "update", "choose_region", "wheel", "chatreviver-role", "rssfetch", "search_img", "restart", "trivia", "announcement", "ytalert", "shutdown", "createrole", "addrolereaction", "twitchalert", "setprefix", "copychannel", "giverole", "removerolereaction", "setbio", "copy", "removerole", "lookup", "setbg", "copydm", "OLDcolorrole", "setlevelrole", "insiderstatus", "modify_status", "colorrole", "omega", "warn", "removelevelrole", "addbadge", "buylevel", "reset", "reminder", "setlogging"]
-memory_usage_mb=344
+memory_usage_mb=60
 cpu_usage_percent=0.0
 last_restart=2025-07-21 14:23:30

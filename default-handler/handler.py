@@ -8,6 +8,7 @@ import sys
 import difflib
 import asyncio
 import logging
+import argparse
 import random
 TOKEN = os.getenv("TOKEN")
 ERROR_CHANNEL_ID = 1389940334578106470
@@ -267,4 +268,14 @@ async def keep_terminal_alive():
     except Exception as e:
         print(f"[Heartbeat Error] {e}")
 
-bot.run(TOKEN)
+if __name__ == "__main__":
+    print("🚀 Starting the bot...")
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--skip-input", action="store_true", help="Skip input prompts for auto-restart"
+    )
+    args = parser.parse_args()
+    try:
+        bot.run(variables.token)
+    except Exception as e:
+        print(f"❌ Error starting the bot: {e}")

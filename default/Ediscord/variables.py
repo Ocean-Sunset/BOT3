@@ -30,7 +30,7 @@ EASTER_FILE = "data/easter.json"
 TROPHY_FILE = "data/trophies.json"
 BOT_DATA_FILE = "bot_data.txt"
 WEBSITE_COMMANDS_FILE = "website_commands.txt"
-LIMITATIONS_FILE = "f:\\Coding\\Discord\\BOT3\\data\\limitations.json"
+LIMITATIONS_FILE = "data/limitations.json"
 LOGGING_CONFIG_FILE = "data/logging_config.json"
 OPENAI_API_KEY = environ.get("OPEN_API_KEY")
 UNSPLACH_API_KEY = os.environ.get("UNSPLASH_API_KEY")
@@ -43,10 +43,33 @@ DATA_DIR = "../default/data"
 LOG_FILE = "../default/logs/super_command.log"
 PREFIXES_FILE = "data/prefixes.json"
 SERVER_SETTINGS_FILE = "data/server_settings.json"
-BETA_FILE = "data/beta_servers.json"
 SCHEDULED_MSGS_FILE = "data/scheduled_messages.json"
+COLOR_MAP = {
+    "red": 0xFF0000,
+    "orange": 0xFFA500,
+    "yellow": 0xFFFF00,
+    "green": 0x00FF00,
+    "blue": 0x0000FF,
+    "violet": 0x8A2BE2,
+    "white": 0xFFFFFF,
+    "black": 0x000000,
+    "brown": 0x8B4513,
+    "cyan": 0x00FFFF,
+    "magenta": 0xFF00FF,
+    "lightblue": 0xADD8E6,
+    "pink": 0xFFC0CB,
+    "grey": 0x808080,
+}
+
+HEX_REGEX = r"^#?([0-9a-fA-F]{6})$"
+IS_LOCKDOWN = False
+USER_DATA_PATH = "data/user_data.json"
+BACKUP_FOLDER = "backups/user_data/"
+LOG_FILE = "backups/backup_log.txt"
+MAX_BACKUPS = 10
 # --------------------- VARIABLES --------------------
 total_commands = 0
+insider_FILE = "data/insider_servers.json"
 start_time = time.time()
 is_sleeping = False  # Tracks whether the bot is in sleep mode
 custom_status = None  # Tracks the custom status and activity
@@ -158,7 +181,7 @@ valid_commands = [
 message_cooldowns = {}
 afk_users = {}
 welcome_messages = {}
-ffmpeg_path = r"C:\Users\roland\Downloads\ffmpeg-2025-03-31-git-35c091f4b7-full_build\bin\ffmpeg.exe"
+ffmpeg_path = r"C:\Users\bache\Downloads\ffmpeg-2025-07-07-git-d2828ab284-full_build\ffmpeg-2025-07-07-git-d2828ab284-full_build\bin\ffmpeg.exe"
 qa_pipeline = pipeline("text-generation", model="gpt2")
 translator = Translator()
 crate_objects = [

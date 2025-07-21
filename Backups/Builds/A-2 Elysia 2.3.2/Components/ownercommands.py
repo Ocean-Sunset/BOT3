@@ -461,7 +461,7 @@ class Ownercommands(commands.Cog):
 
 
     @commands.command(name="selfkick")
-    @commands.has_permissions(administrator=True)
+    @commands.check(utils.is_owner)
     async def selfkick(self, ctx):
         """Bot leaves the server when this command is used."""
         await ctx.send("👋 Leaving the server!")

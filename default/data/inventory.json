@@ -1,18 +1,18 @@
 {
     "917515232065228890": [
         {
-            "name": "Broken Compass",
-            "rarity": "Common",
-            "value": {
-                "coins": 5
-            }
-        },
-        {
             "name": "ABSOLUTE GIGA CHAD MONSTROSITY",
             "rarity": "**EXCLUSIVE**",
             "value": {
                 "coins": 1000000000000000000,
                 "gems": 1000000000000
+            }
+        },
+        {
+            "name": "Emerald Ring",
+            "rarity": "Uncommon",
+            "value": {
+                "coins": 60
             }
         }
     ],

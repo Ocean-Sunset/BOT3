@@ -37,106 +37,144 @@ class Info(commands.Cog):
         )
 
     @commands.command(name="help")
-    async def smart_help(self, ctx):
+    async def smart_help(self, ctx, *, command: str = None): # Added default None and changed to * for multi-word commands
         """
-        Show a list of all commands grouped by category (cog), paginated with buttons.
+        Show a list of all commands grouped by category (cog), paginated with buttons,
+        or provide detailed help for a specific command.
         """
         prefix = ctx.prefix
 
-        # Group commands by cog
-        categories = {}
-        for command in self.bot.commands:
-            if command.hidden:
-                continue
-            cog = command.cog_name or "Other"
-            categories.setdefault(cog, []).append(command)
+        if command is None:
+            # Group commands by cog
+            categories = {}
+            for cmd in self.bot.commands: # Changed 'command' to 'cmd' to avoid conflict
+                if cmd.hidden:
+                    continue
+                cog = cmd.cog_name or "Other"
+                categories.setdefault(cog, []).append(cmd)
 
-        # Prepare pages (one page per category/cog)
-        pages = []
-        for cog, cmds in categories.items():
-            lines = [f"`{prefix}{cmd.name}`: {cmd.short_doc or 'No description'}" for cmd in cmds]
-            value = ""
-            more = False
-            for line in lines:
-                if len(value) + len(line) + 1 > 1000:
-                    more = True
-                    break
-                value += line + "\n"
-            if more:
-                value += "...and more"
-            embed = discord.Embed(
-                title="📖 Bot Commands",
-                description=f"Use `{prefix}help <command>` for more info.",
-                color=discord.Color.blue(),
-            )
-            embed.add_field(
-                name=cog,
-                value=value or "No commands.",
-                inline=False
-            )
-            pages.append(embed)
+            # Prepare pages (one page per category/cog)
+            pages = []
+            for cog, cmds in categories.items():
+                lines = [f"`{prefix}{c.name}`: {c.short_doc or 'No description'}" for c in cmds] # Changed 'command' to 'c'
+                value = ""
+                more = False
+                for line in lines:
+                    if len(value) + len(line) + 1 > 1000:
+                        more = True
+                        break
+                    value += line + "\n"
+                if more:
+                    value += "...and more"
+                embed = discord.Embed(
+                    title="📖 Bot Commands",
+                    description=f"Use `{prefix}help <command>` for more info.",
+                    color=discord.Color.blue(),
+                )
+                embed.add_field(
+                    name=cog,
+                    value=value or "No commands.",
+                    inline=False
+                )
+                pages.append(embed)
 
-        if not pages:
-            await ctx.send("No commands available.")
-            return
+            if not pages:
+                await ctx.send("No commands available.")
+                return
 
-        class HelpView(View):
-            def __init__(self, pages):
-                super().__init__(timeout=60)
-                self.pages = pages
-                self.index = 0
+            class HelpView(View):
+                def __init__(self, pages):
+                    super().__init__(timeout=60)
+                    self.pages = pages
+                    self.index = 0
 
-            async def update_message(self, interaction):
-                for child in self.children:
-                    if isinstance(child, Button):
-                        child.disabled = False
-                if self.index == 0:
-                    self.children[0].disabled = True  # Previous
-                if self.index == len(self.pages) - 1:
-                    self.children[1].disabled = True  # Next
-                await interaction.response.edit_message(embed=self.pages[self.index], view=self)
+                async def update_message(self, interaction):
+                    for child in self.children:
+                        if isinstance(child, Button):
+                            child.disabled = False
+                    if self.index == 0:
+                        self.children[0].disabled = True  # Previous
+                    if self.index == len(self.pages) - 1:
+                        self.children[1].disabled = True  # Next
+                    await interaction.response.edit_message(embed=self.pages[self.index], view=self)
 
-            @discord.ui.button(label="Previous", style=discord.ButtonStyle.secondary, disabled=True)
-            async def previous(self, interaction: discord.Interaction, button: Button):
-                if self.index > 0:
-                    self.index -= 1
-                    await self.update_message(interaction)
+                @discord.ui.button(label="Previous", style=discord.ButtonStyle.secondary, disabled=True)
+                async def previous(self, interaction: discord.Interaction, button: Button):
+                    if self.index > 0:
+                        self.index -= 1
+                        await self.update_message(interaction)
 
-            @discord.ui.button(label="Next", style=discord.ButtonStyle.secondary)
-            async def next(self, interaction: discord.Interaction, button: Button):
-                if self.index < len(self.pages) - 1:
-                    self.index += 1
-                    await self.update_message(interaction)
+                @discord.ui.button(label="Next", style=discord.ButtonStyle.secondary)
+                async def next(self, interaction: discord.Interaction, button: Button):
+                    if self.index < len(self.pages) - 1:
+                        self.index += 1
+                        await self.update_message(interaction)
 
-        view = HelpView(pages)
-        await ctx.send(embed=pages[0], view=view)
+            view = HelpView(pages)
+            await ctx.send(embed=pages[0], view=view)
+        else:
+            # Handle specific command help
+            target_command = self.bot.get_command(command)
+
+            if target_command:
+                embed = discord.Embed(
+                    title=f"❓ Help for `{prefix}{target_command.name}`",
+                    color=discord.Color.green()
+                )
+                
+                # Use the 'help' attribute first, then 'short_doc'
+                description = target_command.help or target_command.short_doc or "No detailed description available."
+                embed.description = description
+
+                # Add command usage if available (e.g., from signature)
+                if target_command.signature:
+                    embed.add_field(name="Usage", value=f"`{prefix}{target_command.qualified_name} {target_command.signature}`", inline=False)
+                else:
+                    embed.add_field(name="Usage", value=f"`{prefix}{target_command.qualified_name}`", inline=False)
+                
+                # You can add more fields if your commands have aliases, cooldowns, etc.
+                if target_command.aliases:
+                    embed.add_field(name="Aliases", value=", ".join([f"`{alias}`" for alias in target_command.aliases]), inline=False)
+
+                await ctx.send(embed=embed)
+            else:
+                await ctx.send(f"Command `{command}` not found. Use `{prefix}help` to see all commands.")
+
     
     @commands.command()
     async def info(self, ctx):
-        # List of beta program server IDs
-        beta_server_ids = utils.load_beta_servers()
-        if ctx.guild and ctx.guild.id in beta_server_ids:
+        """
+        Provides information about this bot.
+        This command will display details such as the bot's creator,
+        version, and other relevant information.
+        """
+        # List of insider program server IDs
+        insider_server_ids = utils.load_insider_servers()
+        if ctx.guild and ctx.guild.id in insider_server_ids:
             custominfo = textwrap.dedent(f"""\
-                # I am a multifunctional python Discord bot!
-                - Status: Beta Program
-                - Build: Celestra-beta
-                - Version: **{variables.bot_info['version']}**-beta
+                # I am a multifunctional python Discord bot! ❤️
+                - Status: Insider Build
+                - Build: Celestra-insider
+                - Version: **{variables.bot_info['version']}**-insider
                 - Developer: th3_t1sm
 
-                You are using the exclusive Beta Program build of the bot, codenamed Celestra.
-                This version includes upcoming features and experimental changes.
-                Thank you for helping test and improve the bot!
+                You are using the exclusive insider Program build of the bot, **codenamed Celestra.**
+                This version includes **upcoming features** and **experimental changes.**
+
+                # Thank you for helping test and improve the bot!
             """)
         else:
             custominfo = textwrap.dedent(f"""\
-                # I am a multifunctional python Discord bot!
-                - Status: Normal
+                # I am a multifunctional python Discord bot! 🐍
+                - Status: Public Build
                 - Build: Elysia
                 - Version: **{variables.bot_info['version']}**
                 - Developper: th3_t1sm
 
                 I am multifunctional discord bot created by th3_t1sm,
-                This is just a python discord bot made with love.
+                This is just a python discord bot made with love. ❤️
+
+                # Thanks for using our bot!
             """)
         await ctx.send(custominfo)
 
@@ -282,18 +320,9 @@ class Info(commands.Cog):
     # ?serverinfo command
     @commands.command()
     async def serverinfo(self, ctx):
-        server = ctx.guild
-        server_info = (
-             f"Server Name: {server.name}\n"
-            f"Member Count: {server.member_count}\n"
-            f"Created At: {server.created_at.strftime('%Y-%m-%d')}\n"
-        )
-        print(
-            f"Server info command triggered by {ctx.author} in channel {ctx.channel}. State: success."
-        )
-        await ctx.send(server_info)
+        custom = "# ❌ Unavailable.\nThis command is currently unavailable, sorry!"
+        await ctx.send(custom)
     
-
 async def setup(bot):
     print("Loading Info cog...")
     await bot.add_cog(Info(bot))

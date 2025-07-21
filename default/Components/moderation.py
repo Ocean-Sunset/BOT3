@@ -164,7 +164,7 @@ class Moderation(commands.Cog):
 
 
     @commands.command(name="setlimitations")
-    @commands.has_permissions(administrator=True)
+    @utils.admin_or_owner()
     async def setlimitations(self, ctx, level: typing.Optional[str] = None):
         """Set the offensive word filtering level."""
         if not level:

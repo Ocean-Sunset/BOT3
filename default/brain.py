@@ -1,4 +1,6 @@
-# --------------------- IMPORTS ---------------------
+# ---------------------------------------------------------------------------------------------
+# ---------------------------------------- IMPORTS --------------------------------------------
+# ---------------------------------------------------------------------------------------------
 import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
@@ -18,6 +20,23 @@ import time
 import logging
 import json
 
+utils.load_flags()
+
+import json
+
+with open("data/user_data.json", "r", encoding="utf-8") as f:
+    raw = json.load(f)
+
+cleaned = {}
+for k, v in raw.items():
+    if k.isdigit():
+        cleaned[k] = v
+
+with open("data/user_data.json", "w", encoding="utf-8") as f:
+    json.dump(cleaned, f, indent=4)
+
+print("✅ Cleaned user_data.json")
+
 def get_prefix(bot, message):
     if not message.guild:
         return "?"
@@ -33,8 +52,12 @@ def get_prefix(bot, message):
         return "?"
 
 bot = commands.Bot(command_prefix=get_prefix, intents=variables.intents, help_command=None)
-Components = ["events", "fun", "info", "moderation", "money", "others", "ownercommands", "utility", "super", "omega", "beta", "betarequest"]
-# --------------------- ASYNC DEFINITON (important) ---------------------
+Components = ["events", "fun", "info", "moderation", "money", "others", "ownercommands", "utility", "super", "supercommands", "omega", "insider", "insiderrequest"]
+
+# ---------------------------------------------------------------------------------------------
+# ---------------------------------------- ASYNC DEFINITION -----------------------------------
+# ---------------------------------------------------------------------------------------------
+
 # Background task to monitor inactivity
 async def monitor_inactivity():
     global last_activity_time
@@ -50,7 +73,9 @@ async def monitor_inactivity():
             logging.info("No activity detected for 20 minutes. Restarting the bot...")
             # Restart the bot
 
-# --------------------- ON_READY ---------------------
+# ---------------------------------------------------------------------------------------------
+# ---------------------------------------- ON_READY -------------------------------------------
+# ---------------------------------------------------------------------------------------------
 
 @bot.event
 async def on_ready():
@@ -62,8 +87,9 @@ async def on_ready():
         setattr(bot, "monitor_task", asyncio.create_task(monitor_inactivity()))
         print("Monitor activity task has been started.")
 
-# --------------------- IMPORTANT ---------------------
-
+# ---------------------------------------------------------------------------------------------
+# ---------------------------------------- IMPORTANT ------------------------------------------
+# ---------------------------------------------------------------------------------------------
 
 async def load_cogs():
     for cog in Components:
@@ -127,8 +153,12 @@ async def check_server_restrictions(ctx):
             return False
     return True
 
+# ---------------------------------------------------------------------------------------------
+# ---------------------------------------- COMMANDS -------------------------------------------
+# ---------------------------------------------------------------------------------------------
+
 @bot.command(name="setprefix")
-@commands.has_permissions(administrator=True)
+@utils.admin_or_owner()
 async def setprefix(ctx, prefix: str):
     """Set a custom prefix for this server."""
     utils.set_guild_prefix(ctx.guild.id, prefix)
@@ -146,3 +176,10 @@ if __name__ == "__main__":
         bot.run(variables.token)
     except Exception as e:
         print(f"❌ Error starting the bot: {e}")
+
+@bot.command()
+@commands.check(utils.is_owner)
+async def reload_super(ctx):
+    bot.unload_extension("cogs.supercommands")
+    bot.load_extension("cogs.supercommands")
+    await ctx.send("♻️ Reloaded `supercommands.py`.")

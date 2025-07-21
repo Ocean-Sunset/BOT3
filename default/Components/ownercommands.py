@@ -26,7 +26,7 @@ class Ownercommands(commands.Cog):
         for guild in self.bot.guilds:
             if guild.name.lower() == server_name.lower():
                 if guild.id in variables.banned_servers:
-                    await ctx.send(f"❌ Server **{server_name}** is already banned.")
+                    await ctx.send(f"# ❌ Server **{server_name}** is already banned!\nMaybe just maybe.. unban them??")
                     return
                 variables.banned_servers.append(guild.id)
                 utils.save_banned_servers()
@@ -34,7 +34,7 @@ class Ownercommands(commands.Cog):
                     f"# ✅ Server **{server_name}** has been banned.\nThe bot will no longer work there unless the removal of this ban."
                 )
                 return
-        await ctx.send(f"❓ Server **{server_name}** not found.")
+        await ctx.send(f"# ❓ Server **{server_name}** not found.\nYou sure you entered the right name?")
 
     @commands.command(name="UBServer")
     @commands.check(utils.is_owner)
@@ -42,15 +42,15 @@ class Ownercommands(commands.Cog):
         for guild in self.bot.guilds:
             if guild.name.lower() == server_name.lower():
                 if guild.id not in variables.banned_servers:
-                    await ctx.send(f"❌ Server **{server_name}** is not banned.")
+                    await ctx.send(f"# ❌ Server **{server_name}** is not banned!\n{utils.little_text()}")
                     return
                 variables.banned_servers.remove(guild.id)
                 utils.save_banned_servers()
                 await ctx.send(
-                    f"✅ Server **{server_name}** has been unbanned. The bot will now work there."
+                    f"# ✅ Server **{server_name}** has been un-banned.\nThe bot will now work there unless the reapplication of this ban."
                 )
                 return
-        await ctx.send(f"❌ Server **{server_name}** not found.")
+        await ctx.send(f"# ❓ Server **{server_name}** not found.\nYou sure you entered the right name?")
 
     @commands.command(name="MServer")
     @commands.check(utils.is_owner)
@@ -59,7 +59,7 @@ class Ownercommands(commands.Cog):
             server_name, restriction_level = args.split(" / ")
         except ValueError:
             await ctx.send(
-                "❌ Invalid format. Use `?MServer <Server Name> / <Restriction Level>`."
+                "# ❌ Invalid format\nUse `?MServer <Server Name> / <Restriction Level>`."
             )
             return
 
@@ -67,7 +67,7 @@ class Ownercommands(commands.Cog):
 
         if restriction_level not in restriction_levels:
             await ctx.send(
-                f"❌ Invalid restriction level. Choose from: {', '.join(restriction_levels)}."
+                f"# ❌ Invalid restriction level\nChoose from: {', '.join(restriction_levels)}."
             )
             return
 
@@ -76,11 +76,11 @@ class Ownercommands(commands.Cog):
                 variables.server_restrictions[str(guild.id)] = restriction_level
                 utils.save_server_restrictions()
                 await ctx.send(
-                    f"✅ Server **{server_name}** is now set to **{restriction_level}** mode."
+                    f"# # ✅ Server **{server_name}**\nis now set to **{restriction_level}** mode."
                 )
                 return
 
-        await ctx.send(f"❌ Server **{server_name}** not found.")
+        await ctx.send(f"# ❓ Server **{server_name}** not found.\nYou sure you entered the right name?")
 
     @commands.command(name="update")
     @commands.check(utils.is_owner)
@@ -89,34 +89,34 @@ class Ownercommands(commands.Cog):
         Update the bot's version and new features, then restart.
         Usage:
         ?update <version> / <new features>
-        ?update beta <version> / <new features>
+        ?update insider <version> / <new features>
         """
         global current_status
-        is_beta = False
+        is_insider = False
 
-        # Check for beta flag
-        if args.lower().startswith("beta "):
-            is_beta = True
+        # Check for insider flag
+        if args.lower().startswith("insider "):
+            is_insider = True
             args = args[5:].strip()
 
         try:
             version, new_stuff = args.split(" / ")
         except ValueError:
             await ctx.send(
-                "❌ Invalid format. Use `?update <version> / <new features>` or `?update beta <version> / <new features>`."
+                "# ❌ Invalid format.\nUse `?update <version> / <new features>` or `?update insider <version> / <new features>`."
             )
             return
 
-        if is_beta:
-            # Update only beta info (you may want to store this separately)
-            variables.bot_info["beta_version"] = version
-            variables.bot_info["beta_new_stuff"] = new_stuff
+        if is_insider:
+            # Update only insider info (you may want to store this separately)
+            variables.bot_info["insider_version"] = version
+            variables.bot_info["insider_new_stuff"] = new_stuff
             utils.save_bot_info()
             await ctx.send(
-                f"✅ Beta updated to version **{version}** with new features: **{new_stuff}**."
+                f"# ✅ insider updated to version **{version}**\nwith new features: **{new_stuff}**."
             )
-            await ctx.send("🔄 Restarting the bot for beta testers only...")
-            utils.signal_update(f"beta|New version: {version}\nNew stuff: {new_stuff}")
+            await ctx.send("** ---  🔄 Restarting the bot for insider testers only...  ---**")
+            utils.signal_update(f"insider|New version: {version}\nNew stuff: {new_stuff}")
         else:
             # Update the main info
             variables.bot_info["version"] = version
@@ -127,9 +127,9 @@ class Ownercommands(commands.Cog):
                 status=discord.Status.dnd, activity=current_status
             )
             await ctx.send(
-                f"✅ Bot updated to version **{version}** with new features: **{new_stuff}**."
+                f"# ✅ Bot updated to version **{version}**\nwith new features: **{new_stuff}**."
             )
-            await ctx.send("🔄 Restarting the bot...")
+            await ctx.send("** ---  🔄 Restarting the bot...  ---**")
             utils.signal_update(f"main|New version: {version}\nNew stuff: {new_stuff}")
 
         # Restart the bot
@@ -144,128 +144,43 @@ class Ownercommands(commands.Cog):
         current_status = discord.Game("Restarting...")
         await self.bot.change_presence(status=discord.Status.dnd, activity=current_status)
 
-        await ctx.send("🔄 Restarting the bot...")
+        await ctx.send("# ** ---  🔄 Restarting the bot...  ---**")
         await self.bot.close()
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
-    
     @commands.command(name="shutdown")
     @commands.check(utils.is_owner)
     async def shutdown(self, ctx):
-        """Put the bot into sleep mode."""
-        global is_sleeping
-        is_sleeping = True  # Enable sleep mode
-
-        # Set the bot's status to "Offline" and idle
-        await self.bot.change_presence(
-            status=discord.Status.idle, activity=discord.Game("[🔌⚠️] : Offline")
-        )
-        await ctx.send("🔌 The bot is now in sleep mode. Use `?start` to wake it up.")
-
-
-    @commands.command(name="start")
-    @commands.check(utils.is_owner)
-    async def start(self, ctx):
-        """Wake the bot up from sleep mode."""
-        global is_sleeping
-        if not is_sleeping:
-            await ctx.send("✅ The bot is already active.")
-            return
-
-        is_sleeping = False  # Disable sleep mode
-
-        # Restore the bot's normal status
-        await self.bot.change_presence(
-            status=discord.Status.online, activity=discord.Game("with Python 🐍")
-        )
-        await ctx.send("✅ The bot is now active and ready to use!")
-
-
-    @commands.command(name="kys")
-    @commands.check(utils.is_owner)
-    async def kys(self, ctx):
-        """commit die the bot."""
-        await ctx.send("Commiting die...")
+        """Shutdown the bot entirely."""
+        await ctx.send("# Goobye!\nThe bot will now shut down.\n-# I hope i get restarted soon :(...")
         await self.bot.close()
-    
-
-    @commands.command()
-    @commands.check(utils.is_owner)
-    async def givexp(self, ctx, member: discord.Member, xp: int):
-        user_id = str(member.id)
-        if user_id not in variables.user_data:
-            variables.user_data[user_id] = {"xp": 0, "level": 1}
-
-        variables.user_data[user_id]["xp"] += xp
-        await ctx.send(f"✅ Gave {xp} XP to {member.mention}.")
-        utils.save_user_data(variables.user_data)
-
-
-
-    @commands.command()
-    @commands.check(utils.is_owner)
-    async def gainlvl(self, ctx, member: discord.Member):
-        user_id = str(member.id)
-        if user_id not in variables.user_data:
-            variables.user_data[user_id] = {"xp": 0, "level": 1}
-
-        variables.user_data[user_id]["level"] += 1
-        await ctx.send(f"✅ {member.mention} has gained a level.")
-        utils.save_user_data(variables.user_data)
-
-
 
     @commands.command()
     @commands.check(utils.is_owner)
     async def copychannel(self, ctx, channel: discord.TextChannel, *, text: str):
         try:
             await channel.send(f"{text}")
-            await ctx.send(f"✅ Sent the message to {channel.mention}.")
+            await ctx.send(f"# ✅ Sent the message to {channel.mention}.\n-# Sent the following message to {channel.mention}: {text}")
         except discord.Forbidden:
-            await ctx.send(f"❌ I cannot send messages to {channel.mention}.")
+            await ctx.send(f"# ❌ I cannot send messages to {channel.mention}.\nMaybe it's a role issue?")
         except Exception as e:
-            await ctx.send(f"❌ An error occurred: {e}")
+            await ctx.send(f"# ❌ An error occurred: {e}\n{utils.little_text()}")
     
-
     @commands.command()
     @commands.check(utils.is_owner)
     async def copy(self, ctx, *, text: str):
         await ctx.send(text)
-
 
     @commands.command()
     @commands.check(utils.is_owner)
     async def copydm(self, ctx, member: discord.Member, *, text: str):
         try:
             await member.send(text)
-            await ctx.send(f"✅ Sent the message to {member.mention}'s DMs.")
+            await ctx.send(f"✅ Sent the message to {member.mention}'s DMs.\n-# Sent the following message to {member}'s DMs: {text}")
         except discord.Forbidden:
-            await ctx.send(f"❌ I cannot send DMs to {member.mention}. They might have DMs disabled.")
+            await ctx.send(f"# ❌ I cannot send DMs to {member.mention}.\nThey may have their DMs disabled.")
         except Exception as e:
-            await ctx.send(f"❌ An error occurred: {e}")
-
-
-    @commands.command(name="button")
-    @commands.check(utils.is_owner)
-    async def button(self, ctx):
-        """Send a message with a button."""
-        # Create a button
-        button = Button(label="Click Me!", style=discord.ButtonStyle.green)
-
-        # Define what happens when the button is clicked
-        async def button_callback(interaction):
-            await interaction.response.send_message(
-                f"🎉 {interaction.user.mention} clicked the button!", ephemeral=True
-            )
-
-        button.callback = button_callback
-
-        # Create a view and add the button to it
-        view = View()
-        view.add_item(button)
-
-        # Send the message with the button
-        await ctx.send("Here is a button for you:", view=view)
+            await ctx.send(f"# ❌ An error occurred: {e}\n{utils.little_text()}")
 
     @commands.command(name="modify_status")
     @commands.check(utils.is_owner)
@@ -278,7 +193,7 @@ class Ownercommands(commands.Cog):
             # Reset to default rotating statuses
             custom_status = None
             await ctx.send(
-                "✅ The bot's status has been reset to its default rotating behavior."
+                f"# ✅ The bot's status has been reset to its default rotating behavior.\n{utils.little_text()}"
             )
             return
 
@@ -286,13 +201,13 @@ class Ownercommands(commands.Cog):
         valid_status_types = ["playing", "watching", "listening", "streaming"]
         if status_type.lower() not in valid_status_types:
             await ctx.send(
-                f"❌ Invalid status type. Choose from: {', '.join(valid_status_types)}."
+                f"# ❌ Invalid status type.\nChoose from: {', '.join(valid_status_types)}."
             )
             return
 
         # Set the custom status
         if activity is None:
-            await ctx.send("❌ Please provide an activity name for the status.")
+            await ctx.send("# ❌ Please provide an activity name for the status.\nSomething like: 'Gaming is fun!'")
             return
 
         if status_type.lower() == "playing":
@@ -312,7 +227,7 @@ class Ownercommands(commands.Cog):
 
         await self.bot.change_presence(status=discord.Status.online, activity=custom_status)
         await ctx.send(
-            f"✅ The bot's status has been updated to **{status_type.capitalize()} {activity}**."
+            f"# ✅ The bot's status has been updated!\nHere's the new status: **{status_type.capitalize()} {activity}**."
         )
 
 
@@ -322,7 +237,7 @@ class Ownercommands(commands.Cog):
         """Reset all data and delete all songs with triple confirmation."""
         # First confirmation
         await ctx.send(
-            "⚠️ **Do you wish to proceed?** This will delete ALL data and songs. Type `yes` to proceed or `no` to cancel."
+            "# ⚠️ **Do you wish to proceed?**\nThis will delete ALL data and songs.\n\nType `yes` to proceed or `no` to cancel."
         )
 
         def check(m):
@@ -335,51 +250,59 @@ class Ownercommands(commands.Cog):
         try:
             response = await self.bot.wait_for("message", check=check, timeout=30.0)
             if response.content.lower() == "no":
-                await ctx.send("❌ Reset canceled.")
+                await ctx.send("# ❌ Reset canceled.")
                 return
         except asyncio.TimeoutError:
-            await ctx.send("⏰ You took too long to respond. Reset canceled.")
+            await ctx.send("# ⏰ You took too long to respond.\nReset canceled.")
             return
 
         # Second confirmation
         await ctx.send(
-            "⚠️ **Are you ABSOLUTELY sure?** This will delete EVERYTHING. Type `yes` to proceed or `no` to cancel."
+            "# ⚠️ **Are you ABSOLUTELY sure?**\nThis will delete EVERYTHING.\n\nType `yes` to proceed or `no` to cancel."
         )
 
         try:
             response = await self.bot.wait_for("message", check=check, timeout=30.0)
             if response.content.lower() == "no":
-                await ctx.send("❌ Reset canceled.")
+                await ctx.send("# ❌ Reset canceled.")
                 return
         except asyncio.TimeoutError:
-            await ctx.send("⏰ You took too long to respond. Reset canceled.")
+            await ctx.send("# ⏰ You took too long to respond.\nReset canceled.")
             return
 
         # Final confirmation
         await ctx.send(
-            "⚠️ **ARE YOU SURE?** This is your FINAL WARNING. Type `yes` to proceed or `no` to cancel."
+            "# ⚠️ **ARE YOU SURE???**\nThis is your **FINAL WARNING**.\n\nType `yes` to proceed or `no` to cancel."
         )
 
         try:
             response = await self.bot.wait_for("message", check=check, timeout=30.0)
             if response.content.lower() == "no":
-                await ctx.send("❌ Reset canceled.")
+                await ctx.send("# ❌ Reset canceled.")
                 return
         except asyncio.TimeoutError:
-            await ctx.send("⏰ You took too long to respond. Reset canceled.")
+            await ctx.send("# ⏰ You took too long to respond.\nReset canceled.")
             return
 
         # Perform the reset
         try:
             # Delete all JSON files
             data_files = [
-                "data/user_data.json",
-                "data/easter.json",
-                "data/trophies.json",
-                "data/warnings.json",
+                "data/achievements.json",
+                "data/akari_points.json",
                 "data/bank.json",
-                "data/server_restrictions.json",
-                "data/banned_servers.json",
+                "data/insider_servers.json",
+                "data/bot_info.json",
+                "data/inventory.json",
+                "data/limitations.json",
+                "data/logging_config.json",
+                "data/prefixes.json"
+                "data/scheduled_messages.json",
+                "data/server_settings.json",
+                "data/user_badges.json",
+                "data/user_bgs.json",
+                "data/user_bios.json",
+                "data/user_data.json"
             ]
             for file in data_files:
                 if os.path.exists(file):
@@ -387,27 +310,54 @@ class Ownercommands(commands.Cog):
                     await ctx.send(f"🗑️ Deleted `{file}`.")
 
             # Delete all songs in the music folder
-            music_folder = "music"
-            if os.path.exists(music_folder):
-                for file in os.listdir(music_folder):
-                    file_path = os.path.join(music_folder, file)
+            folder = "music"
+            if os.path.exists(folder):
+                for file in os.listdir(folder):
+                    file_path = os.path.join(folder, file)
                     if os.path.isfile(file_path):
                         os.remove(file_path)
                 await ctx.send("🗑️ Deleted all songs in the `music` folder.")
+            
+            # Delete all songs in the backups folder
+            folder = "backups"
+            if os.path.exists(folder):
+                for file in os.listdir(folder):
+                    file_path = os.path.join(folder, file)
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                await ctx.send("🗑️ Deleted all backups in the `backups` folder.")
+            
+            # Delete all songs in the backups folder
+            folder = "assets"
+            if os.path.exists(folder):
+                for file in os.listdir(folder):
+                    file_path = os.path.join(folder, file)
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                await ctx.send("🗑️ Deleted all assets in the `assets` folder.")
 
-            await ctx.send("✅ **Reset complete. All data and songs have been deleted.**")
+            # Delete all songs in the backups folder
+            folder = "Ediscord"
+            if os.path.exists(folder):
+                for file in os.listdir(folder):
+                    file_path = os.path.join(folder, file)
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                await ctx.send("🗑️ Deleted the module `Ediscord` folder.")
+
+            await ctx.send("# ✅ **Reset complete.\nEverything has been deleted.\n-# Goodbye.**")
 
             # Restart the bot
             os.execv(sys.executable, [sys.executable] + sys.argv)
         except Exception as e:
-            await ctx.send(f"❌ An error occurred during the reset: {e}")
+            await ctx.send(f"# ❌ An error occurred during the reset:\n{e}")
 
     @commands.command(name="setlogging")
-    @commands.has_permissions(administrator=True)
+    @commands.check(utils.is_owner)
     async def setlogging(self, ctx, action: typing.Optional[str] = None):
         """Enable or disable logging for the server."""
         if action not in ["enable", "disable"]:
-            await ctx.send("❓ **Usage:** `?setlogging <enable|disable>`")
+            await ctx.send("# ❓ **Usage:**\n`?setlogging <enable|disable>`")
             return
 
         guild_id = str(ctx.guild.id)
@@ -416,11 +366,11 @@ class Ownercommands(commands.Cog):
         if action == "enable":
             logging_config[guild_id] = True
             utils.save_logging_config(logging_config)
-            await ctx.send("✅ Logging has been **enabled** for this server.")
+            await ctx.send("# ✅ Logging has been **enabled** for this server.")
         elif action == "disable":
             logging_config[guild_id] = False
             utils.save_logging_config(logging_config)
-            await ctx.send("✅ Logging has been **disabled** for this server.")
+            await ctx.send("# ✅ Logging has been **disabled** for this server.")
 
     @commands.command(name="program")
     @commands.check(utils.is_owner)
@@ -438,12 +388,12 @@ class Ownercommands(commands.Cog):
         Usage: ?program update :dd:hh:mm:ss "changelog here"
         """
         if action.lower() != "update":
-            await ctx.send("❌ Only the 'update' action is supported for now.")
+            await ctx.send("# ❌ Only the 'update' action is supported for now.\n-# Sorry..")
             return
 
         # Parse the time string :dd:hh:mm:ss
         if not time_str or not time_str.startswith(":"):
-            await ctx.send("❌ Please provide a time in the format `:dd:hh:mm:ss`.")
+            await ctx.send("# ❌ Please provide a time.\nwith the following format: `:dd:hh:mm:ss`.")
             return
 
         try:
@@ -451,20 +401,20 @@ class Ownercommands(commands.Cog):
             delay_seconds = int(dd) * 86400 + int(hh) * 3600 + int(mm) * 60 + int(ss)
         except Exception:
             await ctx.send(
-                "❌ Invalid time format. Use `:dd:hh:mm:ss` (e.g., `:00:01:30:00` for 1 hour 30 minutes)."
+                "# ❌ Incompatiple time format.\nUse `:dd:hh:mm:ss` (e.g., `:00:01:30:00` for 1 hour 30 minutes)."
             )
             return
         if not version:
-            await ctx.send("❌ Please provide a number or something for the version")
+            await ctx.send("# ❌ Please provide a number or something for the version")
             return
 
         if not changelog:
-            await ctx.send("❌ Please provide a changelog in quotes.")
+            await ctx.send("# ❌ Please provide a changelog in quotes.")
             return
 
         # Confirm scheduling
         await ctx.send(
-            f"🕒 Scheduled a bot update in {dd}d {hh}h {mm}m {ss}s.\nChangelog: {changelog}"
+            f"# 🕒 Scheduled a bot update in {dd}d {hh}h {mm}m {ss}s.\nChangelog: {changelog}"
         )
 
         async def scheduled_update():
@@ -473,18 +423,47 @@ class Ownercommands(commands.Cog):
             variables.bot_info["new_stuff"] = changelog
             variables.bot_info["version"] = version
             utils.save_bot_info()
-            await ctx.send(f"🔄 Performing scheduled update!\n**Changelog:** {changelog}")
+            await ctx.send(f"# 🔄 Performing scheduled update!\n**Changelog:** {changelog}")
             os.execv(sys.executable, [sys.executable] + sys.argv)
 
         self.bot.loop.create_task(scheduled_update())
 
 
     @commands.command(name="selfkick")
-    @commands.has_permissions(administrator=True)
+    @commands.check(utils.is_owner)
     async def selfkick(self, ctx):
         """Bot leaves the server when this command is used."""
-        await ctx.send("👋 Leaving the server!")
+        await ctx.send("# 👋 Leaving the server!\nSeems like my owner didn't like your server or something.")
         await ctx.guild.leave()
+    
+    @commands.command(name="lockdown")
+    @commands.is_owner()
+    async def lockdown(self, ctx):
+        variables.IS_LOCKDOWN = True
+        utils.save_flags()
+        await ctx.send("# 🔒 Lockdown enabled: JSON writing and XP are now disabled.")
+
+    @commands.command(name="unlockdown")
+    @commands.is_owner()
+    async def unlockdown(self, ctx):
+        variables.IS_LOCKDOWN = False
+        utils.save_flags()
+        await ctx.send("# 🔓 Lockdown disabled: Normal operations resumed.")
+    
+    @commands.command(name="backuplog")
+    @commands.is_owner()
+    async def backuplog(self, ctx, lines: int = 10):
+        path = "backups/backup_log.txt"
+        if not os.path.exists(path):
+            await ctx.send("⚠️ No backup log found.")
+            return
+
+        with open(path, "r") as f:
+            entries = f.readlines()
+
+        last_lines = entries[-lines:]
+        content = "```\n" + "".join(last_lines) + "\n```"
+        await ctx.send(f"# 📋 Last {lines} backups:\n{content}")
 
 async def setup(bot):
     await bot.add_cog(Ownercommands(bot))

@@ -34,8 +34,6 @@ lil_text = [
      "null",
      "boblox sucks :(",
      "ur addictied to discorde",
-     "is mi gramar gud?",
-     "Your grammar is more than not acceptable.",
      "lalalalalalalala",
      "did u know? this is an announcement",
      "THIS IS AN ALERT, MY KFC IS CLOSING TONIGHT :((((("
@@ -44,7 +42,7 @@ lil_text = [
 
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 @bot.event
 async def on_ready():
@@ -125,53 +123,30 @@ async def start(ctx):
 
 @bot.command(name="announcement")
 @commands.check(utils.is_owner)
-async def announcement(ctx, channel_name: str = None, *, message: str):
+async def announcement(ctx, *, message: str = None):
     """
-    Send an announcement to all servers' announcement channels.
-    If a specific channel name is provided, send the message to that channel instead.
+    Send an announcement to all known announcement channels by ID.
     """
-    # To get a random text:
-    random_text = random.choice(lil_text)
     if not message:
         await ctx.send("❌ You must provide a message to send.")
         return
 
-    # Iterate through all servers the bot is in
-    for guild in bot.guilds:
+    random_text = random.choice(lil_text)  # Or little_text() if you're using a function
+
+    for channel_id in ANNOUNCEMENT_CHANNEL_IDS:
         try:
-            # If a specific channel name is provided
-            if channel_name:
-                target_channel = discord.utils.find(
-                    lambda c: channel_name.lower() in c.name.lower() and isinstance(c, discord.TextChannel),
-                    guild.channels
-                )
+            channel = bot.get_channel(channel_id)
+            if channel and isinstance(channel, discord.TextChannel):
+                await channel.send(f"# 📢 Announcement:\n{message}\n-# {random_text}")
+                logging.info(f"✅ Announcement sent to {channel.name} in {channel.guild.name}")
             else:
-                # Default to an announcements channel
-                target_channel = ANNOUNCEMENT_CHANNEL_IDS
-
-            if target_channel:
-                # Send the message to the target channel
-                await target_channel.send(f"# 📢 Announcement:\n{message}\n-# {random_text}")
-                logging.info(f"Announcement sent to {target_channel.name} in {guild.name}.")
-            else:
-                logging.warning(f"No suitable channel found in {guild.name}.")
-                # Optionally notify the server owner if no suitable channel is found
-                owner = guild.owner
-                if owner:
-                    await owner.send(
-                        f"❌ Could not find a suitable channel in your server **{guild.name}** "
-                        f"to send the announcement. Please ensure an announcements channel exists."
-                    )
-        except discord.Forbidden:
-            logging.warning(f"Permission denied to send message in {guild.name}.")
+                logging.warning(f"⚠️ Channel ID {channel_id} is invalid or not found.")
         except Exception as e:
-            logging.error(f"Error sending announcement in {guild.name}: {e}")
-
-    await ctx.send("✅ Announcement sent to all servers.")
+            logging.error(f"❌ Error sending to channel {channel_id}: {e}")
 
 @bot.command(name="kys")
 @commands.check(utils.is_owner)
-async def kys(self, ctx):
+async def kys(ctx):
         """commit die the bot."""
         await ctx.send("Commiting die...")
         await bot.close()
@@ -254,13 +229,13 @@ async def check_signals():
     if os.path.exists(UPDATE_FILE):
         with open(UPDATE_FILE, "r", encoding="utf-8") as f:
             update_details = f.read()
-        # Check if this is a beta-only update
-        if update_details.startswith("beta|"):
-            update_details = update_details[len("beta|"):]
-            # Dynamically get beta server IDs
-            beta_server_ids = utils.load_beta_servers()  # This should return a list of server IDs
+        # Check if this is a insider-only update
+        if update_details.startswith("insider|"):
+            update_details = update_details[len("insider|"):]
+            # Dynamically get insider server IDs
+            insider_server_ids = utils.load_insider_servers()  # This should return a list of server IDs
             for guild in bot.guilds:
-                if guild.id in beta_server_ids:
+                if guild.id in insider_server_ids:
                     # Try to find an announcement-like channel
                     announcement_channel = ANNOUNCEMENT_CHANNEL_IDS
                     # Fallback: use the first text channel
@@ -268,9 +243,9 @@ async def check_signals():
                         announcement_channel = guild.text_channels[0]
                     if announcement_channel:
                         try:
-                            await announcement_channel.send(f"# 📢 **BETA Update Announcement:**\n{update_details}")
+                            await announcement_channel.send(f"# 📢 **insider Update Announcement:**\n{update_details}")
                         except Exception as e:
-                            print(f"Failed to send beta update to channel {announcement_channel.id}: {e}")
+                            print(f"Failed to send insider update to channel {announcement_channel.id}: {e}")
         else:
             # Main update, send to all announcement channels
             channel = bot.get_channel(UPDATE_CHANNEL_ID)
@@ -285,10 +260,10 @@ async def check_signals():
                         print(f"Failed to send update to channel {channel_id}: {e}")
         os.remove(UPDATE_FILE)
 
-@tasks.loop(minutes=2)
+@tasks.loop(minutes=1)
 async def keep_terminal_alive():
     try:
-        print("💓 Heartbeat: handler still running...")
+        print("Heartbeat: handler still running...")
     except Exception as e:
         print(f"[Heartbeat Error] {e}")
 

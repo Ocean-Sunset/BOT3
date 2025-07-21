@@ -14,69 +14,15 @@ print("✅ - Others loaded.")
 class Other(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-
-    @commands.command(name="zen")
-    async def zen(self, ctx, member: typing.Optional[discord.Member] = None, time: typing.Optional[str] = None):
-        """Put a user in Zen mode (timeout) for a specified duration."""
-        if member is None:
-            member = ctx.author  # If no member is mentioned, use the command author
-        if member is None:
-            await ctx.send("❌ Could not find the specified member.")
-            return
-        if time is None:
-            await ctx.send("❌ Please provide a time in the format `hh:mm:ss`.")
-            return
-
-        # Parse the time string into hours, minutes, and seconds
-        try:
-            hours, minutes, seconds = map(int, time.split(":"))
-            total_seconds = hours * 3600 + minutes * 60 + seconds
-        except ValueError:
-            await ctx.send("❌ Invalid time format. Use `hh:mm:ss`.")
-            return
-
-        # Check if the bot has permission to timeout members
-        if not ctx.guild.me.guild_permissions.moderate_members:
-            await ctx.send("❌ I do not have permission to timeout members.")
-            return
-
-        # Apply the timeout
-        try:
-            # Use the `timedelta` to calculate the timeout duration
-            timeout_until = discord.utils.utcnow() + timedelta(seconds=total_seconds)
-            await member.edit(
-                timed_out_until=timeout_until
-            )  # Correct method to apply timeout
-            await ctx.send(f"✅ {member.mention} has been put in Zen mode for {time}.")
-        except discord.Forbidden:
-            await ctx.send("❌ I do not have permission to timeout this member.")
-        except Exception as e:
-            await ctx.send(f"❌ An error occurred: {e}")
-
-    @commands.command(name="unzen")
-    @commands.has_permissions(administrator=True)
-    async def unzen(self, ctx, member: discord.Member):
-        """Remove Zen mode (timeout) from a user."""
-        if member == None:
-            await ctx.send("❌ You didn't input an user!")
-            return
-        try:
-            await member.edit(timed_out_until=None)  # Remove the timeout
-            await ctx.send(f"✅ {member.mention} has been removed from Zen mode.")
-        except discord.Forbidden:
-            await ctx.send("❌ I do not have permission to remove the timeout.")
-        except Exception as e:
-            await ctx.send(f"❌ An error occurred: {e}")
- 
     # ?poll command
     @commands.command(name="poll")
     async def poll(self, ctx, question: str, *options):
         """Create a poll with a time limit."""
         if len(options) < 2:
-            await ctx.send("❌ You need at least two options to create a poll.")
+            await ctx.send("# ❌ You need at least two options to create a poll.\n-# There can be a minimum of 2 and a maximum of 10!")
             return
         if options == None:
-            await ctx.send("❌ You need to have questions!")
+            await ctx.send("# ❌ You need to have questions!\n")
             return
 
         embed = discord.Embed(title=question, description="React to vote!")
@@ -96,34 +42,13 @@ class Other(commands.Cog):
             reaction.emoji: reaction.count - 1 for reaction in poll_message.reactions
         }
         winner = max(results, key=lambda k: results[k])
-        await ctx.send(f"🏆 The winning option is: {winner}")
-        
-    # ?chat command (ChatGPT integration)
-    @commands.command()
-    async def chat(self, ctx, *, message):
-        if message == None:
-            await ctx.send("❌ You need to have a message!")
-            return
-        try:
-            response = openai.chat.completions.create(
-                model="gpt-3.5-turbo", messages=[{"role": "user", "content": message}]
-            )
-            reply = response.choices[0].message.content
-            print(
-                f"chat command triggered by {ctx.author} in channel {ctx.channel}. State: success."
-            )
-            await ctx.send(reply)
-        except Exception as e:
-            print(
-                f"chat command triggered by {ctx.author} in channel {ctx.channel}. State: failed. Reason: {e}"
-            )
-            await ctx.send(f"Error: {e}")
+        await ctx.send(f"# 🏆 The winning option is: {winner}\nThanks for participating!!")
     
     @commands.command(name="wheel")
     async def wheel(self, ctx, *, names: str):
         print(names)
         if names == None:
-            await ctx.send("❌ You didn't put any options")
+            await ctx.send("# ❌ You didn't put any options!\nThere's a minimum of 2 choices!")
             return
         """Spin a wheel of names and pick one randomly."""
         # Split the input into a list of names
@@ -132,7 +57,7 @@ class Other(commands.Cog):
         # Check if there are at least two names
         if len(name_list) < 2:
             await ctx.send(
-                "❌ You need at least two names to spin the wheel. Use the format: `?wheel name1 / name2 / name3`."
+                "# ❌ You need at least two names to spin the wheel!\nUse the format: `?wheel name1 / name2 / name3`."
             )
             return
 
@@ -142,18 +67,7 @@ class Other(commands.Cog):
 
         # Pick a random name
         chosen_name = random.choice(name_list)
-        await ctx.send(f"🎉 The wheel has chosen: **{chosen_name}**!")
-        
-    @commands.command(name="eggs")
-    async def eggs(self, ctx, member: typing.Optional[discord.Member] = None):
-        if member == None:
-            await ctx.send("❌ You have to input a member!")
-            return
-        """Check how many eggs a user has collected."""
-        member = member or ctx.author
-        user_id = str(member.id)
-        eggs_collected = variables.easter_data.get(user_id, {}).get("eggs", 0)
-        await ctx.send(f"🥚 {member.mention} has collected **{eggs_collected} eggs**!")
+        await ctx.send(f"# 🎉 The wheel has chosen: **{chosen_name}**!\nI wonder if that's good or bad.. :3")
 
     @commands.command(name="trivia")
     async def trivia(self, ctx):
@@ -281,8 +195,6 @@ class Other(commands.Cog):
             "What is the capital of Bermuda?": "Hamilton",
             "What is the main ingredient in shortbread?": "Butter",
             "What is the capital of the Bahamas?": "Nassau",
-            
-
         }
         question, answer = random.choice(list(questions.items()))
         await ctx.send(f"❓ {question}")
@@ -296,11 +208,11 @@ class Other(commands.Cog):
                 reward = random.randrange(0, 1000)
                 user_id = str(ctx.author.id)
                 utils.update_coins(user_id, reward)
-                await ctx.send(f"✅ Correct! You earned {reward} coins.")
+                await ctx.send(f"# ✅ Correct!\nYou earned {reward} coins.")
             else:
-                await ctx.send(f"❌ Wrong! The correct answer was **{answer}**.")
+                await ctx.send(f"# ❌ Wrong!\nThe correct answer was **{answer}**.")
         except asyncio.TimeoutError:
-            await ctx.send("⏰ Time's up! You didn't answer in time.")
+            await ctx.send("# ⏰ Time's up!\nYou didn't answer in time...")
 
 async def setup(bot):
     await bot.add_cog(Other(bot))

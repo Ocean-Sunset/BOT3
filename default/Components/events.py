@@ -21,6 +21,10 @@ from io import BytesIO
 import difflib
 import asyncio
 import random
+import os
+
+# Import the new AssetManager cog
+from Components.assets import AssetManager
 
 
 # --------------------- EVENTS --------------------
@@ -28,6 +32,9 @@ print("✅ - Events loaded.")
 class Events(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        # Store a reference to the AssetManager cog once it's loaded
+        self.assets = None 
+        logging.info("Events cog initialized.")
 
     async def is_spam(self, message):
         # Simple spam check: repeated messages or too many messages in a short time
@@ -609,11 +616,14 @@ class Events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        """Event triggered when a user joins the server with a custom cat-themed welcome image."""
+        """Event triggered when a user joins the server with a custom welcome image."""
         try:
             logging.info(
                 f"New member joined: {member.name}#{member.discriminator} (ID: {member.id})"
             )
+
+            data = utils.load_server_settings()
+            guild_settings = data.get(str(member.guild.id), {})
 
             welcome_channel = discord.utils.find(
                 lambda c: c.name.lower() in ["welcome", "chat", "general"], member.guild.text_channels
@@ -624,6 +634,20 @@ class Events(commands.Cog):
                 )
                 return
 
+            guild_asset_path = self.assets._get_guild_asset_path(member.guild.id)
+            background_path = os.path.join(guild_asset_path, "background.jpg")
+
+            try:
+                background = Image.open(background_path).convert("RGBA")
+            except FileNotFoundError:
+                logging.error(
+                    f"Background image not found at {background_path}. Please ensure the file exists."
+                )
+                await welcome_channel.send(
+                    "❌ Background image for the welcome card is missing. Please ensure it's in your server's asset folder."
+                )
+                return
+
             avatar_url = member.avatar.url if member.avatar else member.default_avatar.url
             response = requests.get(avatar_url)
             if response.status_code != 200:
@@ -633,67 +657,61 @@ class Events(commands.Cog):
                 return
             avatar = Image.open(BytesIO(response.content)).convert("RGBA").resize((120, 120))
 
-            # Create a circular mask for the avatar
             mask = Image.new("L", (120, 120), 0)
             draw_mask = ImageDraw.Draw(mask)
             draw_mask.ellipse((0, 0, 120, 120), fill=255)
             avatar_rounded = Image.new("RGBA", (120, 120))
             avatar_rounded.paste(avatar, (0, 0), mask=mask)
 
-            # Background (simple gray, or use your own image)
             base = Image.new("RGBA", (500, 180), (140, 140, 140, 255))
+            base.paste(background, (0, 0), background)
 
-            # Optionally, paste your cat drawing here
-            # cat_img = Image.open("assets/welcome/cat.png").convert("RGBA").resize((350, 120))
-            # base.paste(cat_img, (150, 30), cat_img)
-
-            # Paste avatar
             base.paste(avatar_rounded, (20, 30), avatar_rounded)
 
-            # Draw text
             draw = ImageDraw.Draw(base)
             font_large = ImageFont.truetype("assets/impact.ttf", 28)
             font_small = ImageFont.truetype("assets/impact.ttf", 18)
 
-            username = member.display_name
-            welcome_text = f"Welcome, {username}!"
-            sub_text = "We hope you enjoy your stay"
+            username = member.display_name # Get the display name for the image
 
-            # Draw main welcome text
-            draw.text((160, 50), welcome_text, font=font_large, fill=(255, 255, 255, 255))
-            # Draw subtext
+            # Retrieve welcome_message template
+            welcome_text_template = guild_settings.get("welcome_message", "Welcome, {user}!")
+
+            # Prepare text for the IMAGE (uses username)
+            welcome_text_for_image = welcome_text_template.replace("{user}", username).replace("{mention}", username)
+            # Prepare text for the CHANNEL MESSAGE (uses mention)
+            welcome_text_for_channel = welcome_text_template.replace("{user}", username).replace("{mention}", member.mention)
+
+            sub_text = utils.welcome_message_random()
+
+            # Draw text on the image using welcome_text_for_image
+            draw.text((160, 50), welcome_text_for_image, font=font_large, fill=(255, 255, 255, 255))
             draw.text((160, 90), sub_text, font=font_small, fill=(220, 220, 220, 255))
 
-            # Optionally, draw member number
             member_count = member.guild.member_count
             member_num_text = f"Member #{member_count}"
             draw.text((160, 120), member_num_text, font=font_small, fill=(200, 200, 200, 255))
 
-            # Save to buffer
             buffer = BytesIO()
             base.save(buffer, format="PNG")
             buffer.seek(0)
 
-            # Send image
+            # Send image with welcome_text_for_channel
             await welcome_channel.send(
-                f"Welcome, {member.mention}!",
+                welcome_text_for_channel,
                 file=discord.File(buffer, filename="welcome.png")
             )
             logging.info(
-                        f"Welcome message sent for {member.name}#{member.discriminator} in {welcome_channel.name}."
-                    )
-        except Exception as e:
-            logging.error(f"Error in on_member_join: {e}")
-
-            logging.error(
-                f"Error in on_member_join for {member.name}#{member.discriminator}: {e}"
+                f"Welcome message sent for {member.name}#{member.discriminator} in {welcome_channel.name}."
             )
+        except Exception as e:
+            logging.error(f"Error in on_member_join for {member.name}#{member.discriminator}: {e}")
             logs_channel = discord.utils.get(member.guild.text_channels, name="logs")
             if logs_channel:
                 await logs_channel.send(
                     f"❌ An error occurred while welcoming {member.mention}: {e}"
                 )
-    
+
     @commands.Cog.listener()
     async def on_member_remove(self, member):
         """Event triggered when a user leaves the server with a custom goodbye image."""
@@ -701,6 +719,9 @@ class Events(commands.Cog):
             logging.info(
                 f"New member left: {member.name}#{member.discriminator} (ID: {member.id})"
             )
+
+            data = utils.load_server_settings()
+            guild_settings = data.get(str(member.guild.id), {})
 
             goodbye_channel = discord.utils.find(
                 lambda c: c.name.lower() in ["goodbye", "chat", "departure", "general"], member.guild.text_channels
@@ -710,7 +731,21 @@ class Events(commands.Cog):
                 logging.warning(
                     f"Goodbye channel not found in guild: {member.guild.name} (ID: {member.guild.id})"
                 )
-                return 
+                return
+
+            guild_asset_path = self.assets._get_guild_asset_path(member.guild.id)
+            background_path = os.path.join(guild_asset_path, "background.jpg")
+
+            try:
+                background = Image.open(background_path).convert("RGBA")
+            except FileNotFoundError:
+                logging.error(
+                    f"Background image not found at {background_path}. Please ensure the file exists."
+                )
+                await goodbye_channel.send(
+                    "❌ Background image for the goodbye card is missing. Please ensure it's in your server's asset folder."
+                )
+                return
 
             avatar_url = member.avatar.url if member.avatar else member.default_avatar.url
             response = requests.get(avatar_url)
@@ -721,68 +756,60 @@ class Events(commands.Cog):
                 return
             avatar = Image.open(BytesIO(response.content)).convert("RGBA").resize((120, 120))
 
-            # Create a circular mask for the avatar
             mask = Image.new("L", (120, 120), 0)
             draw_mask = ImageDraw.Draw(mask)
             draw_mask.ellipse((0, 0, 120, 120), fill=255)
             avatar_rounded = Image.new("RGBA", (120, 120))
             avatar_rounded.paste(avatar, (0, 0), mask=mask)
 
-            # Background (simple gray, or use your own image)
             base = Image.new("RGBA", (500, 180), (140, 140, 140, 255))
+            base.paste(background, (0, 0), background)
 
-            # Optionally, paste your cat drawing here
-            # cat_img = Image.open("assets/welcome/cat.png").convert("RGBA").resize((350, 120))
-            # base.paste(cat_img, (150, 30), cat_img)
-
-            # Paste avatar
             base.paste(avatar_rounded, (20, 30), avatar_rounded)
 
-            # Draw text
             draw = ImageDraw.Draw(base)
             font_large = ImageFont.truetype("assets/impact.ttf", 28)
             font_small = ImageFont.truetype("assets/impact.ttf", 18)
 
-            username = member.display_name
-            welcome_text = f"Goodbye, {username}.."
+            username = member.display_name # Get the display name for the image
+
+            # Retrieve goodbye_message template
+            goodbye_text_template = guild_settings.get("goodbye_message", "Goodbye, {user}..")
+
+            # Prepare text for the IMAGE (uses username)
+            goodbye_text_for_image = goodbye_text_template.replace("{user}", username).replace("{mention}", username)
+            # Prepare text for the CHANNEL MESSAGE (uses mention)
+            goodbye_text_for_channel = goodbye_text_template.replace("{user}", username).replace("{mention}", member.mention)
+
             sub_text = "We hope you enjoyed your stay.."
 
-            # Draw main welcome text
-            draw.text((160, 50), welcome_text, font=font_large, fill=(255, 255, 255, 255))
-            # Draw subtext
+            # Draw text on the image using goodbye_text_for_image
+            draw.text((160, 50), goodbye_text_for_image, font=font_large, fill=(255, 255, 255, 255))
             draw.text((160, 90), sub_text, font=font_small, fill=(220, 220, 220, 255))
 
-            # Optionally, draw member number
             member_count = member.guild.member_count
             member_num_text = f"Member #{member_count}"
             draw.text((160, 120), member_num_text, font=font_small, fill=(200, 200, 200, 255))
 
-            # Save to buffer
             buffer = BytesIO()
             base.save(buffer, format="PNG")
             buffer.seek(0)
 
-            # Send image
+            # Send image with goodbye_text_for_channel
             await goodbye_channel.send(
-                f"Bye, {member.mention}..\n# We will miss you 👋",
-                file=discord.File(buffer, filename="welcome.png")
+                goodbye_text_for_channel,
+                file=discord.File(buffer, filename="goodbye.png")
             )
             logging.info(
-                        f"Goodbye message sent for {member.name}#{member.discriminator} in {goodbye_channel.name}."
-                    )
-        except Exception as e:
-            logging.error(f"Error in on_member_remove: {e}")
-
-            logging.error(
-                f"Error in on_member_remove for {member.name}#{member.discriminator}: {e}"
+                f"Goodbye message sent for {member.name}#{member.discriminator} in {goodbye_channel.name}."
             )
+        except Exception as e:
+            logging.error(f"Error in on_member_remove for {member.name}#{member.discriminator}: {e}")
             logs_channel = discord.utils.get(member.guild.text_channels, name="logs")
             if logs_channel:
                 await logs_channel.send(
                     f"❌ An error occurred while goodbying {member.mention}: {e}"
                 )
-
-
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
@@ -817,7 +844,7 @@ class Events(commands.Cog):
                 await ctx.send(
                     f"# ❌ Command not found.\nUse `?help` to see the list of available commands.\n-# {utils.little_unknowncommand_variant()}"
                 )
-            return  # <-- THIS IS IMPORTANT
+            return
 
         elif isinstance(error, MissingRequiredArgument):
             await ctx.send(f"# ❌ Missing required argument.\nPlease check your command usage.\n-# {utils.little_error_variant()}")
@@ -839,13 +866,18 @@ class Events(commands.Cog):
             return
 
         # Only signal the handler for unhandled/critical errors
+        # These are errors that weren't caught by the specific isinstance checks above.
         await ctx.send(f"# ❌ An error occurred: ❌\n{error}")
         try:
+            # Signal a critical error to the handler
             utils.signal_error(
-                f"{type(error).__name__}: {error}\nCommand: {ctx.command}\nUser: {ctx.author}\nMessage: {ctx.message.content}"
+                f"{type(error).__name__}: {error}\nCommand: {ctx.command}\nUser: {ctx.author}\nMessage: {ctx.message.content}",
+                is_critical=True # Explicitly mark as critical
             )
+            # Only write last command info for critical errors
+            utils.write_last_command(ctx.channel.id, ctx.message.id)
         except Exception as e:
-            print(f"Failed to signal error: {e}")
+            print(f"Failed to signal error or write last command: {e}")
         
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -963,8 +995,9 @@ class Events(commands.Cog):
             # --- Send level-up notification to the dedicated bot channel ---
             bot_channel = discord.utils.get(message.guild.text_channels, name="bot-channel")
             rewards_message = (
-                f"🎉 {message.author.mention} leveled up to **Level {user_data_entry['level']}**! "
-                f"You earned **{coins_reward} coins** and **{bonus_xp} bonus XP**"
+                f"# 🎉 {message.author.mention} leveled up to **Level {user_data_entry['level']}**!\n"
+                f"You earned **{coins_reward} coins** and **{bonus_xp} bonus XP!!**"
+                "-# If you you wanna get more XP faster, just try talking more :D"
             )
             if gems_reward > 0:
                 rewards_message += f", and **{gems_reward} gems**!"
@@ -1254,6 +1287,17 @@ class Events(commands.Cog):
         print(f"✅ Bot is ready! Logged in as {self.bot.user}")
         print(f"Connected to {len(self.bot.guilds)} guild(s).")
         logging.info(f"Logged in as {self.bot.user}")
+
+        # Get the AssetManager cog instance
+        self.assets = self.bot.get_cog("AssetManager")
+        if self.assets:
+            logging.info("AssetManager cog found. Initializing guild assets...")
+            for guild in self.bot.guilds:
+                await self.assets.initialize_guild_assets(guild)
+            logging.info("All existing guild assets initialized.")
+        else:
+            logging.error("AssetManager cog not found. Asset initialization skipped.")
+
         asyncio.create_task(utils.update_bot_data_periodically(self.bot))
         print("Update bot through website task has started.")
         self.bot.loop.create_task(utils.refresh_leaderboard(self.bot))
@@ -1264,5 +1308,27 @@ class Events(commands.Cog):
         self.bot.loop.create_task(utils.chat_reviver_task(self.bot))
         logging.info(f"Chat reviver task started.")
 
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild: discord.Guild):
+        """Event triggered when the bot joins a new guild."""
+        logging.info(f"Joined new guild: {guild.name} (ID: {guild.id})")
+        self.assets = self.bot.get_cog("AssetManager") # Re-get in case it was loaded later
+        if self.assets:
+            await self.assets.initialize_guild_assets(guild)
+            logging.info(f"Assets initialized for newly joined guild: {guild.name}")
+            # Optionally, send a welcome message to the guild
+            general_channel = discord.utils.find(lambda c: c.name == 'general' and c.permissions_for(guild.me).send_messages, guild.text_channels)
+            if general_channel:
+                await general_channel.send(
+                    f"Hello! Thanks for inviting me to **{guild.name}**! "
+                    "I've set up a dedicated asset folder for your server. "
+                    "Admins can use `?uploadasset <filename>` to add custom images "
+                    "and `?listassets` to see your current assets."
+                )
+        else:
+            logging.error(f"AssetManager cog not found when joining guild {guild.name}. Asset initialization skipped.")
+
+
 async def setup(bot):
+    """Adds the Events cog to the bot."""
     await bot.add_cog(Events(bot))

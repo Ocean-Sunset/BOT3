@@ -24,6 +24,10 @@ import shutil
 import glob
 disabled_variants = set()
 
+SIGNALS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "default-handler", "signals"))
+ERROR_FILE = os.path.join(SIGNALS_DIR, "error.txt")
+LAST_COMMAND_FILE = os.path.join(SIGNALS_DIR, "last_command.txt")
+
 # ---------------------------------------------------------------------------------------------------
 # -------------------------------------------- DEFINITONS -------------------------------------------
 # ---------------------------------------------------------------------------------------------------
@@ -266,7 +270,7 @@ def backup_file(json_path, max_backups=10):
 
     filename = os.path.basename(json_path)
     base_name = os.path.splitext(filename)[0]
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     backup_folder = os.path.join("backups", base_name)
     os.makedirs(backup_folder, exist_ok=True)
@@ -618,14 +622,54 @@ def add_rounded_corners(im, rad):
     return im
 
 def load_server_settings():
+    """Loads server settings from the JSON file."""
     if os.path.exists(variables.SERVER_SETTINGS_FILE):
         with open(variables.SERVER_SETTINGS_FILE, "r") as f:
-            return json.load(f)
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                # Handle empty or corrupted JSON file
+                print(f"Warning: {variables.SERVER_SETTINGS_FILE} is empty or corrupted. Starting with empty settings.")
+                return {}
     return {}
 
 def save_server_settings(data):
+    """Saves server settings to the JSON file."""
     with open(variables.SERVER_SETTINGS_FILE, "w") as f:
         json.dump(data, f, indent=4)
+def get_guild_setting(guild_id, key, default=None):
+    """Retrieves a specific setting for a guild."""
+    settings = load_server_settings()
+    return settings.get(str(guild_id), {}).get(key, default)
+
+def set_guild_setting(guild_id, key, value):
+    """Sets a specific setting for a guild."""
+    settings = load_server_settings()
+    if str(guild_id) not in settings:
+        settings[str(guild_id)] = {}
+    settings[str(guild_id)][key] = value
+    save_server_settings(settings)
+
+def get_guild_level_roles(guild_id):
+    """Retrieves custom level roles configuration for a guild."""
+    # The default for level_roles will be an empty dictionary if not set
+    return get_guild_setting(guild_id, 'level_roles', {})
+
+def remove_guild_level_role(guild_id, level):
+    """Removes the custom role for a specific level in a guild."""
+    settings = load_server_settings()
+    guild_settings = settings.get(str(guild_id))
+    if guild_settings and 'level_roles' in guild_settings:
+        level_str = str(level)
+        if level_str in guild_settings['level_roles']:
+            del guild_settings['level_roles'][level_str]
+            save_server_settings(settings)
+
+def is_level_role_system_enabled(guild_id):
+    """Checks if the level role system is enabled for a guild."""
+    # Default to False if the setting doesn't exist
+    return get_guild_setting(guild_id, 'level_role_system_enabled', False)
+
 
 def get_guild_prefix(guild_id):
     settings = load_server_settings()
@@ -692,24 +736,11 @@ def set_guild_goodbye_message(guild_id, message):
     settings[str(guild_id)] = guild_settings
     save_server_settings(settings)
 
-def get_guild_level_roles(guild_id):
-    settings = load_server_settings()
-    return settings.get(str(guild_id), {}).get("level_roles", {})
-
 def set_guild_level_role(guild_id, level: int, role_name: str):
     settings = load_server_settings()
     guild_settings = settings.get(str(guild_id), {})
     level_roles = guild_settings.get("level_roles", {})
     level_roles[str(level)] = role_name
-    guild_settings["level_roles"] = level_roles
-    settings[str(guild_id)] = guild_settings
-    save_server_settings(settings)
-
-def remove_guild_level_role(guild_id, level: int):
-    settings = load_server_settings()
-    guild_settings = settings.get(str(guild_id), {})
-    level_roles = guild_settings.get("level_roles", {})
-    level_roles.pop(str(level), None)
     guild_settings["level_roles"] = level_roles
     settings[str(guild_id)] = guild_settings
     save_server_settings(settings)
@@ -799,13 +830,23 @@ def add_user_achievement(user_id, ach_id):
         return True
     return False
 
-def signal_error(error_message):
-    signals_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "default-handler", "signals"))
-    os.makedirs(signals_dir, exist_ok=True)
-    with open(os.path.join(signals_dir, "error.txt"), "w", encoding="utf-8") as f:
-        f.write(error_message)
-        print(f"[signal_error] The error has been sent.")
-    time.sleep(3)
+def signal_error(error_message, is_critical=True):
+    os.makedirs(SIGNALS_DIR, exist_ok=True) # Ensure the directory exists
+
+    # Prefix the error message based on criticality
+    error_file_content = f"CRITICAL:{error_message}" if is_critical else f"NON_CRITICAL:{error_message}"
+    with open(ERROR_FILE, "w", encoding="utf-8") as f:
+        f.write(error_file_content)
+    print(f"[signal_error] The error has been sent. Critical: {is_critical}")
+    time.sleep(3) # Keep the delay for file system sync
+
+
+def write_last_command(channel_id, message_id):
+    os.makedirs(SIGNALS_DIR, exist_ok=True) # Ensure the directory exists
+    with open(LAST_COMMAND_FILE, "w", encoding="utf-8") as f:
+        f.write(f"{channel_id},{message_id}")
+    print(f"[write_last_command] Last command info written: {channel_id},{message_id}")
+
 
 def signal_update(update_message):
     signals_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "default-handler", "signals"))
@@ -814,14 +855,6 @@ def signal_update(update_message):
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(update_message)
         print(f"[signal_update] Wrote update to {file_path}.")
-    time.sleep(3)
-
-def write_last_command(channel_id, message_id):
-    signals_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "default-handler", "signals"))
-    os.makedirs(signals_dir, exist_ok=True)
-    with open(os.path.join(signals_dir, "last_command.txt"), "w", encoding="utf-8") as f:
-        f.write(f"{channel_id},{message_id}")
-        print(f"[signal_update] Registered last command")
     time.sleep(3)
 
 def is_insider_server(guild_id: int) -> bool:
@@ -923,6 +956,29 @@ def little_unsure_variant(ctx=None):
     ]
     return random.choice(messages)
 
+def welcome_message_random(ctx=None):
+    if ctx and ctx.guild and ctx.guild.id in disabled_variants:
+        return ""
+    messages = [
+        "We hope you enjoy your stay!",
+        "Get comfy here!",
+        "Welcome to our server!",
+        "Make yourself comfy here!",
+        "Should be pretty nice here!"
+    ]
+    return random.choice(messages)
+
+def goodbye_message_random(ctx=None):
+    if ctx and ctx.guild and ctx.guild.id in disabled_variants:
+        return ""
+    messages = [
+        "Oh man, they left..",
+        "Welp, goodbye.",
+        "We hope you ENJOYED your stay..",
+        "It's sad seeing you go..."
+    ]
+    return random.choice(messages)
+
 def little_try_again_variant(ctx=None):
     if ctx and ctx.guild and ctx.guild.id in disabled_variants:
         return ""
@@ -940,9 +996,9 @@ def little_try_again_variant(ctx=None):
     ]
     return random.choice(messages)
 
-def save_disabled_variants():
+def save_disabled_variants(guild):
     with open('data/disabled_variants.json', 'w') as f:
-        json.dump(list(disabled_variants), f)
+        json.dump(list(guild), f)
 
 def load_disabled_variants():
     global disabled_variants

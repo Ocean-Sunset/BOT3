@@ -71,6 +71,14 @@ class Moderation(commands.Cog):
             f"{ctx.author} Banned {ctx.member} in channel {ctx.channel}. Reason: {reason}."
         )
         await ctx.send(f"# ✅ {member.mention} has successfully been banned\nReason: {reason}")
+    
+    # Kick command
+    @commands.command()
+    async def kick(self, ctx, member: discord.Member, *, reason: str = "No reason provided"):
+        
+        await member.kick(reason=reason)
+        print(f"{ctx.author} Kicked {ctx.member} in channel {ctx.channel}. Reason: {reason}.")
+        await ctx.send(f"# ✅{member.mention} has successfully been kicked for:\n{reason}")
 
     @commands.command(name="strike")
     @commands.has_permissions(manage_roles=True)

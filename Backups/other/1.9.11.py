@@ -1122,16 +1122,6 @@ async def warn(ctx, member: discord.Member, *, reason=None):
         if logs_channel:
             await logs_channel.send(f"{member.mention} has been unmuted.")
 
-# Kick command
-@bot.command()
-async def kick(ctx, member: discord.Member, *, reason=None):
-    if reason is None:
-        reason = "No reason provided"
-    
-    await member.kick(reason=reason)
-    print(f"{ctx.author} Kicked {ctx.member} in channel {ctx.channel}. Reason: {reason}.")
-    await ctx.send(f"✅{member.mention} has successfully been kicked for: {reason}")
-
 # Ban command
 @bot.command()
 async def ban(ctx, member: discord.Member, *, reason=None):

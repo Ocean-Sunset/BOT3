@@ -238,6 +238,7 @@ class Utility(commands.Cog):
 
         guild = ctx.guild
         member = ctx.author
+        
 
         # Reset command
         if color_input.lower() == "reset":
@@ -855,7 +856,7 @@ class Utility(commands.Cog):
 
     @commands.command()
     @utils.admin_or_owner()
-    async def disable_variants(self, ctx):
+    async def disablevariants(self, ctx):
         if ctx.guild:
             utils.disabled_variants.add(ctx.guild.id)
             await ctx.send("✅ Little variants have been **disabled** in this server.")
@@ -865,7 +866,7 @@ class Utility(commands.Cog):
 
     @commands.command()
     @utils.admin_or_owner()
-    async def enable_variants(self, ctx):
+    async def enablevariants(self, ctx):
         if ctx.guild:
             utils.disabled_variants.discard(ctx.guild.id)
             await ctx.send("✅ Little variants have been **re-enabled** in this server.")
@@ -1118,24 +1119,48 @@ class Utility(commands.Cog):
                     f"❌ No user found with the name or mention `{input_value}`."
                 )
 
+    @commands.command(name="togglelevelroles")
+    @utils.admin_or_owner()
+    async def toggle_level_roles(self, ctx):
+        """Toggle the level role system on or off for this server."""
+        current_status = utils.is_level_role_system_enabled(ctx.guild.id)
+        new_status = not current_status
+        utils.set_guild_setting(ctx.guild.id, 'level_role_system_enabled', new_status)
+        status_text = "enabled" if new_status else "disabled"
+        await ctx.send(f"✅ Level role system has been **{status_text}** for this server.")
+
     @commands.command(name="setlevelrole")
     @utils.admin_or_owner()
-    async def set_level_role(self, ctx, level: int, *, role: discord.Role):
-        """Set a custom role for a specific level (per server)."""
-        if level == None:
+    async def set_level_role(self, ctx, level: int, role: discord.Role, color: str = None):
+        """
+        Set a custom role for a specific level (per server) with an optional color.
+        Color can be a hex code (e.g., #FF00FF).
+        """
+        if level is None:
             await ctx.send("❌ No level has been specified!")
             return
-        if role == None:
+        if role is None:
             await ctx.send("❌ No role has been specified!")
             return
-        utils.set_guild_level_role(ctx.guild.id, level, role.name)
-        await ctx.send(f"✅ Level {level} will now grant the role: {role.name}")
+
+        role_color_hex = None
+        if color:
+            # Validate hex color
+            color = color.lstrip('#')
+            if len(color) == 6 and all(c in '0123456789abcdefABCDEF' for c in color):
+                role_color_hex = color
+            else:
+                await ctx.send("❌ Invalid color format. Please use a 6-digit hex code (e.g., `#FF00FF`).")
+                return
+
+        utils.set_guild_level_role(ctx.guild.id, level, role.name, role_color_hex)
+        await ctx.send(f"✅ Level {level} will now grant the role: **{role.name}**{' with color ' + color if color else ''}.")
 
     @commands.command(name="removelevelrole")
     @utils.admin_or_owner()
     async def remove_level_role(self, ctx, level: int):
         """Remove the custom role for a specific level (per server)."""
-        if level == None:
+        if level is None:
             await ctx.send("❌ No level has been specified!")
             return
         utils.remove_guild_level_role(ctx.guild.id, level)
@@ -1149,8 +1174,12 @@ class Utility(commands.Cog):
         if not level_roles:
             await ctx.send("No custom level-role mappings set for this server.")
         else:
-            msg = "\n".join(f"Level {lvl}: {role}" for lvl, role in level_roles.items())
-            await ctx.send(f"Custom level-role mappings:\n{msg}")
+            msg = "Custom level-role mappings:\n"
+            for lvl, role_data in level_roles.items():
+                role_name = role_data['name']
+                role_color = role_data.get('color', 'Default/Random')
+                msg += f"**Level {lvl}**: {role_name} (Color: #{role_color})\n"
+            await ctx.send(msg)
 
     @commands.command(name="addselfrole")
     @utils.admin_or_owner()

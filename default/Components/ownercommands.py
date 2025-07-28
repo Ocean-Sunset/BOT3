@@ -144,7 +144,7 @@ class Ownercommands(commands.Cog):
         current_status = discord.Game("Restarting...")
         await self.bot.change_presence(status=discord.Status.dnd, activity=current_status)
 
-        await ctx.send("# ** ---  🔄 Restarting the bot...  ---**")
+        await ctx.send("# **🔄 Restarting the bot...**")
         await self.bot.close()
         os.execv(sys.executable, [sys.executable] + sys.argv)
 

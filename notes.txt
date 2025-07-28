@@ -1,0 +1,329 @@
+--------------------------------------------------------------------------------------------------------
+-------------------------------------- IDEAS FOR BUILD NAMES -------------------------------------------
+--------------------------------------------------------------------------------------------------------
+
+🌿 Inspired by Elysia & macOS naming style:
+Celestara — sounds celestial and refined, like "Elysia" but more grounded like a place.
+
+Lunara — evokes the moon, soft and serene.
+
+Solandra — sunny, vivid, and has a Californian coast vibe.
+
+Velora — elegant and futuristic, yet place-name-like.
+
+Auralis — echoes "aurora" and "Elysia" combined.
+
+Serava — serene, flowing, almost like a macOS mountain range or coastal city.
+
+Oralya — mythic yet plausible as a high-end software codename.
+
+Caelira — from "caelum" (sky in Latin), fantasy-modern hybrid.
+
+Zephara — inspired by "zephyr" (a soft breeze), light and sleek.
+
+Mystralyn — mysterious and refined, nodding to "mistral" winds.
+
+--------------------------------------------------------------------------------------------------------
+---------------------------------------------- RANDOM CODE ---------------------------------------------
+--------------------------------------------------------------------------------------------------------
+
+
+@commands.group(name="sewer", invoke_without_command=True)
+    async def sewer(self, ctx):
+        """Sewer system entry point."""
+        await ctx.send("Use `?sewer enter` to enter or `?sewer exit` to leave the sewers.")
+    
+    @sewer.command(name="enter")
+    async def sewer_enter(self, ctx, wing: typing.Optional[str] = None):
+        """Enter the left or right sewer wing from the sewers-entrance channel."""
+        if isinstance(ctx.channel, discord.Thread) or "sewers-entrance" not in ctx.channel.name.lower():
+            await ctx.send("❌ You must use this command in the 'sewers-entrance' channel.")
+            return
+
+        if wing is None or wing.lower() not in ["left", "right"]:
+            await ctx.send("❌ Please specify which wing to enter: `?sewer enter left` or `?sewer enter right`.")
+            return
+
+        left_role_name = "Left Sewer Wing."
+        right_role_name = "Right Sewer Wing."
+        left_role = discord.utils.get(ctx.guild.roles, name=left_role_name)
+        right_role = discord.utils.get(ctx.guild.roles, name=right_role_name)
+
+        # Create roles if they don't exist
+        if not left_role:
+            left_role = await ctx.guild.create_role(name=left_role_name, reason="Sewer system access role (left side)")
+        if not right_role:
+            right_role = await ctx.guild.create_role(name=right_role_name, reason="Sewer system access role (right side)")
+
+        # Remove the other wing's role if present
+        if wing.lower() == "left":
+            if right_role in ctx.author.roles:
+                await ctx.author.remove_roles(right_role)
+            if left_role in ctx.author.roles:
+                await ctx.send("🕳️ You are already in the left sewer wing!")
+                return
+            await ctx.author.add_roles(left_role)
+            await ctx.send(f"🕳️ {ctx.author.mention} has entered the **Left Sewer Wing**! Beware of what lurks below...")
+        else:
+            if left_role in ctx.author.roles:
+                await ctx.author.remove_roles(left_role)
+            if right_role in ctx.author.roles:
+                await ctx.send("🕳️ You are already in the right sewer wing!")
+                return
+            await ctx.author.add_roles(right_role)
+            await ctx.send(f"🕳️ {ctx.author.mention} has entered the **Right Sewer Wing**! Beware of what lurks below...")
+
+    @sewer.command(name="exit")
+    async def sewer_exit(self, ctx):
+        """Exit the sewer wing you are currently in. Use this in the correct wing channel."""
+        channel_name = ctx.channel.name.lower()
+        left_role_name = "Left Sewer Wing."
+        right_role_name = "Right Sewer Wing."
+        left_role = discord.utils.get(ctx.guild.roles, name=left_role_name)
+        right_role = discord.utils.get(ctx.guild.roles, name=right_role_name)
+
+        # Check for left wing exit
+        if "left-system-wing" in channel_name:
+            if not left_role or left_role not in ctx.author.roles:
+                await ctx.send("❌ You are not in the left sewer wing or do not have the role.")
+                return
+            await ctx.send(f"🌞 {ctx.author.mention} has exited the **Left Sewer Wing**. Welcome back to the surface!")
+            await asyncio.sleep(2)
+            await ctx.author.remove_roles(left_role)
+            return
+
+        # Check for right wing exit
+        if "right-system-wing" in channel_name:
+            if not right_role or right_role not in ctx.author.roles:
+                await ctx.send("❌ You are not in the right sewer wing or do not have the role.")
+                return
+            
+            await ctx.send(f"🌞 {ctx.author.mention} has exited the **Right Sewer Wing**. Welcome back to the surface!")
+            await asyncio.sleep(2)
+            await ctx.author.remove_roles(right_role)
+            return
+
+        await ctx.send("❌ You must use this command in either the left or right sewer wing channel.")
+
+
+
+--------------------------------------------------------------------------------------------------------
+---------------------------------- WHAT HAS BEEN DONE FOR 3.0 Celestara --------------------------------
+--------------------------------------------------------------------------------------------------------
+
+Date: Unknown
+- Fixed color roles
+- Added more commands to handler
+- More backlogging incase unnecessary errors occur
+- Fixed spam threshold and time window
+- Handler is smarter at detecting errors
+- ?colorrole command style revamped
+
+Date: 07/07/2025
+- Now halfway there with the command redesign (basically at the halfway mark of money.py)
+- Did some more stuff with some insider commands
+- The help command is so much better now, buttons and everything, UGHH
+
+Date: 08/07/2025
+Tasks:
+- Done FINNALYYYYYYYYYYYYYYYYYYYYYY
+
+Done:    
+- Added a failsafe so i can execute any command now
+- Did more command redesign
+- Delete the ?exchange command, it's useless :sob: 
+- FIX THE LEVEL GLITCH NOW OMG - idk maybe Fixed
+- Removed my bot from the x9v legion server, i hated that server >:[
+- Fix ?buygem to be multi
+- Kepewshi: Edit the level notifications so thats in a dedicated bot-channel 
+- Kepewshi: Add a bypass word censor detection using difflib
+- add more info on the ?insiderstatus command
+- Fix the verification command on the events.py because it's definitly not updated
+
+-------------------  Break 09/07 - 10/07  ------------------------
+
+Date: 11/07/2025
+Tasks:
+- None.
+
+Done:
+- Added new coloring system
+- Fixed handler's announcement system
+- ALL occurences of beta have been replaced with insider.
+
+Date: 12/07/2025
+Tasks:
+- Fix the ffmpeg path problem, it's annoying.
+- Start at Line 603 for little texts
+- Start at Line 778 for redesign commands
+
+Done:
+- text here
+
+-------------------  Break 12/07 - 21/07  -------------------------
+
+Date 21/07/2025 - 6 days before the update
+Tasks:
+- all Done
+
+Done:
+- Upgrade ?help command
+
+22/07/2025 - 5 days before the update
+Tasks:
+- all Done
+
+Done:
+
+
+---------------------  Break 22/07 - 26/07  --------------------------
+
+Date: 26/07/2025 - 0 days before update
+Tasks:
+- Finish the fucking tasks from 21/07 before this
+- Fix the ?kick command
+- Fix the levelrole toggle on and off system
+- Fix the disable variants thingy
+
+Done:
+- Added the ?kick command back
+- Finish the welcome and goodbye messages to work pls
+- Make the assets server folder related (general assets outside of ID files)
+- - That's hard
+- Upgrade handler if possible (detect warnings or other stuff, just fucking monitor the bot)
+- Finish remodel
+
+Date: 27/07/2025 - -1 days before the update - LATE
+Tasks:
+- Finish the tasks from 26/07
+
+Done:
+- Fix ?colorrole
+- EDit the colorrole command to only work in channels with the name bot
+- About the level roles, make them customizable they are currently broken:
+- - Edit the ?setwelcome command for that or just put the "We hope [...]" inside variables and then just change it according to server IDs
+
+Date 28/07/2025 - -2 days before the update - LATE
+- Fix the ?kick command
+- Fix the levelrole toggle on and off system
+- Fix the disable variants thingy
+
+NOW!!
+
+--------------------------------------------------------------------------------------------------------
+---------------------------------- WHAT WILL BE DONE FOR 3.0 Celestara ---------------------------------
+--------------------------------------------------------------------------------------------------------
+
+- COMPLETE RENOVATION OF COMMAND STYLE
+- Handler being able to detect it's own errors (yes this still hasn't been added)
+- Fix the ?colorrole command not actually giving you the roles i'm gonna kms
+- ASK IDEAS TO THE NIGGA 9 guild_ids NOWWWWWW
+
+--------------------------------------------------------------------------------------------------------
+--------------------------- 2ND RANDOM AHH CODE (deprecated goodbye message) ---------------------------
+--------------------------------------------------------------------------------------------------------
+
+
+@commands.Cog.listener()
+    async def on_member_remove(self, member):
+        """Event triggered when a user leaves the server."""
+        try:
+            logging.info(
+            f"Member left: {member.name}#{member.discriminator} (ID: {member.id})"
+            )
+
+            goodbye_channel = discord.utils.find(
+                lambda c: c.name.lower() in ["goodbye", "chat", "departure", "general"], member.guild.text_channels
+            )
+
+            if not goodbye_channel:
+                logging.warning(
+                    f"Goodbye channel not found in guild: {member.guild.name} (ID: {member.guild.id})"
+                )
+                return  
+
+            avatar_url = member.avatar.url if member.avatar else member.default_avatar.url
+            response = requests.get(avatar_url)
+            if response.status_code != 200:
+                logging.error(
+                    f"Failed to fetch avatar for {member.name}#{member.discriminator}. HTTP Status: {response.status_code}"
+                )
+                return
+            avatar = Image.open(BytesIO(response.content)).convert("RGBA")
+
+            # Load the background image
+            background_path = "assets/welcome/background.jpg"  # Use the same background as the welcome image
+            try:
+                background = Image.open(background_path).convert("RGBA")
+            except FileNotFoundError:
+                logging.error(
+                    f"Background image not found at {background_path}. Please ensure the file exists."
+                )
+                await goodbye_channel.send(
+                    "❌ Background image for the goodbye card is missing. Please add it to `icons/welcome/background.jpg`."
+                )
+                return
+
+            # Resize the background to fit the goodbye card dimensions
+            background = background.resize((800, 400))
+
+            # Create the base image
+            base = Image.new("RGBA", (800, 400), (30, 30, 30, 0))  # Transparent background
+            base.paste(background, (0, 0))  # Paste the background onto the base image
+
+            # Draw the circular avatar
+            avatar = avatar.resize((150, 150))  # Resize the avatar
+            mask = Image.new("L", avatar.size, 0)
+            draw = ImageDraw.Draw(mask)
+            draw.ellipse((0, 0, avatar.size[0], avatar.size[1]), fill=255)
+            base.paste(avatar, (325, 50), mask)  # Center the avatar on the image
+
+            # Add the "GOODBYE" text
+            font_path = "fonts/impact.ttf"  # Replace with the path to your bold font file
+            try:
+                font_large = ImageFont.truetype(font_path, 80)  # Big and bold font
+                font_small = ImageFont.truetype(font_path, 40)
+            except OSError:
+                await goodbye_channel.send(
+                    "❌ Font file not found. Please ensure the font file exists."
+                )
+                return
+
+            draw = ImageDraw.Draw(base)
+            draw.text(
+                (250, 220), "GOODBYE", font=font_large, fill=(255, 255, 255), align="center"
+            )
+
+            # Add the username below the "GOODBYE" text
+            draw.text(
+                (250, 300),
+                member.name,
+                font=font_small,
+                fill=(255, 255, 255),
+                align="center",
+            )
+
+            # Save the image to a BytesIO object
+            buffer = BytesIO()
+            base.save(buffer, format="PNG")
+            buffer.seek(0)
+
+            # Send the image and custom message
+            goodbye_msg = utils.get_guild_goodbye_message(member.guild.id) or f"👋 Goodbye, {member.mention}. We will miss you!"
+            await goodbye_channel.send(
+                goodbye_msg,
+                file=discord.File(fp=buffer, filename="goodbye.png"),
+            )
+            logging.info(
+                f"Goodbye message sent for {member.name}#{member.discriminator} in {goodbye_channel.name}."
+            )
+        except Exception as e:
+            logging.error(
+                f"Error in on_member_remove for {member.name}#{member.discriminator}: {e}"
+            )
+            # Optionally, send an error message to a logs channel
+            logs_channel = utils.get_logs_channel(member.guild)
+            if logs_channel:
+                await logs_channel.send(
+                    f"❌ An error occurred while saying goodbye to {member.mention}: {e}"
+                )

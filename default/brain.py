@@ -52,7 +52,7 @@ def get_prefix(bot, message):
         return "?"
 
 bot = commands.Bot(command_prefix=get_prefix, intents=variables.intents, help_command=None)
-Components = ["events", "fun", "info", "moderation", "money", "others", "ownercommands", "utility", "super", "supercommands", "omega", "insider", "insiderrequest"]
+Components = ["events", "fun", "info", "moderation", "money", "others", "ownercommands", "utility", "super", "supercommands", "omega", "patriviaarchives", "insider", "insiderrequest", "assets"]
 
 # ---------------------------------------------------------------------------------------------
 # ---------------------------------------- ASYNC DEFINITION -----------------------------------

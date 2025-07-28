@@ -13,8 +13,10 @@
     },
     "1366817727552950373": {
         "self_roles": [
-            "\u0426\u0438\u0442\u0451\u0434."
+            "Low \u2014 [RANKING]"
         ],
-        "welcome_message": "hi"
+        "welcome_message": "yo hi",
+        "level_role_system_enabled": false,
+        "goodbye_message": "oh man they left"
     }
 }

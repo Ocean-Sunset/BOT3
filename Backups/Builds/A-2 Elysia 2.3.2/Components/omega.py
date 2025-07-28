@@ -214,7 +214,7 @@ class Omega(commands.Cog):
     def _backup_file(self, path):
         filename = os.path.basename(path).replace(".json", "")
         timestamp = datetime.utcnow().isoformat().replace(":", "-")
-        backup_path = os.path.join(BACKUP_DIR, f"{filename}.{timestamp}.bak.json")
+        backup_path = os.path.join(BACKUP_DIR + "/" + filename, f"{filename}.{timestamp}.bak.json")
         shutil.copy2(path, backup_path)
 
 async def setup(bot):

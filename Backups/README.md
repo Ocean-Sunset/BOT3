@@ -22,23 +22,27 @@ Almost complete
 Elysia (A-2)
 Handler: Elysia's handler
 Version: 2.3.2
-*In progress..*
+Mostly complete
 
+Celestra (A-3)
+Handler: Celestra's handler
+Version: 3.0.0
+* in progress… *
 -----------------------------------------------------------------------------------
 ------------------------------- OFFICIAL VERSIONS ---------------------------------
 -----------------------------------------------------------------------------------
 
 1ère ver: 0.1
 Handler: N/A
-Status: Opérationel
+Status: Opérational
 
 2ème ver: 0.2
 Handler: N/A
-Status: Opérationel
+Status: Opérational
 
 3ème ver: 0.3
 Handler: N/A
-Status: Opérationel
+Status: Opérational
 
 4ème ver: 1.0
 Handler: N/A
@@ -76,6 +80,6 @@ Version: test (1.3)
 Handler: N/A
 Status: Complete
 
-Version test2 (presummably 1.4)
+Version test2 (presumably 1.4)
 Handler: N/A
 Status: Unknown

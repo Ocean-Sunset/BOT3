@@ -861,12 +861,12 @@ async def on_member_join(member):
         avatar = Image.open(BytesIO(response.content)).convert("RGBA")
 
         # Load the background image
-        background_path = "icons/welcome/background.jpg"  # Replace with the path to your background image
+        background_path = "icons/welcome/background.png"  # Replace with the path to your background image
         try:
             background = Image.open(background_path).convert("RGBA")
         except FileNotFoundError:
             logging.error(f"Background image not found at {background_path}. Please ensure the file exists.")
-            await welcome_channel.send("❌ Background image for the welcome card is missing. Please add it to `icons/welcome/background.jpg`.")
+            await welcome_channel.send("❌ Background image for the welcome card is missing. Please add it to `icons/welcome/background.png`.")
             return
 
         # Resize the background to fit the welcome card dimensions
@@ -939,12 +939,12 @@ async def on_member_remove(member):
         avatar = Image.open(BytesIO(response.content)).convert("RGBA")
 
         # Load the background image
-        background_path = "icons/welcome/background.jpg"  # Use the same background as the welcome image
+        background_path = "icons/welcome/background.png"  # Use the same background as the welcome image
         try:
             background = Image.open(background_path).convert("RGBA")
         except FileNotFoundError:
             logging.error(f"Background image not found at {background_path}. Please ensure the file exists.")
-            await goodbye_channel.send("❌ Background image for the goodbye card is missing. Please add it to `icons/welcome/background.jpg`.")
+            await goodbye_channel.send("❌ Background image for the goodbye card is missing. Please add it to `icons/welcome/background.png`.")
             return
 
         # Resize the background to fit the goodbye card dimensions

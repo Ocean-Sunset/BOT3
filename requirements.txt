@@ -1,8 +1,16 @@
-discord.py
-yt-dlp
+# Use pip install -r requirements.txt
+
+discord
+argparse
+dotenv
+openai
+asyncio
+torch
+transformers
 googletrans
 Pillow
-openai
-transformers
 requests
-python-dotenv
+psutil
+PyNaCl
+yt_dlp
+feedparser

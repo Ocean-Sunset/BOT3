@@ -694,7 +694,7 @@ class Events(commands.Cog):
             avatar = Image.open(BytesIO(response.content)).convert("RGBA")
 
             # Load the background image
-            background_path = "assets/welcome/background.jpg"  # Use the same background as the welcome image
+            background_path = "assets/welcome/background.png"  # Use the same background as the welcome image
             try:
                 background = Image.open(background_path).convert("RGBA")
             except FileNotFoundError:
@@ -702,7 +702,7 @@ class Events(commands.Cog):
                     f"Background image not found at {background_path}. Please ensure the file exists."
                 )
                 await goodbye_channel.send(
-                    "❌ Background image for the goodbye card is missing. Please add it to `icons/welcome/background.jpg`."
+                    "❌ Background image for the goodbye card is missing. Please add it to `icons/welcome/background.png`."
                 )
                 return
 

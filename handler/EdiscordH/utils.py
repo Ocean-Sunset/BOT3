@@ -20,6 +20,8 @@ import psutil
 import shutil
 
 # --------------------- DEFINITONS --------------------
+active_commands = {}
+
 def load_logging_config():
     """Load logging configuration from the JSON file."""
     try:
@@ -141,6 +143,301 @@ def load_user_data():
     except Exception as e:
         print(f"❌ Error loading user data: {e}")
         return {}
+
+
+def normalize_user_data(auto_fix=True):
+    """Analyze and optionally fix anomalies in user_data.json for the handler.
+
+    Coerces numeric-like strings/floats to ints and ensures expected structure.
+    Returns a report dict.
+    """
+    report = {"checked": 0, "fixed": 0, "anomalies": []}
+    data = load_user_data()
+    cleaned = {}
+
+    for k, v in list(data.items()):
+        report["checked"] += 1
+        if not str(k).isdigit():
+            report["anomalies"].append(f"root_key_not_digit: {k}")
+            continue
+
+        if not isinstance(v, dict):
+            report["anomalies"].append(f"user_not_object: {k}")
+            if auto_fix:
+                cleaned[k] = {
+                    "xp": 0,
+                    "level": 1,
+                    "coins": 100,
+                    "gems": 0,
+                    "balance": 0,
+                    "warnings": [],
+                    "censored_count": 0,
+                    "strikes": 0,
+                    "messages": [],
+                }
+                report["fixed"] += 1
+            continue
+
+        user = v.copy()
+        user.setdefault("warnings", [])
+        user.setdefault("messages", [])
+        user.setdefault("xp", 0)
+        user.setdefault("level", 1)
+        user.setdefault("coins", 100)
+        user.setdefault("gems", 0)
+        user.setdefault("balance", 0)
+        user.setdefault("censored_count", 0)
+        user.setdefault("strikes", 0)
+
+        for num_key in ("xp", "level", "coins", "gems", "balance", "censored_count", "strikes"):
+            val = user.get(num_key)
+            if isinstance(val, (int, float)):
+                user[num_key] = int(val)
+            else:
+                try:
+                    user[num_key] = int(float(str(val)))
+                    report["fixed"] += 1
+                except Exception:
+                    report["anomalies"].append(f"bad_numeric_{num_key}: user={k} value={val}")
+                    user[num_key] = 0 if num_key != "level" else 1
+
+        if not isinstance(user.get("messages"), list):
+            report["anomalies"].append(f"messages_not_list: user={k}")
+            user["messages"] = []
+            report["fixed"] += 1
+
+        cleaned[k] = user
+
+    # Only create backups and save when auto_fix is requested. In dry-run mode skip IO changes.
+    if auto_fix:
+        try:
+            os.makedirs(os.path.dirname(variables.USER_DATA_FILE), exist_ok=True)
+            backup_path = variables.USER_DATA_FILE + ".bak"
+            if os.path.exists(variables.USER_DATA_FILE):
+                shutil.copy2(variables.USER_DATA_FILE, backup_path)
+            report["backup"] = backup_path
+        except Exception as e:
+            report["anomalies"].append(f"backup_failed: {e}")
+
+        try:
+            save_user_data(cleaned)
+        except Exception as e:
+            report["anomalies"].append(f"save_failed: {e}")
+    else:
+        # dry-run: do not modify files or create backups
+        report["note"] = "dry-run: no files modified"
+
+    return report
+
+
+def normalize_server_settings(auto_fix=True):
+    """Analyze and optionally fix server_settings.json for the handler.
+
+    Returns a report dict.
+    """
+    report = {"checked": 0, "fixed": 0, "anomalies": []}
+    settings = load_server_settings()
+
+    for gid, gs in list(settings.items()):
+        report["checked"] += 1
+        if not str(gid).isdigit():
+            report["anomalies"].append(f"guild_key_not_digit: {gid}")
+            if auto_fix:
+                new_key = ''.join(ch for ch in str(gid) if ch.isdigit()) or gid
+                settings[str(new_key)] = settings.pop(gid)
+                report["fixed"] += 1
+                gid = new_key
+
+        if not isinstance(gs, dict):
+            report["anomalies"].append(f"guild_settings_not_object: {gid}")
+            if auto_fix:
+                settings[str(gid)] = {}
+                report["fixed"] += 1
+            continue
+
+        for str_key in ("verify_role", "welcome_message", "goodbye_message", "welcome_channel", "goodbye_channel", "prefix"):
+            val = gs.get(str_key)
+            if val is not None and not isinstance(val, str):
+                settings[str(gid)][str_key] = str(val)
+                report["fixed"] += 1
+
+        rr = gs.get("role_reactions")
+        if rr is not None:
+            if not isinstance(rr, dict):
+                report["anomalies"].append(f"role_reactions_not_dict: guild={gid}")
+                if auto_fix:
+                    settings[str(gid)]["role_reactions"] = {}
+                    report["fixed"] += 1
+            else:
+                new_rr = {}
+                for mid, mapping in rr.items():
+                    mid_str = str(mid)
+                    if not isinstance(mapping, dict):
+                        report["anomalies"].append(f"role_reactions_mapping_bad: guild={gid} message={mid}")
+                        continue
+                    new_map = {}
+                    for emoji, roleid in mapping.items():
+                        try:
+                            new_map[emoji] = int(roleid)
+                        except Exception:
+                            try:
+                                new_map[emoji] = int(float(str(roleid)))
+                                report["fixed"] += 1
+                            except Exception:
+                                report["anomalies"].append(f"roleid_not_int: guild={gid} message={mid} emoji={emoji} value={roleid}")
+                    new_rr[str(mid_str)] = new_map
+                settings[str(gid)]["role_reactions"] = new_rr
+
+    # Only backup and save when auto_fix is True. Skip IO in dry-run mode.
+    if auto_fix:
+        try:
+            os.makedirs(os.path.dirname(variables.SERVER_SETTINGS_FILE), exist_ok=True)
+            backup_path = variables.SERVER_SETTINGS_FILE + ".bak"
+            if os.path.exists(variables.SERVER_SETTINGS_FILE):
+                shutil.copy2(variables.SERVER_SETTINGS_FILE, backup_path)
+            report["backup"] = backup_path
+        except Exception as e:
+            report["anomalies"].append(f"backup_failed: {e}")
+
+        try:
+            save_server_settings(settings)
+        except Exception as e:
+            report["anomalies"].append(f"save_failed: {e}")
+    else:
+        report["note"] = "dry-run: no files modified"
+
+    return report
+
+
+def fix_json_files(target="all", auto_fix=True):
+    combined = {"reports": {}, "timestamp": datetime.now().isoformat()}
+    if target in ("all", "user_data"):
+        combined["reports"]["user_data"] = normalize_user_data(auto_fix=auto_fix)
+    if target in ("all", "server_settings"):
+        combined["reports"]["server_settings"] = normalize_server_settings(auto_fix=auto_fix)
+    # Generic normalizer for other JSON files (basic coercions and structure checks)
+    if target in ("all", "generic"):
+        combined["reports"]["generic"] = normalize_generic_json_files(auto_fix=auto_fix)
+    return combined
+
+
+def normalize_generic_json_files(auto_fix=True, folder="."):
+    """Scan common JSON files in the project (under repo root or `data/`) and perform light normalization.
+
+    This function is intentionally conservative: it only coerces numeric-like scalars to int where safe,
+    ensures top-level objects are dict or list, and makes a .bak when auto_fix is True.
+    Returns a report: {checked, fixed, anomalies, files: {path: {checked,fixed,anomalies}}}
+    """
+    report = {"checked": 0, "fixed": 0, "anomalies": [], "files": {}}
+
+    # Candidate files to check - extendable
+    candidates = [
+        os.path.join(folder, "data", "bank.json"),
+        os.path.join(folder, "data", "daily_claims.json"),
+        os.path.join(folder, "data", "insider_quests.json"),
+        os.path.join(folder, "data", "insider_secret.json"),
+        os.path.join(folder, "data", "insider_xp.json"),
+        os.path.join(folder, "data", "shared.json"),
+        os.path.join(folder, "data", "user_bgs.json"),
+        os.path.join(folder, "data", "user_bios.json"),
+    ]
+
+    # Deduplicate and keep only existing files
+    candidates = [p for p in dict.fromkeys(candidates) if os.path.exists(p)]
+
+    def _coerce_value(v):
+        # Try to coerce numeric-like strings/floats to int, otherwise leave unchanged
+        if isinstance(v, (int,)):
+            return v, False
+        if isinstance(v, float):
+            return int(v), True
+        if isinstance(v, str):
+            try:
+                iv = int(v)
+                return iv, True
+            except Exception:
+                try:
+                    iv = int(float(v))
+                    return iv, True
+                except Exception:
+                    return v, False
+        return v, False
+
+    for path in candidates:
+        file_report = {"checked": 0, "fixed": 0, "anomalies": []}
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+        except Exception as e:
+            report["anomalies"].append(f"failed_read:{path}:{e}")
+            continue
+
+        report["checked"] += 1
+        file_report["checked"] = 1
+
+        modified = False
+
+        # If top-level is dict, iterate keys/values
+        if isinstance(raw, dict):
+            for k, v in list(raw.items()):
+                # Only attempt coercion on simple scalar values
+                if isinstance(v, (str, int, float)):
+                    new_v, changed = _coerce_value(v)
+                    if changed:
+                        raw[k] = new_v
+                        modified = True
+                        file_report["fixed"] += 1
+                # If it's a list of simple scalars, coerce items
+                elif isinstance(v, list):
+                    new_list = []
+                    changed_any = False
+                    for item in v:
+                        new_item, changed = _coerce_value(item)
+                        new_list.append(new_item)
+                        if changed:
+                            changed_any = True
+                    if changed_any:
+                        raw[k] = new_list
+                        modified = True
+                        file_report["fixed"] += 1
+                # nested dicts/lists are skipped for safety (could be extended later)
+        elif isinstance(raw, list):
+            # For a top-level list, try to coerce simple scalar elements
+            new_list = []
+            changed_any = False
+            for item in raw:
+                if isinstance(item, (str, int, float)):
+                    new_item, changed = _coerce_value(item)
+                    new_list.append(new_item)
+                    if changed:
+                        changed_any = True
+                else:
+                    new_list.append(item)
+            if changed_any:
+                raw = new_list
+                modified = True
+                file_report["fixed"] += 1
+        else:
+            file_report["anomalies"].append(f"top_level_not_object_or_list:{type(raw).__name__}")
+
+        # Save backup + file if requested
+        if modified:
+            report["fixed"] += file_report["fixed"]
+            if auto_fix:
+                try:
+                    bak = path + ".bak"
+                    shutil.copy2(path, bak)
+                    with open(path, "w", encoding="utf-8") as f:
+                        json.dump(raw, f, indent=2)
+                    file_report["backup"] = bak
+                except Exception as e:
+                    file_report["anomalies"].append(f"save_failed:{e}")
+            else:
+                file_report["note"] = "dry-run: no file written"
+
+        report["files"][path] = file_report
+
+    return report
 
 def load_limitations():
     """Load limitations from the JSON file."""

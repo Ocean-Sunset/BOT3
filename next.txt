@@ -1,0 +1,11 @@
+"USER_ID": {
+    "SERVER_ID": {
+        "xp": 0,
+        "level": 0,
+        "coins": 0,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+    },
+    # if other data is present, don't delete it.
+},

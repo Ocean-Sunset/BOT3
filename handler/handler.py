@@ -8,8 +8,17 @@ import sys
 import difflib
 import asyncio
 import logging
+import json
 import argparse
 import random
+import time
+import os
+import asyncio
+import discord
+from discord.ext import commands, tasks
+import sys
+import typing
+import datetime
 TOKEN = os.getenv("TOKEN")
 ERROR_CHANNEL_ID = 1389940334578106470
 UPDATE_CHANNEL_ID = 1389940334578106470
@@ -29,16 +38,16 @@ LAST_COMMAND_FILE = os.path.join(SIGNALS_DIR, "last_command.txt")
 lil_text = [
      "fishh :D",
      "did you know? i know :)",
-     "nantedo 2 is costy",
      "here my token: MTM...",
      "i hardcoded this text to be random :D",
-     "null",
      "boblox sucks :(",
      "ur addictied to discorde",
      "lalalalalalalala",
      "did u know? this is an announcement",
-     "THIS IS AN ALERT, MY KFC IS CLOSING TONIGHT :((((("
 ]
+
+# Assume SIGNALS_DIR is already defined
+SIGNALS_DIR = os.path.join(os.path.dirname(__file__), "signals")
 
 
 intents = discord.Intents.default()
@@ -50,6 +59,11 @@ async def on_ready():
     print(f"Handler bot logged in as {bot.user}")
     check_signals.start()
     keep_terminal_alive.start()
+    # start guild sync task
+    try:
+        sync_main_bot_members.start()
+    except Exception:
+        pass
 
 @bot.command(name="update")
 @commands.check(utils.is_owner)
@@ -151,6 +165,313 @@ async def kys(ctx):
         """commit die the bot."""
         await ctx.send("Commiting die...")
         await bot.close()
+
+@bot.command(name="selfkick")
+@commands.check(utils.is_owner)
+async def selfkick(self, ctx):
+    """Bot leaves the server when this command is used."""
+    await ctx.send("# 👋 Leaving the server!\nSeems like my owner didn't like your server or something.")
+    await ctx.guild.leave()
+
+@bot.command(name="fix")
+@commands.check(utils.is_owner)
+async def fix_command(ctx, target: typing.Optional[str] = "all"):
+    """Run the handler JSON fixer (user_data, server_settings, or all).
+
+    Usage examples:
+      !fix all           -> perform fixes (default)
+      !fix all dry       -> dry-run: analyze but do not modify files
+      !fix user_data --dry
+    """
+    # Determine if caller requested dry-run
+    args = str(target).split()
+    # If multiple words given, first is target, next may be 'dry' or '--dry'
+    target_name = args[0] if args else "all"
+    dry = False
+    if len(args) > 1:
+        for token in args[1:]:
+            if token.lower() in ("dry", "--dry", "--no-write"):
+                dry = True
+
+    await ctx.send(f"🔧 Handler fixer running... dry-run={dry}. This may take a few seconds.")
+    try:
+        report = utils.fix_json_files(target=target_name, auto_fix=not dry)
+    except Exception as e:
+        await ctx.send(f"❌ Fixer raised an exception: {e}")
+        return
+
+    parts = []
+    for name, r in report.get("reports", {}).items():
+        parts.append(f"**{name}**: checked={r.get('checked',0)} fixed={r.get('fixed',0)} anomalies={len(r.get('anomalies',[]))}")
+
+    summary = "\n".join(parts) if parts else "Nothing to fix"
+
+    anomalies = []
+    for name, r in report.get("reports", {}).items():
+        for a in r.get("anomalies", []):
+            anomalies.append(f"[{name}] {a}")
+
+    msg = f"# ✅ Handler fix completed.\n{summary}"
+    if anomalies:
+        anomalies_txt = "\n".join(anomalies[:50])
+        if len(anomalies) > 50:
+            anomalies_txt += f"\n...and {len(anomalies)-50} more anomalies."
+        msg += f"\n\nDetected anomalies (truncated):\n{anomalies_txt}"
+
+    await ctx.send(msg)
+
+# Assume SIGNALS_DIR is already defined
+SIGNALS_DIR = os.path.join(os.path.dirname(__file__), "signals")
+
+# Assume SIGNALS_DIR is already defined
+SIGNALS_DIR_EXTRA = os.path.join(os.path.dirname(__file__), "../default/signals")
+
+# A dictionary to manage active command states
+active_commands = {}
+
+async def send_heartbeat_to_owner(bot):
+    await bot.wait_until_ready()
+    while not bot.is_closed():
+        try:
+            owner = (await bot.application_info()).owner
+            await owner.send(f"✅ Bot heartbeat: still alive at {datetime.datetime.now().isoformat()}")
+        except Exception as e:
+            print(f"Failed to send heartbeat to owner: {e}")
+        await asyncio.sleep(300)  # 5 minutes
+
+@bot.command(name="force_restart")
+@commands.check(utils.is_owner)
+async def force_restart(ctx):
+    """Stylish restart of the main bot"""
+    msg = await ctx.send("🔄 Preparing restart...")
+    
+    # Stages for the progress bar
+    stages = [
+        "Stopping bot...",
+        "Device set to use CPU",
+        "Loading cogs...",
+        "Loading asset manager...",
+        "Finalizing startup...",
+        "OK",
+        "✅ Restart complete!"
+    ]
+    
+    # Store the command state in the dictionary
+    command_id = ctx.message.id
+    active_commands[command_id] = {
+        "message": msg,
+        "stages": stages,
+        "current_stage": 0,
+        "is_restarting": True,
+        "timeout_task": asyncio.create_task(timeout_check(ctx, command_id))
+    }
+    
+    # Send a simple restart signal to the main bot
+    try:
+        with open(os.path.join(SIGNALS_DIR_EXTRA, "restart_request.txt"), "w") as f:
+            f.write(str(command_id))
+    except Exception as e:
+        await ctx.send(f"❌ Failed to send restart signal: {e}")
+        del active_commands[command_id]
+        return
+
+    # Start the progression based on signals
+    await update_progress(command_id)
+
+@bot.command(name="help")
+async def smart_help(ctx, *, command: str = None): # Added default None and changed to * for multi-word commands
+    """
+    Show a list of all commands grouped by category (cog), paginated with buttons,
+    or provide detailed help for a specific command.
+    """
+    prefix = ctx.prefix
+
+    if command is None:
+        # Group commands by cog
+        categories = {}
+        for cmd in bot.commands: # Changed 'command' to 'cmd' to avoid conflict
+            if cmd.hidden:
+                continue
+            cog = cmd.cog_name or "Other"
+            categories.setdefault(cog, []).append(cmd)
+
+        # Prepare pages (one page per category/cog)
+        pages = []
+        for cog, cmds in categories.items():
+            lines = [f"`{prefix}{c.name}`: {c.short_doc or 'No description'}" for c in cmds] # Changed 'command' to 'c'
+            value = ""
+            more = False
+            for line in lines:
+                if len(value) + len(line) + 1 > 1000:
+                    more = True
+                    break
+                value += line + "\n"
+            if more:
+                value += "...and more"
+            embed = discord.Embed(
+                title="📖 Bot Commands",
+                description=f"Use `{prefix}help <command>` for more info.",
+                color=discord.Color.blue(),
+            )
+            embed.add_field(
+                name=cog,
+                value=value or "No commands.",
+                inline=False
+            )
+            pages.append(embed)
+
+        if not pages:
+            await ctx.send("No commands available.")
+            return
+
+        class HelpView(discord.ui.View):
+            def __init__(self, pages):
+                super().__init__(timeout=60)
+                self.pages = pages
+                self.index = 0
+
+            async def update_message(self, interaction: discord.Interaction):
+                for child in self.children:
+                    if isinstance(child, discord.ui.Button):
+                        child.disabled = False
+                if self.index == 0:
+                    self.children[0].disabled = True  # Previous
+                if self.index == len(self.pages) - 1:
+                    self.children[1].disabled = True  # Next
+                await interaction.response.edit_message(embed=self.pages[self.index], view=self)
+
+            @discord.ui.button(label="Previous", style=discord.ButtonStyle.secondary, disabled=True)
+            async def previous(self, interaction: discord.Interaction, button: discord.ui.Button):
+                if self.index > 0:
+                    self.index -= 1
+                    await self.update_message(interaction)
+
+            @discord.ui.button(label="Next", style=discord.ButtonStyle.secondary)
+            async def next(self, interaction: discord.Interaction, button: discord.ui.Button):
+                if self.index < len(self.pages) - 1:
+                    self.index += 1
+                    await self.update_message(interaction)
+
+        view = HelpView(pages)
+        await ctx.send(embed=pages[0], view=view)
+    else:
+        # Handle specific command help
+        target_command = bot.get_command(command)
+
+        if target_command:
+            embed = discord.Embed(
+                title=f"❓ Help for `{prefix}{target_command.name}`",
+                color=discord.Color.green()
+            )
+            
+            # Use the 'help' attribute first, then 'short_doc'
+            description = target_command.help or target_command.short_doc or "No detailed description available."
+            embed.description = description
+
+            # Add command usage if available (e.g., from signature)
+            if target_command.signature:
+                embed.add_field(name="Usage", value=f"`{prefix}{target_command.qualified_name} {target_command.signature}`", inline=False)
+            else:
+                embed.add_field(name="Usage", value=f"`{prefix}{target_command.qualified_name}`", inline=False)
+            
+            # You can add more fields if your commands have aliases, cooldowns, etc.
+            if target_command.aliases:
+                embed.add_field(name="Aliases", value=", ".join([f"`{alias}`" for alias in target_command.aliases]), inline=False)
+
+            await ctx.send(embed=embed)
+        else:
+            await ctx.send(f"Command `{command}` not found. Use `{prefix}help` to see all commands.")
+
+async def update_progress(command_id):
+    """Updates the progress bar and status text."""
+    if command_id not in active_commands:
+        return
+
+    state = active_commands[command_id]
+    msg = state["message"]
+    current_stage_index = state["current_stage"]
+    stages = state["stages"]
+
+    # This loop will continue until all stages are complete or a signal fails
+    while state["is_restarting"] and current_stage_index < len(stages):
+        stage_text = stages[current_stage_index]
+        
+        # Build the progress bar
+        filled = "█" * (current_stage_index + 1)
+        dots = "• " * (len(stages) - (current_stage_index + 1))
+        bar = f"[ {filled:<{len(stages)}}░░{dots}]"
+        
+        spinner = ["|", "/", "-", "\\"]
+        spin = spinner[(current_stage_index) % len(spinner)]
+        
+        await msg.edit(content=f"# {spin} {stage_text}\n{bar}")
+        
+        # Wait for the main bot's signal confirming this stage is done
+        try:
+            # We'll poll for a response file from the bot
+            response_file = os.path.join(SIGNALS_DIR_EXTRA, "restart_status.txt")
+            
+            # Wait with a timeout for the bot's response
+            await asyncio.wait_for(
+                wait_for_file_with_id(response_file, command_id),
+                timeout=30 # 30 seconds timeout
+            )
+            
+            # Once the file is found and read, we can proceed to the next stage
+            current_stage_index += 1
+            state["current_stage"] = current_stage_index
+            
+        except asyncio.TimeoutError:
+            await msg.edit(content=f"# ❌ ERR_444 - No response from bot. Restart cancelled.")
+            state["is_restarting"] = False
+            # Clean up the state
+            if command_id in active_commands:
+                if "timeout_task" in active_commands[command_id]:
+                    active_commands[command_id]["timeout_task"].cancel()
+                del active_commands[command_id]
+            # You might also want to signal the bot to cancel its operation here.
+            return
+        
+    # Final message after successful completion
+    if state["is_restarting"] and current_stage_index == len(stages):
+        await msg.edit(content="# ✅ Restart complete!")
+        # Clean up the state
+        if command_id in active_commands:
+            if "timeout_task" in active_commands[command_id]:
+                active_commands[command_id]["timeout_task"].cancel()
+            del active_commands[command_id]
+
+async def wait_for_file_with_id(file_path, command_id):
+    """Waits for a file to appear with the correct command ID."""
+    while True:
+        if os.path.exists(file_path):
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+            if content == str(command_id):
+                os.remove(file_path)
+                return True
+        await asyncio.sleep(1)
+
+async def timeout_check(ctx, command_id):
+    """A separate task to handle timeouts."""
+    await asyncio.sleep(30)
+    if command_id in active_commands and active_commands[command_id]["is_restarting"]:
+        await active_commands[command_id]["message"].edit(
+            content="# ❌ ERR_444 - No response from bot. Restart cancelled."
+        )
+        active_commands[command_id]["is_restarting"] = False
+        del active_commands[command_id]
+        # You would also signal the bot to stop here
+        with open(os.path.join(SIGNALS_DIR_EXTRA, "cancel_restart.txt"), "w") as f:
+            f.write(str(command_id))
+
+@tasks.loop(seconds=1)
+async def check_signals():
+    # This loop now primarily handles errors and updates, not the command flow itself.
+    # The `update_progress` function handles the restart flow.
+    # ... (rest of your check_signals for ERROR_FILE and UPDATE_FILE remains the same)
+    pass
+
 
 @bot.event
 async def on_command_error(ctx, error):
@@ -278,6 +599,99 @@ async def check_signals():
                     except Exception as e:
                         print(f"Failed to send update to channel {channel_id}: {e}")
         os.remove(UPDATE_FILE)
+    # Check for main bot leaving signal
+    botleft_path = os.path.join(SIGNALS_DIR, "botleft.txt")
+    if os.path.exists(botleft_path):
+        try:
+            with open(botleft_path, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+            if content:
+                try:
+                    gid = int(content)
+                    # If handler is also in that guild, leave it
+                    for g in list(bot.guilds):
+                        if g.id == gid:
+                            try:
+                                logging.info(f"Handler detected main bot left guild {g.id}; leaving")
+                                await g.leave()
+                            except Exception as e:
+                                logging.warning(f"Failed to leave guild {g.id}: {e}")
+                            break
+                except Exception:
+                    logging.debug(f"Invalid guild id in botleft.txt: {content}")
+        except Exception as e:
+            logging.debug(f"Error processing botleft.txt: {e}")
+        finally:
+            try:
+                os.remove(botleft_path)
+            except Exception:
+                pass
+    
+    handler_signal_path = os.path.join(SIGNALS_DIR, "handler_signal.txt")
+    if os.path.exists(handler_signal_path):
+        await asyncio.sleep(0.5) # Wait for file to be fully written
+        try:
+            with open(handler_signal_path, "r", encoding="utf-8") as f:
+                signal_data = f.read().strip().split(",")
+            
+            # Example signal format: "restart_status,user_id,message_id,status_code,message_text"
+            command_type = signal_data[0]
+            user_id = int(signal_data[1])
+            message_id = int(signal_data[2])
+            status = signal_data[3]
+            message_text = signal_data[4]
+            
+            if command_type == "restart_status" and user_id in utils.active_commands:
+                command_info = utils.active_commands[user_id]
+                if command_info["message_id"] == message_id:
+                    channel = bot.get_channel(command_info["channel_id"])
+                    if channel:
+                        try:
+                            msg = await channel.fetch_message(message_id)
+                            # Update the progress bar and text based on the status
+                            # You'll need to define a mapping from status codes to progress.
+                            total_stages = 7 # Example
+                            current_stage = int(status)
+                            filled = "█" * current_stage
+                            dots = "• " * (total_stages - current_stage)
+                            bar = f"[ {filled:<{total_stages}}░░{dots}]" # This needs to be adjusted
+                            
+                            await msg.edit(content=f"# {message_text}\n{bar}")
+
+                            if status == "complete" or status.startswith("ERR_"):
+                                del utils.active_commands[user_id]
+                                # Add logic to handle final message for success/failure
+                                if status == "complete":
+                                    await msg.edit(content="# ✅ Restart command executed!")
+                                else:
+                                    await msg.edit(content=f"# ❌ Restart failed.\nDetails: {message_text}")
+
+                        except discord.HTTPException as e:
+                            print(f"Failed to edit message {message_id}: {e}")
+            
+            os.remove(handler_signal_path)
+
+        except Exception as e:
+            print(f"Error processing handler signal file: {e}")
+            # Ensure the file is removed even on error
+            if os.path.exists(handler_signal_path):
+                os.remove(handler_signal_path)
+
+    # Timeout check for commands
+    for user_id, command_info in list(utils.active_commands.items()):
+        if asyncio.get_event_loop().time() - command_info["last_update"] > 30:
+            channel = bot.get_channel(command_info["channel_id"])
+            if channel:
+                try:
+                    msg = await channel.fetch_message(command_info["message_id"])
+                    await msg.edit(content="# ❌ ERR_444 - No response from bot.\nRestart cancelled. Try again.")
+                    # Cancel the request on the bot side by signaling it
+                    cancel_signal_path = os.path.join(SIGNALS_DIR, "cancel_restart.txt")
+                    with open(cancel_signal_path, "w") as f:
+                        f.write(f"cancel_restart,{user_id},{command_info['message_id']}")
+                except discord.HTTPException:
+                    pass
+            del utils.active_commands[user_id]
 
 
 @tasks.loop(minutes=1)
@@ -287,6 +701,94 @@ async def keep_terminal_alive():
     except Exception as e:
         print(f"[Heartbeat Error] {e}")
 
+
+async def main():
+    # ...existing bot setup code...
+    bot.loop.create_task(send_heartbeat_to_owner(bot))
+    # ...existing code to run the bot...
+
+
+@tasks.loop(seconds=30)
+async def sync_main_bot_members():
+    """Read main bot_data.txt and leave any guilds the main bot is no longer in.
+
+    The main bot writes a file `bot_data.txt` in the default folder. This task
+    reads `guild_ids=` line and parses the JSON array saved there. If the
+    handler is in a guild whose id is not present in that list, the handler
+    will attempt to leave that guild. This runs every 30 seconds and also
+    runs once when the handler becomes ready.
+    """
+    # wait until bot is ready
+    await bot.wait_until_ready()
+    data_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "default", "bot_data.txt"))
+    try:
+        if not os.path.exists(data_path):
+            return
+        # Prefer reading a direct main bot id file written by the main bot. If present
+        # we can test membership by trying to resolve the user in each guild.
+        main_id_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "default", "handler", "signals", "main_bot_id.txt"))
+        main_bot_id = None
+        if os.path.exists(main_id_file):
+            try:
+                with open(main_id_file, "r", encoding="utf-8") as f:
+                    main_bot_id = int(f.read().strip())
+            except Exception:
+                main_bot_id = None
+
+        main_guild_ids = None
+        if main_bot_id:
+            # Use direct membership test per guild
+            for guild in list(bot.guilds):
+                try:
+                    member = guild.get_member(main_bot_id)
+                    # If not cached, try fetch (best-effort)
+                    if member is None:
+                        try:
+                            member = await guild.fetch_member(main_bot_id)
+                        except Exception:
+                            member = None
+
+                    if member is None:
+                        # main bot not found in this guild -> leave
+                        try:
+                            logging.info(f"Handler leaving guild {guild.name} ({guild.id}) because main bot (id={main_bot_id}) is not present")
+                            await guild.leave()
+                        except Exception as e:
+                            logging.warning(f"Failed to leave guild {guild.id}: {e}")
+                except Exception:
+                    continue
+        else:
+            # Fallback: parse bot_data.txt for guild_ids line
+            with open(data_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            # find the line starting with 'guild_ids='
+            guild_ids_line = None
+            for line in content.splitlines():
+                if line.startswith("guild_ids="):
+                    guild_ids_line = line[len("guild_ids="):]
+                    break
+            if not guild_ids_line:
+                return
+            try:
+                main_guild_ids = set(json.loads(guild_ids_line))
+            except Exception:
+                # if parsing fails, skip this run
+                return
+
+            # compare with handler guilds
+            for guild in list(bot.guilds):
+                try:
+                    if str(guild.id) not in main_guild_ids and guild.id not in main_guild_ids:
+                        # The main bot is not in this guild according to bot_data.txt
+                        try:
+                            logging.info(f"Handler leaving guild {guild.name} ({guild.id}) because main bot is gone")
+                            await guild.leave()
+                        except Exception as e:
+                            logging.warning(f"Failed to leave guild {guild.id}: {e}")
+                except Exception:
+                    continue
+    except Exception as e:
+        logging.debug(f"sync_main_bot_members error: {e}")
 
 if __name__ == "__main__":
     print("🚀 Starting the bot...")

@@ -1,0 +1,2168 @@
+{
+    "917515232065228890": {
+        "xp": 3100,
+        "level": 39,
+        "coins": 850.0,
+        "gems": 15,
+        "balance": 0,
+        "warnings": [
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-09-27T13:59:37.094200"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-10-04T17:02:50.342156"
+            }
+        ],
+        "messages": [
+            1762530397.8905642
+        ],
+        "last_daily": "2025-10-07T21:23:19.255851",
+        "verified": true,
+        "censored_count": 0,
+        "strikes": 0,
+        "crates_opened": 7
+    },
+    "1361096620128604230": {
+        "xp": 130,
+        "level": 11,
+        "coins": 1200,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1748817248.068662
+        ],
+        "last_daily": "2025-05-29T06:21:39.991915"
+    },
+    "1294564651090186346": {
+        "xp": 90,
+        "level": 7,
+        "coins": 1954,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1747167364.1681733,
+            1747167370.093301
+        ],
+        "last_daily": "2025-05-13T22:15:05.565988",
+        "crates_opened": 9
+    },
+    "736713886379671622": {
+        "xp": 10280,
+        "level": 107,
+        "coins": 111,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1761222614.282555
+        ],
+        "last_daily": "2025-05-26T16:22:27.502972",
+        "crates_opened": 117,
+        "censored_count": 0,
+        "strikes": 0
+    },
+    "1218365049253396545": {
+        "xp": 80,
+        "level": 3,
+        "coins": 300,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1748320277.2410188
+        ]
+    },
+    "1300391173055057940": {
+        "xp": 3970,
+        "level": 40,
+        "coins": 230,
+        "gems": 2,
+        "balance": 0,
+        "warnings": [
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-05-17T06:43:58.766525"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-05-21T22:52:10.180864"
+            }
+        ],
+        "messages": [
+            1748466015.4339733,
+            1748466018.8052452,
+            1748466022.5127451,
+            1748466024.5811467
+        ],
+        "crates_opened": 19,
+        "last_daily": "2025-05-27T02:11:59.899362"
+    },
+    "928853626041008218": {
+        "xp": 30,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1746801387.662268
+        ]
+    },
+    "1285075700738687090": {
+        "xp": 8040,
+        "level": 238,
+        "coins": 307,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1748509979.3450785,
+            1748509985.923236
+        ],
+        "crates_opened": 150,
+        "last_daily": "2025-05-29T06:09:33.675152"
+    },
+    "1123603598044057711": {
+        "xp": 470,
+        "level": 8,
+        "coins": 800,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1748485632.8913782
+        ]
+    },
+    "532660427004444682": {
+        "xp": 30,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1746993509.6474924
+        ]
+    },
+    "432328386816507914": {
+        "xp": 130,
+        "level": 2,
+        "coins": 200,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1746901365.9104612,
+            1746901370.7296786
+        ]
+    },
+    "895787281439412224": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1746838019.8954065
+        ]
+    },
+    "920633494164606986": {
+        "xp": 100,
+        "level": 4,
+        "coins": 400,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1748108298.0060778
+        ],
+        "crates_opened": 3
+    },
+    "1346519306594291834": {
+        "xp": 80,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1746893605.2611444
+        ]
+    },
+    "1114702865005543526": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1747064815.5088732
+        ]
+    },
+    "1241639235543502858": {
+        "xp": 30,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1748503691.2038429
+        ]
+    },
+    "1055597833165754398": {
+        "xp": 30,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1747103437.8405778
+        ]
+    },
+    "810201716707950642": {
+        "xp": 20,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1747172743.2516418
+        ]
+    },
+    "1270449327470284810": {
+        "xp": 130,
+        "level": 3,
+        "coins": 300,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1747173837.0785658
+        ]
+    },
+    "716390085896962058": {
+        "xp": 0,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": []
+    },
+    "1339069316997320757": {
+        "xp": 150,
+        "level": 2,
+        "coins": 200,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1747542683.1273394
+        ]
+    },
+    "777020828558557205": {
+        "xp": 30,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": []
+    },
+    "1336579043839180801": {
+        "xp": 160,
+        "level": 3,
+        "coins": 300,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1747605835.830633
+        ]
+    },
+    "694799658152886282": {
+        "xp": 20,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": []
+    },
+    "1349919412735447122": {
+        "xp": 70,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1747499841.1700578
+        ]
+    },
+    "1261062680312283168": {
+        "xp": 70,
+        "level": 2,
+        "coins": 200,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1747601357.3610485,
+            1747601360.4002964
+        ]
+    },
+    "946695617374220298": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1747454586.2755475
+        ]
+    },
+    "1357988059609829532": {
+        "xp": 0,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": []
+    },
+    "810223334653689856": {
+        "xp": 90,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1747613620.7991035
+        ]
+    },
+    "1246219013038801029": {
+        "xp": 170,
+        "level": 2,
+        "coins": 200,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1747868873.9829547
+        ]
+    },
+    "1343650566915489815": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1747541575.5457973
+        ]
+    },
+    "812557111548575744": {
+        "xp": 60,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1747619441.7133443
+        ]
+    },
+    "1011411603046023188": {
+        "xp": 140,
+        "level": 2,
+        "coins": 200,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1748206992.8151493
+        ]
+    },
+    "1238637285994401792": {
+        "xp": 80,
+        "level": 3,
+        "coins": 300,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1748493470.4505038
+        ]
+    },
+    "1363598734759432435": {
+        "xp": 50,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1747879149.5381935
+        ]
+    },
+    "1037890700093693962": {
+        "xp": "",
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1747870013.0267546
+        ]
+    },
+    "1186166427586150457": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1747883388.466292
+        ]
+    },
+    "1375164973742952558": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1747940432.8758607
+        ]
+    },
+    "825587464043364374": {
+        "xp": 30,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1748127745.3528395
+        ]
+    },
+    "931313891034669056": {
+        "xp": 30,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1748297944.994903,
+            1748297946.105292
+        ]
+    },
+    "1268149023718637710": {
+        "xp": 30,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1748486539.1540282
+        ]
+    },
+    "1277020074204463148": {
+        "xp": 290,
+        "level": 5,
+        "coins": 800,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-05-21T22:52:10.180864"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-07-22T14:41:13.669008"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-07-22T14:41:35.442347"
+            }
+        ],
+        "messages": [
+            1754334891.3290124
+        ],
+        "censored_count": 0,
+        "strikes": 3
+    },
+    "774041665295482900": {
+        "xp": 40,
+        "level": 2,
+        "coins": 200,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1748464630.2191632,
+            1748464634.580382
+        ]
+    },
+    "1307436685604421632": {
+        "xp": 20,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1748615690.263343
+        ]
+    },
+    "1013456121912111174": {
+        "xp": 430,
+        "level": 9,
+        "coins": 900,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1759178285.8276954
+        ],
+        "censored_count": 1,
+        "strikes": 0
+    },
+    "962744760760668250": {
+        "xp": 50,
+        "level": 5,
+        "coins": 500,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1757842712.760419,
+            1757842715.9361281
+        ],
+        "censored_count": 0,
+        "strikes": 0
+    },
+    "1364739271000461393": {
+        "xp": 40,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1748808392.3445287
+        ]
+    },
+    "1008857460741787838": {
+        "xp": 70,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1749412797.9551704,
+            1749412799.5959463
+        ]
+    },
+    "445134817613578250": {
+        "xp": 170,
+        "level": 2,
+        "coins": 200,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1750377335.3520577
+        ]
+    },
+    "1264184600591208480": {
+        "xp": 120,
+        "level": 4,
+        "coins": 400,
+        "gems": 1,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1753443676.6081202
+        ],
+        "censored_count": 0,
+        "strikes": 0
+    },
+    "1354537233016815731": {
+        "xp": 320,
+        "level": 7,
+        "coins": 500.0,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1751667660.1274922
+        ]
+    },
+    "1323734010345689189": {
+        "xp": 200,
+        "level": "-+"
+    },
+    "1203424388628877465": {
+        "xp": 90,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1750653785.2193642
+        ]
+    },
+    "1009555415907971173": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1750156473.7105784
+        ]
+    },
+    "1370660964168630386": {
+        "xp": 70,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1750184649.1036549
+        ]
+    },
+    "882783944808988673": {
+        "xp": 20,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1751568248.0456343
+        ]
+    },
+    "915644319183036426": {
+        "xp": 820,
+        "level": 23,
+        "coins": 325,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-06-18T14:08:10.149294"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-06-18T14:11:06.001955"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-06-18T14:14:44.447486"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-06-18T14:15:19.024686"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-06-18T14:17:39.758007"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-06-18T14:19:06.522804"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-06-18T14:21:10.695808"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-06-18T14:54:45.053594"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-06-18T15:44:14.627211"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-06-18T15:44:36.915615"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-06-18T16:54:58.453353"
+            }
+        ],
+        "messages": [
+            1762238407.7480285
+        ],
+        "crates_opened": 2,
+        "censored_count": 0,
+        "strikes": 0
+    },
+    "780122217593044992": {
+        "xp": 880,
+        "level": 44,
+        "coins": 3135,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-06-18T14:08:44.784836"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-06-18T14:15:43.378569"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-06-18T14:16:32.569306"
+            }
+        ],
+        "messages": [
+            1762470474.3891437
+        ],
+        "crates_opened": 65,
+        "censored_count": 0,
+        "strikes": 0
+    },
+    "1150523139047051294": {
+        "xp": 50,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1750250877.0202398
+        ]
+    },
+    "965030081284145163": {
+        "xp": 320,
+        "level": 5,
+        "coins": 500,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1753103643.856248
+        ],
+        "censored_count": 0,
+        "strikes": 0
+    },
+    "1284296446291607585": {
+        "xp": 670,
+        "level": 27,
+        "coins": 2000,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1761950695.417707
+        ],
+        "censored_count": 0,
+        "strikes": 0
+    },
+    "1168410315764027535": {
+        "xp": 430,
+        "level": 22,
+        "coins": 1100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1762472429.370985
+        ],
+        "censored_count": 1,
+        "strikes": 0,
+        "crates_opened": 4
+    },
+    "771197570704998470": {
+        "xp": 290,
+        "level": 13,
+        "coins": 1300,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1762024181.71027
+        ],
+        "censored_count": 0,
+        "strikes": 0
+    },
+    "500151145696854018": {
+        "xp": 100,
+        "level": 5,
+        "coins": 500,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1761969417.86648,
+            1761969421.7239938
+        ],
+        "censored_count": 0,
+        "strikes": 0
+    },
+    "527525490475532288": {
+        "xp": 410,
+        "level": 8,
+        "coins": 800,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1762464680.0516715
+        ],
+        "censored_count": 0,
+        "strikes": 0
+    },
+    "982558428071329812": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1750287934.916536
+        ]
+    },
+    "1149835887736262676": {
+        "xp": 20,
+        "level": 2,
+        "coins": 200,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1750289805.667991
+        ]
+    },
+    "1160785625860014080": {
+        "xp": 50,
+        "level": 4,
+        "coins": 400,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1761460250.5131807
+        ],
+        "censored_count": 0,
+        "strikes": 0
+    },
+    "983965221989257227": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1750375377.2102485
+        ]
+    },
+    "518171705554763776": {
+        "xp": 40,
+        "level": 2,
+        "coins": 200,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1757193294.0379474
+        ],
+        "censored_count": 0,
+        "strikes": 0
+    },
+    "1175599118048043060": {
+        "xp": 80,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1750458671.0906117
+        ]
+    },
+    "513000684107333633": {
+        "xp": 310,
+        "level": 8,
+        "coins": 800,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1762279743.4442298
+        ],
+        "censored_count": 0,
+        "strikes": 0
+    },
+    "1046409621750943798": {
+        "xp": 20,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1750600317.2325861,
+            1750600319.9254513
+        ]
+    },
+    "1126498898404450395": {
+        "xp": 250,
+        "level": 3,
+        "coins": 300,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1754423969.0515432
+        ],
+        "censored_count": 0,
+        "strikes": 0
+    },
+    "1311647798722035807": {
+        "xp": 70,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1751650841.7001128
+        ]
+    },
+    "545282213533712415": {
+        "xp": 90,
+        "level": 3,
+        "coins": 300,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1751575742.8880866
+        ]
+    },
+    "1170770336313262134": {
+        "xp": 50,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1751814442.507511
+        ]
+    },
+    "1262305381460480002": {
+        "xp": 50,
+        "level": 2,
+        "coins": 200,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1759948225.4553013
+        ],
+        "censored_count": 0,
+        "strikes": 0
+    },
+    "963253855217385513": {
+        "xp": 30,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1751688840.2925632
+        ]
+    },
+    "1121185127620419696": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1751711797.6312165
+        ]
+    },
+    "1391006306554478656": {
+        "xp": 100,
+        "level": 2,
+        "coins": 500,
+        "balance": 0,
+        "warnings": [],
+        "verified": true,
+        "messages": [
+            1751828956.868677
+        ],
+        "crates_opened": 1
+    },
+    "964859761516511242": {
+        "xp": 30,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1753141703.0877924
+        ],
+        "censored_count": 0,
+        "strikes": 0
+    },
+    "821457053700194395": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "gems": 0,
+        "balance": 0,
+        "warnings": [],
+        "messages": [
+            1751818376.309391
+        ]
+    },
+    "1256576554784522251": {
+        "xp": 60,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1761325601.7816515
+        ]
+    },
+    "455960409082560524": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1753162516.835549
+        ]
+    },
+    "1039552447288446986": {
+        "xp": 90,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1753388667.998829
+        ]
+    },
+    "1026867929263902780": {
+        "xp": 180,
+        "level": 3,
+        "coins": 300,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1761297595.6392725,
+            1761297600.2281973,
+            1761297601.847085
+        ]
+    },
+    "1321580692949434464": {
+        "xp": 40,
+        "level": 1,
+        "coins": 400,
+        "warnings": [
+            {
+                "reason": "Being a dumbass",
+                "timestamp": "1977-01-10T06:43:58.766525"
+            }
+        ],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1762319002.729995
+        ]
+    },
+    "1231103565192233000": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1753443662.3226328
+        ]
+    },
+    "788077793732722719": {
+        "xp": 540,
+        "level": 8,
+        "coins": 800,
+        "warnings": [],
+        "censored_count": 7,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1762519324.7536197
+        ]
+    },
+    "1366817727552950373": {
+        "level_roles_enabled": true
+    },
+    "1386752607048962189": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1753807995.9085631
+        ]
+    },
+    "1300140206220902411": {
+        "xp": 580,
+        "level": 11,
+        "coins": 900,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1762448037.056929
+        ]
+    },
+    "1033395266587463701": {
+        "xp": 60,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1759886554.0883183,
+            1759886560.0699725
+        ]
+    },
+    "1246536669210083458": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1754068401.5498343
+        ]
+    },
+    "929418660525793341": {
+        "xp": 2320,
+        "level": 30,
+        "coins": 1600,
+        "warnings": [],
+        "censored_count": 1,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1762381184.3998685,
+            1762381190.6794503
+        ]
+    },
+    "990349756381413376": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1754420765.7504416
+        ]
+    },
+    "915594125116579851": {
+        "xp": 30,
+        "level": 3,
+        "coins": 300,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1761544205.5766847
+        ]
+    },
+    "1202896304003616780": {
+        "xp": 30,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1761574483.2528143
+        ]
+    },
+    "1211010144742154273": {
+        "xp": 110,
+        "level": 9,
+        "coins": 900,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1760967228.4952796
+        ]
+    },
+    "1402081698602291282": {
+        "xp": 30,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757245729.8077407,
+            1757245736.3788269
+        ]
+    },
+    "1052289092815167518": {
+        "xp": 1400,
+        "level": 100,
+        "coins": 0,
+        "warnings": [
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-09-07T19:36:45.473519"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-09-09T21:12:10.839283"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-09-09T21:12:56.893807"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-09-09T21:13:32.624355"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-09-09T21:14:05.934540"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-09-09T21:14:39.660799"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-09-09T21:16:42.171550"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-09-09T22:43:43.790354"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-09-09T22:44:07.961581"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-09-09T22:45:29.939691"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-09-09T22:47:46.941917"
+            },
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-09-10T14:10:12.120706"
+            }
+        ],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1759303906.5791826
+        ]
+    },
+    "1273661573663297699": {
+        "xp": 30,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757248439.1258438
+        ]
+    },
+    "1049809230787522631": {
+        "xp": 20,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757251445.0550015
+        ]
+    },
+    "943217559468138496": {
+        "xp": 80,
+        "level": 5,
+        "coins": 500,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1761215975.166471,
+            1761215979.0695703,
+            1761215982.2323356
+        ]
+    },
+    "1377255505940189374": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757251820.6283724
+        ]
+    },
+    "702844352287866901": {
+        "xp": 90,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757255281.4877865
+        ]
+    },
+    "355389414299402241": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757252530.9393735
+        ]
+    },
+    "1290704796537458731": {
+        "xp": 50,
+        "level": 3,
+        "coins": 300,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757513332.8304539
+        ]
+    },
+    "1340834644689682575": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757254793.639514
+        ]
+    },
+    "1169579068451205171": {
+        "xp": 70,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757256455.680644
+        ]
+    },
+    "1387324790838132756": {
+        "xp": 60,
+        "level": 2,
+        "coins": 200,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757614964.9958436
+        ]
+    },
+    "1414261503602724904": {
+        "xp": 60,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757263965.5537314
+        ]
+    },
+    "1374414089706799305": {
+        "xp": 280,
+        "level": 4,
+        "coins": 400,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1761946985.521409
+        ]
+    },
+    "971178090350903398": {
+        "xp": 20,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757434050.3810377
+        ]
+    },
+    "799938574467203072": {
+        "xp": 130,
+        "level": 3,
+        "coins": 300,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757266366.0997703
+        ]
+    },
+    "1327799895372861450": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757265491.8085692
+        ]
+    },
+    "1145132042846212136": {
+        "xp": 160,
+        "level": 2,
+        "coins": 200,
+        "warnings": [
+            {
+                "reason": "Spamming",
+                "timestamp": "2025-09-09T21:14:24.738813"
+            }
+        ],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757867093.0061064
+        ]
+    },
+    "1393680886943449182": {
+        "xp": 40,
+        "level": 2,
+        "coins": 200,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757269527.3495398
+        ]
+    },
+    "1278359552328339507": {
+        "xp": 60,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757505357.651358
+        ]
+    },
+    "1345419779930062879": {
+        "xp": 80,
+        "level": 5,
+        "coins": 500,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1759003198.220173
+        ]
+    },
+    "1377283536058581053": {
+        "xp": 80,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757415054.0983868
+        ]
+    },
+    "1353449780709429354": {
+        "xp": 30,
+        "level": 2,
+        "coins": 200,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757605180.4098153
+        ]
+    },
+    "1396112744301985824": {
+        "xp": 20,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757494949.1774983
+        ]
+    },
+    "1278728210951180422": {
+        "xp": 20,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757496366.49791
+        ]
+    },
+    "1069676697919696997": {
+        "xp": 180,
+        "level": 3,
+        "coins": 300,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757515832.8879666
+        ]
+    },
+    "842022581586231326": {
+        "xp": 30,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1758448575.4872556
+        ]
+    },
+    "1355960774966907031": {
+        "xp": 90,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1757871653.184612
+        ]
+    },
+    "1417185367747985510": {
+        "xp": 80,
+        "level": 2,
+        "coins": 200,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1758397856.7116032
+        ]
+    },
+    "1406417233051127873": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1758970216.6146398
+        ]
+    },
+    "964264005935964160": {
+        "level_roles_enabled": false
+    },
+    "1367546799606464562": {
+        "xp": 220,
+        "level": 13,
+        "coins": 600,
+        "warnings": [],
+        "censored_count": 2,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1762466936.6917312
+        ]
+    },
+    "1268847971777384488": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1759297733.226103
+        ]
+    },
+    "534423195248230440": {
+        "xp": 30,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1759488679.6013834
+        ]
+    },
+    "1305628816760115215": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1759542613.302537
+        ]
+    },
+    "251097925508268033": {
+        "xp": 240,
+        "level": 3,
+        "coins": 300,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1759602823.0779903
+        ]
+    },
+    "1424079585590382635": {
+        "xp": 20,
+        "level": 2,
+        "coins": 200,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1759623102.0612872
+        ]
+    },
+    "788486515608387644": {
+        "xp": 20,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1759616188.3818474
+        ]
+    },
+    "463712798199775232": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1759615991.765346
+        ]
+    },
+    "670577749441904651": {
+        "xp": 320,
+        "level": 5,
+        "coins": 500,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1762374698.811879
+        ]
+    },
+    "1239998143115038800": {
+        "xp": 20,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1759621864.5621495
+        ]
+    },
+    "655101177805013028": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1759632952.422186
+        ]
+    },
+    "1130982696655532134": {
+        "xp": 140,
+        "level": 4,
+        "coins": 400,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1761502941.7637217
+        ]
+    },
+    "1187966632434348044": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1759708174.9057262
+        ]
+    },
+    "1336161474971828289": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1759708783.5319185
+        ]
+    },
+    "1296488268866785316": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1759747402.4702759
+        ]
+    },
+    "550440591209660426": {
+        "xp": 230,
+        "level": 5,
+        "coins": 500,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1762216450.1835296
+        ]
+    },
+    "1020483255130148915": {
+        "xp": 500,
+        "level": 8,
+        "coins": 800,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1762448551.7481067
+        ]
+    },
+    "1426541687072886877": {
+        "xp": 20,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1760193870.025274
+        ]
+    },
+    "379298297027756033": {
+        "xp": 310,
+        "level": 10,
+        "coins": 1000,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1762448510.609514
+        ]
+    },
+    "1379281891886104676": {
+        "xp": 720,
+        "level": 9,
+        "coins": 900,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1760470172.3868265
+        ]
+    },
+    "745341053930045542": {
+        "xp": 60,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1760848140.2751606
+        ]
+    },
+    "1427791722708209745": {
+        "xp": 80,
+        "level": 2,
+        "coins": 200,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1760930306.467791
+        ]
+    },
+    "433004049239900161": {
+        "xp": 50,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1760930797.2474673
+        ]
+    },
+    "1254026845926592572": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1760985294.8957446
+        ]
+    },
+    "1261274950971428939": {
+        "xp": 10,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1760985323.5477333
+        ]
+    },
+    "1133223322813988925": {
+        "xp": 80,
+        "level": 2,
+        "coins": 200,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1761003992.8737783
+        ]
+    },
+    "900965522059964468": {
+        "xp": 360,
+        "level": 7,
+        "coins": 700,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1762221629.4041116
+        ]
+    },
+    "658016677912510504": {
+        "xp": 60,
+        "level": 4,
+        "coins": 400,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1761426852.7854702
+        ]
+    },
+    "1421455060537442314": {
+        "xp": 20,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1761757188.9957864
+        ]
+    },
+    "1432352455026282596": {
+        "xp": 20,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1761760139.4132006
+        ]
+    },
+    "267704596061880321": {
+        "xp": 80,
+        "level": 2,
+        "coins": 200,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1762169279.7201123
+        ]
+    },
+    "1288172086543777823": {
+        "xp": 60,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1762318968.0194976,
+            1762318973.1389446
+        ]
+    },
+    "1289385033190080608": {
+        "xp": 440,
+        "level": 6,
+        "coins": 600,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1762445771.7615087
+        ]
+    },
+    "733247312649781259": {
+        "xp": 20,
+        "level": 1,
+        "coins": 100,
+        "warnings": [],
+        "censored_count": 0,
+        "strikes": 0,
+        "gems": 0,
+        "balance": 0,
+        "messages": [
+            1762404356.2307358
+        ]
+    }
+}

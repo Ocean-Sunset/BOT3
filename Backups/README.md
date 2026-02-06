@@ -27,7 +27,12 @@ Mostly complete
 Celestra (A-3)
 Handler: Celestra's handler
 Version: 3.0.0
-* in progress… *
+Broken.
+
+Lunara (A-4)
+Handler: Lunara's handler
+Version: ??
+none
 -----------------------------------------------------------------------------------
 ------------------------------- OFFICIAL VERSIONS ---------------------------------
 -----------------------------------------------------------------------------------

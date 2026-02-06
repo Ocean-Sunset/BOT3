@@ -1,0 +1,66 @@
+Walkthrough: Integrated Version Check
+I have moved the version checking logic directly into 
+brain.py
+ and consolidated the project structure. This ensures the version check runs reliably before the bot starts, without depending on external component files that were causing detection issues on the server.
+
+Changes Made
+brain.py
+Inlined Version Logic: The core functions and constants for cog versioning are now defined directly in 
+brain.py
+.
+Integrated Startup: The 
+run_version_check()
+ function is called at the very beginning of the startup block.
+Added Dependencies: Added shutil, filecmp, and difflib imports to support the version checking logic.
+python
+# ---------------------------------------- VERSION CHECK --------------------------------------
+# (Functions: read_versions, write_versions, ensure_more_folder, etc. are now here)
+if __name__ == "__main__":
+    flask_thread.start()
+    try:
+        run_version_check()  # Runs before bot startup
+        asyncio.run(load_cogs())
+        bot.run(variables.token)
+ver.txt
+ [NEW]
+Relocated from 
+Components/ver.txt
+ to the root cli directory for easier access and detection.
+more/
+ [MOVED]
+Relocated from Components/more/ to the root cli directory to keep all versioning data together.
+Ediscord/utils.py
+ [MODIFIED]
+Role Spam Fix: Added if role not in member.roles: checks to 
+assign_auto_role
+ and 
+assign_level_role
+ to prevent redundant Discord API calls.
+Background Task Optimization: Increased the sleep interval in 
+role_check_task
+ from 10 seconds to 10 minutes (600s). This significantly reduces the load on the host's networking proxy and Discord's API, resolving the 503 Service Unavailable errors.
+Components/ownercommands.py
+ [MODIFIED]
+Update Command: Refactored to a standard prefix command (?update) for better owner access. Added support for ?update insider to specifically update experimental versions.
+Components/info.py
+ [MODIFIED]
+Build Names: Updated bot build names (e.g., Mystralyn).
+Embeds: Added warning messages for public builds to inform users about the bot's preview status.
+Components/comp_VER.py
+ [DELETE]
+Removed this file as its logic is now part of 
+brain.py
+.
+Components/ver.txt
+ [DELETE]
+Removed the old version file.
+Verification
+Structure: The cli folder now contains its own 
+ver.txt
+ and 
+more/
+ directory.
+Logic: All necessary logic for detecting changed cogs and prompting for BIG/MEDIUM/SMALL updates is now internal to 
+brain.py
+.
+Startup: The bot will perform the version check immediately upon execution, then proceed to load extensions.

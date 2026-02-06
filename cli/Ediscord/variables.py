@@ -1,0 +1,322 @@
+"""
+# Ediscord variables package
+Variable package for Ediscord.
+
+Contains:
+- All global variables for easier access and maintenance.
+"""
+
+# --------------------- IMPORTS --------------------
+import time
+from os import environ
+from dotenv import load_dotenv
+from datetime import datetime, timedelta
+import openai
+import os
+import discord
+import logging
+import json
+from discord.ext.commands import CooldownMapping
+from discord.ext.commands import BucketType
+from transformers.pipelines import pipeline
+from googletrans import Translator
+from PIL import Image, ImageDraw, ImageFont
+from Ediscord import utils
+from io import BytesIO
+# --------------------- CONSTANT VARIABLES --------------------
+SPAM_THRESHOLD = 4  # Number of messages allowed within the time window
+TIME_WINDOW = 5  # Time window in seconds
+EASTER_FILE = "data/easter.json"
+TROPHY_FILE = "data/trophies.json"
+BOT_DATA_FILE = "bot_data.txt"
+WEBSITE_COMMANDS_FILE = "website_commands.txt"
+LIMITATIONS_FILE = "data/limitations.json"
+LOGGING_CONFIG_FILE = "data/logging_config.json"
+OPENAI_API_KEY = environ.get("OPEN_API_KEY")
+UNSPLACH_API_KEY = os.environ.get("UNSPLASH_API_KEY")
+OPENWHEATHER_KEY = os.environ.get("OPENWEATHER_KEY")
+BANK_FILE = "data/bank.json"
+INVENTORY_FILE = "data/inventory.json"
+VALID_CHANNEL_NAME_PATTERN = r"^[\p{L}0-9-]+$"
+WELCOME_KEYWORDS = ["welcome", "start", "new-member", "greetings", "hello", 
+                    "WELCOME", "START", "New-Member", "GREETINGS", "HELLO"]
+GOODBYE_KEYWORDS = ["goodbye", "departure", "leaving", "leave",
+                    "GOODBYE", "DEPARTURE", "LEAVING", "LEAVE"]
+USER_DATA_FILE = "data/user_data.json"
+COGS_DIR = "../default/Components"
+DATA_DIR = "../default/data"
+LOG_FILE = "../default/logs/super_command.log"
+PREFIXES_FILE = "data/prefixes.json"
+SERVER_SETTINGS_FILE = "data/server_settings.json"
+SCHEDULED_MSGS_FILE = "data/scheduled_messages.json"
+COLOR_MAP = {
+    "red": 0xFF0000,
+    "orange": 0xFFA500,
+    "yellow": 0xFFFF00,
+    "green": 0x00FF00,
+    "blue": 0x0000FF,
+    "violet": 0x8A2BE2,
+    "white": 0xFFFFFF,
+    "black": 0x000000,
+    "brown": 0x8B4513,
+    "cyan": 0x00FFFF,
+    "magenta": 0xFF00FF,
+    "lightblue": 0xADD8E6,
+    "pink": 0xFFC0CB,
+    "grey": 0x808080,
+}
+
+HEX_REGEX = r"^#?([0-9a-fA-F]{6})$"
+IS_LOCKDOWN = False
+USER_DATA_PATH = "data/user_data.json"
+BACKUP_FOLDER = "backups/user_data/"
+LOG_FILE = "backups/backup_log.txt"
+MAX_BACKUPS = 10
+AUTO_ROLE_PATH = os.path.join(os.path.dirname(__file__), "../data/autoroles.json")
+GIVEAWAY_PATH = os.path.join(os.path.dirname(__file__), "../data/giveaways.json")
+INVENTORY_PATH = os.path.join(os.path.dirname(__file__), "../data/inventory.json")
+USER_DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/user_data.json")
+SWEAR_JSON_PATH = os.path.join(os.path.dirname(__file__), "../data/swearwords.json")
+# --------------------- VARIABLES --------------------
+disabled_variants = set()
+total_commands = 0
+insider_FILE = "data/insider_servers.json"
+start_time = time.time()
+is_sleeping = False  # Tracks whether the bot is in sleep mode
+custom_status = None  # Tracks the custom status and activity
+token = os.environ["TOKEN"]
+last_activity_time = datetime.now()
+trophies = {
+    "trophy_1": {"name": "Coin Collector", "goal": "Collect 1,000 coins", "icon": "icons/coin_collector.png"},
+    "trophy_2": {"name": "Gem Hoarder", "goal": "Collect 10 gems", "icon": "icons/gem_hoarder.png"},
+    "trophy_3": {"name": "Impossible Victor", "goal": "Win 10 Impossible Easter fights", "icon": "icons/impossible_victor.png"},
+    "trophy_4": {"name": "Level Master", "goal": "Reach Level 50", "icon": "icons/level_master.png"},
+    "trophy_5": {"name": "Crate Opener", "goal": "Open 50 crates", "icon": "icons/crate_opener.png"},
+}
+openai.api_key = OPENAI_API_KEY
+openwheather = OPENWHEATHER_KEY
+intents = discord.Intents.default()
+intents.message_content = True  # This is required for processing commands
+intents.guilds = True
+intents.members = True
+intents.reactions = True
+banned_servers_file = "data/banned_servers.json"
+server_restrictions_file = "data/server_restrictions.json"
+bot_info_file = "data/bot_info.json"
+# IDs for support server channels (set these to your channel IDs)
+SUPPORT_STATUS_CHANNEL_ID = 1447688628808716298  # e.g., 123456789012345678
+CHANGELOG_CHANNEL_ID = 1447688630171598939      # e.g., 123456789012345678
+game_ongoing = False
+board = [" " for _ in range(9)]
+custom_cooldown = CooldownMapping.from_cooldown(
+    1, 10, BucketType.user
+)  # 1 message per 60 seconds
+current_status = None
+level_roles = {
+    5: "[🌱 Novice]",
+    10: "[🔰 Apprentice]",
+    20: "[⚔️ Expert]",
+    30: "[🏆 Master]",
+    50: "[👑 Grandmaster]",
+    100: "[💬 God of talking]"
+}
+last_activity = {}
+chat_reviver_messages = [
+    "Hey everyone! What's up? 👋",
+    "Let's keep the chat alive! What's on your mind? 💬",
+    "Who's up for a fun conversation? 😄",
+    "What's your favorite movie or TV show? 🎥",
+    "If you could travel anywhere in the world, where would you go? 🌍",
+    "What's the best thing that happened to you today? 🌟",
+    "Let's play a quick game! What's 5 + 7? 🤔",
+    "Share your favorite meme! 😂",
+    "What's your favorite food? 🍕",
+    "Who's ready for some fun? 🎉",
+]
+valid_commands = [
+    "help",
+    "info",
+    "serverinfo",
+    "shutdown",
+    "poll",
+    "ask",
+    "analyse",
+    "createrole",
+    "giverole",
+    "removerole",
+    "warn",
+    "kick",
+    "ban",
+    "givexp",
+    "gainlvl",
+    "copydm",
+    "copychannel",
+    "colorrole",
+    "verify",
+    "copy",
+    "choose_country",
+    "startgame",
+    "checkvc",
+    "continue",
+    "endgame",
+    "timeout",
+    "search_img",
+    "zen",
+    "BServer",
+    "UBServer",
+    "MServer",
+    "update",
+    "unzen",
+    "balance",
+    "daily",
+    "steal",
+    "give",
+    "stealadmin",
+    "wheel",
+    "leaderboard",
+    "trivia",
+    "reminder",
+    "join",
+    "leave",
+    "mute",
+    "unmute",
+    "purge",
+    "rps",
+    "setwelcome",
+    "afk",
+    "restart",
+    "changelog",
+    "zen",
+    "play",
+    "download",
+    "upload",
+    "queue",
+]
+message_cooldowns = {}
+afk_users = {}
+welcome_messages = {}
+ffmpeg_path = r""
+qa_pipeline = pipeline("text-generation", model="gpt2")
+translator = Translator()
+crate_objects = [
+    {"name": "Golden Egg", "rarity": "Legendary", "value": {"gems": 1000}},
+    {"name": "Diamond Shard", "rarity": "Legendary", "value": {"gems": 50}},
+    {"name": "Mystic Feather", "rarity": "Epic", "value": {"gems": 5}},
+    {"name": "Ancient Relic", "rarity": "Epic", "value": {"coins": 750}},
+    {"name": "Silver Coin", "rarity": "Rare", "value": {"coins": 250}},
+    {"name": "Bronze Coin", "rarity": "Rare", "value": {"coins": 100}},
+    {"name": "Magic Scroll", "rarity": "Rare", "value": {"coins": 150}},
+    {"name": "Wooden Shield", "rarity": "Uncommon", "value": {"coins": 50}},
+    {"name": "Iron Sword", "rarity": "Uncommon", "value": {"coins": 75}},
+    {"name": "Healing Potion", "rarity": "Uncommon", "value": {"coins": 30}},
+    {"name": "Rusty Key", "rarity": "Common", "value": {"coins": 10}},
+    {"name": "Old Map", "rarity": "Common", "value": {"coins": 15}},
+    {"name": "Broken Compass", "rarity": "Common", "value": {"coins": 5}},
+    {"name": "Phoenix Feather", "rarity": "Legendary", "value": {"gems": 100}},
+    {"name": "Dragon Scale", "rarity": "Epic", "value": {"gems": 4}},
+    {"name": "Enchanted Amulet", "rarity": "Epic", "value": {"coins": 1000}},
+    {"name": "Crystal Orb", "rarity": "Rare", "value": {"coins": 200}},
+    {"name": "Golden Chalice", "rarity": "Rare", "value": {"coins": 300}},
+    {"name": "Emerald Ring", "rarity": "Uncommon", "value": {"coins": 60}},
+    {"name": "Sapphire Pendant", "rarity": "Uncommon", "value": {"coins": 80}},
+    {"name": "Cursed Doll", "rarity": "Common", "value": {"coins": 20}},
+    {"name": "Ancient Coin", "rarity": "Common", "value": {"coins": 25}},
+    {"name": "Pirate's Hat", "rarity": "Rare", "value": {"coins": 150}},
+    {"name": "Treasure Chest", "rarity": "Legendary", "value": {"gems": 100}},
+    {"name": "Mystic Rune", "rarity": "Epic", "value": {"gems": 3}},
+    {"name": "Rotten ettuce", "rarity": "Rare", "value": {"coins": 1}},
+    {"name": "ettuce", "rarity": "Lengendary", "value": {"gems": 750}},
+    {"name": "divine ettuce", "rarity": "Transcendent", "value": {"gems": 2500}},
+]
+
+# Rarity weights for random selection
+rarity_weights = {
+    "Transcendent": 1,
+    "Legendary": 2,  # 2% chance
+    "Epic": 5,  # 5% chance
+    "Rare": 15,  # 15% chance
+    "Uncommon": 30,  # 30% chance
+    "Common": 49,  # 49% chance
+}
+user_strikes = {}
+logger = logging.getLogger(__name__)
+bubble_text = "Welcome!"
+bubble_x, bubble_y = 670, 60
+bubble_w, bubble_h = 170, 50
+bubble_rect = (bubble_x, bubble_y, bubble_x + bubble_w, bubble_y + bubble_h)
+# --------------------- CONDITIONAL VARIABLES --------------------
+if os.path.exists(TROPHY_FILE):
+    with open(TROPHY_FILE, "r") as f:
+        trophy_data = json.load(f)
+else:
+    trophy_data = {}
+
+if os.path.exists(EASTER_FILE):
+    with open(EASTER_FILE, "r") as f:
+        easter_data = json.load(f)
+else:
+    easter_data = {}
+
+# Load or initialize user data
+if os.path.exists("data/user_data.json"):
+    with open("data/user_data.json", "r") as f:
+        user_data = json.load(f)
+else:
+    user_data = {}
+
+# Load or initialize warnings data
+if os.path.exists("data/warnings.json"):
+    with open("data/warnings.json", "r") as f:
+        warnings_data = json.load(f)
+else:
+    warnings_data = {}
+
+# Load or initialize bank data
+if os.path.exists(BANK_FILE):
+    try:
+        with open(BANK_FILE, "r") as f:
+            bank_data = json.load(f)
+    except (json.JSONDecodeError, FileNotFoundError):
+        # If the file is empty or invalid, initialize an empty dictionary
+        bank_data = {}
+        with open(BANK_FILE, "w") as f:
+            json.dump(bank_data, f, indent=4)
+else:
+    # If the file doesn't exist, create it with an empty dictionary
+    bank_data = {}
+    os.makedirs(os.path.dirname(BANK_FILE), exist_ok=True)
+    with open(BANK_FILE, "w") as f:
+        json.dump(bank_data, f, indent=4)
+
+# Load or initialize banned servers data
+if os.path.exists(banned_servers_file):
+    try:
+        with open(banned_servers_file, "r") as f:
+            banned_servers = json.load(f)
+    except json.JSONDecodeError:
+        # If the file is empty or invalid, initialize an empty list
+        banned_servers = []
+else:
+    banned_servers = []
+
+# Load or initialize server restrictions data
+if os.path.exists(server_restrictions_file):
+    try:
+        with open(server_restrictions_file, "r") as f:
+            server_restrictions = json.load(f)
+    except json.JSONDecodeError:
+        # If the file is empty or invalid, initialize an empty dictionary
+        server_restrictions = {}
+else:
+    server_restrictions = {}
+
+# Load or initialize bot info
+if os.path.exists(bot_info_file):
+    try:
+        with open(bot_info_file, "r") as f:
+            bot_info = json.load(f)
+    except json.JSONDecodeError:
+        bot_info = {"version": "1.6.2", "new_stuff": "Initial release"}
+else:
+    bot_info = {"version": "1.6.2", "new_stuff": "Initial release"}
+

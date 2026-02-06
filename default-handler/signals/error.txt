@@ -1,4 +1,0 @@
-CRITICAL:CommandInvokeError: Command raised an exception: AttributeError: 'Context' object has no attribute 'member'
-Command: kick
-User: th3_t1sm
-Message: ?kick <@1277020074204463148>

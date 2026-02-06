@@ -1,0 +1,1395 @@
+# --------------------- IMPORTS --------------------
+from Ediscord import utils, variables
+import discord
+from discord.ext.commands import (
+    CommandNotFound,
+    MissingRequiredArgument,
+    BadArgument,
+    CommandOnCooldown,
+    CheckFailure,
+    DisabledCommand,
+    NoPrivateMessage,
+    CommandInvokeError,
+)
+from discord.ext import commands
+import discord.ext.commands
+import time
+import logging
+from PIL import Image, ImageDraw, ImageFont
+import requests
+from io import BytesIO
+import difflib
+import asyncio
+import re
+import random
+import os
+
+# Import the new AssetManager cog
+from Components.assets import AssetManager
+from Ediscord.utils import assign_auto_role, set_auto_role, get_auto_role, _normalize_message_for_matching, _find_rp_channel
+
+
+# --------------------- EVENTS --------------------
+print("✅ - Events loaded.")
+print(utils.load_swearwords())
+class Events(commands.Cog):
+    
+    def __init__(self, bot):
+        self.bot = bot
+        # Store a reference to the AssetManager cog once it's loaded
+        self.assets = None
+        logging.info("Events cog initialized.")
+
+    async def is_spam(self, message):
+        if hasattr(self, "_last_message"):
+            last = self._last_message.get(message.author.id)
+            if last and last["content"] == message.content and (message.created_at - last["time"]).total_seconds() < 3:
+                return True
+        else:
+            self._last_message = {}
+        self._last_message[message.author.id] = {"content": message.content, "time": message.created_at}
+        return False
+
+    @commands.Cog.listener()
+    async def on_command(self, ctx):
+        owner = (await self.bot.application_info()).owner
+        try:
+            await owner.send(
+                f"🔔 Command `{ctx.command}` used by {ctx.author} in {ctx.guild.name}#{ctx.channel.name}:\n> {ctx.message.content}"
+            )
+        except Exception as e:
+            print(f"Failed to DM owner: {e}")
+        try:
+            utils.write_last_command(ctx.channel.id, ctx.message.id)
+        except Exception as e:
+            print(f"Failed to write last command: {e}")
+        if variables.is_sleeping:
+            return
+
+    @commands.Cog.listener()
+    async def on_command_completion(self, ctx):
+        logs_channel = utils.get_logs_channel(ctx.guild)
+        if logs_channel:
+            await logs_channel.send(
+                f"{ctx.author} executed `{ctx.command}` in {ctx.channel}."
+            )
+            logging.info(f"{ctx.author} executed `{ctx.command}` successfully.")
+
+        logging.basicConfig(
+            level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+        )
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload):
+        """Handle reactions for region roles and other commands."""
+        try:
+            if payload.user_id == self.bot.user.id:
+                return
+
+            data = utils.load_user_data()
+            region_message_id = data.get("region_message_id")
+            if region_message_id and payload.message_id == region_message_id:
+                guild = self.bot.get_guild(payload.guild_id)
+                member = guild.get_member(payload.user_id)
+                emoji_to_region = {
+                    "🌍": "Africa",
+                    "🌎": "Americas",
+                    "🌏": "Asia",
+                    "🇪🇺": "Europe",
+                    "🇦🇺": "Oceania",
+                }
+                role_name = emoji_to_region.get(str(payload.emoji))
+                if role_name:
+                    role = discord.utils.get(guild.roles, name=role_name)
+                    if not role:
+                        role = await guild.create_role(name=role_name)
+                    await member.add_roles(role)
+                    await member.send(
+                        f"# ✅ You have been given the **{role_name}** role."
+                    )
+                return
+            
+            rules_verify_message_id = data.get("rules_verify_message_id")
+            if (
+                rules_verify_message_id
+                and payload.message_id == rules_verify_message_id
+            ):
+                guild = self.bot.get_guild(payload.guild_id)
+                member = guild.get_member(payload.user_id)
+                if str(payload.emoji) == "🔵":
+                    role_name = "「 Read and agreed to the rules 」🔵"
+                    role = discord.utils.get(guild.roles, name=role_name)
+                    if not role:
+                        try:
+                            role = await guild.create_role(name=role_name)
+                            logging.info(
+                                f"Role '{role_name}' created in guild '{guild.name}' (ID: {guild.id})."
+                            )
+                        except discord.Forbidden:
+                            logging.error(
+                                f"Insufficient permissions to create role '{role_name}' in guild '{guild.name}'."
+                            )
+                            await member.send(
+                                "# ❌ Permission error.\nI do not have permission to create the verification role. Please contact an administrator."
+                            )
+                            return
+                        except Exception as e:
+                            logging.error(f"Error creating role '{role_name}': {e}")
+                            return
+
+                    try:
+                        await member.add_roles(role)
+                        await member.send(
+                            f"✅ You have been verified and given the role: **{role_name}**."
+                        )
+                        logging.info(
+                            f"Role '{role_name}' assigned to {member.name}#{member.discriminator} (ID: {member.id})."
+                        )
+
+                        user_data = utils.load_user_data()
+                        if str(member.id) not in user_data:
+                            user_data[str(member.id)] = {
+                                "xp": 0,
+                                "level": 1,
+                                "coins": 100,
+                                "balance": 0,
+                                "warnings": [],
+                            }
+                        user_data[str(member.id)]["verified"] = True
+                        utils.save_user_data(user_data)
+                    except discord.Forbidden:
+                        logging.error(
+                            f"Insufficient permissions to assign role '{role_name}' to {member.name}#{member.discriminator}."
+                        )
+                        await member.send(
+                            "❌ I do not have permission to assign the verification role. Please contact an administrator."
+                        )
+                    except Exception as e:
+                        logging.error(
+                            f"Error assigning role '{role_name}' to {member.name}#{member.discriminator}: {e}"
+                        )
+                return
+
+            colorrole_message_id = data.get("colorrole_message_id")
+            if payload.message_id == colorrole_message_id:
+                member = guild.get_member(payload.user_id)
+                if member is None or member.bot:
+                    return
+
+                emoji = str(payload.emoji)
+                
+                # Define your color roles and their corresponding emojis
+                color_roles_map = {
+                    "🔴": "Red Role",
+                    "🟠": "Orange Role",
+                    "🟡": "Yellow Role",
+                    "🟢": "Green Role",
+                    "🔵": "Blue Role",
+                    "🟣": "Violet Role",
+                    "⚪": "White Role",
+                    "⚫": "Black Role",
+                    "🟫": "Brown Role",
+                    "🟦": "Cyan Role",
+                    "🟪": "Magenta Role",
+                    "🩵": "Light Blue Role",
+                    "🩷": "Pink Role",
+                    "🩶": "Grey Role",
+                }
+
+                role_name = color_roles_map.get(emoji)
+                if role_name:
+                    role = discord.utils.get(guild.roles, name=role_name)
+                    if role and role not in member.roles:
+                        try:
+                            await member.add_roles(role)
+                            print(f"Assigned {role.name} to {member.display_name}")
+                            
+                            # --- Send DM Notification for role gained ---
+                            try:
+                                await member.send(f"🎉 You've successfully been given the **{role.name}** role in {guild.name}!")
+                            except discord.Forbidden:
+                                print(f"Could not send DM to {member.display_name}. DMs might be disabled.")
+                            except Exception as e:
+                                print(f"Error sending DM to {member.display_name}: {e}")
+                            # --- End DM Notification ---
+
+                        except discord.Forbidden:
+                            print(f"Bot lacks permissions to add role {role.name} to {member.display_name}.")
+                        except Exception as e:
+                            print(f"Error adding role {role.name} to {member.display_name}: {e}")
+                    else:
+                        print(f"{member.display_name} already has the {role.name} role.")
+                return
+
+            settings = utils.load_server_settings()
+            guild_settings = settings.get(str(payload.guild_id), {})
+            verify_message_id = guild_settings.get("verify_message_id")
+            if not verify_message_id:
+                logging.warning("Verification message ID not found in user data.")
+                return
+
+            if payload.message_id != verify_message_id:
+                return
+
+            if str(payload.emoji) == "✅":
+                guild = self.bot.get_guild(payload.guild_id)
+                if not guild:
+                    logging.error(f"Guild not found for ID: {payload.guild_id}")
+                    return
+
+                member = guild.get_member(payload.user_id)
+                if not member:
+                    member = await guild.fetch_member(payload.user_id)
+                    if not member:
+                        logging.error(f"Member not found for ID: {payload.user_id}")
+                        return
+
+                # In on_raw_reaction_add and on_raw_reaction_remove, for verification:
+
+                settings = utils.load_server_settings()
+                guild_settings = settings.get(str(guild.id), {})
+                verify_role_name = guild_settings.get("verify_role", ".・🍨︴Member ✰")
+                role = discord.utils.get(guild.roles, name=verify_role_name)
+                if not role:
+                    role = await guild.create_role(name=verify_role_name)
+
+                try:
+                    await member.add_roles(role)
+                    await member.send(
+                        f"✅ You have been verified and given the role: **{role_name}**."
+                    )
+                    logging.info(
+                        f"Role '{role_name}' assigned to {member.name}#{member.discriminator} (ID: {member.id})."
+                    )
+
+                    user_data = utils.load_user_data()
+                    if str(member.id) not in user_data:
+                        user_data[str(member.id)] = {
+                            "xp": 0,
+                            "level": 1,
+                            "coins": 100,
+                            "balance": 0,
+                            "warnings": [],
+                        }
+                    user_data[str(member.id)]["verified"] = True
+                    utils.save_user_data(user_data)
+                except discord.Forbidden:
+                    logging.error(
+                        f"Insufficient permissions to assign role '{role_name}' to {member.name}#{member.discriminator}."
+                    )
+                    await member.send(
+                        "❌ I do not have permission to assign the verification role. Please contact an administrator."
+                    )
+                except Exception as e:
+                    logging.error(
+                        f"Error assigning role '{role_name}' to {member.name}#{member.discriminator}: {e}"
+                    )
+
+            chat_reviver_message_id = data.get("chat_reviver_message_id")
+            if (
+                chat_reviver_message_id
+                and payload.message_id == chat_reviver_message_id
+            ):
+                guild = self.bot.get_guild(payload.guild_id)
+                member = guild.get_member(payload.user_id)
+                if str(payload.emoji) == "🛠️":
+                    role_name = "Chat Reviver"
+                    role = discord.utils.get(guild.roles, name=role_name)
+                    if not role:
+                        try:
+                            role = await guild.create_role(name=role_name)
+                            logging.info(
+                                f"Role '{role_name}' created in guild '{guild.name}' (ID: {guild.id})."
+                            )
+                        except discord.Forbidden:
+                            logging.error(
+                                f"Insufficient permissions to create role '{role_name}' in guild '{guild.name}'."
+                            )
+                            await member.send(
+                                "❌ I do not have permission to create the Chat Reviver role. Please contact an administrator."
+                            )
+                            return
+                        except Exception as e:
+                            logging.error(f"Error creating role '{role_name}': {e}")
+                            return
+                    
+                    try:
+                        await member.add_roles(role)
+                        await member.send(
+                            f"✅ You have been given the **{role_name}** role."
+                        )
+                        logging.info(
+                            f"Role '{role_name}' assigned to {member.name}#{member.discriminator} (ID: {member.id})."
+                        )
+                    except discord.Forbidden:
+                        logging.error(
+                            f"Insufficient permissions to assign role '{role_name}' to {member.name}#{member.discriminator}."
+                        )
+                        await member.send(
+                            "❌ I do not have permission to assign the Chat Reviver role. Please contact an administrator."
+                        )
+                    except Exception as e:
+                        logging.error(
+                            f"Error assigning role '{role_name}' to {member.name}#{member.discriminator}: {e}"
+                        )
+                return
+            
+            # Check if this message has role reactions configured
+            role_reactions = utils.get_guild_role_reactions(guild.id)
+            message_reactions = role_reactions.get(str(payload.message_id), {})
+            role_id = message_reactions.get(str(payload.emoji))
+
+            if role_id:
+                role = guild.get_role(role_id)
+                member = guild.get_member(payload.user_id)
+                if role and member:
+                    try:
+                        await member.add_roles(role)
+                    except discord.Forbidden:
+                        channel = self.bot.get_channel(payload.channel_id)
+                        if channel:
+                            await channel.send("❌ I don't have permission to assign roles.")
+
+        except Exception as e:
+            logging.error(f"Error in on_raw_reaction_add: {e}")
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, payload):
+        """Handle reactions for region roles and other commands."""
+        try:
+            if payload.user_id == self.bot.user.id:
+                return
+
+            data = utils.load_user_data()
+            region_message_id = data.get("region_message_id")
+            if region_message_id and payload.message_id == region_message_id:
+                guild = self.bot.get_guild(payload.guild_id)
+                member = guild.get_member(payload.user_id)
+                emoji_to_region = {
+                    "🌍": "Africa",
+                    "🌎": "Americas",
+                    "🌏": "Asia",
+                    "🇪🇺": "Europe",
+                    "🇦🇺": "Oceania",
+                }
+                role_name = emoji_to_region.get(str(payload.emoji))
+                if role_name:
+                    role = discord.utils.get(guild.roles, name=role_name)
+                    if not role:
+                        role = await guild.create_role(name=role_name)
+                    await member.add_roles(role)
+                    await member.send(
+                        f"✅ You have been given the **{role_name}** role."
+                    )
+                return
+            
+            rules_verify_message_id = data.get("rules_verify_message_id")
+            if (
+                rules_verify_message_id
+                and payload.message_id == rules_verify_message_id
+            ):
+                guild = self.bot.get_guild(payload.guild_id)
+                member = guild.get_member(payload.user_id)
+                if str(payload.emoji) == "🔵":
+                    role_name = "「 Read and agreed to the rules 」🔵"
+                    role = discord.utils.get(guild.roles, name=role_name)
+                    if not role:
+                        try:
+                            role = await guild.create_role(name=role_name)
+                            logging.info(
+                                f"Role '{role_name}' created in guild '{guild.name}' (ID: {guild.id})."
+                            )
+                        except discord.Forbidden:
+                            logging.error(
+                                f"Insufficient permissions to create role '{role_name}' in guild '{guild.name}'."
+                            )
+                            await member.send(
+                                "❌ I do not have permission to create the verification role. Please contact an administrator."
+                            )
+                            return
+                        except Exception as e:
+                            logging.error(f"Error creating role '{role_name}': {e}")
+                            return
+
+                    try:
+                        await member.add_roles(role)
+                        await member.send(
+                            f"✅ You have been verified and given the role: **{role_name}**."
+                        )
+                        logging.info(
+                            f"Role '{role_name}' assigned to {member.name}#{member.discriminator} (ID: {member.id})."
+                        )
+
+                        user_data = utils.load_user_data()
+                        if str(member.id) not in user_data:
+                            user_data[str(member.id)] = {
+                                "xp": 0,
+                                "level": 1,
+                                "coins": 100,
+                                "balance": 0,
+                                "warnings": [],
+                            }
+                        user_data[str(member.id)]["verified"] = True
+                        utils.save_user_data(user_data)
+                    except discord.Forbidden:
+                        logging.error(
+                            f"Insufficient permissions to assign role '{role_name}' to {member.name}#{member.discriminator}."
+                        )
+                        await member.send(
+                            "❌ I do not have permission to assign the verification role. Please contact an administrator."
+                        )
+                    except Exception as e:
+                        logging.error(
+                            f"Error assigning role '{role_name}' to {member.name}#{member.discriminator}: {e}"
+                        )
+                return
+
+            colorrole_message_id = data.get("colorrole_message_id")
+            if payload.message_id == colorrole_message_id:
+                member = guild.get_member(payload.user_id)
+                if member is None or member.bot:
+                    return
+
+                emoji = str(payload.emoji)
+
+                # Define your color roles and their corresponding emojis
+                color_roles_map = {
+                    "🔴": "Red Role",
+                    "🟠": "Orange Role",
+                    "🟡": "Yellow Role",
+                    "🟢": "Green Role",
+                    "🔵": "Blue Role",
+                    "🟣": "Violet Role",
+                    "⚪": "White Role",
+                    "⚫": "Black Role",
+                    "🟫": "Brown Role",
+                    "🟦": "Cyan Role",
+                    "🟪": "Magenta Role",
+                    "🩵": "Light Blue Role",
+                    "🩷": "Pink Role",
+                    "🩶": "Grey Role",
+                }
+
+                role_name = color_roles_map.get(emoji)
+                if role_name:
+                    role = discord.utils.get(guild.roles, name=role_name)
+                    if role and role in member.roles:
+                        try:
+                            await member.remove_roles(role)
+                            print(f"Removed {role.name} from {member.display_name}")
+
+                            # --- Send DM Notification for role lost ---
+                            try:
+                                await member.send(f"👋 You've successfully lost the **{role.name}** role in {guild.name}.")
+                            except discord.Forbidden:
+                                print(f"Could not send DM to {member.display_name}. DMs might be disabled.")
+                            except Exception as e:
+                                print(f"Error sending DM to {member.display_name}: {e}")
+                            # --- End DM Notification ---
+
+                        except discord.Forbidden:
+                            print(f"Bot lacks permissions to remove role {role.name} from {member.display_name}.")
+                        except Exception as e:
+                            print(f"Error removing role {role.name} from {member.display_name}: {e}")
+                    else:
+                        print(f"{member.display_name} did not have the {role.name} role.")
+                return
+
+            settings = utils.load_server_settings()
+            guild_settings = settings.get(str(payload.guild_id), {})
+            verify_message_id = guild_settings.get("verify_message_id")
+            if not verify_message_id:
+                logging.warning("Verification message ID not found in user data.")
+                return
+
+            if payload.message_id != verify_message_id:
+                return
+
+            if str(payload.emoji) == "✅":
+                guild = self.bot.get_guild(payload.guild_id)
+                if not guild:
+                    logging.error(f"Guild not found for ID: {payload.guild_id}")
+                    return
+
+                member = guild.get_member(payload.user_id)
+                if not member:
+                    member = await guild.fetch_member(payload.user_id)
+                    if not member:
+                        logging.error(f"Member not found for ID: {payload.user_id}")
+                        return
+
+                # In on_raw_reaction_add and on_raw_reaction_remove, for verification:
+
+                settings = utils.load_server_settings()
+                guild_settings = settings.get(str(guild.id), {})
+                verify_role_name = guild_settings.get("verify_role", ".・🍨︴Member ✰")
+                role = discord.utils.get(guild.roles, name=verify_role_name)
+                if not role:
+                    role = await guild.create_role(name=verify_role_name)
+
+                try:
+                    await member.add_roles(role)
+                    await member.send(
+                        f"✅ You have been verified and given the role: **{role_name}**."
+                    )
+                    logging.info(
+                        f"Role '{role_name}' assigned to {member.name}#{member.discriminator} (ID: {member.id})."
+                    )
+
+                    user_data = utils.load_user_data()
+                    if str(member.id) not in user_data:
+                        user_data[str(member.id)] = {
+                            "xp": 0,
+                            "level": 1,
+                            "coins": 100,
+                            "balance": 0,
+                            "warnings": [],
+                        }
+                    user_data[str(member.id)]["verified"] = True
+                    utils.save_user_data(user_data)
+                except discord.Forbidden:
+                    logging.error(
+                        f"Insufficient permissions to assign role '{role_name}' to {member.name}#{member.discriminator}."
+                    )
+                    await member.send(
+                        "❌ I do not have permission to assign the verification role. Please contact an administrator."
+                    )
+                except Exception as e:
+                    logging.error(
+                        f"Error assigning role '{role_name}' to {member.name}#{member.discriminator}: {e}"
+                    )
+
+            chat_reviver_message_id = data.get("chat_reviver_message_id")
+            if (
+                chat_reviver_message_id
+                and payload.message_id == chat_reviver_message_id
+            ):
+                guild = self.bot.get_guild(payload.guild_id)
+                member = guild.get_member(payload.user_id)
+                if str(payload.emoji) == "🛠️":
+                    role_name = "Chat Reviver"
+                    role = discord.utils.get(guild.roles, name=role_name)
+                    if not role:
+                        try:
+                            role = await guild.create_role(name=role_name)
+                            logging.info(
+                                f"Role '{role_name}' created in guild '{guild.name}' (ID: {guild.id})."
+                            )
+                        except discord.Forbidden:
+                            logging.error(
+                                f"Insufficient permissions to create role '{role_name}' in guild '{guild.name}'."
+                            )
+                            await member.send(
+                                "❌ I do not have permission to create the Chat Reviver role. Please contact an administrator."
+                            )
+                            return
+                        except Exception as e:
+                            logging.error(f"Error creating role '{role_name}': {e}")
+                            return
+                    
+                    try:
+                        await member.add_roles(role)
+                        await member.send(
+                            f"✅ You have been given the **{role_name}** role."
+                        )
+                        logging.info(
+                            f"Role '{role_name}' assigned to {member.name}#{member.discriminator} (ID: {member.id})."
+                        )
+                    except discord.Forbidden:
+                        logging.error(
+                            f"Insufficient permissions to assign role '{role_name}' to {member.name}#{member.discriminator}."
+                        )
+                        await member.send(
+                            "❌ I do not have permission to assign the Chat Reviver role. Please contact an administrator."
+                        )
+                    except Exception as e:
+                        logging.error(
+                            f"Error assigning role '{role_name}' to {member.name}#{member.discriminator}: {e}"
+                        )
+                return
+
+            # Check if this message has role reactions configured 
+            role_reactions = utils.get_guild_role_reactions(guild.id)
+            message_reactions = role_reactions.get(str(payload.message_id), {})
+            role_id = message_reactions.get(str(payload.emoji))
+
+            if role_id:
+                role = guild.get_role(role_id)
+                member = guild.get_member(payload.user_id)
+                if role and member:
+                    try:
+                        await member.remove_roles(role)
+                    except discord.Forbidden:
+                        channel = self.bot.get_channel(payload.channel_id)
+                        if channel:
+                            await channel.send("❌ I don't have permission to remove roles.")
+
+        except Exception as e:
+            logging.error(f"Error in on_raw_reaction_remove: {e}")
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member):
+        global font_large
+        global font_small
+        """Event triggered when a user joins the server with a custom welcome image."""
+        try:
+            logging.info(
+                f"New member joined: {member.name}#{member.discriminator} (ID: {member.id})"
+            )
+
+            await utils.assign_auto_role(member)
+
+            data = utils.load_server_settings()
+            guild_settings = data.get(str(member.guild.id), {})
+
+            # 1. Get the raw value from settings
+            wel_temp = guild_settings.get("welcome_channel")
+            welcome_channel = None
+
+            if wel_temp:
+                if str(wel_temp).isdigit():
+                    # If it's an ID, get it by ID
+                    welcome_channel = member.guild.get_channel(int(wel_temp))
+                else:
+                    # If it's a name (like in your error), get it by name
+                    welcome_channel = discord.utils.get(member.guild.text_channels, name=wel_temp)
+
+            # 2. Fallback to keyword search if still not found
+            if not welcome_channel:
+                welcome_channel = discord.utils.find(
+                    lambda c: any(keyword in c.name for keyword in variables.WELCOME_KEYWORDS)
+                            and c.permissions_for(member.guild.me).send_messages
+                            and re.match(variables.VALID_CHANNEL_NAME_PATTERN, c.name),
+                    member.guild.text_channels
+                )
+
+            guild_asset_path = self.assets._get_guild_asset_path(member.guild.id)
+            background_path = os.path.join(guild_asset_path, "background.png")
+
+            try:
+                background = Image.open(background_path).convert("RGBA")
+            except FileNotFoundError:
+                logging.error(
+                    f"Background image not found at {background_path}. Please ensure the file exists."
+                )
+                await welcome_channel.send(
+                    "❌ Background image for the welcome card is missing. Please ensure it's in your server's asset folder."
+                )
+                return
+
+            avatar_url = member.avatar.url if member.avatar else member.default_avatar.url
+            response = requests.get(avatar_url)
+            if response.status_code != 200:
+                logging.error(
+                    f"Failed to fetch avatar for {member.name}#{member.discriminator}. HTTP Status: {response.status_code}"
+                )
+                return
+            avatar_size = 150
+            avatar = Image.open(BytesIO(response.content)).convert("RGBA").resize((avatar_size, avatar_size))
+
+            # Create circular mask
+            mask = Image.new("L", (avatar_size, avatar_size), 0)
+            draw_mask = ImageDraw.Draw(mask)
+            draw_mask.ellipse((0, 0, avatar_size, avatar_size), fill=255)
+
+            # Apply mask directly
+            avatar_rounded = Image.new("RGBA", (avatar_size, avatar_size))
+            avatar_rounded.paste(avatar, (0, 0), mask=mask)
+
+            base = Image.new("RGBA", (800, 288), (140, 140, 140, 255))
+            base.paste(background, (0, 0), background)
+
+            base.paste(avatar_rounded, (65, 70), avatar_rounded)
+
+            draw = ImageDraw.Draw(base)
+            font_path = os.path.join(guild_asset_path, "impact.ttf")
+            font_large = ImageFont.truetype(font_path, 48)
+            font_small = ImageFont.truetype(font_path, 28)
+            username = member.display_name
+
+            # Retrieve welcome_message template
+            welcome_text_template = guild_settings.get("welcome_message", "Welcome, {user}!")
+
+            # Prepare text for the IMAGE (uses username)
+            welcome_text_for_image = welcome_text_template.replace("{user}", username).replace("{mention}", username)
+            # Prepare text for the CHANNEL MESSAGE (uses mention)
+            welcome_text_for_channel = welcome_text_template.replace("{user}", username).replace("{mention}", member.mention)
+
+            sub_text = utils.welcome_message_random()
+
+            # Draw text on the image using welcome_text_for_image
+            draw.text((256, 80), welcome_text_for_image, font=font_large, fill=(255, 255, 255, 255))
+            draw.text((256, 144), sub_text, font=font_small, fill=(220, 220, 220, 255))
+
+            member_count = member.guild.member_count
+            member_num_text = f"Member #{member_count}"
+            draw.text((256, 192), member_num_text, font=font_small, fill=(120, 120, 120, 255))
+
+            buffer = BytesIO()
+            base.save(buffer, format="PNG")
+            buffer.seek(0)
+
+            # Send image with welcome_text_for_channel
+            await welcome_channel.send(
+                welcome_text_for_channel,
+                file=discord.File(buffer, filename="welcome.png"),
+            )
+            logging.info(
+                f"Welcome message sent for {member.name}#{member.discriminator} in {welcome_channel.name}."
+            )
+        except Exception as e:
+            logging.error(f"Error in on_member_join for {member.name}#{member.discriminator}: {e}")
+            logs_channel = discord.utils.get(member.guild.text_channels, name="logs")
+            if logs_channel:
+                await logs_channel.send(
+                    f"❌ An error occurred while welcoming {member.mention}: {e}"
+                )
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member):
+        global font_large
+        global font_small
+        """Event triggered when a user leaves the server with a custom goodbye image."""
+        try:
+            logging.info(
+                f"Member left: {member.name}#{member.discriminator} (ID: {member.id})"
+            )
+
+            data = utils.load_server_settings()
+            guild_settings = data.get(str(member.guild.id), {})
+
+           # 1. Get the raw value from settings
+            good_temp = guild_settings.get("goodbye_channel")
+            goodbye_channel = None
+
+            if good_temp:
+                if str(good_temp).isdigit():
+                    # If it's an ID
+                    goodbye_channel = member.guild.get_channel(int(good_temp))
+                else:
+                    # If it's a name (e.g., "📤 · guild-leave")
+                    goodbye_channel = discord.utils.get(member.guild.text_channels, name=good_temp)
+
+            # 2. Fallback
+            if not goodbye_channel:
+                goodbye_channel = discord.utils.find(
+                    lambda c: any(keyword in c.name for keyword in variables.GOODBYE_KEYWORDS)
+                            and c.permissions_for(member.guild.me).send_messages
+                            and re.match(variables.VALID_CHANNEL_NAME_PATTERN, c.name),
+                    member.guild.text_channels
+                )
+
+            guild_asset_path = self.assets._get_guild_asset_path(member.guild.id)
+            background_path = os.path.join(guild_asset_path, "background.png")
+
+            try:
+                background = Image.open(background_path).convert("RGBA")
+            except FileNotFoundError:
+                logging.error(
+                    f"Background image not found at {background_path}. Please ensure the file exists."
+                )
+                await goodbye_channel.send(
+                    "❌ Background image for the welcome card is missing. Please ensure it's in your server's asset folder."
+                )
+                return
+
+            avatar_url = member.avatar.url if member.avatar else member.default_avatar.url
+            response = requests.get(avatar_url)
+            if response.status_code != 200:
+                logging.error(
+                    f"Failed to fetch avatar for {member.name}#{member.discriminator}. HTTP Status: {response.status_code}"
+                )
+                return
+            avatar_size = 150
+            avatar = Image.open(BytesIO(response.content)).convert("RGBA").resize((avatar_size, avatar_size))
+
+            # Create circular mask
+            mask = Image.new("L", (avatar_size, avatar_size), 0)
+            draw_mask = ImageDraw.Draw(mask)
+            draw_mask.ellipse((0, 0, avatar_size, avatar_size), fill=255)
+
+            # Apply mask directly
+            avatar_rounded = Image.new("RGBA", (avatar_size, avatar_size))
+            avatar_rounded.paste(avatar, (0, 0), mask=mask)
+
+            base = Image.new("RGBA", (800, 288), (140, 140, 140, 255))
+            base.paste(background, (0, 0), background)
+
+            base.paste(avatar_rounded, (65, 70), avatar_rounded)
+
+            draw = ImageDraw.Draw(base)
+            font_path = os.path.join(guild_asset_path, "impact.ttf")
+            font_large = ImageFont.truetype(font_path, 48)
+            font_small = ImageFont.truetype(font_path, 28)
+            username = member.display_name
+
+            # Retrieve goodbye_message template
+            goodbye_text_template = guild_settings.get("goodbye_message", "Goodbye, {user}..")
+
+            # Prepare text for the IMAGE (uses username)
+            goodbye_text_for_image = goodbye_text_template.replace("{user}", username).replace("{mention}", username)
+            # Prepare text for the CHANNEL MESSAGE (uses mention)
+            goodbye_text_for_channel = goodbye_text_template.replace("{user}", username).replace("{mention}", member.mention)
+
+            sub_text = utils.goodbye_message_random()
+
+            # Draw text on the image using welcome_text_for_image
+            draw.text((256, 80), goodbye_text_for_image, font=font_large, fill=(255, 255, 255, 255))
+            draw.text((256, 144), sub_text, font=font_small, fill=(220, 220, 220, 255))
+
+            member_count = member.guild.member_count
+            member_num_text = f"Member #{member_count}"
+            draw.text((256, 192), member_num_text, font=font_small, fill=(120, 120, 120, 255))
+
+            buffer = BytesIO()
+            base.save(buffer, format="PNG")
+            buffer.seek(0)
+
+            # Send image with welcome_text_for_channel
+            await goodbye_channel.send(
+                goodbye_text_for_channel,
+                file=discord.File(buffer, filename="goodbye.png"),
+            )
+            logging.info(
+                f"Goodbye message sent for {member.name}#{member.discriminator} in {goodbye_channel.name}."
+            )
+        except Exception as e:
+            logging.error(f"Error in on_member_remove for {member.name}#{member.discriminator}: {e}")
+            logs_channel = discord.utils.get(member.guild.text_channels, name="logs")
+            if logs_channel:
+                await logs_channel.send(
+                    f"❌ An error occurred while goodbying {member.mention}: {e}"
+                )
+
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx, error):
+        # Ignore messages starting with "??" or more
+        if ctx.message.content.startswith("?") and ctx.message.content.count("?") > 1:
+            return
+
+        if isinstance(error, commands.CommandNotFound):
+            # Get the command name the user tried to use
+            attempted_command = ctx.message.content.split()[0][1:]  # Remove the prefix (e.g., "?")
+
+            # Dynamically get all command names and aliases
+            all_commands = set()
+            for cmd in self.bot.commands:
+                all_commands.add(cmd.name)
+                all_commands.update(cmd.aliases)
+            # Remove hidden commands
+            all_commands = {
+                name
+                for name in all_commands
+                if not self.bot.get_command(name) or not self.bot.get_command(name).hidden
+            }
+
+            # Find the closest match to the attempted command
+            closest_match = difflib.get_close_matches(
+                attempted_command, all_commands, n=1, cutoff=0.6
+            )
+
+            if closest_match:
+                await ctx.send(f"# ❌ Command not found.\nDid you mean: `{closest_match[0]}`?\n-# {utils.little_unknowncommand_variant()}")
+            else:
+                await ctx.send(
+                    f"# ❌ Command not found.\nUse `?help` to see the list of available commands.\n-# {utils.little_unknowncommand_variant()}"
+                )
+            return
+
+        elif isinstance(error, MissingRequiredArgument):
+            await ctx.send(f"# ❌ Missing required argument.\nPlease check your command usage.\n-# {utils.little_error_variant()}")
+            return
+        elif isinstance(error, BadArgument):
+            await ctx.send(f"# ❌ Invalid argument.\nPlease check your input.\n-# {utils.little_error_variant()}")
+            return
+        elif isinstance(error, CommandOnCooldown):
+            await ctx.send(f"# ⏳ This command is on cooldown.\nTry again in {error.retry_after:.2f} seconds.\n-# {utils.little_error_variant()}")
+            return
+        elif isinstance(error, CheckFailure):
+            await ctx.send(f"# ❌ You do not have permission to use this command.\n-# Maybe try and get higher permission? idk..")
+            return
+        elif isinstance(error, DisabledCommand):
+            await ctx.send(f"# ❌ This command is currently disabled.\n-# Well that's pretty rare, seems like that command was too dangerous for me to keep..")
+            return
+        elif isinstance(error, NoPrivateMessage):
+            await ctx.send(f"# ❌ This command cannot be used in private messages.\n-# Hey um, just asking to not use commands in private messages since that doesn't work.")
+            return
+
+        # Only signal the handler for unhandled/critical errors
+        # These are errors that weren't caught by the specific isinstance checks above.
+        await ctx.send(f"# ❌ An error occurred: ❌\n{error}")
+        try:
+            # Signal a critical error to the handler
+            utils.signal_error(
+                f"{type(error).__name__}: {error}\nCommand: {ctx.command}\nUser: {ctx.author}\nMessage: {ctx.message.content}",
+                is_critical=True # Explicitly mark as critical
+            )
+            # Only write last command info for critical errors
+            utils.write_last_command(ctx.channel.id, ctx.message.id)
+        except Exception as e:
+            print(f"Failed to signal error or write last command: {e}")
+        
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        print(f"📩 Message received: {message.content} from {message.author}")
+        """Handle all on_message events."""
+        print(f"{variables.last_activity};{variables.last_activity_time}")
+        if message.guild is None:
+            # This is a DM, handle accordingly or just return
+            return
+        
+        # Ignore bot's own messages early
+        if message.author.bot:
+            return
+
+        guild_id = str(message.guild.id)
+        limitations = utils.load_limitations()
+        level = limitations.get(guild_id, 0)  # Default to no filtering if not set
+
+        # Update the last activity time for the guild
+        variables.last_activity[message.guild.id] = time.time()
+
+        # Handle AFK users
+        if message.author.id in variables.afk_users:
+            del variables.afk_users[message.author.id]
+            await message.channel.send(f"✅ Welcome back, {message.author.mention}!")
+        for mention in message.mentions:
+            if mention.id in variables.afk_users:
+                await message.channel.send(
+                    f"🔔 {mention.mention} is AFK: {variables.afk_users[mention.id]}"
+                )
+
+        # --- SPAM DETECTION AND HANDLING ---
+        if await self.is_spam(message):
+            try:
+                await message.delete()
+            except Exception:
+                pass  # Ignore if already deleted or missing permissions
+            try:
+                await message.author.send(
+                    f"⚠️ You have been warned for spamming in **{message.guild.name}**. Please stop or further action may be taken."
+                )
+            except Exception:
+                pass  # User may have DMs closed
+            return  # Don't process further
+
+        # --- RP REQUEST FORWARDING ---
+        try:
+            normalized = _normalize_message_for_matching(message.content)
+            # Look for the phrase 'who wants to rp' in normalized text
+            if "who wants to rp" in normalized:
+                rp_channel = _find_rp_channel(message.guild)
+                # If we found an rp-requests channel and it's not the same channel, forward
+                if rp_channel and rp_channel.id != message.channel.id:
+                    try:
+                        await rp_channel.send(
+                            f"📢 RP request from {message.author.mention} in {message.channel.mention}:\n{message.content}\n{message.jump_url}"
+                        )
+                    except Exception:
+                        # Best-effort forwarding; ignore failures
+                        pass
+        except Exception:
+            # Don't let any forwarding errors break the on_message flow
+            pass
+
+        # Handle XP system with custom cooldown
+        user_id = message.author.id
+        now = time.time()
+
+        # Check if the user is on cooldown
+        if user_id in variables.message_cooldowns:
+            cooldown_end = variables.message_cooldowns[user_id]
+            if now < cooldown_end:
+                # User is still on cooldown, skip granting XP and command processing for this message
+                return
+
+        # Load full user data at the beginning of on_message for consistent updates
+        full_data = utils.load_user_data()
+        user_id_str = str(message.author.id)
+
+        # Ensure the user exists in the full_data and initialize keys if not present
+        if user_id_str not in full_data:
+            full_data[user_id_str] = {
+                "xp": 0,
+                "level": 1,
+                "coins": 100,
+                "warnings": [],
+                "censored_count": 0,
+                "strikes": 0,
+                "gems": 0,
+                "balance": 0,
+                "messages": [], # Initialize messages list here
+                "keys": 0,
+            }
+        else:
+            # Ensure new keys are added to existing users
+            if "censored_count" not in full_data[user_id_str]:
+                full_data[user_id_str]["censored_count"] = 0
+            if "strikes" not in full_data[user_id_str]:
+                full_data[user_id_str]["strikes"] = 0
+            if "gems" not in full_data[user_id_str]:
+                full_data[user_id_str]["gems"] = 0
+            if "balance" not in full_data[user_id_str]:
+                full_data[user_id_str]["balance"] = 0
+            if "messages" not in full_data[user_id_str]:
+                full_data[user_id_str]["messages"] = []
+            if "keys" not in full_data[user_id_str]:
+                full_data[user_id_str]["keys"] = 0
+
+
+        user_data_entry = full_data[user_id_str]
+
+
+        xp_gain = 50
+        if user_data_entry.get("xp_multiplier_end", 0) > time.time():
+            xp_gain *= user_data_entry.get("xp_multiplier_value", 1)
+
+        user_data_entry["xp"] += xp_gain
+        xp_needed = user_data_entry["level"] * 50 
+
+        gems_reward = random.randint(1, 10)
+        coins_reward = random.randint(100, 1000)
+
+        if user_data_entry["xp"] >= xp_needed:
+            user_data_entry["xp"] -= xp_needed
+            user_data_entry["level"] += 1
+            user_data_entry["coins"] += random.randint(100, 1000) 
+
+            if user_data_entry.get("coin_multiplier_end", 0) > time.time():
+                coins_reward *= user_data_entry.get("coin_multiplier_value", 1)
+
+            user_data_entry["coins"] += coins_reward
+            user_data_entry["gems"] += gems_reward
+
+            bonus_xp = user_data_entry["level"] * 10  
+            user_data_entry["xp"] += bonus_xp
+
+            settings = utils.load_server_settings()
+            guild_settings = settings.get(str(message.guild.id), {})
+            destination_channel_name = guild_settings.get("destination")
+            if destination_channel_name:
+                bot_channel = discord.utils.find(
+                    lambda c: c.name == destination_channel_name,
+                    message.guild.text_channels
+                )
+            else:
+                bot_channel = None
+            rewards_message = (
+                f"# 🎉 {message.author.mention} leveled up to **Level {user_data_entry['level']}**!\n"
+                f"You earned **{coins_reward} coins** and **{bonus_xp} bonus XP!!**\n"
+            )
+            if gems_reward > 0:
+                rewards_message += f", and **{gems_reward} gems**!"
+            else:
+                rewards_message += "!"
+
+            if utils.is_level_announcements_enabled(message.guild.id):
+                if bot_channel:
+                    await bot_channel.send(rewards_message)
+                else:
+                    await message.channel.send(rewards_message)
+            await utils.assign_level_role(message.author, user_data_entry["level"], message.channel)
+
+        logging.info(
+            f"User {message.author.name} (ID: {user_id}) gained 10 XP. Total XP: {user_data_entry['xp']}."
+        )
+
+        current_time = time.time()
+        user_data_entry["messages"].append(current_time)
+
+        user_data_entry["messages"] = [
+            timestamp
+            for timestamp in user_data_entry["messages"]
+            if current_time - timestamp <= variables.TIME_WINDOW
+        ]
+        
+        # 1% chance to spawn a gem reaction
+        if random.randint(1, 200) == 1:
+            gem_emoji = "💎"  # Gem emoji
+            await message.add_reaction(gem_emoji)
+
+            try:
+                # Define the check function for reaction_add
+                def check(reaction, user):
+                    return (
+                        reaction.message.id == message.id
+                        and str(reaction.emoji) == gem_emoji
+                        and not user.bot
+                    )
+
+                # Wait for a user to react within 5 seconds
+                reaction, user = await self.bot.wait_for(
+                    "reaction_add", timeout=5.0, check=check
+                )
+
+                # Add the gem to the user's count in easter.json
+                user_id_str_gem = str(user.id) # Use a different variable name to avoid conflict
+                utils.update_gems(user_id_str_gem, 1)
+
+                # Remove the reaction and notify the user
+                await message.clear_reaction(gem_emoji)
+                await message.channel.send(
+                    f"# 💎 {user.mention} found a gem!\nUse ?gems to check how many gems you already have!"
+                )
+            except asyncio.TimeoutError:
+                # Remove the reaction if no one reacts within 5 seconds
+                await message.clear_reaction(gem_emoji)
+
+        # Check if the user exceeds the spam threshold
+        if len(user_data_entry["messages"]) > variables.SPAM_THRESHOLD:
+            # Take action for spamming
+            await message.channel.send(
+                f"⚠️ {message.author.mention}, you are sending messages too quickly. Please slow down!"
+            )
+            import datetime
+            user_data_entry["warnings"].append(
+                {"reason": "Spamming", "timestamp": datetime.datetime.now().isoformat()}
+            )
+
+            # Optional: Mute the user temporarily
+            mute_role = discord.utils.get(message.guild.roles, name="Muted")
+            if not mute_role:
+                mute_role = await message.guild.create_role(name="Muted")
+                for channel in message.guild.channels:
+                    await channel.set_permissions(
+                        mute_role, send_messages=False, speak=False
+                    )
+            await message.author.add_roles(mute_role, reason="Spamming")
+            await asyncio.sleep(10)  # Mute duration (10 seconds)
+            await message.author.remove_roles(mute_role, reason="Mute expired")
+
+        offensive_words = utils.load_swearwords()
+        
+        if message.author.id == 302050872383242240:  # Disboard bot ID
+            logging.info("Detected Disboard speaking")
+            # Disboard bump handling: improve robustness and add debug logging
+            if message.embeds:
+                embed = message.embeds[0]
+                desc = embed.description or ""
+                # Debug logging to help diagnose why bumps aren't detected
+                logging.info(f"Disboard embed detected in {message.guild.name}#{message.channel.name} - desc: {desc}")
+
+                if "bump" in desc.lower() or "Bump done!" in desc.lower() or "server bumped" in desc.lower():
+                    bumper = None
+
+                    # First try: if the Disboard message references the original bump message, fetch it
+                    if message.reference:
+                        try:
+                            ref_msg = await message.channel.fetch_message(message.reference.message_id)
+                            bumper = ref_msg.author
+                            logging.info(f"Found bumper via message reference: {getattr(bumper, 'id', None)}")
+                        except Exception as e:
+                            logging.exception(f"Failed to fetch referenced message for bump: {e}")
+
+                    # Second try: look for a mention like <@123456789> in the embed description
+                    if bumper is None and desc:
+                        m = re.search(r"<@!?(?P<id>\d+)>", desc)
+                        if m:
+                            try:
+                                user_id = int(m.group("id"))
+                                bumper = message.guild.get_member(user_id)
+                                logging.info(f"Parsed bumper id from embed mention: {user_id} -> {bumper}")
+                            except Exception as e:
+                                logging.exception(f"Error parsing mention from embed description: {e}")
+
+                    # Third try: some Disboard embeds include the bumping user's name in plain text.
+                    # We'll try to extract an @pattern fallback by searching for "by @Name" or similar patterns.
+                    if bumper is None and desc:
+                        # Try to find something that looks like a mention but without <> e.g., @username
+                        m2 = re.search(r"by\s+@?(?P<name>[A-Za-z0-9_\-` ]{2,32})", desc, re.IGNORECASE)
+                        if m2:
+                            name = m2.group("name").strip()
+                            # Try to find a member whose display name or name matches
+                            for mem in message.guild.members:
+                                if mem.display_name == name or mem.name == name:
+                                    bumper = mem
+                                    logging.info(f"Found bumper by name match: {name} -> {mem.id}")
+                                    break
+
+                    # Update both a bot-level attribute (for compatibility) and the Utility cog if present
+                    try:
+                        if bumper:
+                            self.bot.last_bumper = bumper.id
+                            logging.info(f"Set bot.last_bumper to user id {bumper.id} ({bumper})")
+                        else:
+                            logging.warning(f"Bump detected but could not determine the bumper. Embed desc: {desc}")
+
+                        util_cog = self.bot.get_cog("Utility")
+                        if util_cog:
+                            # Use Utility's helper to set per-guild last_bumper and persist it
+                            try:
+                                if bumper:
+                                    util_cog.set_last_bumper(message.guild.id, str(bumper.id))
+                                    # Acknowledge the bump in-channel (kept minimal to avoid spam)
+                                    try:
+                                        await message.channel.send(f"Thanks for bumping, {bumper.mention}!")
+                                    except Exception:
+                                        pass
+                                else:
+                                    role = discord.utils.get(message.guild.roles, name="Bump Reminder")
+                                    if role:
+                                        util_cog.set_last_bumper(message.guild.id, str(role.id))
+
+                                # Restart the task loop on the Utility cog so reminders pick up the new value
+                                if hasattr(util_cog, "bump_reminder_task"):
+                                    try:
+                                        util_cog.bump_reminder_task.restart()
+                                        logging.info("Utility.bump_reminder_task restarted successfully")
+                                    except Exception as e:
+                                        logging.exception(f"Failed to restart Utility.bump_reminder_task: {e}")
+                            except Exception as e:
+                                logging.exception(f"Error updating Utility cog with bumper info: {e}")
+                        else:
+                            logging.warning("Utility cog not found; cannot update its last_bumper or restart its task")
+                    except Exception as e:
+                        logging.exception(f"Unexpected error while updating bumper or restarting task: {e}")
+
+        utils.save_user_data(full_data)
+        
+        # Check for offensive words
+        if level > 0:
+            for word in offensive_words.get(str(level), []):
+                # Use difflib to check similarity
+                for msg_word in message.content.lower().split():
+                    similarity = difflib.SequenceMatcher(None, word.lower(), msg_word).ratio()
+                    if similarity > 0.85:  # Adjust threshold as needed
+                        # Bypass for admins/owner
+                        if message.author.guild_permissions.administrator or await utils.is_owner_async(message):
+                            continue
+                        await message.delete()
+                        await message.channel.send(
+                            f"⚠️ {message.author.mention}, your message was removed for containing offensive language."
+                        )
+                        print(offensive_words)
+                        # Increment the censored count
+                        user_data_entry["censored_count"] += 1
+
+                        # Check if the user has reached the limit
+                        if user_data_entry["censored_count"] >= 5: # CHANGE THIS SETTING, MAKE 5 a customisable integer
+                            user_data_entry["censored_count"] = 0  # Reset the count
+                            user_data_entry["strikes"] += 1  # Add a strike
+                            
+                            # Notify the user and the channel
+                            await message.channel.send(
+                                f"# ⚠️ {message.author.mention} has been given a **strike**.\nReason: Repeated offensive language.\nTotal strikes: {user_data_entry['strikes']}."
+                            )
+
+                            # Take action based on the number of strikes
+                            if user_data_entry["strikes"] == 3:
+                                mute_role = discord.utils.get(message.guild.roles, name="Muted")
+                                if not mute_role:
+                                    mute_role = await message.guild.create_role(name="Muted")
+                                    for channel in message.guild.channels:
+                                        await channel.set_permissions(
+                                            mute_role, send_messages=False, speak=False
+                                        )
+                                await message.author.add_roles(mute_role)
+                                await message.channel.send(
+                                    f"# 🔇 {message.author.mention} has been muted.\nReason: Accumulating 3 strikes."
+                                )
+                            elif user_data_entry["strikes"] == 5:
+                                await message.author.kick(reason="Reached 5 strikes")
+                                await message.channel.send(
+                                    f"👢 {message.author.mention} has been kicked for reaching 5 strikes."
+                                )
+                            elif user_data_entry["strikes"] >= 7:
+                                await message.author.ban(reason="Reached 7 strikes")
+                                await message.channel.send(
+                                    f"⛔ {message.author.mention} has been banned for reaching 7 strikes."
+                                )
+                        utils.save_user_data(full_data) # Save full_data after changes
+                        return # Important: return after handling offensive word
+            
+        channel_name = message.channel.name.lower()
+
+        # Restrict sewers-entrance: only allow ?sewer enter
+        if channel_name == "⚠️・sewers-entrance":
+            if not message.content.strip().lower().startswith("?sewer enter"):
+                try:
+                    await message.delete()
+                    warn = await message.channel.send(
+                        f"{message.author.mention} You are not allowed to speak in this channel. Use `?sewer enter left` or `?sewer enter right`."
+                    )
+                    await asyncio.sleep(3)
+                    await warn.delete()
+                except Exception:
+                    pass
+            return #
+
+        # Restrict left/right wing channels: only allow ?sewer exit
+        if channel_name in ["⚠️・left-system-wing", "⚠️・right-system-wing"]:
+            if not message.content.strip().lower().startswith("?sewer exit"):
+                try:
+                    await message.delete()
+                    warn = await message.channel.send(
+                        f"{message.author.mention} You are not allowed to speak in this channel. Use `?sewer exit` to leave."
+                    )
+                    await asyncio.sleep(3)
+                    await warn.delete()
+                except Exception:
+                    pass
+            return #
+    
+    @commands.Cog.listener()
+    async def on_ready(self):
+        TEST_GUILD = discord.Object(id=1366938412254236833)
+        synced = await self.bot.tree.sync()
+        print(f"Synced {len(synced)} command(s) to guild {TEST_GUILD.id}")
+        # In your on_ready event or at startup:
+        if not hasattr(self.bot, "launch_time"):
+            self.bot.launch_time = time.time()
+        if not hasattr(self.bot, "version"):
+            self.bot.version = variables.bot_info["version"]
+        if not hasattr(self.bot, "total_commands"):
+            self.bot.total_commands = variables.total_commands
+        print(f"✅ Bot is ready! Logged in as {self.bot.user}")
+        print(f"Connected to {len(self.bot.guilds)} guild(s).")
+        logging.info(f"Logged in as {self.bot.user}")
+
+        # Get the AssetManager cog instance
+        self.assets = self.bot.get_cog("AssetManager")
+        if self.assets:
+            logging.info("AssetManager cog found. Initializing guild assets...")
+            for guild in self.bot.guilds:
+                await self.assets.initialize_guild_assets(guild)
+            logging.info("All existing guild assets initialized.")
+        else:
+            logging.error("AssetManager cog not found. Asset initialization skipped.")
+
+        asyncio.create_task(utils.update_bot_data_periodically(self.bot))
+        print("Update bot through website task has started.")
+        self.bot.loop.create_task(utils.refresh_leaderboard(self.bot))
+        print("refreshing leaderboard started ok")
+        self.bot.loop.create_task(utils.change_status(self.bot))
+        print("Status task has been sent!")
+        self.bot.loop.create_task(utils.chat_reviver_task(self.bot))
+        logging.info(f"Chat reviver task started.")
+        self.bot.loop.create_task(utils.role_check_task(self.bot))
+        logging.info("Role check task started.")
+
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild: discord.Guild):
+        """Event triggered when the bot joins a new guild."""
+        logging.info(f"Joined new guild: {guild.name} (ID: {guild.id})")
+        self.assets = self.bot.get_cog("AssetManager") # Re-get in case it was loaded later
+        if self.assets:
+            await self.assets.initialize_guild_assets(guild)
+            logging.info(f"Assets initialized for newly joined guild: {guild.name}")
+            # Optionally, send a welcome message to the guild
+            general_channel = discord.utils.find(lambda c: c.name == 'general' and c.permissions_for(guild.me).send_messages, guild.text_channels)
+            if general_channel:
+                await general_channel.send(
+                    f"# Hello! Thanks for inviting me to **{guild.name}**!\n"
+                    "I've set up a dedicated asset folder for your server. "
+                    "Admins can use `?uploadasset <filename>` to add custom images "
+                    "and `?listassets` to see your current assets."
+                    "**Use the ?help command to get started!**"
+                    "-# There isn't a website for now, please be patient. (If the bot sends you DMs for no reason, i'd like to hear more with ?crashreport, this bot is certainly not very well built.)"
+                )
+        else:
+            logging.error(f"AssetManager cog not found when joining guild {guild.name}. Asset initialization skipped.")
+
+
+async def setup(bot):
+    """Adds the Events cog to the bot."""
+    await bot.add_cog(Events(bot))

@@ -11,4 +11,4 @@ venv/
 *.pot
 *.mo
 Backups/
-cli/ffmpeg/bin/
+cli/ffmpeg/

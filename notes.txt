@@ -24,48 +24,48 @@ Mystralyn — mysterious and refined, nodding to "mistral" winds. (5.0.0)
 
 
 
---------------------------------------------------------------------------------------------------------
--------------------------------------------------- WORK ------------------------------------------------
---------------------------------------------------------------------------------------------------------
-
 ________________________________________________ At date 01/04, 00:12 ______________________________________________________
 
 ########## UPDATE DATA FILES TOO DONT FORGET OR I WILL EAT YOUR SOUL ############
 
----- Mantra, Current build: Celestra-3.2.1, Previewed updated build: Auralis-4.0.0 ----
-Change a setting in events.py at line 1279 where 5 should be a customisable number using jsons (stored in server_settings.json)
-Don't forget to edit events.py xp_gain for server_settings.json for each server.
-Make the level system PER SERVER. (edit user_data.json and EACH SAVE MADE FOR user_data.json)
-use this following system:    
+---- Sovra, Current build: beta-Auralis-4.0.0-3, Previewed updated build: Auralis-4.0.0 ----
+
+---------------------------------------- TO ADD / TO FIX ------------------------------------------------
+- Change a setting in events.py at line 1279 where 5 should be a customisable number using jsons (stored in server_settings.json)
+- Don't forget to edit events.py xp_gain for server_settings.json for each server.
+- Fix my own data in user_data.json
+- FOR THE LOVE OF GOD FIX THE GODDAMN USER_DATA.JSON IT KEEPS RESETTING IM GONNA LOSE MY MIND
+- For Auralis, make all the messages embeds. (except the ones that are not supposed to be embeds)
+- Fix purge command not acutally responding
+- Fix sell command also not working
+- Make the level system PER SERVER. (edit user_data.json and EACH SAVE MADE FOR user_data.json)
+- Use this following system:    
 
 for each server id like the preview sotre different data, and for each save and load modify it to be according to
 {ctx.guild.id}and then load the json or save the json. create 2 jsons, one with the old data and one with the new. since there is no way to
 know in which server people's data go into, make a survey with all the server's available. (look where (in which servers) the questioned user is)
 and make them save their data in that specific server. while taking the survey, the bot should still hang on to the old data scheme as loading the new data without the servey
-being completed can lead to catastrophic failures. and yeah just, IDFK JUST DO THE DAMN THING BEFORE 2nd of february 2026 and then you're good.
+being completed can lead to catastrophic failures. and yeah just, IDFK JUST DO THE DAMN THING BEFORE A CERTAIN DATE BECAUSE MY DEADLINE HAS BEEN PUSHED AGAIN AND AGAIN and then you're good.
 DO NOT FORGET: apply the same principle of loading new data as soon as someone joins a new server, the new server example data should be in next.txt
+
+
+--------------------------------- WHATS BEEN ADDED / FIXED --------------------------------
+
+- Modified Terms of Service
 - 
-preview:
-
-
-
 
 ---- Omninode, Current build: N/A ----
-Continue project after Auralis
-
-
--- PLANNED RELEASE DATE FOR AURALIS 4.0.0 --
-COMING AS SOON AS THE EVENTS.PY LINE AT XP GAIN IN @decorator on_message is done!!
+Continue 10/02/2026
 
 
 -- CURRENT PHASE OF UPDATE: (Status Check) --
-[...] - Fixing glitches (Current build at time: Celestra-3.2.1)
-[...] - Moving stuff from insider to stable based on reviews
+[X] - Fixing glitches (Current build at time: Celestra-3.2.1)
+[O] - Moving stuff from insider to stable based on reviews
 [...] - Release!!!
 
 
 -- MORE NOTES --
-4.99€ for PLUS
-10€ for MAX
+2.99€ for PLUS
+5.99€ for MAX
 per Month Each.
 Changes based on event

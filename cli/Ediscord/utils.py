@@ -34,6 +34,27 @@ LAST_COMMAND_FILE = os.path.join(SIGNALS_DIR, "last_command.txt")
 # -------------------------------------------- DEFINITONS -------------------------------------------
 # ---------------------------------------------------------------------------------------------------
 
+def atomic_write_json(path, data):
+    """Write data to a JSON file atomically to prevent corruption."""
+    try:
+        dir_name = os.path.dirname(path)
+        if dir_name:
+            os.makedirs(dir_name, exist_ok=True)
+        
+        # Create a temp file
+        tmp_path = path + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+            f.flush()
+            os.fsync(f.fileno()) # Ensure data is written to disk
+        
+        # Rename tmp file to actual file (atomic operation)
+        os.replace(tmp_path, path)
+        return True
+    except Exception as e:
+        logging.error(f"❌ Failed to atomically write to {path}: {e}")
+        return False
+
 def load_logging_config():
     """Load logging configuration from the JSON file."""
     try:
@@ -44,13 +65,11 @@ def load_logging_config():
 
 def save_logging_config(data):
     """Save logging configuration to the JSON file."""
-    with open(variables.LOGGING_CONFIG_FILE, "w") as file:
-        json.dump(data, file, indent=4)
+    atomic_write_json(variables.LOGGING_CONFIG_FILE, data)
 
 def save_trophy_data():
     """Save trophy data to the JSON file."""
-    with open(variables.TROPHY_FILE, "w") as f:
-        json.dump(variables.trophy_data, f, indent=4)
+    atomic_write_json(variables.TROPHY_FILE, variables.trophy_data)
 
 def is_owner(ctx):
     """Check if the command issuer is the bot owner."""
@@ -67,8 +86,7 @@ def admin_or_owner():
 
 def save_easter_data():
     """Save the easter data to the JSON file."""
-    with open(variables.EASTER_FILE, "w") as f:
-        json.dump(variables.easter_data, f, indent=4)
+    atomic_write_json(variables.EASTER_FILE, variables.easter_data)
 
 def load_inventory():
     """Load the inventory data from the JSON file."""
@@ -90,13 +108,11 @@ def award_trophy(user_id, trophy_id):
 
 def save_inventory(inventory):
     """Save the inventory data to the JSON file."""
-    with open(variables.INVENTORY_FILE, "w") as f:
-        json.dump(inventory, f, indent=4)
+    atomic_write_json(variables.INVENTORY_FILE, inventory)
 
 def save_bank_data():
     """Save the bank data to the JSON file."""
-    with open(variables.BANK_FILE, "w") as f:
-        json.dump(variables.bank_data, f, indent=4)
+    atomic_write_json(variables.BANK_FILE, variables.bank_data)
 
 def get_bank_balance(user_id):
     """Get the bank balance of a user."""
@@ -163,8 +179,8 @@ def save_user_data(data: dict):
             os.remove(os.path.join(variables.BACKUP_FOLDER, backups.pop(0)))
 
         # Final write to main file
-        with open(variables.USER_DATA_PATH, "w", encoding="utf-8") as f:
-            json.dump(cleaned_data, f, indent=4)
+        # Final write to main file
+        atomic_write_json(variables.USER_DATA_PATH, cleaned_data)
 
     except Exception as e:
         print(f"❌ Error saving user data: {e}")
@@ -388,8 +404,7 @@ def load_limitations():
 
 def save_limitations(data):
     """Save limitations to the JSON file."""
-    with open(variables.LIMITATIONS_FILE, "w") as file:
-        json.dump(data, file, indent=4)
+    atomic_write_json(variables.LIMITATIONS_FILE, data)
 
 def get_user_data(user_id):
     """Get data for a specific user."""
@@ -431,13 +446,86 @@ def update_user_data(user_id, key, value):
         }
 
     data[user_id][key] = value
+    data[user_id][key] = value
     save_user_data(data)
+
+# --- Per-Server User Data Functions ---
+
+def get_guild_user_data_path(guild_id):
+    """Get the path to the user data file for a specific guild."""
+    return os.path.join("data", "guilds", str(guild_id), "user_data.json")
+
+def load_guild_user_data(guild_id):
+    """Load user data for a specific guild."""
+    path = get_guild_user_data_path(guild_id)
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, Exception) as e:
+        print(f"❌ Error loading guild data for {guild_id}: {e}")
+        return {}
+
+def save_guild_user_data(guild_id, data):
+    """Save user data for a specific guild."""
+    path = get_guild_user_data_path(guild_id)
+    atomic_write_json(path, data)
+
+def get_guild_user_data(guild_id, user_id):
+    """Get data for a specific user in a specific guild."""
+    data = load_guild_user_data(guild_id)
+    user_id_str = str(user_id)
+    
+    if user_id_str not in data or not isinstance(data[user_id_str], dict):
+        # Initialize default values
+        data[user_id_str] = {
+            "xp": 0, 
+            "level": 1, 
+            "coins": 0, # Coins might be global? notes checks per server leveling. Coins usually global but let's separate for now if requested.
+            # actually user said "Make the level system PER SERVER."
+            # He also said "fix sell command", implying inventory/money might be global?
+            # For now, let's keep money global? Use `update_coins` for global money.
+            # But the structure requested was: "{ctx.guild.id} ... load json or save json" for "Level system".
+            # So I will separate XP/Level here.
+            "warnings": [],
+            "censored_count": 0,
+            "strikes": 0
+        }
+        save_guild_user_data(guild_id, data)
+    else:
+        # Ensure defaults
+        user_data = data[user_id_str]
+        user_data.setdefault("xp", 0)
+        user_data.setdefault("level", 1)
+        user_data.setdefault("warnings", [])
+        user_data.setdefault("censored_count", 0)
+        user_data.setdefault("strikes", 0)
+        data[user_id_str] = user_data
+
+    return data[user_id_str]
+
+def update_guild_user_data(guild_id, user_id, key, value):
+    """Update a single key for a specific user in a guild."""
+    data = load_guild_user_data(guild_id)
+    user_id_str = str(user_id)
+    
+    if user_id_str not in data:
+         data[user_id_str] = {
+            "xp": 0, 
+            "level": 1, 
+            "warnings": [],
+            "censored_count": 0,
+            "strikes": 0
+        }
+    
+    data[user_id_str][key] = value
+    save_guild_user_data(guild_id, data)
 
 
 # Save warnings data
 def save_warnings_data():
-    with open("data/warnings.json", "w") as f:
-        json.dump(variables.warnings_data, f)
+    atomic_write_json(variables.warnings_data, "data/warnings.json")
 
 # Add this function to get the logs channel
 def get_logs_channel(guild):
@@ -449,13 +537,11 @@ def get_channel_by_name(guild, channel_name):
 
 # Save banned servers data
 def save_banned_servers():
-    with open(variables.banned_servers_file, "w") as f:
-        json.dump(variables.banned_servers, f)
+    atomic_write_json(variables.banned_servers_file, variables.banned_servers)
 
 # Save server restrictions data
 def save_server_restrictions():
-    with open(variables.server_restrictions_file, "w") as f:
-        json.dump(variables.server_restrictions, f)
+    atomic_write_json(variables.server_restrictions_file, variables.server_restrictions)
 
 def backup_file(json_path, max_backups=10):
     """Create a dated backup of the given JSON file, organized by folder, and purge oldest if needed."""
@@ -595,8 +681,7 @@ def get_uptime():
 
 # Save bot info
 def save_bot_info():
-    with open(variables.bot_info_file, "w") as f:
-        json.dump(variables.bot_info, f)
+    atomic_write_json(variables.bot_info_file, variables.bot_info)
 
 def get_truth_or_dare_vc(guild):
     return discord.utils.get(guild.voice_channels, name="truth-or-dare")

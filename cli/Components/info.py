@@ -42,26 +42,49 @@ class Info(commands.Cog):
 
     @app_commands.command(
         name="profile",
-        description="Check your XP, level, coins, and deposited coins."
+        description="Check your stats, coins, and bank balance."
     )
     async def profile(self, interaction: discord.Interaction, member: typing.Optional[discord.Member] = None):
         """Check your XP, level, coins, and deposited coins. Optionally mention another user to view their profile."""
-        member = member or interaction.user  # Default to command author if no member mentioned
+        member = member or interaction.user
         user_id = member.id
-        user_data = utils.get_user_data(user_id)
+        
+        # Load Per-Server Data (XP, Level)
+        guild_user_data = utils.get_guild_user_data(interaction.guild.id, user_id)
+        xp = guild_user_data.get("xp", 0)
+        level = guild_user_data.get("level", 1)
+        xp_needed = level * 50
+        
+        # Load Global Data (Coins)
+        global_user_data = utils.get_user_data(user_id)
+        coins = global_user_data.get("coins", 0)
+        gems = global_user_data.get("gems", 0)
+        
+        deposited_coins = utils.get_bank_balance(user_id)
 
-        xp = user_data["xp"]
-        level = user_data["level"]
-        coins = user_data["coins"]
-        deposited_coins = utils.get_bank_balance(user_id)  # Retrieve the user's bank balance
-
-        await interaction.response.send_message(
-            f"# 📜 **{member.name}'s Profile**:\n"
-            f"🔹 XP: **{xp}**\n"
-            f"🔹 Level: **{level}**\n"
-            f"🔹 Coins: **{coins}**\n"
-            f"🔹 Deposited Coins: **{deposited_coins}**"
+        embed = discord.Embed(
+            title=f"👤 {member.display_name}'s Profile",
+            color=member.color if member.color != discord.Color.default() else discord.Color.blue()
         )
+        embed.set_thumbnail(url=member.display_avatar.url)
+        
+        # Leveling Section
+        embed.add_field(
+            name="📊 Leveling", 
+            value=f"**Level:** `{level}`\n**XP:** `{xp}/{xp_needed}`", 
+            inline=True
+        )
+        
+        # Economy Section
+        embed.add_field(
+            name="💰 Economy", 
+            value=f"**Coins:** `{coins}`\n**Gems:** `{gems}`\n**Bank:** `{deposited_coins}`", 
+            inline=True
+        )
+
+        embed.set_footer(text=f"Server: {interaction.guild.name}", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+        
+        await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
         name="info",
@@ -94,7 +117,7 @@ class Info(commands.Cog):
             description = textwrap.dedent(f"""\
                 # I am a multifunctional python Discord bot! 🐍
                 - Status: Public Build
-                - Build: pre-Auralis
+                - Build: beta-Auralis
                 - Version: **{variables.bot_info['version']}**
                 - Developer: th3_t1sm
 
@@ -152,14 +175,27 @@ class Info(commands.Cog):
         """Analyse a user with all available data."""
         member = member or interaction.user  # Default to the command author if no member is mentioned
 
-        # Load user data
+        # Load Data
         user_id = str(member.id)
-        user_data = utils.get_user_data(user_id)
+        
+        # Per-Server Data (XP, Level, Warnings)
+        guild_user_data = utils.get_guild_user_data(interaction.guild.id, user_id)
+        level = guild_user_data.get("level", 1)
+        xp = guild_user_data.get("xp", 0)
+        # Warnings in per-server data is a list of objects or just a count in some contexts?
+        # In moderation.py update, we made it a list.
+        warnings_data = guild_user_data.get("warnings", [])
+        warnings = len(warnings_data) if isinstance(warnings_data, list) else 0
+
+        # Global Data (Coins, Gems)
+        global_user_data = utils.get_user_data(user_id)
+        coins = global_user_data.get("coins", 0)
+        gems_collected = global_user_data.get("gems", 0)
+        
+        # Other Global Data
         inventory = utils.load_inventory().get(user_id, [])
         trophies = variables.trophy_data.get(user_id, [])
-        warnings = variables.warnings_data.get(user_id, {}).get("warnings", 0)
         eggs_collected = variables.easter_data.get(user_id, {}).get("eggs", 0)
-        gems_collected = user_data.get("gems", 0)
         bank_balance = utils.get_bank_balance(user_id)
 
         # Create the embed
@@ -196,9 +232,9 @@ class Info(commands.Cog):
         )
 
         # Add bot-related stats
-        embed.add_field(name="Level", value=user_data.get("level", 0), inline=True)
-        embed.add_field(name="XP", value=user_data.get("xp", 0), inline=True)
-        embed.add_field(name="Coins", value=user_data.get("coins", 0), inline=True)
+        embed.add_field(name="Level", value=level, inline=True)
+        embed.add_field(name="XP", value=xp, inline=True)
+        embed.add_field(name="Coins", value=coins, inline=True)
         embed.add_field(name="Gems", value=gems_collected, inline=True)
         embed.add_field(name="Eggs Collected", value=eggs_collected, inline=True)
         embed.add_field(name="Bank Balance", value=f"{bank_balance} coins", inline=True)

@@ -104,84 +104,6 @@ class GiveawayView(discord.ui.View):
 # --------------------- UTILITY COMMANDS --------------------
 print("✅ - Utility loaded.")
 class Utility(commands.Cog):
-    @app_commands.command(
-        name="migrate",
-        description="Survey: Migrate your user data to a specific server."
-    )
-    async def migratedata(self, interaction: discord.Interaction):
-        """
-        Survey command for users to migrate their data to a specific server.
-        Reads from user_data_old.json and writes to user_data.json in the new per-server structure.
-        Only migrates if not already migrated. Users who do not migrate will lose their data.
-        """
-        user_id = str(interaction.user.id)
-        # Load old data (source) and new data (destination)
-        try:
-            with open("BOT3/default/data/user_data.json", "r", encoding="utf-8") as f:
-                old_data = json.load(f)
-        except Exception as e:
-            await interaction.response.send_message(f"❌ Could not load old user data for migration. Error: {e}", ephemeral=True)
-            return
-        try:
-            with open("BOT3/default/data/user_data_new.json", "r", encoding="utf-8") as f:
-                new_data = json.load(f)
-        except Exception as e:
-            await interaction.response.send_message(f"❌ Could not load new user data for migration. Error: {e}", ephemeral=True)
-            return
-
-        guilds = [guild for guild in self.bot.guilds if interaction.user in guild.members]
-        if not guilds:
-            await interaction.response.send_message("You are not a member of any guilds.", ephemeral=True)
-            return
-
-        # List guilds for the user to choose
-        guild_list = "\n".join([f"{i+1}. {guild.name} (ID: {guild.id})" for i, guild in enumerate(guilds)])
-        await interaction.response.send_message(f"Please reply with the number of the server you want to migrate your data to:\n{guild_list}")
-
-        def check(m):
-            return m.author == interaction.user and m.channel == interaction.channel and m.content.isdigit() and 1 <= int(m.content) <= len(guilds)
-
-        try:
-            reply = await self.bot.wait_for("message", timeout=60.0, check=check)
-        except asyncio.TimeoutError:
-            await interaction.followup.send("Migration cancelled: no response.", ephemeral=True)
-            return
-
-        chosen_guild = guilds[int(reply.content) - 1]
-        guild_id = str(chosen_guild.id)
-
-        # Only migrate if user exists in old data and not already migrated in new data
-        if user_id in old_data and (user_id not in new_data or guild_id not in new_data[user_id]):
-            # Move all top-level user data to the chosen server
-            user_entry = old_data[user_id]
-            server_data = {
-                "xp": user_entry.get("xp", 0),
-                "level": user_entry.get("level", 1),
-                "coins": user_entry.get("coins", 0),
-                "gems": user_entry.get("gems", 0),
-                "balance": user_entry.get("balance", 0),
-                "warnings": user_entry.get("warnings", []),
-                "messages": user_entry.get("messages", []),
-                "verified": user_entry.get("verified", False),
-                "censored_count": user_entry.get("censored_count", 0),
-                "strikes": user_entry.get("strikes", 0),
-                "crates_opened": user_entry.get("crates_opened", 0),
-                "keys": user_entry.get("keys", 0)
-            }
-            # Preserve other top-level fields
-            for k, v in user_entry.items():
-                if k not in server_data:
-                    server_data[k] = v
-            # Insert into new structure
-            if user_id not in new_data:
-                new_data[user_id] = {}
-            new_data[user_id][guild_id] = server_data
-            # Save to user_data.json (destination)
-            with open("BOT3/default/data/user_data.json", "w", encoding="utf-8") as f:
-                json.dump(new_data, f, indent=4)
-            await interaction.followup.send(f"Your data has been migrated to {chosen_guild.name}.", ephemeral=True)
-        else:
-            await interaction.followup.send("Migration not needed or already completed.", ephemeral=True)
             
     @commands.Cog.listener()
     async def on_ready(self):
@@ -234,8 +156,8 @@ class Utility(commands.Cog):
         """Assigns level roles to all members in a guild based on their current level.
         Both default level roles (if enabled) and custom level role mappings are handled."""
         try:
-            # Load user data once for efficiency
-            user_data = utils.load_user_data()
+            # Load per-server user data
+            user_data = utils.load_guild_user_data(guild.id)
             # Load server settings to check if level roles are disabled
             settings = utils.load_server_settings()
             guild_settings = settings.get(str(guild.id), {})
@@ -669,24 +591,26 @@ class Utility(commands.Cog):
             )
             return
 
-        # Load user data
-        data = utils.load_user_data()
-
         # Prepare the leaderboard
         leaderboard_data = []
+        
+        # Load per-server or global data based on category
+        if category in ["level", "xp"]:
+            data = utils.load_guild_user_data(interaction.guild.id)
+        else:
+            data = utils.load_user_data()
+
         for user_id, user_info in data.items():
-            if user_id.isdigit():  # Ensure it's a user ID
+            if user_id.isdigit():
                 user = interaction.guild.get_member(int(user_id))
-                if user:  # Only include users who are in the server
+                if user:
                     leaderboard_data.append(
                         {
                             "name": user.display_name,
                             "level": user_info.get("level", 0),
                             "xp": user_info.get("xp", 0),
                             "coins": user_info.get("coins", 0),
-                            "eggs": variables.easter_data.get(user_id, {}).get(
-                                "eggs", 0
-                            ),  # Include Easter Eggs
+                            "eggs": variables.easter_data.get(user_id, {}).get("eggs", 0),
                         }
                     )
 

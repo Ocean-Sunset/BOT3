@@ -64,3 +64,8 @@ Logic: All necessary logic for detecting changed cogs and prompting for BIG/MEDI
 brain.py
 .
 Startup: The bot will perform the version check immediately upon execution, then proceed to load extensions.
+
+
+
+
+MODIFIED TERMS OF SERVICE

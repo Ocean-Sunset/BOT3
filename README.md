@@ -2,20 +2,18 @@
 
 A multifunctional Discord bot built with Python, featuring a deep economy system, automated versioning, and an experimental insider program.
 
-## 🚀 Key Features
+## 🚀 Features
 
 - **Multifunctional Utilities**: Commands for server moderation, info gathering, and general utility.
 - **Deep Economy System**: Includes XP leveling, coins, gems, a banking system, inventory management, and trophies.
 - **Insider Program**: Access to experimental builds (codenamed **Mystralyn**) for early testing of upcoming features.
 - **Automated Update Logic**: A custom version-checking system that handles major, medium, and small updates across components.
-- **Web Dashboard**: Real-time status monitoring and control via a built-in Flask web portal.
 - **Customization**: Support for server-specific prefixes and announcement settings.
 
-## 🛠️ Technical Stack
+## 🛠️ Tech
 
 - **Language**: Python 3.10+
 - **Framework**: `discord.py`
-- **Web**: `Flask` (for the dashboard)
 - **Environment**: `python-dotenv` for configuration
 
 ## ⚙️ Setup
@@ -43,6 +41,19 @@ A multifunctional Discord bot built with Python, featuring a deep economy system
 
 ## ⚠️ Stability Notice
 This bot is actively developed. **Insider builds** contain experimental code that may be unstable. If you encounter bugs, please report them using the `/crashreport` command.
+
+I should also note that this code comes straight from a server, so if you see any weird code, it's probably because it was meant for a server and not for a client / windows bot. I'm not a professional developer, so the code might not be the best quality.
+
+There is a release available for download on the releases page. These include the server version of the bot, and the client version of the bot. The client version is a windows only application that can be run locally.
+The server version is a *linux* only application, tho you will need the correct requirements installed.
+(i also think this greatly depends on your server type, i personally use HidenCloud, Katabump might be the same, but i don't know about others.)
+
+## 📝 License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🔗 Links
+
+- **Invite**: [Invite Sovra to your server](https://discord.com/oauth2/authorize?client_id=1418731937564522546&scope=bot+applications.commands&permissions=8)
 
 ---
 *Created with ❤️ by th3_t1sm*

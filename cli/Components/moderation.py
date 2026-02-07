@@ -19,21 +19,49 @@ class Moderation(commands.Cog):
         if member is None:
             await interaction.response.send_message("# ❌ You have to have a member to warn!\n-# Usage: `/warn @user1234 reason`", ephemeral=True)
             return
-        user_id = str(member.id)
-        if user_id not in variables.warnings_data:
-            variables.warnings_data[user_id] = {"messages": [], "warnings": 0}
-        variables.warnings_data[user_id]["warnings"] += 1
-        utils.save_warnings_data()
+        
+        # Load per-server data
+        guild_user_data = utils.get_guild_user_data(interaction.guild.id, member.id)
+        
+        current_warnings = guild_user_data.get("warnings", [])
+        # If warnings is a list of strings/objects, or just a count? 
+        # In utils.py get_guild_user_data init: "warnings": []
+        # In moderation.py original: variables.warnings_data[user_id] = {"messages": [], "warnings": 0}
+        # It seems the original system used a separate structure for warnings.
+        # But `events.py` (which IS updated) uses `guild_user_data`.
+        # Let's standardize on `guild_user_data["warnings"]` being a list of reasons or objects.
+        
+        # Original `warn` used `variables.warnings_data[user_id]["warnings"]` as an INT count.
+        # But `events.py` migration assumes "warnings" is a list?
+        # Let's look at `migration.py`: `new_data.get("warnings", [])`. It assumes a list.
+        # Let's use a list of objects {"reason": reason, "moderator": author.id, "time": timestamp} or just reasons.
+        # For simplicity and backward compatibility with "count":
+        # We will append the warning to the list, and use len() for count.
+        
+        warning_entry = {
+            "reason": reason,
+            "moderator": interaction.user.id,
+            "timestamp": time.time()
+        }
+        
+        if "warnings" not in guild_user_data or not isinstance(guild_user_data["warnings"], list):
+            guild_user_data["warnings"] = []
+            
+        guild_user_data["warnings"].append(warning_entry)
+        warning_count = len(guild_user_data["warnings"])
+        
+        utils.update_guild_user_data(interaction.guild.id, member.id, "warnings", guild_user_data["warnings"])
+        
         await interaction.response.send_message(
-            f"# ✅ {member.mention} has been warned.\nTotal warnings: {variables.warnings_data[user_id]['warnings']}"
+            f"# ✅ {member.mention} has been warned.\nTotal warnings: {warning_count}"
         )
         logs_channel = utils.get_logs_channel(interaction.guild)
         if logs_channel:
             await logs_channel.send(
-                f"{interaction.user} warned {member.mention} in {interaction.channel}. Reason: {reason}. Total warnings: {variables.warnings_data[user_id]['warnings']}"
+                f"{interaction.user} warned {member.mention} in {interaction.channel}. Reason: {reason}. Total warnings: {warning_count}"
             )
         # Mute the user if they reach 5 warnings
-        if variables.warnings_data[user_id]["warnings"] >= 5:
+        if warning_count >= 5:
             mute_role = discord.utils.get(interaction.guild.roles, name="Muted")
             if not mute_role:
                 mute_role = await interaction.guild.create_role(name="Muted")
@@ -77,22 +105,15 @@ class Moderation(commands.Cog):
             await interaction.response.send_message("# ❌ You have to have a member to strike!\n-# Usage: `/strike @user1234 reason(optional)`", ephemeral=True)
             return
         user_id = str(member.id)
-        user_data = utils.load_user_data()
-        # Initialize strikes if not present
-        if user_id not in user_data:
-            user_data[user_id] = {
-                "xp": 0,
-                "level": 1,
-                "coins": 100,
-                "warnings": [],
-                "strikes": 0,
-            }
-        elif "strikes" not in user_data[user_id]:
-            user_data[user_id]["strikes"] = 0
-        # Increment the user's strikes
-        user_data[user_id]["strikes"] += 1
-        strikes = user_data[user_id]["strikes"]
-        utils.save_user_data(user_data)
+        
+        # Load per-server data
+        guild_user_data = utils.get_guild_user_data(interaction.guild.id, member.id)
+        
+        guild_user_data["strikes"] += 1
+        strikes = guild_user_data["strikes"]
+        
+        utils.update_guild_user_data(interaction.guild.id, member.id, "strikes", strikes)
+        
         await interaction.response.send_message(
             f"# ⚠️ {member.mention} has been given a strike.\nTotal strikes: **{strikes}**.\nReason: {reason}"
         )
@@ -122,11 +143,11 @@ class Moderation(commands.Cog):
         if member is None:
             await interaction.response.send_message("❌ You have to have a member to clear their strikes!\n-# Usage: `/clearstrikes @user1234`", ephemeral=True)
             return
-        user_id = str(member.id)
-        user_data = utils.load_user_data()
-        if user_id in user_data and "strikes" in user_data[user_id]:
-            user_data[user_id]["strikes"] = 0
-            utils.save_user_data(user_data)
+        
+        guild_user_data = utils.get_guild_user_data(interaction.guild.id, member.id)
+        
+        if guild_user_data.get("strikes", 0) > 0:
+            utils.update_guild_user_data(interaction.guild.id, member.id, "strikes", 0)
             await interaction.response.send_message(f"✅ Cleared all strikes for {member.mention}.")
         else:
             await interaction.response.send_message(f"❌ {member.mention} has no strikes.")
@@ -138,14 +159,16 @@ class Moderation(commands.Cog):
             await interaction.response.send_message("❌ You have to have a member to see their infractions!\n-# Usage: `/infractions @user1234`", ephemeral=True)
             return
         user_id = str(member.id)
-        user_data = utils.load_user_data()
+        guild_user_data = utils.get_guild_user_data(interaction.guild.id, member.id)
+        
         # Extract strikes and warnings
-        strikes = user_data.get(user_id, {}).get("strikes", 0)
-        warnings = len(user_data.get(user_id, {}).get("warnings", []))
+        strikes = guild_user_data.get("strikes", 0)
+        warnings = guild_user_data.get("warnings", [])
+        warnings_count = len(warnings) if isinstance(warnings, list) else 0
         await interaction.response.send_message(
             f"# 📋 **Infractions for {member.mention}:**\n"
             f"- Strikes: **{strikes}**\n"
-            f"- Warnings: **{warnings}**"
+            f"- Warnings: **{warnings_count}**"
         )
 
     @app_commands.command(name="setlimitations", description="Set the offensive word filtering level.")
@@ -206,8 +229,39 @@ class Moderation(commands.Cog):
         if amount is None:
             await interaction.response.send_message(f"# ❌ No amount has been specified!\nInput an amount like this: `/purge 3`\n-# {utils.little_error_variant()}", ephemeral=True)
             return
-        await interaction.channel.purge(limit=amount)
-        await interaction.response.send_message(f"# ✅ Deleted {amount} messages.", ephemeral=True)
+        
+        await interaction.response.defer(ephemeral=True) # Defer to prevent timeout
+        deleted = await interaction.channel.purge(limit=amount)
+        await interaction.followup.send(f"# ✅ Deleted {len(deleted)} messages.", ephemeral=True)
+
+
+    @app_commands.command(name="set_xp_gain", description="Set the XP gained per message.")
+    @utils.admin_or_owner()
+    async def set_xp_gain(self, interaction: discord.Interaction, amount: int):
+        if amount < 0:
+            await interaction.response.send_message("❌ Amount cannot be negative.", ephemeral=True)
+            return
+
+        settings = utils.load_server_settings()
+        guild_settings = settings.get(str(interaction.guild.id), {})
+        guild_settings["xp_gain"] = amount
+        settings[str(interaction.guild.id)] = guild_settings
+        utils.save_server_settings(settings)
+        await interaction.response.send_message(f"✅ XP gain set to **{amount}** per message.")
+
+    @app_commands.command(name="set_censor_threshold", description="Set the number of offenses before a strike.")
+    @utils.admin_or_owner()
+    async def set_censor_threshold(self, interaction: discord.Interaction, limit: int):
+        if limit < 1:
+            await interaction.response.send_message("❌ Limit must be at least 1.", ephemeral=True)
+            return
+
+        settings = utils.load_server_settings()
+        guild_settings = settings.get(str(interaction.guild.id), {})
+        guild_settings["censored_threshold"] = limit
+        settings[str(interaction.guild.id)] = guild_settings
+        utils.save_server_settings(settings)
+        await interaction.response.send_message(f"✅ Censor threshold set to **{limit}** offenses.")
 
 
 async def setup(bot):

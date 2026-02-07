@@ -4,6 +4,7 @@ __pycache__/
 *.log
 .Python
 env/
+.env
 venv/
 .venv/
 .vscode/

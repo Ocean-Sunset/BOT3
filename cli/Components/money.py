@@ -274,19 +274,28 @@ class Money(commands.Cog):
             utils.update_user_data(user_id, 'gems', user_data['gems'])
             await interaction.response.send_message(f"✅ Purchased {item['name']}! You received {item['amount']} gems.")
         elif item['effect'] == 'add_level':
-            user_data['level'] = user_data.get('level', 1) + item['amount']
-            utils.update_user_data(user_id, 'level', user_data['level'])
-            await interaction.response.send_message(f"✅ Purchased {item['name']}! You gained {item['amount']} level(s).")
+            # Apply to per-server data
+            guild_user_data = utils.get_guild_user_data(interaction.guild.id, user_id)
+            new_level = guild_user_data.get('level', 1) + item['amount']
+            utils.update_guild_user_data(interaction.guild.id, user_id, 'level', new_level)
+            await interaction.response.send_message(f"✅ Purchased {item['name']}! You gained {item['amount']} level(s) in this server.")
         elif item['effect'] == 'add_keys':
             user_data['keys'] = user_data.get('keys', 0) + item['amount']
             utils.update_user_data(user_id, 'keys', user_data['keys'])
             await interaction.response.send_message(f"✅ Purchased {item['name']}! You received {item['amount']} key(s).")
         elif item['effect'] in ['xp_multiplier', 'coin_multiplier']:
             boost_end = time.time() + item['duration']
-            user_data[f"{item['effect']}_end"] = boost_end
-            user_data[f"{item['effect']}_value"] = item['multiplier']
-            utils.update_user_data(user_id, f"{item['effect']}_end", boost_end)
-            utils.update_user_data(user_id, f"{item['effect']}_value", item['multiplier'])
+            if item['effect'] == 'xp_multiplier':
+                # Apply XP multiplier to per-server data
+                utils.update_guild_user_data(interaction.guild.id, user_id, f"{item['effect']}_end", boost_end)
+                utils.update_guild_user_data(interaction.guild.id, user_id, f"{item['effect']}_value", item['multiplier'])
+            else:
+                # Apply Coin multiplier to global data
+                user_data[f"{item['effect']}_end"] = boost_end
+                user_data[f"{item['effect']}_value"] = item['multiplier']
+                utils.update_user_data(user_id, f"{item['effect']}_end", boost_end)
+                utils.update_user_data(user_id, f"{item['effect']}_value", item['multiplier'])
+            
             await interaction.response.send_message(f"✅ Purchased {item['name']}! {item['description']} is now active.")
     @app_commands.command(name="opencrate", description="Open a crate to receive a random object. Costs 1 key.")
     async def open_crate(self, interaction: discord.Interaction):
@@ -364,30 +373,40 @@ class Money(commands.Cog):
                 f"# 📦❔ {interaction.user.mention}, your inventory is empty.\n-# Try running /opencrate to get items!", ephemeral=True
             )
             return
+
         total_coins = sum(obj["value"].get("coins", 0) for obj in inventory[user_id])
         total_gems = sum(obj["value"].get("gems", 0) for obj in inventory[user_id])
+
         # Confirm via button interaction
-        view = discord.ui.View()
-        async def confirm_callback(interact):
+        async def confirm_callback(interact: discord.Interaction):
+            if interact.user.id != interaction.user.id:
+                await interact.response.send_message("❌ This confirmation is not for you.", ephemeral=True)
+                return
+            
             utils.update_coins(user_id, total_coins)
             utils.update_gems(user_id, total_gems)
             inventory[user_id] = []
             utils.save_inventory(inventory)
             await interact.response.edit_message(content=f"# ✅ {interaction.user.mention}, you sold everything in your inventory and\nreceived: **{total_coins} coins** and **{total_gems} gems**!", view=None)
-        async def cancel_callback(interact):
+
+        async def cancel_callback(interact: discord.Interaction):
+            if interact.user.id != interaction.user.id:
+                await interact.response.send_message("❌ This confirmation is not for you.", ephemeral=True)
+                return
+
             await interact.response.edit_message(content=f"# ❌ Sale canceled.\nYour inventory remains untouched.\n{utils.little_text()}", view=None)
-        view.add_item(discord.ui.Button(label="Yes", style=discord.ButtonStyle.success, custom_id="yes"))
-        view.add_item(discord.ui.Button(label="No", style=discord.ButtonStyle.danger, custom_id="no"))
-        async def on_button(interact):
-            if interact.data["custom_id"] == "yes":
-                await confirm_callback(interact)
-            else:
-                await cancel_callback(interact)
-        view.on_timeout = lambda: None
-        async def interaction_check(i):
-            return i.user.id == interaction.user.id
-        view.interaction_check = interaction_check
-        view.on_button_click = on_button
+
+        view = discord.ui.View()
+        
+        confirm_btn = discord.ui.Button(label="Yes", style=discord.ButtonStyle.success, custom_id="yes")
+        confirm_btn.callback = confirm_callback
+        
+        cancel_btn = discord.ui.Button(label="No", style=discord.ButtonStyle.danger, custom_id="no")
+        cancel_btn.callback = cancel_callback
+        
+        view.add_item(confirm_btn)
+        view.add_item(cancel_btn)
+
         await interaction.response.send_message(
             f"# ⚠️ {interaction.user.mention}, are you sure you want to sell everything in your inventory?\nYou will receive **{total_coins} coins** and **{total_gems} gems**.",
             view=view, ephemeral=True

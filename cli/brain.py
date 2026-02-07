@@ -59,7 +59,7 @@ def get_prefix(bot, message):
         return "?"
 
 bot = commands.Bot(command_prefix=get_prefix, intents=variables.intents, help_command=None)
-Components = ["events", "info", "moderation", "money", "others", "ownercommands", "utility", "omega", "assets", "chatreviver", "support_server"]
+Components = ["events", "info", "moderation", "money", "others", "ownercommands", "utility", "omega", "assets", "chatreviver", "support_server", "migration"]
 
 # ---------------------------------------------------------------------------------------------
 # ---------------------------------------- VERSION CHECK --------------------------------------

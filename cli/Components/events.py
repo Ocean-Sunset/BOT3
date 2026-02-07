@@ -1003,170 +1003,95 @@ class Events(commands.Cog):
                 # User is still on cooldown, skip granting XP and command processing for this message
                 return
 
-        # Load full user data at the beginning of on_message for consistent updates
-        full_data = utils.load_user_data()
-        user_id_str = str(message.author.id)
+        # Per-Server XP System
+        # Load SERVER settings for XP gain
+        settings = utils.load_server_settings()
+        guild_settings = settings.get(str(message.guild.id), {})
+        
+        # Load per-server user data
+        guild_user_data = utils.get_guild_user_data(message.guild.id, message.author.id)
 
-        # Ensure the user exists in the full_data and initialize keys if not present
-        if user_id_str not in full_data:
-            full_data[user_id_str] = {
-                "xp": 0,
-                "level": 1,
-                "coins": 100,
-                "warnings": [],
-                "censored_count": 0,
-                "strikes": 0,
-                "gems": 0,
-                "balance": 0,
-                "messages": [], # Initialize messages list here
-                "keys": 0,
-            }
-        else:
-            # Ensure new keys are added to existing users
-            if "censored_count" not in full_data[user_id_str]:
-                full_data[user_id_str]["censored_count"] = 0
-            if "strikes" not in full_data[user_id_str]:
-                full_data[user_id_str]["strikes"] = 0
-            if "gems" not in full_data[user_id_str]:
-                full_data[user_id_str]["gems"] = 0
-            if "balance" not in full_data[user_id_str]:
-                full_data[user_id_str]["balance"] = 0
-            if "messages" not in full_data[user_id_str]:
-                full_data[user_id_str]["messages"] = []
-            if "keys" not in full_data[user_id_str]:
-                full_data[user_id_str]["keys"] = 0
+        xp_gain = int(guild_settings.get("xp_gain", 50)) # Default 50 if not set
+        
+        # Apply XP multipliers if active (now stored in per-server data)
+        if guild_user_data.get("xp_multiplier_end", 0) > time.time():
+            xp_gain *= guild_user_data.get("xp_multiplier_value", 1)
 
+        guild_user_data["xp"] += xp_gain
+        xp_needed = guild_user_data["level"] * 50 
 
-        user_data_entry = full_data[user_id_str]
-
-
-        xp_gain = 50
-        if user_data_entry.get("xp_multiplier_end", 0) > time.time():
-            xp_gain *= user_data_entry.get("xp_multiplier_value", 1)
-
-        user_data_entry["xp"] += xp_gain
-        xp_needed = user_data_entry["level"] * 50 
-
-        gems_reward = random.randint(1, 10)
         coins_reward = random.randint(100, 1000)
+        gems_reward = random.randint(1, 10)
 
-        if user_data_entry["xp"] >= xp_needed:
-            user_data_entry["xp"] -= xp_needed
-            user_data_entry["level"] += 1
-            user_data_entry["coins"] += random.randint(100, 1000) 
+        if guild_user_data["xp"] >= xp_needed:
+            guild_user_data["xp"] -= xp_needed
+            guild_user_data["level"] += 1
+            
+            # Coin multipliers
+            if global_user_data.get("coin_multiplier_end", 0) > time.time():
+                 coins_reward *= global_user_data.get("coin_multiplier_value", 1)
 
-            if user_data_entry.get("coin_multiplier_end", 0) > time.time():
-                coins_reward *= user_data_entry.get("coin_multiplier_value", 1)
+            # Coins/Gems are GLOBAL (based on shop/commands in money.py)
+            utils.update_coins(message.author.id, coins_reward)
+            utils.update_gems(message.author.id, gems_reward)
 
-            user_data_entry["coins"] += coins_reward
-            user_data_entry["gems"] += gems_reward
+            bonus_xp = guild_user_data["level"] * 10  
+            guild_user_data["xp"] += bonus_xp
 
-            bonus_xp = user_data_entry["level"] * 10  
-            user_data_entry["xp"] += bonus_xp
-
-            settings = utils.load_server_settings()
-            guild_settings = settings.get(str(message.guild.id), {})
             destination_channel_name = guild_settings.get("destination")
+            bot_channel = None
             if destination_channel_name:
                 bot_channel = discord.utils.find(
                     lambda c: c.name == destination_channel_name,
                     message.guild.text_channels
                 )
-            else:
-                bot_channel = None
-            rewards_message = (
-                f"# 🎉 {message.author.mention} leveled up to **Level {user_data_entry['level']}**!\n"
-                f"You earned **{coins_reward} coins** and **{bonus_xp} bonus XP!!**\n"
+            
+            # Create Embed for Level Up
+            embed = discord.Embed(
+                title="🎉 Level Up!",
+                description=f"{message.author.mention} has leveled up to **Level {guild_user_data['level']}**!",
+                color=discord.Color.gold()
             )
-            if gems_reward > 0:
-                rewards_message += f", and **{gems_reward} gems**!"
-            else:
-                rewards_message += "!"
+            embed.add_field(name="Rewards", value=f"💰 **{coins_reward}** Coins\n💎 **{gems_reward}** Gems\n✨ **{bonus_xp}** Bonus XP", inline=False)
+            embed.set_thumbnail(url=message.author.display_avatar.url)
+            embed.set_footer(text=f"Keep chatting to reach Level {guild_user_data['level'] + 1}!")
 
             if utils.is_level_announcements_enabled(message.guild.id):
                 if bot_channel:
-                    await bot_channel.send(rewards_message)
+                    await bot_channel.send(content=message.author.mention, embed=embed)
                 else:
-                    await message.channel.send(rewards_message)
-            await utils.assign_level_role(message.author, user_data_entry["level"], message.channel)
+                    await message.channel.send(content=message.author.mention, embed=embed)
+            
+            await utils.assign_level_role(message.author, guild_user_data["level"], message.channel)
 
+        # Save per-server data
+        utils.update_guild_user_data(message.guild.id, message.author.id, "xp", guild_user_data["xp"])
+        utils.update_guild_user_data(message.guild.id, message.author.id, "level", guild_user_data["level"])
+        
         logging.info(
-            f"User {message.author.name} (ID: {user_id}) gained 10 XP. Total XP: {user_data_entry['xp']}."
+            f"User {message.author.name} (ID: {user_id}) gained {xp_gain} XP in {message.guild.name}. Total XP: {guild_user_data['xp']}."
         )
 
         current_time = time.time()
-        user_data_entry["messages"].append(current_time)
+        
+        # Messages list for spam detection - this assumes we want spam detection per server?
+        # Original used global `user_data_entry`. Spam is usually per-guild to avoid cross-server spam detection false positives.
+        if "messages" not in guild_user_data:
+             guild_user_data["messages"] = []
+        
+        guild_user_data["messages"].append(current_time)
 
-        user_data_entry["messages"] = [
+        guild_user_data["messages"] = [
             timestamp
-            for timestamp in user_data_entry["messages"]
+            for timestamp in guild_user_data["messages"]
             if current_time - timestamp <= variables.TIME_WINDOW
         ]
-        
-        # 1% chance to spawn a gem reaction
-        if random.randint(1, 200) == 1:
-            gem_emoji = "💎"  # Gem emoji
-            await message.add_reaction(gem_emoji)
-
-            try:
-                # Define the check function for reaction_add
-                def check(reaction, user):
-                    return (
-                        reaction.message.id == message.id
-                        and str(reaction.emoji) == gem_emoji
-                        and not user.bot
-                    )
-
-                # Wait for a user to react within 5 seconds
-                reaction, user = await self.bot.wait_for(
-                    "reaction_add", timeout=5.0, check=check
-                )
-
-                # Add the gem to the user's count in easter.json
-                user_id_str_gem = str(user.id) # Use a different variable name to avoid conflict
-                utils.update_gems(user_id_str_gem, 1)
-
-                # Remove the reaction and notify the user
-                await message.clear_reaction(gem_emoji)
-                await message.channel.send(
-                    f"# 💎 {user.mention} found a gem!\nUse ?gems to check how many gems you already have!"
-                )
-            except asyncio.TimeoutError:
-                # Remove the reaction if no one reacts within 5 seconds
-                await message.clear_reaction(gem_emoji)
-
-        # Check if the user exceeds the spam threshold
-        if len(user_data_entry["messages"]) > variables.SPAM_THRESHOLD:
-            # Take action for spamming
-            await message.channel.send(
-                f"⚠️ {message.author.mention}, you are sending messages too quickly. Please slow down!"
-            )
-            import datetime
-            user_data_entry["warnings"].append(
-                {"reason": "Spamming", "timestamp": datetime.datetime.now().isoformat()}
-            )
-
-            # Optional: Mute the user temporarily
-            mute_role = discord.utils.get(message.guild.roles, name="Muted")
-            if not mute_role:
-                mute_role = await message.guild.create_role(name="Muted")
-                for channel in message.guild.channels:
-                    await channel.set_permissions(
-                        mute_role, send_messages=False, speak=False
-                    )
-            await message.author.add_roles(mute_role, reason="Spamming")
-            await asyncio.sleep(10)  # Mute duration (10 seconds)
-            await message.author.remove_roles(mute_role, reason="Mute expired")
-
-        offensive_words = utils.load_swearwords()
-        
         if message.author.id == 302050872383242240:  # Disboard bot ID
             logging.info("Detected Disboard speaking")
             # Disboard bump handling: improve robustness and add debug logging
             if message.embeds:
                 embed = message.embeds[0]
                 desc = embed.description or ""
-                # Debug logging to help diagnose why bumps aren't detected
                 logging.info(f"Disboard embed detected in {message.guild.name}#{message.channel.name} - desc: {desc}")
 
                 if "bump" in desc.lower() or "Bump done!" in desc.lower() or "server bumped" in desc.lower():
@@ -1193,34 +1118,26 @@ class Events(commands.Cog):
                                 logging.exception(f"Error parsing mention from embed description: {e}")
 
                     # Third try: some Disboard embeds include the bumping user's name in plain text.
-                    # We'll try to extract an @pattern fallback by searching for "by @Name" or similar patterns.
                     if bumper is None and desc:
-                        # Try to find something that looks like a mention but without <> e.g., @username
                         m2 = re.search(r"by\s+@?(?P<name>[A-Za-z0-9_\-` ]{2,32})", desc, re.IGNORECASE)
                         if m2:
                             name = m2.group("name").strip()
-                            # Try to find a member whose display name or name matches
                             for mem in message.guild.members:
                                 if mem.display_name == name or mem.name == name:
                                     bumper = mem
                                     logging.info(f"Found bumper by name match: {name} -> {mem.id}")
                                     break
 
-                    # Update both a bot-level attribute (for compatibility) and the Utility cog if present
+                    # Update bot-level attribute and Utility cog
                     try:
                         if bumper:
                             self.bot.last_bumper = bumper.id
-                            logging.info(f"Set bot.last_bumper to user id {bumper.id} ({bumper})")
-                        else:
-                            logging.warning(f"Bump detected but could not determine the bumper. Embed desc: {desc}")
-
+                        
                         util_cog = self.bot.get_cog("Utility")
                         if util_cog:
-                            # Use Utility's helper to set per-guild last_bumper and persist it
                             try:
                                 if bumper:
                                     util_cog.set_last_bumper(message.guild.id, str(bumper.id))
-                                    # Acknowledge the bump in-channel (kept minimal to avoid spam)
                                     try:
                                         await message.channel.send(f"Thanks for bumping, {bumper.mention}!")
                                     except Exception:
@@ -1230,22 +1147,16 @@ class Events(commands.Cog):
                                     if role:
                                         util_cog.set_last_bumper(message.guild.id, str(role.id))
 
-                                # Restart the task loop on the Utility cog so reminders pick up the new value
                                 if hasattr(util_cog, "bump_reminder_task"):
-                                    try:
-                                        util_cog.bump_reminder_task.restart()
-                                        logging.info("Utility.bump_reminder_task restarted successfully")
-                                    except Exception as e:
-                                        logging.exception(f"Failed to restart Utility.bump_reminder_task: {e}")
+                                    util_cog.bump_reminder_task.restart()
                             except Exception as e:
                                 logging.exception(f"Error updating Utility cog with bumper info: {e}")
-                        else:
-                            logging.warning("Utility cog not found; cannot update its last_bumper or restart its task")
                     except Exception as e:
-                        logging.exception(f"Unexpected error while updating bumper or restarting task: {e}")
+                        logging.exception(f"Unexpected error while updating bumper: {e}")
 
-        utils.save_user_data(full_data)
-        
+        offensive_words = utils.load_swearwords()
+        level = guild_user_data["level"]
+
         # Check for offensive words
         if level > 0:
             for word in offensive_words.get(str(level), []):
@@ -1256,49 +1167,82 @@ class Events(commands.Cog):
                         # Bypass for admins/owner
                         if message.author.guild_permissions.administrator or await utils.is_owner_async(message):
                             continue
-                        await message.delete()
-                        await message.channel.send(
-                            f"⚠️ {message.author.mention}, your message was removed for containing offensive language."
-                        )
-                        print(offensive_words)
-                        # Increment the censored count
-                        user_data_entry["censored_count"] += 1
-
-                        # Check if the user has reached the limit
-                        if user_data_entry["censored_count"] >= 5: # CHANGE THIS SETTING, MAKE 5 a customisable integer
-                            user_data_entry["censored_count"] = 0  # Reset the count
-                            user_data_entry["strikes"] += 1  # Add a strike
-                            
-                            # Notify the user and the channel
-                            await message.channel.send(
-                                f"# ⚠️ {message.author.mention} has been given a **strike**.\nReason: Repeated offensive language.\nTotal strikes: {user_data_entry['strikes']}."
+                        
+                        try:
+                            await message.delete()
+                            embed = discord.Embed(
+                                description=f"⚠️ {message.author.mention}, your message was removed for containing offensive language.",
+                                color=discord.Color.red()
                             )
+                            await message.channel.send(embed=embed)
+                        except discord.Forbidden:
+                            pass # Bot might not have permissions
+                        except discord.NotFound:
+                            pass # Message already deleted
 
-                            # Take action based on the number of strikes
-                            if user_data_entry["strikes"] == 3:
+                        # Updates strikes
+                        guild_user_data["censored_count"] += 1
+
+                        # Load threshold from settings
+                        settings = utils.load_server_settings()
+                        guild_settings = settings.get(str(message.guild.id), {})
+                        censored_threshold = int(guild_settings.get("censored_threshold", 5))
+
+                        if guild_user_data["censored_count"] >= censored_threshold: 
+                            guild_user_data["censored_count"] = 0
+                            guild_user_data["strikes"] += 1
+                            
+                            embed = discord.Embed(
+                                title="⚠️ Strike Issued",
+                                description=f"{message.author.mention} has been given a **strike**.\n**Reason:** Repeated offensive language.\n**Total strikes:** {guild_user_data['strikes']}",
+                                color=discord.Color.orange()
+                            )
+                            await message.channel.send(embed=embed)
+
+                            if guild_user_data["strikes"] == 3:
                                 mute_role = discord.utils.get(message.guild.roles, name="Muted")
                                 if not mute_role:
-                                    mute_role = await message.guild.create_role(name="Muted")
-                                    for channel in message.guild.channels:
-                                        await channel.set_permissions(
-                                            mute_role, send_messages=False, speak=False
-                                        )
-                                await message.author.add_roles(mute_role)
-                                await message.channel.send(
-                                    f"# 🔇 {message.author.mention} has been muted.\nReason: Accumulating 3 strikes."
-                                )
-                            elif user_data_entry["strikes"] == 5:
-                                await message.author.kick(reason="Reached 5 strikes")
-                                await message.channel.send(
-                                    f"👢 {message.author.mention} has been kicked for reaching 5 strikes."
-                                )
-                            elif user_data_entry["strikes"] >= 7:
-                                await message.author.ban(reason="Reached 7 strikes")
-                                await message.channel.send(
-                                    f"⛔ {message.author.mention} has been banned for reaching 7 strikes."
-                                )
-                        utils.save_user_data(full_data) # Save full_data after changes
-                        return # Important: return after handling offensive word
+                                    try:
+                                        mute_role = await message.guild.create_role(name="Muted")
+                                        for channel in message.guild.channels:
+                                            await channel.set_permissions(mute_role, send_messages=False, speak=False)
+                                    except discord.Forbidden:
+                                        pass
+                                if mute_role:
+                                    await message.author.add_roles(mute_role)
+                                    embed = discord.Embed(
+                                        title="🔇 User Muted",
+                                        description=f"{message.author.mention} has been muted.\n**Reason:** Accumulating 3 strikes.",
+                                        color=discord.Color.dark_grey()
+                                    )
+                                    await message.channel.send(embed=embed)
+                            elif guild_user_data["strikes"] == 5:
+                                try:
+                                    await message.author.kick(reason="Reached 5 strikes")
+                                    embed = discord.Embed(
+                                        title="👢 User Kicked",
+                                        description=f"{message.author.mention} has been kicked.\n**Reason:** Reached 5 strikes.",
+                                        color=discord.Color.red()
+                                    )
+                                    await message.channel.send(embed=embed)
+                                except discord.Forbidden:
+                                    pass
+                            elif guild_user_data["strikes"] >= 7:
+                                try:
+                                    await message.author.ban(reason="Reached 7 strikes")
+                                    embed = discord.Embed(
+                                        title="⛔ User Banned",
+                                        description=f"{message.author.mention} has been banned.\n**Reason:** Reached 7 strikes.",
+                                        color=discord.Color.dark_red()
+                                    )
+                                    await message.channel.send(embed=embed)
+                                except discord.Forbidden:
+                                    pass
+                        
+                        # Save updates
+                        utils.update_guild_user_data(message.guild.id, message.author.id, "censored_count", guild_user_data["censored_count"])
+                        utils.update_guild_user_data(message.guild.id, message.author.id, "strikes", guild_user_data["strikes"])
+                        return 
             
         channel_name = message.channel.name.lower()
 
@@ -1388,7 +1332,6 @@ class Events(commands.Cog):
                 )
         else:
             logging.error(f"AssetManager cog not found when joining guild {guild.name}. Asset initialization skipped.")
-
 
 async def setup(bot):
     """Adds the Events cog to the bot."""

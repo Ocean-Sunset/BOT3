@@ -20,7 +20,7 @@ A multifunctional Discord bot built with Python, featuring a deep economy system
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/Ocean-Sunset/BOT3.git
+   git clone https://github.com/Ocean-Sunset/Eobot---Sovra.git
    ```
 
 2. **Install dependencies**:

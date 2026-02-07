@@ -167,7 +167,7 @@ class insiderCore(commands.Cog):
         if not channel_id:
             await interaction.response.send_message("# ⚠️ Please provide a YouTube channel ID, e.g. `/ytalert <channel_id>`", ephemeral=True)
             return
-        api_key = "AIzaSyC3ik7r-4UX6eITy_Fn2orsLadA0mWt7uE"
+        api_key = ""
         url = (
             f"https://www.googleapis.com/youtube/v3/search"
             f"?key={api_key}&channelId={channel_id}&part=snippet,id&order=date&maxResults=1"

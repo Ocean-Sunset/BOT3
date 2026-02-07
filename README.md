@@ -53,7 +53,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔗 Links
 
-- **Invite**: [Invite Sovra to your server](https://discord.com/oauth2/authorize?client_id=1418731937564522546&scope=bot+applications.commands&permissions=8)
+- **Invite**: [Invite Sovra to your server](https://discord.com/oauth2/authorize?client_id=1323734010345689189)
 
 ---
 *Created with ❤️ by th3_t1sm*

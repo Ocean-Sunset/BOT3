@@ -1,268 +1,408 @@
-# --------------------- IMPORTS --------------------
-import discord
-from discord.ext import commands
-from Ediscord import utils, variables
-import asyncio
-import typing
-from discord import app_commands
+"""
+Cipher/Sovra - Moderation Commands
+All moderation commands require Administrator permissions
+"""
 
-# --------------------- MODERATION COMMANDS --------------------
+import discord
+from discord import app_commands
+from discord.ext import commands
+import logging
+from datetime import datetime, timedelta
+from typing import Optional
+
 print("✅ - Moderation loaded.")
 
 class Moderation(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        logging.info("Moderation cog initialized")
 
-    @app_commands.command(name="warn", description="Warn a member. Mutes after 5 warnings.")
-    @app_commands.checks.has_permissions(manage_roles=True)
-    async def warn(self, interaction: discord.Interaction, member: discord.Member, reason: str = None):
-        if member is None:
-            await interaction.response.send_message("# ❌ You have to have a member to warn!\n-# Usage: `/warn @user1234 reason`", ephemeral=True)
-            return
-        
-        # Load per-server data
-        guild_user_data = utils.get_guild_user_data(interaction.guild.id, member.id)
-        
-        current_warnings = guild_user_data.get("warnings", [])
-        # If warnings is a list of strings/objects, or just a count? 
-        # In utils.py get_guild_user_data init: "warnings": []
-        # In moderation.py original: variables.warnings_data[user_id] = {"messages": [], "warnings": 0}
-        # It seems the original system used a separate structure for warnings.
-        # But `events.py` (which IS updated) uses `guild_user_data`.
-        # Let's standardize on `guild_user_data["warnings"]` being a list of reasons or objects.
-        
-        # Original `warn` used `variables.warnings_data[user_id]["warnings"]` as an INT count.
-        # But `events.py` migration assumes "warnings" is a list?
-        # Let's look at `migration.py`: `new_data.get("warnings", [])`. It assumes a list.
-        # Let's use a list of objects {"reason": reason, "moderator": author.id, "time": timestamp} or just reasons.
-        # For simplicity and backward compatibility with "count":
-        # We will append the warning to the list, and use len() for count.
-        
-        warning_entry = {
-            "reason": reason,
-            "moderator": interaction.user.id,
-            "timestamp": time.time()
-        }
-        
-        if "warnings" not in guild_user_data or not isinstance(guild_user_data["warnings"], list):
-            guild_user_data["warnings"] = []
-            
-        guild_user_data["warnings"].append(warning_entry)
-        warning_count = len(guild_user_data["warnings"])
-        
-        utils.update_guild_user_data(interaction.guild.id, member.id, "warnings", guild_user_data["warnings"])
-        
-        await interaction.response.send_message(
-            f"# ✅ {member.mention} has been warned.\nTotal warnings: {warning_count}"
-        )
-        logs_channel = utils.get_logs_channel(interaction.guild)
-        if logs_channel:
-            await logs_channel.send(
-                f"{interaction.user} warned {member.mention} in {interaction.channel}. Reason: {reason}. Total warnings: {warning_count}"
-            )
-        # Mute the user if they reach 5 warnings
-        if warning_count >= 5:
-            mute_role = discord.utils.get(interaction.guild.roles, name="Muted")
-            if not mute_role:
-                mute_role = await interaction.guild.create_role(name="Muted")
-                for channel in interaction.guild.channels:
-                    await channel.set_permissions(
-                        mute_role, send_messages=False, speak=False
-                    )
-            await member.add_roles(mute_role)
-            await interaction.followup.send(
-                f"❗{member.mention} has been muted for **10 minutes due to excessive warnings.**"
-            )
-            if logs_channel:
-                await logs_channel.send(
-                    f"{member.mention} has been muted for 10 minutes due to excessive warnings."
+    # ==================== Ban Command ====================
+    
+    @app_commands.command(name="ban", description="Ban a member from the server")
+    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.describe(
+        member="The member to ban",
+        reason="Reason for the ban"
+    )
+    async def ban(
+        self, 
+        interaction: discord.Interaction, 
+        member: discord.Member, 
+        reason: str = "No reason provided"
+    ):
+        """Ban a member from the server"""
+        try:
+            # Check if target is higher than moderator
+            if member.top_role >= interaction.user.top_role and interaction.user != interaction.guild.owner:
+                await interaction.response.send_message(
+                    "❌ You cannot ban this user (role hierarchy).",
+                    ephemeral=True
                 )
-            await asyncio.sleep(600)  # 10 minutes
-            await member.remove_roles(mute_role)
-            await interaction.followup.send(f"✔️ {member.mention} has been unmuted.")
-            if logs_channel:
-                await logs_channel.send(f"{member.mention} has been unmuted.")
+                return
+            
+            # Check if bot can ban
+            if member.top_role >= interaction.guild.me.top_role:
+                await interaction.response.send_message(
+                    "❌ I cannot ban this user (role hierarchy).",
+                    ephemeral=True
+                )
+                return
 
-    @app_commands.command(name="ban", description="Ban a member from the server.")
-    @app_commands.checks.has_permissions(ban_members=True)
-    async def ban(self, interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
-        if member is None:
-            await interaction.response.send_message("# ❌ You have to have a member to ban!\n-# Usage: `/ban @user1234 reason(optional)`", ephemeral=True)
-            return
-        await member.ban(reason=reason)
-        await interaction.response.send_message(f"# ✅ {member.mention} has successfully been banned\nReason: {reason}")
+            # Send DM before banning
+            try:
+                await member.send(
+                    f"🔨 You have been **banned** from **{interaction.guild.name}**\n"
+                    f"**Reason:** {reason}\n"
+                    f"**Moderator:** {interaction.user}"
+                )
+            except:
+                pass  # User has DMs disabled
 
-    @app_commands.command(name="kick", description="Kick a member from the server.")
-    @app_commands.checks.has_permissions(kick_members=True)
-    async def kick(self, interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
-        await member.kick(reason=reason)
-        await interaction.response.send_message(f"# ✅ {member.mention} has successfully been kicked for:\n{reason}")
-
-    @app_commands.command(name="strike", description="Give a strike to a user.")
-    @app_commands.checks.has_permissions(manage_roles=True)
-    async def strike(self, interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
-        if member is None:
-            await interaction.response.send_message("# ❌ You have to have a member to strike!\n-# Usage: `/strike @user1234 reason(optional)`", ephemeral=True)
-            return
-        user_id = str(member.id)
-        
-        # Load per-server data
-        guild_user_data = utils.get_guild_user_data(interaction.guild.id, member.id)
-        
-        guild_user_data["strikes"] += 1
-        strikes = guild_user_data["strikes"]
-        
-        utils.update_guild_user_data(interaction.guild.id, member.id, "strikes", strikes)
-        
-        await interaction.response.send_message(
-            f"# ⚠️ {member.mention} has been given a strike.\nTotal strikes: **{strikes}**.\nReason: {reason}"
-        )
-        # Take action based on the number of strikes
-        if strikes == 3:
-            mute_role = discord.utils.get(interaction.guild.roles, name="Muted")
-            if not mute_role:
-                mute_role = await interaction.guild.create_role(name="Muted")
-                for channel in interaction.guild.channels:
-                    await channel.set_permissions(
-                        mute_role, send_messages=False, speak=False
-                    )
-            await member.add_roles(mute_role)
-            await interaction.followup.send(
-                f"🔇 {member.mention} has also been muted for accumulating 3 strikes."
+            # Ban the member
+            await member.ban(reason=f"[{interaction.user}] {reason}")
+            
+            # Create embed response
+            embed = discord.Embed(
+                title="🔨 Member Banned",
+                description=f"{member.mention} has been banned.",
+                color=discord.Color.red(),
+                timestamp=datetime.utcnow()
             )
-        elif strikes == 5:
-            await member.kick(reason="Reached 5 strikes")
-            await interaction.followup.send(f"👢 {member.mention} has also been kicked for reaching 5 strikes.")
-        elif strikes >= 7:
-            await member.ban(reason="Reached 7 strikes")
-            await interaction.followup.send(f"⛔ {member.mention} has also been banned for reaching 7 strikes.\n-# bye!!")
-
-    @app_commands.command(name="clearstrikes", description="Clear all strikes for a user.")
-    @app_commands.checks.has_permissions(manage_roles=True)
-    async def clearstrikes(self, interaction: discord.Interaction, member: discord.Member):
-        if member is None:
-            await interaction.response.send_message("❌ You have to have a member to clear their strikes!\n-# Usage: `/clearstrikes @user1234`", ephemeral=True)
-            return
-        
-        guild_user_data = utils.get_guild_user_data(interaction.guild.id, member.id)
-        
-        if guild_user_data.get("strikes", 0) > 0:
-            utils.update_guild_user_data(interaction.guild.id, member.id, "strikes", 0)
-            await interaction.response.send_message(f"✅ Cleared all strikes for {member.mention}.")
-        else:
-            await interaction.response.send_message(f"❌ {member.mention} has no strikes.")
-
-    @app_commands.command(name="infractions", description="View a user's strikes and warnings.")
-    @app_commands.checks.has_permissions(manage_roles=True)
-    async def infractions(self, interaction: discord.Interaction, member: discord.Member):
-        if member is None:
-            await interaction.response.send_message("❌ You have to have a member to see their infractions!\n-# Usage: `/infractions @user1234`", ephemeral=True)
-            return
-        user_id = str(member.id)
-        guild_user_data = utils.get_guild_user_data(interaction.guild.id, member.id)
-        
-        # Extract strikes and warnings
-        strikes = guild_user_data.get("strikes", 0)
-        warnings = guild_user_data.get("warnings", [])
-        warnings_count = len(warnings) if isinstance(warnings, list) else 0
-        await interaction.response.send_message(
-            f"# 📋 **Infractions for {member.mention}:**\n"
-            f"- Strikes: **{strikes}**\n"
-            f"- Warnings: **{warnings_count}**"
-        )
-
-    @app_commands.command(name="setlimitations", description="Set the offensive word filtering level.")
-    @utils.admin_or_owner()
-    async def setlimitations(self, interaction: discord.Interaction, level: str = None):
-        if not level:
+            embed.add_field(name="Moderator", value=interaction.user.mention, inline=True)
+            embed.add_field(name="Reason", value=reason, inline=True)
+            embed.set_footer(text=f"User ID: {member.id}")
+            
+            await interaction.response.send_message(embed=embed)
+            logging.info(f"{interaction.user} banned {member} from {interaction.guild.name}: {reason}")
+            
+        except discord.Forbidden:
             await interaction.response.send_message(
-                "❓ **Usage:** `/setlimitations <level>`\n"
-                "Levels:\n"
-                "1 - Minimal filtering\n"
-                "2 - Moderate filtering\n"
-                "3 - Strict filtering\n"
-                "4 - Very strict filtering\n"
-                "5 - Block all offensive words"
+                "❌ I don't have permission to ban members.",
+                ephemeral=True
             )
-            return
-        if level not in ["1", "2", "3", "4", "5"]:
-            await interaction.response.send_message("# ❌ Invalid level.\nPlease choose a level between 1 and 5.")
-            return
-        guild_id = str(interaction.guild.id)
-        limitations = utils.load_limitations()
-        limitations[guild_id] = int(level)
-        utils.save_limitations(limitations)
-        await interaction.response.send_message(f"✅ Offensive word filtering level set to **{level}**.")
+        except Exception as e:
+            logging.error(f"Error in ban command: {e}")
+            await interaction.response.send_message(
+                f"❌ An error occurred: {e}",
+                ephemeral=True
+            )
 
-    @app_commands.command(name="mute", description="Mute a user.")
-    @app_commands.checks.has_permissions(manage_roles=True)
-    async def mute(self, interaction: discord.Interaction, member: discord.Member, reason: str = None):
-        if member is None:
-            await interaction.response.send_message(f"# ❌ No member has been specified!\n-# {utils.little_error_variant()}", ephemeral=True)
-            return
-        if reason is None:
-            reason = "No reason has been specified"
-        mute_role = discord.utils.get(interaction.guild.roles, name="Muted")
-        if not mute_role:
-            mute_role = await interaction.guild.create_role(name="Muted")
-            for channel in interaction.guild.channels:
-                await channel.set_permissions(mute_role, send_messages=False, speak=False)
-        await member.add_roles(mute_role, reason=reason)
-        await interaction.response.send_message(f"# ✅ {member.mention} has been muted.\nReason: {reason}")
+    # ==================== Unban Command ====================
+    
+    @app_commands.command(name="unban", description="Unban a user from the server")
+    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.describe(
+        user_id="The ID of the user to unban",
+        reason="Reason for the unban"
+    )
+    async def unban(
+        self, 
+        interaction: discord.Interaction, 
+        user_id: str,
+        reason: str = "No reason provided"
+    ):
+        """Unban a user from the server"""
+        try:
+            # Convert to int
+            user_id_int = int(user_id)
+            
+            # Get banned users
+            bans = [entry async for entry in interaction.guild.bans()]
+            user = discord.utils.get(bans, user__id=user_id_int)
+            
+            if not user:
+                await interaction.response.send_message(
+                    f"❌ User with ID `{user_id}` is not banned.",
+                    ephemeral=True
+                )
+                return
+            
+            # Unban the user
+            await interaction.guild.unban(user.user, reason=f"[{interaction.user}] {reason}")
+            
+            # Create embed response
+            embed = discord.Embed(
+                title="✅ User Unbanned",
+                description=f"{user.user} has been unbanned.",
+                color=discord.Color.green(),
+                timestamp=datetime.utcnow()
+            )
+            embed.add_field(name="Moderator", value=interaction.user.mention, inline=True)
+            embed.add_field(name="Reason", value=reason, inline=True)
+            embed.set_footer(text=f"User ID: {user_id}")
+            
+            await interaction.response.send_message(embed=embed)
+            logging.info(f"{interaction.user} unbanned {user.user} from {interaction.guild.name}: {reason}")
+            
+        except ValueError:
+            await interaction.response.send_message(
+                "❌ Invalid user ID. Please provide a valid number.",
+                ephemeral=True
+            )
+        except discord.Forbidden:
+            await interaction.response.send_message(
+                "❌ I don't have permission to unban members.",
+                ephemeral=True
+            )
+        except Exception as e:
+            logging.error(f"Error in unban command: {e}")
+            await interaction.response.send_message(
+                f"❌ An error occurred: {e}",
+                ephemeral=True
+            )
 
-    @app_commands.command(name="unmute", description="Unmute a user.")
-    @app_commands.checks.has_permissions(manage_roles=True)
-    async def unmute(self, interaction: discord.Interaction, member: discord.Member):
-        if member is None:
-            await interaction.response.send_message(f"# ❌ No member has been specified!\n-# {utils.little_error_variant()}", ephemeral=True)
-            return
-        mute_role = discord.utils.get(interaction.guild.roles, name="Muted")
-        if mute_role in member.roles:
-            await member.remove_roles(mute_role)
-            await interaction.response.send_message(f"# ✅ {member.mention} has been unmuted.")
-        else:
-            await interaction.response.send_message(f"# ❌ {member.mention} is not muted.\n-# {utils.little_error_variant()}")
+    # ==================== Kick Command ====================
+    
+    @app_commands.command(name="kick", description="Kick a member from the server")
+    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.describe(
+        member="The member to kick",
+        reason="Reason for the kick"
+    )
+    async def kick(
+        self, 
+        interaction: discord.Interaction, 
+        member: discord.Member, 
+        reason: str = "No reason provided"
+    ):
+        """Kick a member from the server"""
+        try:
+            # Check if target is higher than moderator
+            if member.top_role >= interaction.user.top_role and interaction.user != interaction.guild.owner:
+                await interaction.response.send_message(
+                    "❌ You cannot kick this user (role hierarchy).",
+                    ephemeral=True
+                )
+                return
+            
+            # Check if bot can kick
+            if member.top_role >= interaction.guild.me.top_role:
+                await interaction.response.send_message(
+                    "❌ I cannot kick this user (role hierarchy).",
+                    ephemeral=True
+                )
+                return
 
-    @app_commands.command(name="purge", description="Delete a number of messages.")
-    @app_commands.checks.has_permissions(manage_messages=True)
-    async def purge(self, interaction: discord.Interaction, amount: int):
-        if amount is None:
-            await interaction.response.send_message(f"# ❌ No amount has been specified!\nInput an amount like this: `/purge 3`\n-# {utils.little_error_variant()}", ephemeral=True)
-            return
-        
-        await interaction.response.defer(ephemeral=True) # Defer to prevent timeout
-        deleted = await interaction.channel.purge(limit=amount)
-        await interaction.followup.send(f"# ✅ Deleted {len(deleted)} messages.", ephemeral=True)
+            # Send DM before kicking
+            try:
+                await member.send(
+                    f"👢 You have been **kicked** from **{interaction.guild.name}**\n"
+                    f"**Reason:** {reason}\n"
+                    f"**Moderator:** {interaction.user}"
+                )
+            except:
+                pass  # User has DMs disabled
 
+            # Kick the member
+            await member.kick(reason=f"[{interaction.user}] {reason}")
+            
+            # Create embed response
+            embed = discord.Embed(
+                title="👢 Member Kicked",
+                description=f"{member.mention} has been kicked.",
+                color=discord.Color.orange(),
+                timestamp=datetime.utcnow()
+            )
+            embed.add_field(name="Moderator", value=interaction.user.mention, inline=True)
+            embed.add_field(name="Reason", value=reason, inline=True)
+            embed.set_footer(text=f"User ID: {member.id}")
+            
+            await interaction.response.send_message(embed=embed)
+            logging.info(f"{interaction.user} kicked {member} from {interaction.guild.name}: {reason}")
+            
+        except discord.Forbidden:
+            await interaction.response.send_message(
+                "❌ I don't have permission to kick members.",
+                ephemeral=True
+            )
+        except Exception as e:
+            logging.error(f"Error in kick command: {e}")
+            await interaction.response.send_message(
+                f"❌ An error occurred: {e}",
+                ephemeral=True
+            )
 
-    @app_commands.command(name="set_xp_gain", description="Set the XP gained per message.")
-    @utils.admin_or_owner()
-    async def set_xp_gain(self, interaction: discord.Interaction, amount: int):
-        if amount < 0:
-            await interaction.response.send_message("❌ Amount cannot be negative.", ephemeral=True)
-            return
+    # ==================== Timeout Command ====================
+    
+    @app_commands.command(name="timeout", description="Timeout a member")
+    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.describe(
+        member="The member to timeout",
+        duration="Duration in minutes",
+        reason="Reason for the timeout"
+    )
+    async def timeout(
+        self, 
+        interaction: discord.Interaction, 
+        member: discord.Member, 
+        duration: int,
+        reason: str = "No reason provided"
+    ):
+        """Timeout a member for a specified duration"""
+        try:
+            # Validate duration (Discord max is 28 days)
+            if duration < 1 or duration > 40320:  # 28 days in minutes
+                await interaction.response.send_message(
+                    "❌ Duration must be between 1 minute and 28 days (40320 minutes).",
+                    ephemeral=True
+                )
+                return
+            
+            # Check if target is higher than moderator
+            if member.top_role >= interaction.user.top_role and interaction.user != interaction.guild.owner:
+                await interaction.response.send_message(
+                    "❌ You cannot timeout this user (role hierarchy).",
+                    ephemeral=True
+                )
+                return
+            
+            # Check if bot can timeout
+            if member.top_role >= interaction.guild.me.top_role:
+                await interaction.response.send_message(
+                    "❌ I cannot timeout this user (role hierarchy).",
+                    ephemeral=True
+                )
+                return
 
-        settings = utils.load_server_settings()
-        guild_settings = settings.get(str(interaction.guild.id), {})
-        guild_settings["xp_gain"] = amount
-        settings[str(interaction.guild.id)] = guild_settings
-        utils.save_server_settings(settings)
-        await interaction.response.send_message(f"✅ XP gain set to **{amount}** per message.")
+            # Calculate timeout duration
+            timeout_until = datetime.utcnow() + timedelta(minutes=duration)
+            
+            # Send DM before timeout
+            try:
+                await member.send(
+                    f"⏳ You have been **timed out** in **{interaction.guild.name}**\n"
+                    f"**Duration:** {duration} minutes\n"
+                    f"**Reason:** {reason}\n"
+                    f"**Moderator:** {interaction.user}"
+                )
+            except:
+                pass  # User has DMs disabled
 
-    @app_commands.command(name="set_censor_threshold", description="Set the number of offenses before a strike.")
-    @utils.admin_or_owner()
-    async def set_censor_threshold(self, interaction: discord.Interaction, limit: int):
-        if limit < 1:
-            await interaction.response.send_message("❌ Limit must be at least 1.", ephemeral=True)
-            return
+            # Timeout the member
+            await member.timeout(timeout_until, reason=f"[{interaction.user}] {reason}")
+            
+            # Create embed response
+            embed = discord.Embed(
+                title="⏳ Member Timed Out",
+                description=f"{member.mention} has been timed out.",
+                color=discord.Color.yellow(),
+                timestamp=datetime.utcnow()
+            )
+            embed.add_field(name="Duration", value=f"{duration} minutes", inline=True)
+            embed.add_field(name="Moderator", value=interaction.user.mention, inline=True)
+            embed.add_field(name="Reason", value=reason, inline=False)
+            embed.set_footer(text=f"User ID: {member.id}")
+            
+            await interaction.response.send_message(embed=embed)
+            logging.info(f"{interaction.user} timed out {member} in {interaction.guild.name} for {duration}m: {reason}")
+            
+        except discord.Forbidden:
+            await interaction.response.send_message(
+                "❌ I don't have permission to timeout members.",
+                ephemeral=True
+            )
+        except Exception as e:
+            logging.error(f"Error in timeout command: {e}")
+            await interaction.response.send_message(
+                f"❌ An error occurred: {e}",
+                ephemeral=True
+            )
 
-        settings = utils.load_server_settings()
-        guild_settings = settings.get(str(interaction.guild.id), {})
-        guild_settings["censored_threshold"] = limit
-        settings[str(interaction.guild.id)] = guild_settings
-        utils.save_server_settings(settings)
-        await interaction.response.send_message(f"✅ Censor threshold set to **{limit}** offenses.")
+    # ==================== Remove Timeout Command ====================
+    
+    @app_commands.command(name="untimeout", description="Remove timeout from a member")
+    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.describe(
+        member="The member to remove timeout from"
+    )
+    async def untimeout(
+        self, 
+        interaction: discord.Interaction, 
+        member: discord.Member
+    ):
+        """Remove timeout from a member"""
+        try:
+            if member.timed_out_until is None:
+                await interaction.response.send_message(
+                    f"❌ {member.mention} is not timed out.",
+                    ephemeral=True
+                )
+                return
+            
+            # Remove timeout
+            await member.timeout(None)
+            
+            embed = discord.Embed(
+                title="✅ Timeout Removed",
+                description=f"{member.mention}'s timeout has been removed.",
+                color=discord.Color.green(),
+                timestamp=datetime.utcnow()
+            )
+            embed.add_field(name="Moderator", value=interaction.user.mention)
+            
+            await interaction.response.send_message(embed=embed)
+            logging.info(f"{interaction.user} removed timeout from {member} in {interaction.guild.name}")
+            
+        except discord.Forbidden:
+            await interaction.response.send_message(
+                "❌ I don't have permission to remove timeouts.",
+                ephemeral=True
+            )
+        except Exception as e:
+            logging.error(f"Error in untimeout command: {e}")
+            await interaction.response.send_message(
+                f"❌ An error occurred: {e}",
+                ephemeral=True
+            )
+
+    # ==================== Purge Command ====================
+    
+    @app_commands.command(name="purge", description="Delete multiple messages")
+    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.describe(
+        amount="Number of messages to delete (1-100)"
+    )
+    async def purge(
+        self, 
+        interaction: discord.Interaction, 
+        amount: int
+    ):
+        """Delete a specified number of messages"""
+        try:
+            # Validate amount
+            if amount < 1 or amount > 100:
+                await interaction.response.send_message(
+                    "❌ Amount must be between 1 and 100.",
+                    ephemeral=True
+                )
+                return
+            
+            # Defer response since this might take a moment
+            await interaction.response.defer(ephemeral=True)
+            
+            # Delete messages
+            deleted = await interaction.channel.purge(limit=amount)
+            
+            await interaction.followup.send(
+                f"✅ Deleted {len(deleted)} message(s).",
+                ephemeral=True
+            )
+            logging.info(f"{interaction.user} purged {len(deleted)} messages in {interaction.channel.name}")
+            
+        except discord.Forbidden:
+            await interaction.followup.send(
+                "❌ I don't have permission to delete messages.",
+                ephemeral=True
+            )
+        except Exception as e:
+            logging.error(f"Error in purge command: {e}")
+            await interaction.followup.send(
+                f"❌ An error occurred: {e}",
+                ephemeral=True
+            )
 
 
 async def setup(bot):
+    """Load the Moderation cog"""
     await bot.add_cog(Moderation(bot))

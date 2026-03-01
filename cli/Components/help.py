@@ -1,5 +1,27 @@
+from Ediscord import utils, variables
 import discord
+from discord.ext.commands import (
+    CommandNotFound,
+    MissingRequiredArgument,
+    BadArgument,
+    CommandOnCooldown,
+    CheckFailure,
+    DisabledCommand,
+    NoPrivateMessage,
+    CommandInvokeError,
+)
 from discord.ext import commands
+import discord.ext.commands
+import time
+import logging
+from PIL import Image, ImageDraw, ImageFont
+import requests
+from io import BytesIO
+import difflib
+import asyncio
+import re
+import random
+import os
 
 # -------------------------------------------------------------------
 # CONFIGURATION: Command-Based Category Logic
@@ -10,45 +32,21 @@ from discord.ext import commands
 # If neither, it goes to "Other".
 
 CATEGORY_MAPPING = {
-    "🛡️ Moderation": [
-        "ban", "kick", "mute", "unmute", "warn", "purge", 
-        "strike", "clearstrikes", "infractions", "setlimitations"
+    "🛡️ Security": [
+        "security", "raid", "antinuke", "whitelist", "emergency_lockdown", "emergency_unlockdown"
     ],
-    "💰 Economy": [
-        "balance", "daily", "steal", "gems", "keys", "deposit", 
-        "withdraw", "bank", "opencrate", "inventory", "sell", "trade", "shop", "exchange"
+    "✅ Verification": [
+        "verify"
+    ],
+    "🪛 Moderation": [
+        "ban", "unban", "kick", "timeout", "untimeout", "purge"
     ],
     "⚙️ Utility": [
-        "setbumpchannel", "colorrole", 
-        "setwelcome", "setgoodbye", "color", "translate", "weather", "setverifyrole", "verify", "leaderboard", "announcement", "addrolereaction", 
-        "removerolereaction", "addselfrole", "removeselfrole", "selfroles", "servercustom", "autorole", "setdestination", "setwelcomechannel", "setgoodbyechannel", "setlivestream",
-        "setlivestreamchannel", "checklivestream", "iam", "iamnot", "setlevelrole", "removelevelrole", "listlevelroles", "copy", "copychannel", "copydm", "setprefix", "settingsannouncement"
-        "chatreviver"
+        "help", "setprefix"
     ],
-    "🎵 Music": [
-        "upload", "play", "queue", "skip", "stop", "download", 
-        "check_ffmpeg"
+    "🚨 Owner Only": [
+        "omega", "sync", "reload_super"
     ],
-    "ℹ️ Information": [
-        "profile", "info", "changelog", "analyse", "serverstats", "setannouncements"
-    ],
-    "🚨 Owner only commands": [
-        "BServer", "UBServer", "MServer", "update", "restart", "shutdown", 
-        "modify_status", "levelsystem", "levelannouncements", "setlogging", "lookup",  
-        "serverlockdown", "omega", "selfkick", "backuplog", "lockdown", "unlockdown" "reload_super", "reset"
-    ],
-    "🌐 Insider Program": [
-        "testembed", "insidersecret", "insider", "insiderchangelog", "rssfetch", 
-        "ytalert", "twitchalert", "insiderstatus", "forceinsider", "insiderrequest", "insiderdaily" "subscribe_plus", "subscribre_max", "subscribe_status"
-    ],
-    "🎊 Giveaways & Events": [
-        "giveaway", "giveawaycancel", "giveawayinfo", "poll"
-    ],
-    "📝 Miscellaneous": [
-        "uploadasset", "listassets", "setsupportchannel", "setchangelogchannel", 
-        "submitidea", "feedback", "crashreport", "kaps"
-    ],
-    # Any command not listed above ends up in "📂 Other" automatically
 }
 
 class Help(commands.Cog):
@@ -59,18 +57,22 @@ class Help(commands.Cog):
     async def help(self, interaction: discord.Interaction, query: str = None):
         prefix = "/"  # Slash commands use / as the prefix
 
+        # Get all application commands from the tree
+        # walk_commands yields everything (commands + groups)
+        all_app_commands = list(self.bot.tree.walk_commands())
+
         # -------------------------
         # 1. SPECIFIC COMMAND HELP
         # -------------------------
 
         if query:
             # Search for slash command by name
-            command = discord.utils.find(lambda c: c.name == query, self.bot.application_commands)
+            command = discord.utils.find(lambda c: c.name == query, all_app_commands)
             if not command:
                 # Fuzzy Search Fallback for slash commands
                 matches = [
-                    cmd for cmd in self.bot.application_commands
-                    if query.lower() in cmd.name.lower()
+                    cmd for cmd in all_app_commands
+                    if isinstance(cmd, discord.app_commands.Command) and query.lower() in cmd.name.lower()
                 ]
                 if matches:
                     suggestion = ", ".join(f"`/{c.name}`" for c in matches[:5])
@@ -84,16 +86,23 @@ class Help(commands.Cog):
                 description=command.description or "No description available.",
                 color=discord.Color.green()
             )
+            
             # Usage generation for slash commands
-            params = []
-            for opt in getattr(command, 'options', []):
-                if opt.required:
-                    params.append(f"<{opt.name}>")
-                else:
-                    params.append(f"[{opt.name}]")
-            usage = f"/{command.name} {' '.join(params)}".strip()
-            embed.add_field(name="Usage", value=f"`{usage}`", inline=False)
-            embed.set_footer(text="<> = required | [] = optional")
+            if isinstance(command, discord.app_commands.Command):
+                params = []
+                for param in command.parameters:
+                    if param.required:
+                        params.append(f"<{param.name}>")
+                    else:
+                        params.append(f"[{param.name}]")
+                usage = f"/{command.name} {' '.join(params)}".strip()
+                embed.add_field(name="Usage", value=f"`{usage}`", inline=False)
+                embed.set_footer(text="<> = required | [] = optional")
+            elif isinstance(command, discord.app_commands.Group):
+                embed.add_field(name="Type", value="Command Group", inline=False)
+                sub_cmds = ", ".join(f"`{c.name}`" for c in command.commands)
+                embed.add_field(name="Subcommands", value=sub_cmds or "None", inline=False)
+
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
@@ -107,23 +116,35 @@ class Help(commands.Cog):
             """
             Determines category by checking Command Name first, then Cog Name (if available).
             """
+            name = cmd.name
             # 1. Check if Command Name is explicitly in the list
             for cat_name, identifiers in CATEGORY_MAPPING.items():
-                if cmd.name in identifiers:
+                if name in identifiers:
                     return cat_name
+            
             # 2. Check if Cog Name is in the list (Fallback)
-            cog_name = getattr(cmd, 'cog_name', None) or "No Cog"
+            # Find the cog this command belongs to
+            # This is a bit tricky with Tree commands; we assume they are added in a cog.
+            # Usually command.binding is the Cog instance
+            cog_name = "Other"
+            if hasattr(cmd, 'binding') and cmd.binding:
+                cog_name = cmd.binding.__class__.__name__
+
             for cat_name, identifiers in CATEGORY_MAPPING.items():
-                if cog_name in identifiers:
+                if cog_name == cat_name or cog_name.lower() == cat_name.lower() or cog_name in identifiers:
                     return cat_name
+            
             # 3. Default
             return "📂 Other"
 
-        for cmd in self.bot.application_commands:
-            cat = get_category(cmd)
-            if cat not in sorted_categories:
-                sorted_categories[cat] = []
-            sorted_categories[cat].append(cmd)
+        # We only list 'Command' objects in the main menu categories to avoid clutter
+        # Subcommands will be visible when looking up a Group.
+        for cmd in all_app_commands:
+            if isinstance(cmd, discord.app_commands.Command):
+                cat = get_category(cmd)
+                if cat not in sorted_categories:
+                    sorted_categories[cat] = []
+                sorted_categories[cat].append(cmd)
 
         # Move "Other" to the end if it exists
         if "📂 Other" in sorted_categories:
@@ -143,12 +164,15 @@ class Help(commands.Cog):
                     )
                 ]
 
-                for cat_name, cmds in categories.items():
-                    emoji = cat_name.split()[0] if len(cat_name) > 0 else "🔹"
+                # Filter categories that actually have commands
+                populated_cats = {k: v for k, v in categories.items() if v}
+
+                for cat_name, cmds in populated_cats.items():
+                    emoji = cat_name.split()[0] if len(cat_name) > 0 and (ord(cat_name[0]) > 127 or cat_name[0] in "⚙️💰🛡️🎵ℹ️🚨🌐🎊📝") else "🔹"
                     label = cat_name.replace(emoji, "").strip() or cat_name
                     
                     options.append(discord.SelectOption(
-                        label=label,
+                        label=label[:25], # discord limit
                         description=f"{len(cmds)} commands",
                         emoji=emoji,
                         value=cat_name
@@ -236,8 +260,8 @@ class Help(commands.Cog):
         home_embed.add_field(name="📂 Available Categories", value=cat_list or "None", inline=False)
 
         view = HelpView(sorted_categories, home_embed)
-        msg = await interaction.response.send_message(embed=home_embed, view=view, ephemeral=True)
-        # Discord returns None for interaction.response.send_message, so we can't set view.message here
+        await interaction.response.send_message(embed=home_embed, view=view, ephemeral=True)
+
 
 async def setup(bot):
     await bot.add_cog(Help(bot))

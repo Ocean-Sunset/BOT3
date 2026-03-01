@@ -21,28 +21,15 @@ import time
 from flask import Flask, request, jsonify
 import threading
 import secrets
+import secrets
 import logging
+from typing import Dict, List, Optional, Any, Union
 import json
+import traceback
 import shutil
 import filecmp
 import difflib
-
-utils.load_flags()
-
 import json
-
-with open("BOT3/default/data/user_data.json", "r", encoding="utf-8") as f:
-    raw = json.load(f)
-
-cleaned = {}
-for k, v in raw.items():
-    if k.isdigit():
-        cleaned[k] = v
-
-with open("BOT3/default/data/user_data.json", "w", encoding="utf-8") as f:
-    json.dump(cleaned, f, indent=4)
-
-print("✅ Cleaned user_data.json")
 
 def get_prefix(bot, message):
     if not message.guild:
@@ -59,7 +46,14 @@ def get_prefix(bot, message):
         return "?"
 
 bot = commands.Bot(command_prefix=get_prefix, intents=variables.intents, help_command=None)
-Components = ["events", "info", "moderation", "money", "others", "ownercommands", "utility", "omega", "assets", "chatreviver", "support_server", "migration"]
+bot.owner_id = variables.OWNER_ID
+
+async def is_owner(user: Union[discord.User, discord.Member]):
+    return user.id == variables.OWNER_ID
+
+bot.is_owner = is_owner
+
+Components = ["events", "help", "info", "moderation", "ownercommands", "utility", "omega", "support_server", "security_dashboard"]
 
 # ---------------------------------------------------------------------------------------------
 # ---------------------------------------- VERSION CHECK --------------------------------------
@@ -70,9 +64,10 @@ COGS_DIR = os.path.join(os.path.dirname(__file__), 'Components')
 MORE_DIR = os.path.join(os.path.dirname(__file__), 'more')
 
 COG_LIST = [
-    'assets.py', 'chatreviver.py', 'events.py', 'help.py', 'info.py', 'insider.py', 'insiderrequest.py',
-    'moderation.py', 'money.py', 'music.py', 'omega.py', 'others.py', 'ownercommands.py', 'patriviaarchives.py',
-    'slash.py', 'subscriptions.py', 'support_server.py', 'utility.py'
+    'events.py', 'help.py', 'info.py',
+    'migration.py',
+    'moderation.py', 'omega.py', 'ownercommands.py',
+    'slash.py', 'support_server.py', 'utility.py'
 ]
 
 def read_versions():
@@ -173,6 +168,35 @@ async def monitor_inactivity():
 
 @bot.event
 async def on_ready():
+    # Initialize Cipher Security Modules
+    from Cipher.security_manager import SecurityManager
+    from Cipher.config_manager import ConfigManager
+    from Cipher.bot_detector import BotDetector
+    from Cipher.raid_protection import RaidProtection
+    from Cipher.anti_nuke import AntiNuke
+    from Cipher.lockdown import LockdownManager
+    
+    bot.security_manager = SecurityManager(bot)
+    bot.config_manager = ConfigManager()
+    bot.bot_detector = BotDetector()
+    bot.raid_protection = RaidProtection(bot)
+    bot.anti_nuke = AntiNuke(bot)
+    bot.lockdown_manager = LockdownManager(bot)
+    
+    print("✅ - Cipher Security Modules initialized.")
+    
+    # Load Cipher debug modules (owner-only API debugging tools)
+    cipher_modules = [
+        'Cipher.debug.gateway_inspector',
+        'Cipher.debug.webhook_debugger',
+        'Cipher.debug.api_validator',
+    ]
+    for module in cipher_modules:
+        try:
+            await bot.load_extension(module)
+        except Exception as e:
+            print(f"❌ Failed to load {module}: {e}")
+    
     await bot.tree.sync()
     if bot.user is not None:
         print(f"Logged in as {bot.user} (ID: {bot.user.id})")
@@ -204,6 +228,7 @@ async def load_cogs():
             print(f"✅ Loaded cog: {cog}")
         except Exception as e:
             print(f"❌ Failed to load cog {cog}: {e}")
+            traceback.print_exc()
 
 async def print_all_commands():
     await load_cogs()

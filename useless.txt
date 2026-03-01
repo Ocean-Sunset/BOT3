@@ -612,3 +612,236 @@
 
         embed.set_footer(text="<> = required | [] = optional")
         await ctx.send(embed=embed)
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@commands.check(lambda interaction: interaction.guild is not None and (interaction.user.id == interaction.guild.owner_id or utils.is_owner(interaction)))
+    async def serverlockdown(self, interaction: discord.Interaction, confirm1: str, confirm2: str, optional_server_id: typing.Optional[str] = None):
+        """Dangerous: Permanently modify the server to lockdown state. Owner-only and requires explicit confirmation."""
+        guild = interaction.guild
+        if guild is None:
+            return await interaction.response.send_message("# ❌ This command must be used in a server.")
+
+        # Only allow the server owner or the bot owner to run this
+        if interaction.user.id != guild.owner_id and not utils.is_owner(interaction):
+            return await interaction.response.send_message("# ❌ Only the server owner or the bot owner can run this command.")
+
+        # Ensure bot has administrator permissions
+        me = guild.me
+        if not me.guild_permissions.administrator:
+            return await interaction.response.send_message("# ❌ I need Administrator permissions to perform a lockdown.")
+
+        # --- Enhanced Confirmation Check ---
+        
+        # Check for the mandatory confirmation phrase
+        required_confirmation = "CONFIRM LOCKDOWN"
+        provided_confirmation = f"{confirm1} {confirm2}"
+        
+        # Check if the mandatory phrase matches
+        if provided_confirmation.upper().strip() != required_confirmation:
+            return await interaction.response.send_message(f"# ⚠️ This is destructive!\nTo confirm, run: `/serverlockdown {required_confirmation} [SERVER_ID]`")
+
+        # Check for optional Server ID verification
+        if optional_server_id and str(optional_server_id).strip() != str(guild.id):
+             return await interaction.response.send_message(f"# ❌ Optional Server ID verification failed.\nThe provided ID `{optional_server_id}` does not match this server's ID `{guild.id}`.")
+
+        # --- End of Confirmation Check ---
+
+        await interaction.response.send_message("# 🚨 Lockdown starting. This may take a while. I will attempt to backup the server state where possible.")
+
+        # Try to create a backup of basic settings we can later restore (roles and channels list JSON)
+        try:
+            backup = {
+                "roles": [],
+                "channels": []
+            }
+            for r in guild.roles:
+                backup["roles"].append({
+                    "id": r.id,
+                    "name": r.name,
+                    "permissions": r.permissions.value,
+                    "colour": r.colour.value,
+                    "hoist": r.hoist,
+                    "position": r.position,
+                    "managed": r.managed,
+                })
+            for c in guild.channels:
+                backup["channels"].append({
+                    "id": c.id,
+                    "name": c.name,
+                    "type": str(type(c)), 
+                })
+            os.makedirs("backups/server_lockdowns", exist_ok=True)
+            path = f"backups/server_lockdowns/{guild.id}_{int(_t.time())}.json"
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(backup, f, indent=2)
+            await interaction.followup.send(f"# 💾 Server state backed up to `{path}` locally.")
+        except Exception as e:
+            await interaction.followup.send(f"# ⚠️ Failed to create a local backup:\n`{e}`")
+
+        # Step 1: Delete channels
+        try:
+            channels = list(guild.channels)
+            for ch in channels:
+                try:
+                    await ch.delete(reason=f"Server lockdown invoked by {interaction.user}")
+                except Exception:
+                    pass
+            await interaction.followup.send("# ✅ Channels deleted.")
+        except Exception as e:
+            await interaction.followup.send(f"# ⚠️ Channel deletion encountered an error:\n`{e}`")
+
+        # Step 2: Delete roles below the bot's top role
+        try:
+            bot_top = me.top_role.position if me and me.top_role else 0
+            roles_to_remove = [r for r in guild.roles if r.position < bot_top and not r.managed and r != guild.default_role]
+            for r in roles_to_remove:
+                try:
+                    await r.delete(reason=f"Server lockdown invoked by {interaction.user}")
+                except Exception:
+                    pass
+            await interaction.followup.send("# ✅ Roles deleted.")
+        except Exception as e:
+            await interaction.followup.send(f"# ⚠️ Role deletion encountered an error:\n`{e}`")
+        
+        lockdown_role = None
+
+        # Step 3: Create a 'lockdown' role and assign to all members
+        try:
+            lockdown_role = await guild.create_role(name="lockdown", permissions=discord.Permissions.none(), reason=f"Created lockdown role by {interaction.user}")
+            try:
+                await lockdown_role.edit(position=me.top_role.position - 1 if me and me.top_role else 1)
+            except Exception:
+                pass
+
+            for member in guild.members:
+                try:
+                    if not member.bot:
+                        await member.add_roles(lockdown_role, reason="Server lockdown applied")
+                except Exception:
+                    pass
+            await interaction.followup.send("# ✅ Lockdown role created and assigned to members.")
+        except Exception as e:
+            await interaction.followup.send(f"# ⚠️ Failed creating or assigning lockdown role:\n`{e}`")
+
+        # Step 4: Recreate a help channel with send_permissions for everyone disabled
+        if lockdown_role is not None:
+            try:
+                overwrites = {
+                    guild.default_role: discord.PermissionOverwrite(send_messages=False, view_channel=True),
+                    lockdown_role: discord.PermissionOverwrite(send_messages=False, view_channel=True)
+                }
+                help_chan = await guild.create_text_channel("help", overwrites=overwrites, reason=f"Created help channel during lockdown by {interaction.user}")
+                await help_chan.send("# Sorry! This server is now in lockdown.")
+                await interaction.followup.send("# ✅ Help channel recreated.")
+            except Exception as e:
+                await interaction.followup.send(f"# ⚠️ Failed creating help channel:\n`{e}`")
+        else:
+            await interaction.followup.send("# ⚠️ Skipped help channel creation as lockdown role was not created.")
+
+        await interaction.followup.send("# ✅ Lockdown completed (best-effort).\nMembers have been assigned the lockdown role and channels/roles were removed where possible.")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@app_commands.command(
+        name="info",
+        description="Provides information about this bot."
+    )
+    async def info(self, interaction: discord.Interaction):
+        """
+        Note: The docstring here doesn't set the slash command description 
+        in discord.py; the 'description' argument in the decorator does.
+        """
+        
+        description = textwrap.dedent(f"""\
+            # I am a Security Python Discord bot! 🐍
+            - Status: Public Build
+            - Build: beta-Auralis
+            - Version: **{variables.bot_info['version']}**
+            - Developer: th3_t1sm
+
+            I am a security discord bot created by th3_t1sm.
+
+            ⚠️ **WARNING** ⚠️
+            - This bot is still under development.
+            - There may be bugs and errors due to the bot being in preview.
+            - Some features may not work as expected.
+            - If you find any bugs or errors, please report them to the developer using /crashreport
+
+            # Thanks for using our bot! ❤️
+        """)
+        color = discord.Color.blue()
+        
+        embed_general = discord.Embed(title="Bot Information", description=description, color=color)
+
+        # --- Version Embed Construction ---
+        ver_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'ver.txt')
+        versions = {}
+        if os.path.exists(ver_path):
+            with open(ver_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if '=' in line:
+                        k, v = line.strip().split('=', 1)
+                        versions[k.strip()] = v.strip()
+        
+        if versions:
+            ver_desc = "Here are the current versions of all loaded components:\n\n"
+            for k, v in versions.items():
+                ver_desc += f"**{k}**: `{v}`\n"
+        else:
+            ver_desc = "No version information found."
+
+        embed_versions = discord.Embed(title="Component Versions", description=ver_desc, color=discord.Color.green())
+        
+        view = InfoView(embed_general, embed_versions)
+        await interaction.response.send_message(embed=embed_general, view=view)

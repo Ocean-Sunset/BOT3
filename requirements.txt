@@ -3,14 +3,10 @@
 discord
 argparse
 dotenv
-openai
 asyncio
-torch
-transformers
-googletrans
-Pillow
 requests
 psutil
 PyNaCl
-yt_dlp
-feedparser
+aiohttp
+cryptography
+Flask

@@ -80,6 +80,7 @@ SWEAR_JSON_PATH = os.path.join(os.path.dirname(__file__), "../data/swearwords.js
 # --------------------- VARIABLES --------------------
 disabled_variants = set()
 total_commands = 0
+OWNER_ID = 917515232065228890
 insider_FILE = "data/insider_servers.json"
 start_time = time.time()
 is_sleeping = False  # Tracks whether the bot is in sleep mode

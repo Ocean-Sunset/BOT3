@@ -31,6 +31,35 @@ ________________________________________________ At date 01/04, 00:12 __________
 ---- Sovra, Current build: beta-Auralis-4.0.0-3, Previewed updated build: Auralis-4.0.0 ----
 
 ---------------------------------------- TO ADD / TO FIX ------------------------------------------------
+- Regroup all commands into smaller commands for easier use:
+- For example:
+Instead of /setlevelrole, /removelevelrole, /listlevelroles, just use
+/levelrole and then use discord's UI thing to select an option like:
+- Set
+- Remove
+- List
+
+The commands that should be revamped are:
+- levelrole including levelrole notifications
+- autorole
+- ban and unban server (M)
+- lockdown and unlockdown
+- /withdraw and /deposit becoming /bank withdraw and /bank deposit
+- a whole /welcome command that will desplay everything you can do to the welcome message (this includes image editing)
+- a whole /goodbye command that will desplay everything you can do to the goodbye message (this includes image editing)
+- announcements
+- self-roles
+- role reactions
+- assets
+- giveaway
+- livestream
+
+- make every owner command custom prefix (%) and DONT display an error message for them.
+- delete balance command
+--------------------------------- WHATS BEEN ADDED / FIXED --------------------------------
+
+- Fixed support_server.py (status updater and changelog updater)
+- Modified Terms of Service
 - Change a setting in events.py at line 1279 where 5 should be a customisable number using jsons (stored in server_settings.json)
 - Don't forget to edit events.py xp_gain for server_settings.json for each server.
 - Fix my own data in user_data.json
@@ -47,12 +76,6 @@ know in which server people's data go into, make a survey with all the server's 
 and make them save their data in that specific server. while taking the survey, the bot should still hang on to the old data scheme as loading the new data without the servey
 being completed can lead to catastrophic failures. and yeah just, IDFK JUST DO THE DAMN THING BEFORE A CERTAIN DATE BECAUSE MY DEADLINE HAS BEEN PUSHED AGAIN AND AGAIN and then you're good.
 DO NOT FORGET: apply the same principle of loading new data as soon as someone joins a new server, the new server example data should be in next.txt
-
-
---------------------------------- WHATS BEEN ADDED / FIXED --------------------------------
-
-- Modified Terms of Service
-- 
 
 ---- Omninode, Current build: N/A ----
 Continue 10/02/2026

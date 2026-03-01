@@ -67,89 +67,132 @@ def save_logging_config(data):
     """Save logging configuration to the JSON file."""
     atomic_write_json(variables.LOGGING_CONFIG_FILE, data)
 
-def save_trophy_data():
-    """Save trophy data to the JSON file."""
-    atomic_write_json(variables.TROPHY_FILE, variables.trophy_data)
-
 def is_owner(ctx):
     """Check if the command issuer is the bot owner."""
-    return ctx.author.id == 917515232065228890  # Replace with your Discord user ID
+    return ctx.author.id == variables.OWNER_ID
 
 async def is_owner_async(ctx):
     """Async version for use in command checks."""
-    return ctx.author.id == 917515232065228890  # Same logic, but async
+    return ctx.author.id == variables.OWNER_ID
 
 def admin_or_owner():
     async def predicate(ctx):
         return ctx.author.guild_permissions.administrator or await is_owner_async(ctx)
     return commands.check(predicate)
 
-def save_easter_data():
-    """Save the easter data to the JSON file."""
-    atomic_write_json(variables.EASTER_FILE, variables.easter_data)
+# ============================================================================================
+# CIPHER: Trophy/Achievement system removed - Not part of security bot
+# ============================================================================================
 
-def load_inventory():
-    """Load the inventory data from the JSON file."""
-    if os.path.exists(variables.INVENTORY_FILE):
-        with open(variables.INVENTORY_FILE, "r") as f:
-            return json.load(f)
-    return {}
+# def save_trophy_data():
+#     """Save trophy data to the JSON file."""
+#     atomic_write_json(variables.TROPHY_FILE, variables.trophy_data)
+
+# def award_trophy(user_id, trophy_id):
+#     """Award a trophy to a user."""
+#     user_id = str(user_id)
+#     if user_id not in variables.trophy_data:
+#         variables.trophy_data[user_id] = []
+#     if trophy_id not in variables.trophy_data[user_id]:
+#         variables.trophy_data[user_id].append(trophy_id)
+#         save_trophy_data()
+#         return True  # Trophy awarded
+#     return False  # Trophy already owned
+
+# def load_inventory():
+#     """Load the inventory data from the JSON file."""
+#     if os.path.exists(variables.INVENTORY_FILE):
+#         with open(variables.INVENTORY_FILE, "r") as f:
+#             return json.load(f)
+#     return {}
+
+# def save_inventory(inventory):
+#     """Save the inventory data to the JSON file."""
+#     atomic_write_json(variables.INVENTORY_FILE, inventory)
+
+# def save_easter_data():
+#     """Save the easter data to the JSON file."""
+#     atomic_write_json(variables.EASTER_FILE, variables.easter_data)
+
+# Stub functions to prevent imports errors
+def save_trophy_data():
+    raise NotImplementedError("CIPHER: Trophy system removed")
 
 def award_trophy(user_id, trophy_id):
-    """Award a trophy to a user."""
-    user_id = str(user_id)
-    if user_id not in variables.trophy_data:
-        variables.trophy_data[user_id] = []
-    if trophy_id not in variables.trophy_data[user_id]:
-        variables.trophy_data[user_id].append(trophy_id)
-        save_trophy_data()
-        return True  # Trophy awarded
-    return False  # Trophy already owned
+    raise NotImplementedError("CIPHER: Trophy system removed")
+
+def load_inventory():
+    raise NotImplementedError("CIPHER: Inventory system removed")
 
 def save_inventory(inventory):
-    """Save the inventory data to the JSON file."""
-    atomic_write_json(variables.INVENTORY_FILE, inventory)
+    raise NotImplementedError("CIPHER: Inventory system removed")
 
+def save_easter_data():
+    raise NotImplementedError("CIPHER: Easter event system removed")
+
+# ============================================================================================
+# CIPHER: Economy system removed - Bank, Coins, and Gems are not part of security bot
+# ============================================================================================
+
+# def save_bank_data():
+#     """Save the bank data to the JSON file."""
+#     atomic_write_json(variables.BANK_FILE, variables.bank_data)
+
+# def get_bank_balance(user_id):
+#     """Get the bank balance of a user."""
+#     user_id = str(user_id)
+#     return variables.bank_data.get(user_id, 0)
+
+# def update_bank_balance(user_id, amount):
+#     """Update the bank balance of a user."""
+#     user_id = str(user_id)
+#     if user_id not in variables.bank_data:
+#         variables.bank_data[user_id] = 0
+#     variables.bank_data[user_id] += amount
+#     save_bank_data()
+
+# def update_gems(user_id, gems_change):
+#     """Update the user's gem count."""
+#     data = load_user_data()
+#     if str(user_id) not in data:
+#         data[str(user_id)] = {"xp": 0, "level": 1, "coins": 100, "gems": 0, "warnings": []}
+#     data[str(user_id)]["gems"] = data[str(user_id)].get("gems", 0) + gems_change
+#     save_user_data(data)
+
+# def get_coins(user_id):
+#     """Get the balance of a user."""
+#     data = load_user_data()
+#     if str(user_id) not in data:
+#         data[str(user_id)] = {"xp": 0, "level": 1, "coins": 100, "warnings": []}
+#         save_user_data(data)
+#     return data[str(user_id)].get("coins", 0)
+
+# def update_coins(user_id, amount):
+#     """Update the balance of a user."""
+#     data = load_user_data()
+#     if str(user_id) not in data:
+#         data[str(user_id)] = {"xp": 0, "level": 1, "coins": 100, "warnings": []}
+#     data[str(user_id)]["coins"] = data[str(user_id)].get("coins", 0) + amount
+#     save_user_data(data)
+
+# Stub functions to prevent import errors
 def save_bank_data():
-    """Save the bank data to the JSON file."""
-    atomic_write_json(variables.BANK_FILE, variables.bank_data)
+    raise NotImplementedError("CIPHER: Economy system removed - bank functionality disabled")
 
 def get_bank_balance(user_id):
-    """Get the bank balance of a user."""
-    user_id = str(user_id)
-    return variables.bank_data.get(user_id, 0)
+    raise NotImplementedError("CIPHER: Economy system removed - bank functionality disabled")
 
 def update_bank_balance(user_id, amount):
-    """Update the bank balance of a user."""
-    user_id = str(user_id)
-    if user_id not in variables.bank_data:
-        variables.bank_data[user_id] = 0
-    variables.bank_data[user_id] += amount
-    save_bank_data()
+    raise NotImplementedError("CIPHER: Economy system removed - bank functionality disabled")
 
 def update_gems(user_id, gems_change):
-    """Update the user's gem count."""
-    data = load_user_data()
-    if str(user_id) not in data:
-        data[str(user_id)] = {"xp": 0, "level": 1, "coins": 100, "gems": 0, "warnings": []}
-    data[str(user_id)]["gems"] = data[str(user_id)].get("gems", 0) + gems_change
-    save_user_data(data)
+    raise NotImplementedError("CIPHER: Economy system removed - gems functionality disabled")
 
 def get_coins(user_id):
-    """Get the balance of a user."""
-    data = load_user_data()
-    if str(user_id) not in data:
-        data[str(user_id)] = {"xp": 0, "level": 1, "coins": 100, "warnings": []}
-        save_user_data(data)
-    return data[str(user_id)].get("coins", 0)
+    raise NotImplementedError("CIPHER: Economy system removed - coins functionality disabled")
 
 def update_coins(user_id, amount):
-    """Update the balance of a user."""
-    data = load_user_data()
-    if str(user_id) not in data:
-        data[str(user_id)] = {"xp": 0, "level": 1, "coins": 100, "warnings": []}
-    data[str(user_id)]["coins"] = data[str(user_id)].get("coins", 0) + amount
-    save_user_data(data)
+    raise NotImplementedError("CIPHER: Economy system removed - coins functionality disabled")
 
 def save_user_data(data: dict):
     try:
@@ -183,7 +226,7 @@ def save_user_data(data: dict):
         atomic_write_json(variables.USER_DATA_PATH, cleaned_data)
 
     except Exception as e:
-        print(f"❌ Error saving user data: {e}")
+        logging.error(f"❌ Error saving user data: {e}")
 
 def load_user_data():
     """Load user data from the JSON file."""
@@ -393,62 +436,6 @@ def fix_json_files(target="all", auto_fix=True):
     if target in ("all", "generic"):
         combined["reports"]["generic"] = normalize_generic_json_files(auto_fix=auto_fix)
     return combined
-
-def load_limitations():
-    """Load limitations from the JSON file."""
-    try:
-        with open(variables.LIMITATIONS_FILE, "r") as file:
-            return json.load(file)
-    except FileNotFoundError:
-        return {}
-
-def save_limitations(data):
-    """Save limitations to the JSON file."""
-    atomic_write_json(variables.LIMITATIONS_FILE, data)
-
-def get_user_data(user_id):
-    """Get data for a specific user."""
-    data = load_user_data()
-    user_id_str = str(user_id) # Convert user_id to string once
-
-    if user_id_str not in data or not isinstance(data[user_id_str], dict):
-        # Initialize default values for new users or if data is corrupted/not a dict
-        data[user_id_str] = {"xp": 0, "level": 1, "coins": 100, "gems": 0, "balance": 0, "warnings": []}
-        save_user_data(data)
-    else:
-        # Ensure all required keys exist for existing users
-        user_data = data[user_id_str]
-        user_data.setdefault("xp", 0)
-        user_data.setdefault("level", 1)
-        user_data.setdefault("coins", 100)
-        user_data.setdefault("gems", 0)
-        user_data.setdefault("warnings", [])
-        user_data.setdefault("balance", 0) # Added 'balance' for consistency
-        data[user_id_str] = user_data # Reassign after setdefault calls
-
-    return data[user_id_str]
-
-def update_user_data(user_id, key, value):
-    """Update a single key for a specific user in the user_data file."""
-    data = load_user_data()
-    user_id = str(user_id)
-
-    if user_id not in data:
-        data[user_id] = {
-            "xp": 0,
-            "level": 1,
-            "coins": 100,
-            "warnings": [],
-            "censored_count": 0,
-            "strikes": 0,
-            "gems": 0,
-            "balance": 0,
-        }
-
-    data[user_id][key] = value
-    data[user_id][key] = value
-    save_user_data(data)
-
 # --- Per-Server User Data Functions ---
 
 def get_guild_user_data_path(guild_id):
@@ -521,27 +508,6 @@ def update_guild_user_data(guild_id, user_id, key, value):
     
     data[user_id_str][key] = value
     save_guild_user_data(guild_id, data)
-
-
-# Save warnings data
-def save_warnings_data():
-    atomic_write_json(variables.warnings_data, "data/warnings.json")
-
-# Add this function to get the logs channel
-def get_logs_channel(guild):
-    return discord.utils.get(guild.text_channels, name="logs")
-
-# Function to get the welcome and bye channels
-def get_channel_by_name(guild, channel_name):
-    return discord.utils.get(guild.text_channels, name="welcome")
-
-# Save banned servers data
-def save_banned_servers():
-    atomic_write_json(variables.banned_servers_file, variables.banned_servers)
-
-# Save server restrictions data
-def save_server_restrictions():
-    atomic_write_json(variables.server_restrictions_file, variables.server_restrictions)
 
 def backup_file(json_path, max_backups=10):
     """Create a dated backup of the given JSON file, organized by folder, and purge oldest if needed."""
@@ -683,513 +649,6 @@ def get_uptime():
 def save_bot_info():
     atomic_write_json(variables.bot_info_file, variables.bot_info)
 
-def get_truth_or_dare_vc(guild):
-    return discord.utils.get(guild.voice_channels, name="truth-or-dare")
-
-
-# Function to get the Truth or Dare text channel
-def get_truth_or_dare_text_channel(guild):
-    return discord.utils.get(guild.text_channels, name="truth-or-dare")
-
-
-def assign_numbers_to_players(members):
-    player_numbers = {
-        member.display_name: index + 1 for index, member in enumerate(members)
-    }
-    return player_numbers
-
-
-def game_logic(ctx):
-    vc_channel = get_truth_or_dare_vc(ctx.guild)
-    text_channel = get_truth_or_dare_text_channel(ctx.guild)
-    members_in_vc = [member for member in vc_channel.members if not member.bot]
-    player_numbers = assign_numbers_to_players(members_in_vc)
-    player_names = ", ".join(
-        f"{name} ({number})" for name, number in player_numbers.items()
-    )
-    ctx.send(f"Players: {player_numbers}")
-    return player_names
-
-def print_board():
-    return f"""
-        {variables.board[0]} | {variables.board[1]} | {variables.board[2]}
-        ---------
-        {variables.board[3]} | {variables.board[4]} | {variables.board[5]}
-        ---------
-        {variables.board[6]} | {variables.board[7]} | {variables.board[8]}
-        """
-
-
-def check_winner():
-    win_conditions = [
-        [0, 1, 2],
-        [3, 4, 5],
-        [6, 7, 8],  # Rows
-        [0, 3, 6],
-        [1, 4, 7],
-        [2, 5, 8],  # Columns
-        [0, 4, 8],
-        [2, 4, 6],  # Diagonals
-    ]
-    for condition in win_conditions:
-        if variables.board[condition[0]] == variables.board[condition[1]] == variables.board[condition[2]] != " ":
-            return True
-    return False
-
-def check_trophy_goals(user_id, channel):
-    """Check if a user has met any trophy goals and notify in the server channel."""
-    user_data = get_user_data(user_id)
-
-    # Trophy 1: Collect 1,000 coins
-    if user_data["coins"] >= 1000:
-        if award_trophy(user_id, "trophy_1"):
-            bonus_xp = 100  # Example: 100 XP for earning this trophy
-            user_data["xp"] += bonus_xp
-            update_user_data(user_id, "xp", user_data["xp"])
-            asyncio.create_task(
-                channel.send(
-                    f"🏆 You earned the **Coin Collector** trophy and received **{bonus_xp} bonus XP**!"
-                )
-            )
-
-    # Trophy 2: Collect 10 gems
-    if variables.easter_data.get(str(user_id), {}).get("gems", 0) >= 10:
-        if award_trophy(user_id, "trophy_2"):
-            bonus_xp = 150  # Example: 150 XP for earning this trophy
-            user_data["xp"] += bonus_xp
-            update_user_data(user_id, "xp", user_data["xp"])
-            asyncio.create_task(
-                channel.send(
-                    f"🏆 You earned the **Gem Hoarder** trophy and received **{bonus_xp} bonus XP**!"
-                )
-            )
-
-    # Trophy 3: Win 10 Impossible Easter fights
-    if user_data.get("impossible_wins", 0) >= 10:
-        if award_trophy(user_id, "trophy_3"):
-            bonus_xp = 200  # Example: 200 XP for earning this trophy
-            user_data["xp"] += bonus_xp
-            update_user_data(user_id, "xp", user_data["xp"])
-            asyncio.create_task(
-                channel.send(
-                    f"🏆 You earned the **Impossible Victor** trophy and received **{bonus_xp} bonus XP**!"
-                )
-            )
-
-    # Trophy 4: Reach Level 50
-    if user_data["level"] >= 50:
-        if award_trophy(user_id, "trophy_4"):
-            bonus_xp = 500  # Example: 500 XP for earning this trophy
-            user_data["xp"] += bonus_xp
-            update_user_data(user_id, "xp", user_data["xp"])
-            asyncio.create_task(
-                channel.send(
-                    f"🏆 You earned the **Level Master** trophy and received **{bonus_xp} bonus XP**!"
-                )
-            )
-
-    # Trophy 5: Open 50 crates
-    if user_data.get("crates_opened", 0) >= 50:
-        if award_trophy(user_id, "trophy_5"):
-            bonus_xp = 250  # Example: 250 XP for earning this trophy
-            user_data["xp"] += bonus_xp
-            update_user_data(user_id, "xp", user_data["xp"])
-            asyncio.create_task(
-                channel.send(
-                    f"🏆 You earned the **Crate Opener** trophy and received **{bonus_xp} bonus XP**!"
-                )
-            )
-
-def check_music_folder():
-    """Check if the music folder has more than 50 files and return the oldest file."""
-    music_folder = "music"
-    files = [
-        os.path.join(music_folder, f)
-        for f in os.listdir(music_folder)
-        if os.path.isfile(os.path.join(music_folder, f))
-    ]
-    if len(files) > 37:
-        oldest_file = min(
-            files, key=os.path.getctime
-        )  # Get the oldest file based on creation time
-        return oldest_file
-    return None
-
-def can_claim_daily(user_id):
-    """Check if the user can claim their daily reward."""
-    data = load_user_data()
-    if str(user_id) not in data:
-        data[str(user_id)] = {
-            "xp": 0,
-            "level": 1,
-            "coins": 100,
-            "balance": 0,
-            "warnings": [],
-            "last_daily": None,
-        }
-        save_user_data(data)
-    last_daily = data[str(user_id)].get("last_daily")
-    if last_daily:
-        last_claim_time = datetime.fromisoformat(last_daily)
-        return datetime.now() >= last_claim_time + variables.timedelta(days=1)
-    return True
-
-
-def update_last_daily(user_id):
-    """Update the last daily claim time for a user."""
-    data = load_user_data()
-    if str(user_id) not in data:
-        data[str(user_id)] = {
-            "xp": 0,
-            "level": 1,
-            "coins": 100,
-            "balance": 0,
-            "warnings": [],
-            "last_daily": None,
-        }
-    data[str(user_id)]["last_daily"] = datetime.now().isoformat()
-    save_user_data(data)
-    
-def update_eggs(user_id, eggs_change):
-    """Update the user's egg count."""
-    user_id = str(user_id)
-    if user_id not in variables.easter_data:
-        variables.easter_data[user_id] = {"eggs": 0}
-    variables.easter_data[user_id]["eggs"] += eggs_change
-    save_easter_data()
-
-def random_blue_color():
-    # Generate a random blue shade (RGB: R low, G medium, B high)
-    return discord.Color.from_rgb(
-        random.randint(0, 50),  # R: 0-50
-        random.randint(100, 200),  # G: 100-200
-        random.randint(180, 255),  # B: 180-255
-    )
-# --- Rounded rectangle helper ---
-def rounded_rectangle(draw, xy, radius, fill, outline, width):
-    draw.rounded_rectangle(
-         xy, radius=radius, fill=fill, outline=outline, width=width
-     )
-
-# Centered text helper
-def draw_centered_text(draw, rect, text, font, fill):
-    x1, y1, x2, y2 = rect
-    w, h = draw.textbbox((0, 0), text, font=font)[2:]
-    text_x = x1 + ((x2 - x1) - w) // 2
-    text_y = y1 + ((y2 - y1) - h) // 2
-    draw.text((text_x, text_y), text, font=font, fill=fill)
-
-def draw_centered_outlined_text(
-    draw, rect, text, font, fill, outline, outline_width
-):
-    x1, y1, x2, y2 = rect
-    w, h = draw.textbbox((0, 0), text, font=font)[2:]
-    text_x = x1 + ((x2 - x1) - w) // 2
-    text_y = y1 + ((y2 - y1) - h) // 2
-    draw.text(
-        (text_x, text_y),
-        text,
-        font=font,
-        fill=fill,
-        stroke_width=outline_width,
-        stroke_fill=outline,
-    )
-
-# Optional: Rounded corners for the whole image
-def add_rounded_corners(im, rad):
-    circle = Image.new("L", (rad * 2, rad * 2), 0)
-    draw_c = ImageDraw.Draw(circle)
-    draw_c.ellipse((0, 0, rad * 2, rad * 2), fill=255)
-    alpha = Image.new("L", im.size, 255)
-    w, h = im.size
-    alpha.paste(circle.crop((0, 0, rad, rad)), (0, 0))
-    alpha.paste(circle.crop((0, rad, rad, rad * 2)), (0, h - rad))
-    alpha.paste(circle.crop((rad, 0, rad * 2, rad)), (w - rad, 0))
-    alpha.paste(
-        circle.crop((rad, rad, rad * 2, rad * 2)), (w - rad, h - rad)
-    )
-    im.putalpha(alpha)
-    return im
-
-def load_server_settings():
-    """Loads server settings from the JSON file."""
-    if os.path.exists(variables.SERVER_SETTINGS_FILE):
-        with open(variables.SERVER_SETTINGS_FILE, "r") as f:
-            try:
-                return json.load(f)
-            except json.JSONDecodeError:
-                # Handle empty or corrupted JSON file
-                print(f"Warning: {variables.SERVER_SETTINGS_FILE} is empty or corrupted. Starting with empty settings.")
-                return {}
-    return {}
-
-def save_server_settings(data):
-    """Saves server settings to the JSON file."""
-    with open(variables.SERVER_SETTINGS_FILE, "w") as f:
-        json.dump(data, f, indent=4)
-        
-def get_guild_setting(guild_id, key, default=None):
-    """Retrieves a specific setting for a guild."""
-    settings = load_server_settings()
-    return settings.get(str(guild_id), {}).get(key, default)
-
-def set_guild_setting(guild_id, key, value):
-    """Sets a specific setting for a guild."""
-    settings = load_server_settings()
-    if str(guild_id) not in settings:
-        settings[str(guild_id)] = {}
-    settings[str(guild_id)][key] = value
-    save_server_settings(settings)
-
-def get_guild_level_roles(guild_id):
-    """Retrieves custom level roles configuration for a guild."""
-    # The default for level_roles will be an empty dictionary if not set
-    return get_guild_setting(guild_id, 'level_roles', {})
-
-def remove_guild_level_role(guild_id, level):
-    """Removes the custom role for a specific level in a guild."""
-    settings = load_server_settings()
-    guild_settings = settings.get(str(guild_id))
-    if guild_settings and 'level_roles' in guild_settings:
-        level_str = str(level)
-        if level_str in guild_settings['level_roles']:
-            del guild_settings['level_roles'][level_str]
-            save_server_settings(settings)
-
-def is_level_role_system_enabled(guild_id):
-    """Checks if the level role system is enabled for a guild."""
-    # Default to True for backward compatibility
-    return get_guild_setting(guild_id, 'level_role_system_enabled', True)
-
-
-def set_level_role_system_enabled(guild_id, enabled: bool):
-    """Enable or disable the level role system for a guild."""
-    settings = load_server_settings()
-    guild_settings = settings.get(str(guild_id), {})
-    guild_settings['level_role_system_enabled'] = enabled
-    settings[str(guild_id)] = guild_settings
-    save_server_settings(settings)
-
-
-def clear_guild_level_roles(guild_id):
-    """Remove all custom level role settings for a guild."""
-    settings = load_server_settings()
-    guild_settings = settings.get(str(guild_id), {})
-    guild_settings.pop('level_roles', None)
-    settings[str(guild_id)] = guild_settings
-    save_server_settings(settings)
-
-def is_level_announcements_enabled(guild_id):
-    """Checks if level announcements are enabled for a guild."""
-    # Default to True for backward compatibility
-    return get_guild_setting(guild_id, 'level_announcements_enabled', True)
-
-def set_level_announcements_enabled(guild_id, enabled: bool):
-    """Enable or disable level announcements for a guild."""
-    settings = load_server_settings()
-    guild_settings = settings.get(str(guild_id), {})
-    guild_settings['level_announcements_enabled'] = enabled
-    settings[str(guild_id)] = guild_settings
-    save_server_settings(settings)
-
-def get_youtube_channel_id(guild_id):
-    """Get the YouTube channel ID set for livestream monitoring."""
-    return get_guild_setting(guild_id, 'youtube_channel_id', None)
-
-def set_youtube_channel_id(guild_id, channel_id: str):
-    """Set the YouTube channel ID for livestream monitoring."""
-    settings = load_server_settings()
-    guild_settings = settings.get(str(guild_id), {})
-    guild_settings['youtube_channel_id'] = channel_id
-    settings[str(guild_id)] = guild_settings
-    save_server_settings(settings)
-
-def get_livestream_channel_id(guild_id):
-    """Get the Discord channel ID for livestream announcements."""
-    return get_guild_setting(guild_id, 'livestream_channel_id', None)
-
-def set_livestream_channel_id(guild_id, channel_id: int):
-    """Set the Discord channel ID for livestream announcements."""
-    settings = load_server_settings()
-    guild_settings = settings.get(str(guild_id), {})
-    guild_settings['livestream_channel_id'] = channel_id
-    settings[str(guild_id)] = guild_settings
-    save_server_settings(settings)
-
-
-def get_guild_prefix(guild_id):
-    settings = load_server_settings()
-    return settings.get(str(guild_id), {}).get("prefix", "?")
-
-def set_guild_prefix(guild_id, prefix):
-    settings = load_server_settings()
-    guild_settings = settings.get(str(guild_id), {})
-    guild_settings["prefix"] = prefix
-    settings[str(guild_id)] = guild_settings
-    save_server_settings(settings)
-
-def load_role_reactions():
-    settings = load_server_settings()
-    # Returns {message_id: {emoji: role_id, ...}, ...} or {}
-    return {gid: s.get("role_reactions", {}) for gid, s in settings.items()}
-
-def get_guild_role_reactions(guild_id):
-    settings = load_server_settings()
-    return settings.get(str(guild_id), {}).get("role_reactions", {})
-
-def set_guild_role_reaction(guild_id, message_id, emoji, role_id):
-    settings = load_server_settings()
-    guild_settings = settings.get(str(guild_id), {})
-    role_reactions = guild_settings.get("role_reactions", {})
-    if str(message_id) not in role_reactions:
-        role_reactions[str(message_id)] = {}
-    role_reactions[str(message_id)][emoji] = role_id
-    guild_settings["role_reactions"] = role_reactions
-    settings[str(guild_id)] = guild_settings
-    save_server_settings(settings)
-
-def remove_guild_role_reaction(guild_id, message_id, emoji):
-    settings = load_server_settings()
-    guild_settings = settings.get(str(guild_id), {})
-    role_reactions = guild_settings.get("role_reactions", {})
-    if str(message_id) in role_reactions:
-        role_reactions[str(message_id)].pop(emoji, None)
-        if not role_reactions[str(message_id)]:
-            role_reactions.pop(str(message_id))
-    guild_settings["role_reactions"] = role_reactions
-    settings[str(guild_id)] = guild_settings
-    save_server_settings(settings)
-
-def get_guild_welcome_message(guild_id):
-    settings = load_server_settings()
-    return settings.get(str(guild_id), {}).get("welcome_message", None)
-
-def set_guild_welcome_message(guild_id, message):
-    settings = load_server_settings()
-    guild_settings = settings.get(str(guild_id), {})
-    guild_settings["welcome_message"] = message
-    settings[str(guild_id)] = guild_settings
-    save_server_settings(settings)
-
-def get_guild_goodbye_message(guild_id):
-    settings = load_server_settings()
-    return settings.get(str(guild_id), {}).get("goodbye_message", None)
-
-def set_guild_goodbye_message(guild_id, message):
-    settings = load_server_settings()
-    guild_settings = settings.get(str(guild_id), {})
-    guild_settings["goodbye_message"] = message
-    settings[str(guild_id)] = guild_settings
-    save_server_settings(settings)
-
-def set_guild_level_role(guild_id, level: int, role_name: str):
-    settings = load_server_settings()
-    guild_settings = settings.get(str(guild_id), {})
-    level_roles = guild_settings.get("level_roles", {})
-    level_roles[str(level)] = role_name
-    guild_settings["level_roles"] = level_roles
-    settings[str(guild_id)] = guild_settings
-    save_server_settings(settings)
-
-def get_guild_self_roles(guild_id):
-    settings = load_server_settings()
-    # Returns list of role IDs (as strings). Older entries may be role names; return as-is.
-    return settings.get(str(guild_id), {}).get("self_roles", [])
-
-def add_guild_self_role(guild_id, role_identifier):
-    """Add a self-assignable role.
-
-    `role_identifier` should be a role ID (int or str). We store as string IDs.
-    """
-    settings = load_server_settings()
-    guild_settings = settings.get(str(guild_id), {})
-    self_roles = set(guild_settings.get("self_roles", []))
-    # normalize to id string when possible
-    try:
-        rid = str(int(role_identifier))
-    except Exception:
-        rid = str(role_identifier)
-    self_roles.add(rid)
-    guild_settings["self_roles"] = list(self_roles)
-    settings[str(guild_id)] = guild_settings
-    save_server_settings(settings)
-
-def remove_guild_self_role(guild_id, role_identifier):
-    settings = load_server_settings()
-    guild_settings = settings.get(str(guild_id), {})
-    self_roles = set(guild_settings.get("self_roles", []))
-    try:
-        rid = str(int(role_identifier))
-    except Exception:
-        rid = str(role_identifier)
-    self_roles.discard(rid)
-    guild_settings["self_roles"] = list(self_roles)
-    settings[str(guild_id)] = guild_settings
-    save_server_settings(settings)
-
-def get_guild_tags(guild_id):
-    settings = load_server_settings()
-    return settings.get(str(guild_id), {}).get("tags", {})
-
-def set_guild_tag(guild_id, tag_name, tag_content):
-    settings = load_server_settings()
-    guild_settings = settings.get(str(guild_id), {})
-    tags = guild_settings.get("tags", {})
-    tags[tag_name.lower()] = tag_content
-    guild_settings["tags"] = tags
-    settings[str(guild_id)] = guild_settings
-    save_server_settings(settings)
-
-def remove_guild_tag(guild_id, tag_name):
-    settings = load_server_settings()
-    guild_settings = settings.get(str(guild_id), {})
-    tags = guild_settings.get("tags", {})
-    tags.pop(tag_name.lower(), None)
-    guild_settings["tags"] = tags
-    settings[str(guild_id)] = guild_settings
-    save_server_settings(settings)
-
-def get_guild_achievements(guild_id):
-    settings = load_server_settings()
-    return settings.get(str(guild_id), {}).get("achievements", {})
-
-def set_guild_achievement(guild_id, ach_id, name, description, power, asset_url):
-    settings = load_server_settings()
-    guild_settings = settings.get(str(guild_id), {})
-    achievements = guild_settings.get("achievements", {})
-    achievements[ach_id] = {
-        "name": name,
-        "description": description,
-        "power": power,
-        "asset_url": asset_url,
-    }
-    guild_settings["achievements"] = achievements
-    settings[str(guild_id)] = guild_settings
-    save_server_settings(settings)
-
-def remove_guild_achievement(guild_id, ach_id):
-    settings = load_server_settings()
-    guild_settings = settings.get(str(guild_id), {})
-    achievements = guild_settings.get("achievements", {})
-    achievements.pop(ach_id, None)
-    guild_settings["achievements"] = achievements
-    settings[str(guild_id)] = guild_settings
-    save_server_settings(settings)
-
-def get_user_achievements(user_id):
-    data = load_user_data()
-    return data.get(str(user_id), {}).get("achievements", [])
-
-def add_user_achievement(user_id, ach_id):
-    data = load_user_data()
-    user = data.setdefault(str(user_id), {})
-    achievements = user.setdefault("achievements", [])
-    if ach_id not in achievements:
-        achievements.append(ach_id)
-        save_user_data(data)
-        return True
-    return False
-
 def signal_error(error_message, is_critical=True):
     os.makedirs(SIGNALS_DIR, exist_ok=True) # Ensure the directory exists
 
@@ -1217,38 +676,8 @@ def signal_update(update_message):
         print(f"[signal_update] Wrote update to {file_path}.")
     time.sleep(3)
 
-def is_insider_server(guild_id: int) -> bool:
-    if not os.path.exists(variables.insider_FILE):
-        return False
-    with open(variables.insider_FILE, "r", encoding="utf-8") as f:
-        try:
-            servers = json.load(f)
-            return guild_id in servers
-        except json.JSONDecodeError:
-            return False
-
-def load_insider_servers():
-    if not os.path.exists(variables.insider_FILE):
-        return []
-    with open(variables.insider_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-def save_insider_servers(servers):
-    with open(variables.insider_FILE, "w", encoding="utf-8") as f:
-        json.dump(servers, f, indent=2)
-
-def load_scheduled_messages():
-    if not os.path.exists(variables.SCHEDULED_MSGS_FILE):
-        return {}
-    with open(variables.SCHEDULED_MSGS_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-def save_scheduled_messages(data):
-    with open(variables.SCHEDULED_MSGS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-
 def little_text(ctx=None):
-    if ctx and ctx.guild and ctx.guild.id in disabled_variants:
+    if ctx and ctx.guild and ctx.guild.id in variables.disabled_variants:
         return ""
     tips = [
         "TIP: Use `/daily` every day to get free coins!",
@@ -1267,7 +696,7 @@ def little_text(ctx=None):
     return random.choice(tips)
 
 def little_unknowncommand_variant(ctx=None):
-    if ctx and ctx.guild and ctx.guild.id in disabled_variants:
+    if ctx and ctx.guild and ctx.guild.id in variables.disabled_variants:
         return ""
     messages = [
         "Hmm... that command doesn't exist. Did you spell it right?",
@@ -1284,7 +713,7 @@ def little_unknowncommand_variant(ctx=None):
     return random.choice(messages)
 
 def little_error_variant(ctx=None):
-    if ctx and ctx.guild and ctx.guild.id in disabled_variants:
+    if ctx and ctx.guild and ctx.guild.id in variables.disabled_variants:
         return ""
     messages = [
         "Hmm... seems like an error occured.",
@@ -1301,7 +730,7 @@ def little_error_variant(ctx=None):
     return random.choice(messages)
 
 def little_unsure_variant(ctx=None):
-    if ctx and ctx.guild and ctx.guild.id in disabled_variants:
+    if ctx and ctx.guild and ctx.guild.id in variables.disabled_variants:
         return ""
     messages = [
         "You sure about that?",
@@ -1317,7 +746,7 @@ def little_unsure_variant(ctx=None):
     return random.choice(messages)
 
 def welcome_message_random(ctx=None):
-    if ctx and ctx.guild and ctx.guild.id in disabled_variants:
+    if ctx and ctx.guild and ctx.guild.id in variables.disabled_variants:
         return ""
     messages = [
         "We hope you enjoy your stay!",
@@ -1332,7 +761,7 @@ def welcome_message_random(ctx=None):
     return random.choice(messages)
 
 def goodbye_message_random(ctx=None):
-    if ctx and ctx.guild and ctx.guild.id in disabled_variants:
+    if ctx and ctx.guild and ctx.guild.id in variables.disabled_variants:
         return ""
     messages = [
         "Oh man, they left..",
@@ -1349,7 +778,7 @@ def goodbye_message_random(ctx=None):
     return random.choice(messages)
 
 def little_try_again_variant(ctx=None):
-    if ctx and ctx.guild and ctx.guild.id in disabled_variants:
+    if ctx and ctx.guild and ctx.guild.id in variables.disabled_variants:
         return ""
     messages = [
         "Give it another shot?",
@@ -1364,220 +793,6 @@ def little_try_again_variant(ctx=None):
         "Failure is the first step to greatness!"
     ]
     return random.choice(messages)
-
-def save_disabled_variants(guild):
-    with open('data/disabled_variants.json', 'w') as f:
-        existing = json.load(f)
-        if not existing:
-            json.dump(f"[{guild}]", f)
-        else:
-            json.dump(f"[{guild, existing}]", f)
-
-def load_disabled_variants():
-    global disabled_variants
-    try:
-        with open('data/disabled_variants.json', 'r') as f:
-            variables.disabled_variants = set(json.load(f))
-    except FileNotFoundError:
-        variables.disabled_variants = set()
-
-def load_flags():
-    global IS_LOCKDOWN
-    if os.path.exists("data/system_flags.json"):
-        try:
-            with open("data/system_flags.json", "r") as f:
-                flags = json.load(f)
-                IS_LOCKDOWN = flags.get("IS_LOCKDOWN", False)
-        except Exception:
-            print("⚠️ Could not load system flags. Lockdown defaults to OFF.")
-
-def save_flags():
-    try:
-        with open("data/system_flags.json", "w") as f:
-            json.dump({
-                "IS_LOCKDOWN": IS_LOCKDOWN
-            }, f, indent=4)
-    except Exception as e:
-        print(f"❌ Failed to save system flags: {e}")
-
-def get_user(user_data, user_id: str) -> dict:
-    """Ensures the user ID exists in the data with all required keys."""
-    if user_id not in user_data:
-        user_data[user_id] = {
-            "xp": 0,
-            "level": 1,
-            "coins": 100,
-            "gems": 0,
-            "balance": 0,
-            "warnings": [],
-            "censored_count": 0,
-            "strikes": 0
-        }
-    else:
-        # Patch missing keys in case of partial data
-        defaults = {
-            "xp": 0,
-            "level": 1,
-            "coins": 100,
-            "gems": 0,
-            "balance": 0,
-            "warnings": [],
-            "censored_count": 0,
-            "strikes": 0
-        }
-        for key, default in defaults.items():
-            user_data[user_id].setdefault(key, default)
-
-    return user_data[user_id]
-
-def load_auto_roles():
-    if not os.path.exists(variables.AUTO_ROLE_PATH):
-        return {}
-    with open(variables.AUTO_ROLE_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-def save_auto_roles(data):
-    with open(variables.AUTO_ROLE_PATH, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-
-def set_auto_role(guild_id, role_name):
-    """Set auto role for a guild. Accepts either a role id (int/str) or a role name (legacy).
-
-    We store role IDs (as strings) to avoid name-based breakage.
-    """
-    data = load_auto_roles()
-    # Normalize to string id when possible
-    try:
-        # If an int-like value was passed, store as str
-        role_id = str(int(role_name))
-    except Exception:
-        # Otherwise assume it's a role name (legacy). Store as-is for backward compatibility.
-        role_id = str(role_name)
-    data[str(guild_id)] = role_id
-    save_auto_roles(data)
-
-def get_auto_role(guild_id):
-    data = load_auto_roles()
-    return data.get(str(guild_id))
-
-def get_all_auto_roles():
-    """Return a dict of all guild_id: role_name for auto roles."""
-    return load_auto_roles()
-
-def load_giveaways():
-    if not os.path.exists(variables.GIVEAWAY_PATH):
-        return {}
-    with open(variables.GIVEAWAY_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-# --------------------- SUBSCRIPTION HELPERS --------------------
-SUBSCRIPTIONS_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "subscriptions.json")
-
-def load_subscriptions():
-    """Load subscription data from disk. Structure: {user_id: {"tier": "plus"|"max", "servers": [guild_id,...]}}"""
-    try:
-        if not os.path.exists(SUBSCRIPTIONS_FILE):
-            return {}
-        with open(SUBSCRIPTIONS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {}
-
-def save_subscriptions(data):
-    try:
-        os.makedirs(os.path.dirname(SUBSCRIPTIONS_FILE), exist_ok=True)
-        with open(SUBSCRIPTIONS_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
-    except Exception as e:
-        print(f"Failed to save subscriptions: {e}")
-
-def user_subscription_tier(user_id):
-    """Return the subscription tier for a user ('plus','max') or None."""
-    subs = load_subscriptions()
-    entry = subs.get(str(user_id))
-    if not entry:
-        return None
-    return entry.get("tier")
-
-def subscription_plus(user_id):
-    """Register that a user has a 'plus' subscription. Initializes structure if needed."""
-    subs = load_subscriptions()
-    uid = str(user_id)
-    entry = subs.setdefault(uid, {"tier": None, "servers": []})
-    entry["tier"] = "plus"
-    save_subscriptions(subs)
-    return True
-
-def subscription_max(user_id):
-    """Register that a user has a 'max' subscription. Initializes structure if needed."""
-    subs = load_subscriptions()
-    uid = str(user_id)
-    entry = subs.setdefault(uid, {"tier": None, "servers": []})
-    entry["tier"] = "max"
-    save_subscriptions(subs)
-    return True
-
-def can_use_subscription_for_guild(user_id, guild_id):
-    """Return True if the user's subscription allows them to register this guild for custom features.
-
-    Rules:
-    - plus: up to 5 servers
-    - max: up to 15 servers
-    - non-subscribed: 0
-    If the guild is already registered for this user, it's allowed.
-    """
-    subs = load_subscriptions()
-    uid = str(user_id)
-    entry = subs.get(uid)
-    if not entry or not entry.get("tier"):
-        return False
-    tier = entry.get("tier")
-    servers = set(map(str, entry.get("servers", [])))
-    if str(guild_id) in servers:
-        return True
-    limit = 5 if tier == "plus" else 15 if tier == "max" else 0
-    return len(servers) < limit
-
-def register_guild_for_subscription(user_id, guild_id):
-    """Register a guild under the user's subscription usage. Returns True if registered or already present."""
-    subs = load_subscriptions()
-    uid = str(user_id)
-    entry = subs.setdefault(uid, {"tier": None, "servers": []})
-    servers = set(map(str, entry.get("servers", [])))
-    if str(guild_id) in servers:
-        return True
-    # Check limit
-    tier = entry.get("tier")
-    limit = 5 if tier == "plus" else 15 if tier == "max" else 0
-    if len(servers) >= limit:
-        return False
-    servers.add(str(guild_id))
-    entry["servers"] = list(servers)
-    subs[uid] = entry
-    save_subscriptions(subs)
-    return True
-
-
-def save_giveaways(data):
-    with open(variables.GIVEAWAY_PATH, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-        
-def load_inventory():
-    if not os.path.exists(variables.INVENTORY_PATH):
-        return {}
-    with open(variables.INVENTORY_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-def save_inventory(data):
-    with open(variables.INVENTORY_PATH, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-
-def load_user_data():
-    if not os.path.exists(variables.USER_DATA_PATH):
-        return {}
-    with open(variables.USER_DATA_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
 
 def load_swearwords():
     if not os.path.exists(variables.SWEAR_JSON_PATH):
@@ -1615,136 +830,9 @@ def get_offensive_words(message: str, level: int):
                 detected.append(msg_word)
     return detected
 
-def create_profile_card(avatar_img, username, level, xp, xp_max, coins):
-    # Sizes
-    width, height = 600, 180
-    avatar_size = 100  # Make avatar bigger
-    bar_width = 400
-    bar_height = 18
-
-    # Create base
-    base = Image.new("RGBA", (width, height), (30, 32, 36, 255))
-
-    # Paste avatar (centered vertically)
-    avatar = avatar_img.resize((avatar_size, avatar_size)).convert("RGBA")
-    # Add a white border
-    border = Image.new("RGBA", (avatar_size+8, avatar_size+8), (255,255,255,0))
-    draw_border = ImageDraw.Draw(border)
-    draw_border.ellipse((0,0,avatar_size+8,avatar_size+8), fill=(255,255,255,40))
-    border.paste(avatar, (4,4), avatar)
-    base.paste(border, (20, 40), border)
-
-    # Fonts
-    font_path = "arial.ttf"  # Or your custom font
-    font_big = ImageFont.truetype(font_path, 32)
-    font_med = ImageFont.truetype(font_path, 22)
-    font_small = ImageFont.truetype(font_path, 18)
-
-    # Draw text
-    draw = ImageDraw.Draw(base)
-    draw.text((140, 40), username, font=font_big, fill=(255,255,255))
-    draw.text((140, 80), f"Level: {level}", font=font_med, fill=(120,180,255))
-    draw.text((140, 110), f"XP: {xp} / {xp_max}", font=font_med, fill=(120,255,120))
-    draw.text((140, 140), f"Coins: {coins:,}", font=font_med, fill=(255,220,120))
-
-    # XP Bar
-    bar_x, bar_y = 140, 170
-    percent = min(xp / xp_max, 1.0)
-    # Draw background bar (rounded)
-    draw.rounded_rectangle([bar_x, bar_y, bar_x+bar_width, bar_y+bar_height], radius=9, fill=(50,50,50,255))
-    # Draw filled bar (gradient blue)
-    bar_fill = int(bar_width * percent)
-    for i in range(bar_fill):
-        color = (80,180,255-int(i/bar_width*80),255)
-        draw.rectangle([bar_x+i, bar_y, bar_x+i+1, bar_y+bar_height], fill=color)
-    # Optional: subtle shadow under bar
-    shadow = Image.new("RGBA", (bar_width, bar_height), (0,0,0,40))
-    base.paste(shadow, (bar_x, bar_y+3), shadow)
-
-    return base
-
-def _normalize_message_for_matching(text: str) -> str:
-    """Normalize arbitrary-font text to a simple ASCII-ish lowercase string.
-
-    - Maps many Unicode 'font' variants back to base ASCII letters
-    - Replaces runs of non-alphanumerics with single spaces
-    - Lowercases the result
-    """
-    out = []
-    for ch in text:
-        base = _unicode_base_letter(ch)
-        if base:
-            out.append(base)
-        else:
-            # Preserve ASCII letters/digits and collapse others to space
-            if ord(ch) < 128 and (ch.isalnum() or ch.isspace()):
-                out.append(ch)
-            else:
-                out.append(" ")
-    s = "".join(out)
-    s = re.sub(r"[^A-Za-z0-9]+", " ", s).strip().lower()
-    return s
-
-
-def _find_rp_channel(guild: discord.Guild) -> typing.Optional[discord.TextChannel]:
-    """Attempt to find a suitable RP-requests text channel in the guild.
-
-    Looks for channels whose name contains both 'rp' and 'request(s)'
-    or channels with explicit roleplay/request names.
-    """
-    if not guild:
-        return None
-    candidates = []
-    for ch in getattr(guild, "text_channels", []):
-        name = ch.name.lower()
-        if ("rp" in name and ("request" in name or "requests" in name)) or (
-            "roleplay" in name and "request" in name
-        ):
-            candidates.append(ch)
-    if candidates:
-        return candidates[0]
-    # fallback exact matches
-    fallback_names = [
-        "rp-requests",
-        "rp_requests",
-        "rp requests",
-        "roleplay-requests",
-        "roleplay_requests",
-    ]
-    for fn in fallback_names:
-        for ch in getattr(guild, "text_channels", []):
-            if ch.name.lower() == fn:
-                return ch
-    return None
-
 # ---------------------------------------------------------------------------------------------------
 # --------------------------------------- ASYNC DEFINITONS ------------------------------------------
 # ---------------------------------------------------------------------------------------------------
-
-async def update_bot_data_periodically(bot):
-    """Periodically update bot_data.txt."""
-    while True:
-        write_bot_data(bot)
-        await asyncio.sleep(5)  # Update every 5 seconds
-
-async def assign_auto_role(member):
-    role_id = get_auto_role(member.guild.id)
-    if not role_id:
-        return
-    try:
-        role_id_int = int(role_id)
-    except ValueError:
-        # Handle case where the stored value isn't a valid ID
-        print(f"Stored role value {role_id} is not a valid integer ID.")
-        return
-    role = member.guild.get_role(role_id_int) 
-    if not role:
-        print(f"Role with ID {role_id_int} not found on server {member.guild.id}.")
-        return
-
-    # 3. Assign the role
-    if role not in member.roles:
-        await member.add_roles(role, reason="Auto role on join")
 
 async def change_status(bot):
     """Rotate statuses dynamically or use a custom status."""
@@ -1754,7 +842,7 @@ async def change_status(bot):
             discord.Game("Just being myself 🐍!"),
             discord.Activity(
                 type=discord.ActivityType.watching,
-                name="Watching our 158 commands! || Type ?help to know more!",
+                name="Watching our commands! || Type /help to know more!",
             ),
             discord.Game(
                 "Powered by HidenCloud ☁️"
@@ -1780,79 +868,6 @@ async def change_status(bot):
             )
         await asyncio.sleep(360)  # Change status every 360 seconds
 
-async def chat_reviver_task(bot):
-    """Send random messages to revive chats based on server settings."""
-    await bot.wait_until_ready()  # Ensure the bot is ready before starting the task
-    while not bot.is_closed():
-        try:
-            for guild in bot.guilds:
-                # Load settings for this guild
-                settings = load_server_settings()
-                guild_settings = settings.get(str(guild.id), {})
-                chat_settings = guild_settings.get("chat_reviver", {
-                    "enabled": False,
-                    "interval": 60,
-                    "channel": None,
-                    "role": "Chat Reviver",
-                    "messages": variables.chat_reviver_messages.copy()
-                })
-
-                # Skip if chat reviver is disabled for this guild
-                if not chat_settings["enabled"]:
-                    continue
-
-                # Check last activity vs interval
-                last_active = variables.last_activity.get(guild.id)
-                if last_active and (datetime.now() - last_active).total_seconds() < chat_settings["interval"] * 60:
-                    logging.info(f"Skipping chat reviver for {guild.name} due to recent activity.")
-                    continue
-
-                # Get configured role, or create it
-                role_name = chat_settings["role"]
-                chat_reviver_role = discord.utils.get(guild.roles, name=role_name)
-                if not chat_reviver_role:
-                    try:
-                        chat_reviver_role = await guild.create_role(
-                            name=role_name,
-                            reason="Chat reviver role created by bot"
-                        )
-                        logging.info(f"Created chat reviver role '{role_name}' in {guild.name}")
-                    except Exception as e:
-                        logging.error(f"Failed to create chat reviver role in {guild.name}: {e}")
-                        continue
-
-                # Get configured channel or find default
-                if chat_settings["channel"]:
-                    target_channel = discord.utils.get(
-                        guild.text_channels, 
-                        name=chat_settings["channel"]
-                    )
-                else:
-                    target_channel = discord.utils.find(
-                        lambda c: ("general" in c.name.lower() or "chat" in c.name.lower()) 
-                        and isinstance(c, discord.TextChannel),
-                        guild.channels
-                    )
-
-                # Send message if we have both role and channel
-                if chat_reviver_role and target_channel and chat_settings["messages"]:
-                    random_message = random.choice(chat_settings["messages"])
-                    await target_channel.send(
-                        f"{chat_reviver_role.mention} {random_message}"
-                    )
-                    logging.info(
-                        f"Chat reviver message sent to #{target_channel.name} in {guild.name}"
-                    )
-                else:
-                    logging.warning(
-                        f"Chat reviver role '{role_name}' or target channel not found in {guild.name}"
-                    )
-        except Exception as e:
-            logging.error(f"Error in chat reviver task: {e}")
-
-        # Check every minute
-        await asyncio.sleep(60)
-
 async def log_event(guild, message):
     """Log an event to the logs channel if logging is enabled."""
     logging_config = load_logging_config()
@@ -1865,168 +880,3 @@ async def log_event(guild, message):
                 await logs_channel.send(message)
             except discord.Forbidden:
                 print(f"❌ Unable to send message to the logs channel in {guild.name}.")
-
-async def refresh_leaderboard(bot):
-    await bot.wait_until_ready()
-    while not bot.is_closed():
-        for guild in bot.guilds:
-            channel = discord.utils.find(
-                lambda c: "leaderboard" in c.name.lower(), guild.text_channels
-            )
-            if channel:
-                # Get user data and sort by level
-                data = load_user_data()
-                leaderboard = []
-                for user_id, user_info in data.items():
-                    if user_id.isdigit():
-                        member = guild.get_member(int(user_id))
-                        if member:
-                            # Ensure level is converted to int to avoid comparison errors
-                            level = user_info.get("level", 0)
-                            try:
-                                level = int(level)
-                            except (ValueError, TypeError):
-                                level = 0
-                            leaderboard.append(
-                                (member.display_name, level)
-                            )
-                leaderboard.sort(key=lambda x: x[1], reverse=True)
-                # Prepare leaderboard message
-                desc = ""
-                for i, (name, level) in enumerate(leaderboard[:10], start=1):
-                    desc += f"**{i}. {name}** — Level {level}\n"
-                embed = discord.Embed(
-                    title="🏆 Server Level Leaderboard",
-                    description=desc or "No data yet.",
-                    color=discord.Color.gold(),
-                )
-                # Try to find the last leaderboard message sent by the bot
-                async for msg in channel.history(limit=10):
-                    if (
-                        msg.author == bot.user
-                        and msg.embeds
-                        and msg.embeds[0].title == "🏆 Server Level Leaderboard"
-                    ):
-                        await msg.edit(embed=embed)
-                        break
-                else:
-                    await channel.send(embed=embed)
-            else:
-                print(f"❌ Leaderboard channel not found in {guild.name}.")
-        await asyncio.sleep(60)  # Refresh every minute
-
-
-
-async def ensure_level_roles(guild):
-    """Ensure all level roles exist in the server with the correct name and a blue color."""
-    for level, role_name in variables.level_roles.items():
-        role = discord.utils.get(guild.roles, name=role_name)
-        if not role:
-            try:
-                await guild.create_role(
-                    name=role_name,
-                    color=random_blue_color(),
-                    reason="Level-based role created by the bot.",
-                )
-                logging.info(f"Role '{role_name}' created in guild '{guild.name}'.")
-            except discord.Forbidden:
-                logging.warning(
-                    f"Insufficient permissions to create role '{role_name}' in guild '{guild.name}'."
-                )
-                owner = guild.owner
-                if owner:
-                    await owner.send(
-                        f"❌ I couldn't create the role '{role_name}' in your server **{guild.name}**. "
-                        f"Please create it manually or grant me the necessary permissions."
-                    )
-            except Exception as e:
-                logging.error(
-                    f"Error creating role '{role_name}' in guild '{guild.name}': {e}"
-                )
-
-
-async def assign_level_role(member, level, channel):
-    """Assign a level-based role to a user and notify in the server channel."""
-    guild = member.guild
-    guild_id = guild.id
-
-    # First check if level role system is enabled for this guild
-    if not is_level_role_system_enabled(guild_id):
-        return  # Level role system is disabled for this guild
-
-    # Get custom level roles for this guild
-    guild_level_roles = get_guild_level_roles(guild_id)
-    role_name = None
-
-    # First try to get custom role name for this level
-    if guild_level_roles:
-        role_name = guild_level_roles.get(str(level))
-
-    # If no custom role found, fall back to default roles if enabled
-    if not role_name and not guild_level_roles:  # Only use default if no custom roles defined
-        role_name = variables.level_roles.get(level)
-
-    if not role_name:
-        return  # No role defined for this level
-
-    # Check if role exists, create if it doesn't
-    role = discord.utils.get(guild.roles, name=role_name)
-    if not role:
-        try:
-            role = await guild.create_role(
-                name=role_name,
-                color=random_blue_color(),
-                reason="Level-based role created by the bot.",
-            )
-            logging.info(f"Created level role '{role_name}' in {guild.name}")
-        except discord.Forbidden:
-            logging.warning(
-                f"Insufficient permissions to create role '{role_name}' in {guild.name}"
-            )
-            return
-        except Exception as e:
-            logging.error(f"Error creating role '{role_name}' in {guild.name}: {e}")
-            return
-
-    # Assign the role
-    if role and role not in member.roles:
-        try:
-            await member.add_roles(role, reason=f"Reached Level {level}")
-            await channel.send(
-                f"🎉 {member.mention} has been assigned the **{role_name}** role for reaching Level {level}!"
-            )
-            logging.info(f"Assigned role '{role_name}' to {member.name} in {guild.name}")
-        except discord.Forbidden:
-            logging.warning(
-                f"Insufficient permissions to assign role '{role_name}' to {member.name} in {guild.name}"
-            )
-        except Exception as e:
-            logging.error(f"Error assigning role '{role_name}' to {member.name} in {guild.name}: {e}")
-
-async def role_check_task(bot):
-        """Check and assign missing auto and level roles every 10 seconds, and clean expired boosts."""
-        await bot.wait_until_ready()
-        while not bot.is_closed():
-            for guild in bot.guilds:
-                for member in guild.members:
-                    if not member.bot:
-                        # Assign auto role if missing
-                        await assign_auto_role(member)
-                        # Assign level role if missing
-                        user_data = get_user_data(member.id)
-                        level = user_data.get("level", 1)
-                        await assign_level_role(member, level, None)  # No channel for notification
-            
-            # Clean expired boosts
-            full_data = load_user_data()
-            current_time = time.time()
-            for user_id, data in full_data.items():
-                if data.get("xp_multiplier_end", 0) < current_time:
-                    data.pop("xp_multiplier_end", None)
-                    data.pop("xp_multiplier_value", None)
-                if data.get("coin_multiplier_end", 0) < current_time:
-                    data.pop("coin_multiplier_end", None)
-                    data.pop("coin_multiplier_value", None)
-            save_user_data(full_data)
-            
-            await asyncio.sleep(600)

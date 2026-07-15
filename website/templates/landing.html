@@ -7,17 +7,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
-        },
-      },
-    }
-  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -26,7 +15,7 @@
       color: #fff;
       font-family: 'Inter', system-ui, sans-serif;
       min-height: 100vh;
-      overflow: hidden;
+      overflow-x: hidden;
       display: flex;
       align-items: center;
     }
@@ -39,7 +28,7 @@
     .hero-line {
       font-size: clamp(2.8rem, 7vw, 7rem);
       font-weight: 900;
-      line-height: 1.05;
+      line-height: 1.15;
       letter-spacing: -0.03em;
       color: #fff;
     }
@@ -55,14 +44,6 @@
       color: #666;
       font-weight: 500;
       letter-spacing: 0.01em;
-    }
-
-    .line-accent {
-      display: block;
-      width: 0;
-      height: 3px;
-      background: #fff;
-      margin-top: 2rem;
     }
 
     /* Subtle grid background */
@@ -94,10 +75,6 @@
         flex-direction: column;
         align-items: center;
       }
-      .line-accent {
-        margin-left: auto;
-        margin-right: auto;
-      }
     }
   </style>
 </head>
@@ -109,15 +86,12 @@
       <span class="scramble-word" id="scramble-target">something</span>.
     </div>
     <div class="sub-text gsap-sub">Prowl — Discord bot &amp; dashboard.</div>
-    <div class="line-accent gsap-accent"></div>
   </div>
 
   <script>
-    // ── Word scramble effect ──
     const target = document.getElementById('scramble-target');
     const finalWord = 'something';
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-    let resolved = false;
 
     function scrambleEffect(el, word, duration) {
       const iterations = Math.ceil(duration / 30);
@@ -141,11 +115,9 @@
       }, 30);
     }
 
-    // ── GSAP timeline ──
     gsap.set('.gsap-line-1', { opacity: 0, y: 40, clipPath: 'inset(100% 0 0 0)' });
     gsap.set('.gsap-line-2', { opacity: 0, y: 40, clipPath: 'inset(100% 0 0 0)' });
     gsap.set('.gsap-sub', { opacity: 0, y: 20 });
-    gsap.set('.gsap-accent', { width: 0 });
 
     const tl = gsap.timeline({ defaults: { ease: 'power4.out' } });
 
@@ -159,8 +131,7 @@
           setTimeout(() => scrambleEffect(target, finalWord, 1200), 300);
         }
       }, 0.5)
-      .to('.gsap-sub', { opacity: 1, y: 0, duration: 0.6 }, 1.0)
-      .to('.gsap-accent', { width: 80, duration: 0.8, ease: 'power2.inOut' }, 1.1);
+      .to('.gsap-sub', { opacity: 1, y: 0, duration: 0.6 }, 1.0);
   </script>
 </body>
 </html>

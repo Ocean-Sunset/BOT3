@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: prowl-dashboard
+    runtime: python
+    plan: free
+    buildCommand: pip install -r website/requirements.txt
+    startCommand: cd website && gunicorn app:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: prowl-db
+          property: connectionString
+      - key: WEBHOOK_SECRET
+        generateValue: true
+      - key: CLIENT_ID
+        sync: false
+      - key: CLIENT_SECRET
+        sync: false
+      - key: REDIRECT_URI
+        value: https://prowlbot.xyz/callback
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        value: https://prowlbot.xyz/callback/google
+      - key: FLASK_DEBUG
+        value: "0"
+
+databases:
+  - name: prowl-db
+    plan: free
+    databaseName: prowl
+    user: prowl

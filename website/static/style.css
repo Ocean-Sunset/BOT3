@@ -1,0 +1,126 @@
+/* ========================= KEYFRAMES ========================= */
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(54, 211, 153, 0.5); }
+  50%      { box-shadow: 0 0 0 6px rgba(54, 211, 153, 0); }
+}
+
+@keyframes pulseOffline {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0.5); }
+  50%      { box-shadow: 0 0 0 6px rgba(255, 77, 77, 0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ========================= ANIMATION CLASS ========================= */
+
+.anim-fade-in-up {
+  opacity: 0;
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.anim-page-in {
+  opacity: 0;
+  animation: pageIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ========================= SIDEBAR ========================= */
+
+.sidebar {
+  user-select: none;
+}
+
+/* Collapsed state */
+.sidebar.is-collapsed {
+  width: 72px !important;
+}
+
+.sidebar.is-collapsed .nav-label,
+.sidebar.is-collapsed .sidebar-label,
+.sidebar.is-collapsed .nav-group-label {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+}
+
+.sidebar.is-collapsed .nav-item {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.sidebar.is-collapsed .nav-item span {
+  display: none;
+}
+
+.sidebar.is-collapsed #sidebar-toggle {
+  /* keep toggle visible */
+}
+
+/* Nav active state */
+.nav-item.is-active {
+  background: rgba(124, 92, 255, 0.10);
+  border-color: rgba(124, 92, 255, 0.28);
+  color: #e9edf5;
+}
+
+/* ========================= STATUS DOT PULSE ========================= */
+
+#status-dot.is-online {
+  background: #36d399;
+  animation: pulse 2s infinite;
+}
+
+#status-dot.is-offline {
+  background: #ff4d4d;
+  animation: pulseOffline 2s infinite;
+}
+
+/* ========================= GUILD ICON IMG ========================= */
+
+.guild-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ========================= SKELETON SHIMMER ========================= */
+
+.skeleton-card,
+.skeleton-row {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+/* ========================= LOADING BAR ========================= */
+
+#loading-bar.is-visible {
+  opacity: 1;
+}
+
+/* ========================= SCROLLBAR ========================= */
+
+::-webkit-scrollbar       { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.18); }
+
+/* ========================= RESIZE HANDLE ========================= */
+
+#sidebar-resize.is-dragging {
+  background: rgba(124, 92, 255, 0.4);
+}

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prowl — {{ guild.name if guild else 'Dashboard' }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            surface: { 0: '#0f1117', 1: '#11131b', 2: '#151822', 3: '#191f2d' },
+            brand:   { DEFAULT: '#7c5cff', light: '#a78bfa' },
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body class="bg-surface-0 text-[#e9edf5] font-sans antialiased
+             bg-[radial-gradient(1200px_600px_at_20%_0%,rgba(124,92,255,0.16),transparent_60%)]">
+
+  <!-- ==================== LOADING BAR ==================== -->
+  <div id="loading-bar" class="fixed top-0 left-0 h-[3px] bg-brand z-[9999] pointer-events-none
+                               transition-[width] duration-200 ease-out opacity-0">
+  </div>
+
+  <div class="grid min-h-screen transition-[grid-template-columns] duration-300 ease-out"
+       id="app-shell"
+       style="grid-template-columns: 280px 1fr;">
+
+    <!-- ==================== SIDEBAR ==================== -->
+    <aside id="sidebar" class="sidebar bg-gradient-to-b from-surface-0 to-[#0c0e14] border-r border-white/[0.08]
+                               flex flex-col overflow-hidden transition-[width] duration-300 ease-out relative"
+           style="width:280px;">
+
+      <!-- Sidebar top -->
+      <div class="shrink-0 p-4 pb-0">
+        <!-- Brand + toggle -->
+        <div class="flex items-center justify-between px-2 mb-4">
+          <div class="flex items-center gap-3 overflow-hidden">
+            <div class="w-9 h-9 rounded-xl grid place-items-center bg-brand/20 border border-brand/30 shrink-0">
+              <i data-lucide="paw-print" class="w-4.5 h-4.5 text-brand-light"></i>
+            </div>
+            <span class="sidebar-label text-[18px] font-extrabold tracking-tight whitespace-nowrap transition-opacity duration-200">Prowl</span>
+          </div>
+          <button id="sidebar-toggle" class="w-8 h-8 rounded-lg grid place-items-center hover:bg-white/[0.06] transition-colors shrink-0" title="Toggle sidebar">
+            <i data-lucide="panel-left-close" class="w-4 h-4 text-white/50" id="toggle-icon"></i>
+          </button>
+        </div>
+
+        <!-- Server info -->
+        <div class="flex items-center gap-2.5 px-2 mb-4 overflow-hidden">
+          <div class="w-8 h-8 rounded-lg grid place-items-center bg-brand/15 border border-brand/25 shrink-0 overflow-hidden text-brand-light font-bold text-sm">
+            {% if guild and guild.icon %}
+              <img src="https://cdn.discordapp.com/icons/{{ guild_id }}/{{ guild.icon }}.png?size=64" alt="" class="w-full h-full object-cover" />
+            {% elif guild %}
+              {{ guild.name[0] | upper }}
+            {% else %}
+              ?
+            {% endif %}
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="sidebar-label text-[13px] font-bold truncate transition-opacity duration-200">{{ guild.name if guild else 'No Server' }}</div>
+          </div>
+          <a href="/" class="shrink-0 w-7 h-7 rounded-md grid place-items-center hover:bg-white/[0.06] transition-colors" title="Switch server">
+            <i data-lucide="repeat" class="w-3.5 h-3.5 text-white/40"></i>
+          </a>
+        </div>
+      </div>
+
+      <!-- Scrollable nav -->
+      <nav class="flex-1 overflow-y-auto px-3 pb-2 space-y-4">
+
+        <!-- Quick Setup (conditional) -->
+        <div id="quick-setup-banner" class="hidden">
+          <a href="#" data-panel="quick-setup"
+             class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-emerald-400 border border-emerald-400/20
+                    bg-emerald-400/[0.06] hover:bg-emerald-400/10 transition-all duration-150">
+            <i data-lucide="rocket" class="w-[20px] h-[20px] shrink-0"></i>
+            <span class="nav-label text-[13px] font-semibold whitespace-nowrap transition-opacity duration-200">Quick Setup</span>
+          </a>
+        </div>
+
+        <!-- Main -->
+        <div class="space-y-0.5">
+          <a href="#" data-panel="overview"
+             class="nav-item is-active flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/75 border border-transparent
+                    hover:bg-white/[0.04] hover:border-white/[0.08] hover:text-[#e9edf5] transition-all duration-150">
+            <i data-lucide="layout-dashboard" class="w-[20px] h-[20px] shrink-0 opacity-90"></i>
+            <span class="nav-label text-[13px] font-semibold whitespace-nowrap transition-opacity duration-200">Overview</span>
+          </a>
+          <a href="#" data-panel="ai"
+             class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/75 border border-transparent
+                    hover:bg-white/[0.04] hover:border-white/[0.08] hover:text-[#e9edf5] transition-all duration-150">
+            <i data-lucide="sparkles" class="w-[20px] h-[20px] shrink-0 opacity-90"></i>
+            <span class="nav-label text-[13px] font-semibold whitespace-nowrap transition-opacity duration-200">AI</span>
+            <span class="nav-label ml-auto text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-amber-400/15 text-amber-400 border border-amber-400/20 transition-opacity duration-200 shrink-0">Beta</span>
+          </a>
+        </div>
+
+        <!-- Engagement -->
+        <div>
+          <div class="nav-group-label text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-white/30 px-3 mb-1.5 nav-label transition-opacity duration-200">Engagement</div>
+          <div class="space-y-0.5">
+            <a href="#" data-panel="welcomer"
+               class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/75 border border-transparent
+                      hover:bg-white/[0.04] hover:border-white/[0.08] hover:text-[#e9edf5] transition-all duration-150">
+              <i data-lucide="hand-wave" class="w-[20px] h-[20px] shrink-0 opacity-90"></i>
+              <span class="nav-label text-[13px] font-semibold whitespace-nowrap transition-opacity duration-200">Welcomer</span>
+            </a>
+            <a href="#" data-panel="verification"
+               class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/75 border border-transparent
+                      hover:bg-white/[0.04] hover:border-white/[0.08] hover:text-[#e9edf5] transition-all duration-150">
+              <i data-lucide="shield-check" class="w-[20px] h-[20px] shrink-0 opacity-90"></i>
+              <span class="nav-label text-[13px] font-semibold whitespace-nowrap transition-opacity duration-200">Verification</span>
+            </a>
+            <a href="#" data-panel="roles"
+               class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/75 border border-transparent
+                      hover:bg-white/[0.04] hover:border-white/[0.08] hover:text-[#e9edf5] transition-all duration-150">
+              <i data-lucide="palette" class="w-[20px] h-[20px] shrink-0 opacity-90"></i>
+              <span class="nav-label text-[13px] font-semibold whitespace-nowrap transition-opacity duration-200">Roles</span>
+            </a>
+            <a href="#" data-panel="leveling"
+               class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/75 border border-transparent
+                      hover:bg-white/[0.04] hover:border-white/[0.08] hover:text-[#e9edf5] transition-all duration-150">
+              <i data-lucide="trending-up" class="w-[20px] h-[20px] shrink-0 opacity-90"></i>
+              <span class="nav-label text-[13px] font-semibold whitespace-nowrap transition-opacity duration-200">Leveling</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Moderation -->
+        <div>
+          <div class="nav-group-label text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-white/30 px-3 mb-1.5 nav-label transition-opacity duration-200">Moderation</div>
+          <div class="space-y-0.5">
+            <a href="#" data-panel="commands"
+               class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/75 border border-transparent
+                      hover:bg-white/[0.04] hover:border-white/[0.08] hover:text-[#e9edf5] transition-all duration-150">
+              <i data-lucide="terminal" class="w-[20px] h-[20px] shrink-0 opacity-90"></i>
+              <span class="nav-label text-[13px] font-semibold whitespace-nowrap transition-opacity duration-200">Commands</span>
+            </a>
+            <a href="#" data-panel="lideration"
+               class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/75 border border-transparent
+                      hover:bg-white/[0.04] hover:border-white/[0.08] hover:text-[#e9edf5] transition-all duration-150">
+              <i data-lucide="shield" class="w-[20px] h-[20px] shrink-0 opacity-90"></i>
+              <span class="nav-label text-[13px] font-semibold whitespace-nowrap transition-opacity duration-200">Lideration</span>
+            </a>
+            <a href="#" data-panel="logs"
+               class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/75 border border-transparent
+                      hover:bg-white/[0.04] hover:border-white/[0.08] hover:text-[#e9edf5] transition-all duration-150">
+              <i data-lucide="scroll-text" class="w-[20px] h-[20px] shrink-0 opacity-90"></i>
+              <span class="nav-label text-[13px] font-semibold whitespace-nowrap transition-opacity duration-200">Logs</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Insights -->
+        <div>
+          <div class="nav-group-label text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-white/30 px-3 mb-1.5 nav-label transition-opacity duration-200">Insights</div>
+          <div class="space-y-0.5">
+            <a href="#" data-panel="statistics"
+               class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/75 border border-transparent
+                      hover:bg-white/[0.04] hover:border-white/[0.08] hover:text-[#e9edf5] transition-all duration-150">
+              <i data-lucide="bar-chart-3" class="w-[20px] h-[20px] shrink-0 opacity-90"></i>
+              <span class="nav-label text-[13px] font-semibold whitespace-nowrap transition-opacity duration-200">Statistics</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Entertainment -->
+        <div>
+          <div class="nav-group-label text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-white/30 px-3 mb-1.5 nav-label transition-opacity duration-200">Entertainment</div>
+          <div class="space-y-0.5">
+            <a href="#" data-panel="music"
+               class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/75 border border-transparent
+                      hover:bg-white/[0.04] hover:border-white/[0.08] hover:text-[#e9edf5] transition-all duration-150">
+              <i data-lucide="music" class="w-[20px] h-[20px] shrink-0 opacity-90"></i>
+              <span class="nav-label text-[13px] font-semibold whitespace-nowrap transition-opacity duration-200">Music</span>
+              <span class="nav-label ml-auto text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-amber-400/15 text-amber-400 border border-amber-400/20 transition-opacity duration-200 shrink-0">Beta</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Configuration -->
+        <div>
+          <div class="nav-group-label text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-white/30 px-3 mb-1.5 nav-label transition-opacity duration-200">Configuration</div>
+          <div class="space-y-0.5">
+            <a href="#" data-panel="settings"
+               class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/75 border border-transparent
+                      hover:bg-white/[0.04] hover:border-white/[0.08] hover:text-[#e9edf5] transition-all duration-150">
+              <i data-lucide="settings" class="w-[20px] h-[20px] shrink-0 opacity-90"></i>
+              <span class="nav-label text-[13px] font-semibold whitespace-nowrap transition-opacity duration-200">Settings</span>
+            </a>
+          </div>
+        </div>
+      </nav>
+
+      <!-- ==================== USER PROFILE (bottom) ==================== -->
+      <div class="shrink-0 border-t border-white/[0.06] p-3 relative">
+        <button id="user-menu-btn"
+                class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.04] transition-colors text-left">
+          <div class="w-9 h-9 rounded-full grid place-items-center bg-brand/15 border border-brand/25 shrink-0 overflow-hidden text-brand-light font-bold text-sm"
+               id="user-avatar">
+            {{ user.username[0] | upper if user else '?' }}
+          </div>
+          <div class="min-w-0 flex-1 sidebar-label transition-opacity duration-200">
+            <div class="text-[13px] font-bold truncate">{{ user.username if user else 'User' }}</div>
+          </div>
+          <i data-lucide="chevron-up" class="w-4 h-4 text-white/30 shrink-0 sidebar-label transition-opacity duration-200"></i>
+        </button>
+
+        <!-- Popover -->
+        <div id="user-popover"
+             class="absolute bottom-full left-3 right-3 mb-2 rounded-xl border border-white/[0.08]
+                    bg-surface-2 shadow-[0_-8px_30px_rgba(0,0,0,0.5)] py-2 hidden z-50">
+          <div class="px-4 py-2 border-b border-white/[0.06] mb-1">
+            <div class="text-xs text-white/40 font-bold">Signed in as</div>
+            <div class="text-sm font-bold truncate">{{ user.username if user else 'User' }}#{{ user.discriminator if user else '0000' }}</div>
+          </div>
+          <a href="#" class="flex items-center gap-2.5 px-4 py-2 text-sm text-white/70 hover:bg-white/[0.04] hover:text-white transition-colors">
+            <i data-lucide="user" class="w-4 h-4"></i> Profile
+          </a>
+          <a href="/logout" class="flex items-center gap-2.5 px-4 py-2 text-sm text-red-400 hover:bg-red-400/10 transition-colors">
+            <i data-lucide="log-out" class="w-4 h-4"></i> Log out
+          </a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ==================== SIDEBAR DRAG HANDLE ==================== -->
+    <div id="sidebar-resize" class="w-1 cursor-col-resize hover:bg-brand/30 active:bg-brand/50 transition-colors z-10"
+         style="margin-left:-2px; margin-right:-2px;"></div>
+
+    <!-- ==================== MAIN CONTENT ==================== -->
+    <div class="flex flex-col min-h-screen overflow-hidden">
+      <!-- Top bar -->
+      <header class="flex justify-between items-center px-6 py-3 shrink-0">
+        <div class="flex items-center gap-3.5">
+          <div id="status-badge" class="flex items-center gap-2 px-3.5 py-2 rounded-full border border-white/[0.08] bg-white/[0.02] text-[13px] font-bold">
+            <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-gray-500 transition-colors duration-300"></span>
+            <span id="status-text">Connecting...</span>
+          </div>
+        </div>
+        <div id="bot-version" class="text-white/50 text-[13px] font-bold px-3 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.02]">v—</div>
+      </header>
+
+      <!-- Page content (filled by JS) -->
+      <main id="app-content" class="flex-1 overflow-y-auto px-6 pb-6">
+        <div class="skeleton-card h-40 rounded-2xl mb-5"></div>
+        <div class="skeleton-card h-60 rounded-2xl"></div>
+      </main>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    window.__GUILD_ID = "{{ guild_id }}";
+    window.__ACTIVE_PANEL = "{{ active_panel }}";
+    window.__USER = {{ user | tojson }};
+    window.__GUILD = {{ guild | tojson if guild else 'null' }};
+  </script>
+  <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+</body>
+</html>

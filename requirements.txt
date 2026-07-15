@@ -10,3 +10,7 @@ PyNaCl
 aiohttp
 cryptography
 Flask
+psycopg2-binary
+python-dotenv
+gunicorn
+asyncpg

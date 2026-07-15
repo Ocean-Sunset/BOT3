@@ -46,16 +46,20 @@
       letter-spacing: 0.01em;
     }
 
-    /* Subtle grid background */
-    body::before {
-      content: '';
+    /* Tilde background */
+    .wave-field {
       position: fixed;
       inset: 0;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-      background-size: 80px 80px;
       pointer-events: none;
+      z-index: 0;
+    }
+
+    .wave-field span {
+      position: absolute;
+      color: rgba(255, 255, 255, 0.04);
+      font-family: monospace;
+      user-select: none;
+      line-height: 1;
     }
 
     /* Vignette */
@@ -79,6 +83,8 @@
   </style>
 </head>
 <body>
+
+  <div class="wave-field" id="wave-field"></div>
 
   <div class="hero">
     <div class="hero-line gsap-line-1">We're building</div>
@@ -113,6 +119,30 @@
           clearInterval(interval);
         }
       }, 30);
+    }
+
+    // ── Scatter tildes ──
+    const waveField = document.getElementById('wave-field');
+    const tildeCount = window.innerWidth < 768 ? 30 : 60;
+
+    for (let i = 0; i < tildeCount; i++) {
+      const el = document.createElement('span');
+      el.textContent = '~';
+      el.style.left = Math.random() * 100 + '%';
+      el.style.top = Math.random() * 100 + '%';
+      el.style.fontSize = (0.8 + Math.random() * 1.4) + 'rem';
+      el.style.opacity = 0.02 + Math.random() * 0.06;
+      waveField.appendChild(el);
+
+      gsap.to(el, {
+        y: -15 + Math.random() * 30,
+        x: -10 + Math.random() * 20,
+        duration: 4 + Math.random() * 6,
+        ease: 'sine.inOut',
+        yoyo: true,
+        repeat: -1,
+        delay: Math.random() * 3,
+      });
     }
 
     gsap.set('.gsap-line-1', { opacity: 0, y: 40, clipPath: 'inset(100% 0 0 0)' });

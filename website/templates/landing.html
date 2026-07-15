@@ -23,6 +23,8 @@
     .hero {
       padding: 0 6vw;
       width: 100%;
+      position: relative;
+      z-index: 1;
     }
 
     .hero-line {
@@ -46,7 +48,6 @@
       letter-spacing: 0.01em;
     }
 
-    /* Tilde background */
     .wave-field {
       position: fixed;
       inset: 0;
@@ -56,19 +57,18 @@
 
     .wave-field span {
       position: absolute;
-      color: rgba(255, 255, 255, 0.04);
+      color: #fff;
       font-family: monospace;
       user-select: none;
       line-height: 1;
     }
 
-    /* Vignette */
-    body::after {
-      content: '';
+    .vignette {
       position: fixed;
       inset: 0;
-      background: radial-gradient(ellipse at center, transparent 40%, #0a0a0a 100%);
+      background: radial-gradient(ellipse at center, transparent 30%, #0a0a0a 80%);
       pointer-events: none;
+      z-index: 2;
     }
 
     @media (max-width: 768px) {
@@ -85,6 +85,7 @@
 <body>
 
   <div class="wave-field" id="wave-field"></div>
+  <div class="vignette"></div>
 
   <div class="hero">
     <div class="hero-line gsap-line-1">We're building</div>
@@ -95,6 +96,30 @@
   </div>
 
   <script>
+    const waveField = document.getElementById('wave-field');
+    const isMobile = window.innerWidth < 768;
+    const tildeCount = isMobile ? 35 : 70;
+
+    for (let i = 0; i < tildeCount; i++) {
+      const el = document.createElement('span');
+      el.textContent = '~';
+      el.style.left = Math.random() * 100 + '%';
+      el.style.top = Math.random() * 100 + '%';
+      el.style.fontSize = (1 + Math.random() * 1.8) + 'rem';
+      el.style.opacity = 0.04 + Math.random() * 0.1;
+      waveField.appendChild(el);
+
+      gsap.to(el, {
+        y: -20 + Math.random() * 40,
+        x: -12 + Math.random() * 24,
+        duration: 4 + Math.random() * 6,
+        ease: 'sine.inOut',
+        yoyo: true,
+        repeat: -1,
+        delay: Math.random() * 4,
+      });
+    }
+
     const target = document.getElementById('scramble-target');
     const finalWord = 'something';
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
@@ -119,30 +144,6 @@
           clearInterval(interval);
         }
       }, 30);
-    }
-
-    // ── Scatter tildes ──
-    const waveField = document.getElementById('wave-field');
-    const tildeCount = window.innerWidth < 768 ? 30 : 60;
-
-    for (let i = 0; i < tildeCount; i++) {
-      const el = document.createElement('span');
-      el.textContent = '~';
-      el.style.left = Math.random() * 100 + '%';
-      el.style.top = Math.random() * 100 + '%';
-      el.style.fontSize = (0.8 + Math.random() * 1.4) + 'rem';
-      el.style.opacity = 0.02 + Math.random() * 0.06;
-      waveField.appendChild(el);
-
-      gsap.to(el, {
-        y: -15 + Math.random() * 30,
-        x: -10 + Math.random() * 20,
-        duration: 4 + Math.random() * 6,
-        ease: 'sine.inOut',
-        yoyo: true,
-        repeat: -1,
-        delay: Math.random() * 3,
-      });
     }
 
     gsap.set('.gsap-line-1', { opacity: 0, y: 40, clipPath: 'inset(100% 0 0 0)' });

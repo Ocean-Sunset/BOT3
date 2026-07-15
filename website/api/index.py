@@ -2,6 +2,7 @@ import os
 import json
 import time
 import secrets
+import logging
 import urllib.parse
 from pathlib import Path
 from contextlib import asynccontextmanager
@@ -18,6 +19,8 @@ import httpx
 
 from api.db import get_pool, query, fetchrow, fetchval
 
+logger = logging.getLogger(__name__)
+
 # ---------------------------------------------------------------------------
 #  Config
 # ---------------------------------------------------------------------------
@@ -31,9 +34,24 @@ MANAGE_SERVER = 0x20
 
 ROOT = Path(__file__).parent.parent
 
+_missing = []
+if not CLIENT_ID:
+    _missing.append("CLIENT_ID")
+if not CLIENT_SECRET:
+    _missing.append("CLIENT_SECRET")
+if not REDIRECT_URI or REDIRECT_URI.startswith("http://localhost"):
+    _missing.append("REDIRECT_URI (should be production URL)")
+if not os.environ.get("DATABASE_URL"):
+    _missing.append("DATABASE_URL")
+if not os.environ.get("SECRET_KEY"):
+    _missing.append("SECRET_KEY")
+if _missing:
+    logger.warning("Missing/invalid environment variables: %s", ", ".join(_missing))
+
+
 def _cfg():
-    """Return a plain dict of env vars safe for Jinja2 caching."""
-    return {k: v for k, v in os.environ.items()}
+    """Return only safe, template-needed env vars."""
+    return {"CLIENT_ID": os.environ.get("CLIENT_ID", "")}
 
 
 # ---------------------------------------------------------------------------
@@ -42,7 +60,10 @@ def _cfg():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await get_pool()
+    try:
+        await get_pool()
+    except Exception as e:
+        logger.error("Failed to initialize database pool: %s", e)
     yield
 
 app = FastAPI(title="Prowl", version="1.0.0", lifespan=lifespan)

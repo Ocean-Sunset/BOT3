@@ -272,7 +272,7 @@ async def dashboard(request: Request, guild_id: str, panel: str = "overview"):
 
 @app.get("/api/health")
 async def api_health():
-    return {"status": "ok", "service": "prowl-api"}
+    return {"status": "ok", "service": "prowl-api", "version": "1.0.1"}
 
 
 @app.get("/api/ping")

@@ -6,3 +6,4 @@ jinja2
 aiofiles
 itsdangerous
 httpx
+python-multipart

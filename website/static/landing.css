@@ -1,0 +1,71 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0a0a0a;
+  color: #fff;
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.hero {
+  padding: 0 6vw;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-line {
+  font-size: clamp(2.8rem, 7vw, 7rem);
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+
+.hero-line .scramble-word {
+  display: inline-block;
+  color: #fff;
+}
+
+.sub-text {
+  margin-top: 1.5rem;
+  font-size: clamp(0.9rem, 1.2vw, 1.1rem);
+  color: #666;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.wave-field {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.wave-field span {
+  position: absolute;
+  color: #fff;
+  font-family: monospace;
+  user-select: none;
+  line-height: 1;
+}
+
+.vignette {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 30%, #0a0a0a 80%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+@media (max-width: 768px) {
+  .hero {
+    text-align: center;
+    padding: 0 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+}

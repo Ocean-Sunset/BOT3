@@ -1,12 +1,16 @@
+from __future__ import annotations
+
 import os
 import logging
+from typing import Optional
+
 import asyncpg
 
 logger = logging.getLogger(__name__)
-_pool: asyncpg.Pool | None = None
+_pool: Optional[asyncpg.Pool] = None
 
 
-async def get_pool() -> asyncpg.Pool | None:
+async def get_pool() -> Optional[asyncpg.Pool]:
     global _pool
     if _pool is not None:
         return _pool

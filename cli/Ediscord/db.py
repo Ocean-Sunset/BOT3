@@ -65,3 +65,17 @@ async def push_guild_data(guilds: list):
                 )
     except Exception as e:
         logger.error(f"push_guild_data failed: {e}")
+
+
+async def push_mod_event(guild_id: str, user_id: str, user_name: str, action: str, reason: str = ""):
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO mod_log (guild_id, user_id, user_name, action, reason, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+                str(guild_id), str(user_id), user_name, action, reason, time.time(),
+            )
+    except Exception as e:
+        logger.error(f"push_mod_event failed: {e}")

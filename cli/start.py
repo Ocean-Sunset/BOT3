@@ -5,6 +5,7 @@ Run this script to start the bot.
 
 import os
 import sys
+import time
 import asyncio
 import logging
 from pathlib import Path
@@ -18,7 +19,7 @@ from discord.ext import commands
 import psutil
 import json
 
-from Ediscord import variables, logger, utils
+from Ediscord import variables, logger, utils, __version__
 from Ediscord import db as neon_db
 
 
@@ -33,6 +34,8 @@ class ProwlBot(commands.Bot):
             activity=discord.Game("starting up..."),
             status=discord.Status.online,
         )
+        self.version = __version__
+        self.launch_time = 0
 
     async def setup_hook(self):
         await self.load_cogs()
@@ -56,6 +59,7 @@ class ProwlBot(commands.Bot):
     async def on_ready(self):
         logger.info(f"Prowl is online! Logged in as {self.user} (ID: {self.user.id})")
         logger.info(f"Servers: {len(self.guilds)} | Users: {len(self.users)}")
+        self.launch_time = time.time()
         utils.write_bot_data(self)
         await self.change_presence(
             status=discord.Status.online,
@@ -84,7 +88,6 @@ class ProwlBot(commands.Bot):
 
     async def _push_to_neon(self):
         """Build stats and push directly to Neon PostgreSQL."""
-        import time as _time
         process = psutil.Process(os.getpid())
         mem = process.memory_info().rss // 1024 // 1024
         cpu = process.cpu_percent()
@@ -93,8 +96,8 @@ class ProwlBot(commands.Bot):
         active_users = sum(1 for m in self.get_all_members() if m.status != discord.Status.offline)
         total_commands = getattr(self, "total_commands", 0)
         launch_time = getattr(self, "launch_time", None)
-        uptime_seconds = int(_time.time() - launch_time) if launch_time else 0
-        uptime_str = _time.strftime("%Hh %Mm %Ss", _time.gmtime(uptime_seconds))
+        uptime_seconds = int(time.time() - launch_time) if launch_time else 0
+        uptime_str = time.strftime("%Hh %Mm %Ss", time.gmtime(uptime_seconds))
         bot_status = "Running" if self.is_ready() else "Not Running"
         bot_version = f"{getattr(self, 'version', 'unknown')} (2025.09.19.19.00.12)"
         python_version = sys.version.replace("\n", " ")
@@ -102,7 +105,7 @@ class ProwlBot(commands.Bot):
         guild_ids = [str(g.id) for g in guilds]
         loaded_cogs = list(self.cogs.keys())
         all_commands = [cmd.name for cmd in self.tree.get_commands()]
-        last_restart = _time.strftime("%Y-%m-%d %H:%M:%S", _time.localtime(launch_time)) if launch_time else "unknown"
+        last_restart = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(launch_time)) if launch_time else "unknown"
 
         bot_stats = {
             "total_users": total_users,

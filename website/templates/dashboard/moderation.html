@@ -1,0 +1,192 @@
+{% extends "dashboard/base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/moderation.css" />
+<div class="anim-page-in">
+
+  <div class="mb-4 anim-fade-in-up" style="animation-delay:.05s">
+    <h1 class="text-[26px] font-black tracking-tight leading-tight">Moderation</h1>
+    <p class="text-white/50 text-sm font-semibold mt-0.5">Manage punishments, roles, and server safety</p>
+  </div>
+
+  <div class="md-row">
+
+    <div class="md-section anim-fade-in-up" style="animation-delay:.08s">
+      <div class="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-4">
+        <div class="md-section-title">Activity Feed</div>
+        <div class="md-feed" id="activity-feed">
+          <div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div class="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-4">
+        <div class="md-section-title">Quick-Action Member List</div>
+        <div class="md-member-table-wrap">
+          <div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div class="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-4">
+        <div class="md-section-title">Emergency Lock</div>
+        <div class="md-panic" id="panic-card">
+          <button class="md-panic-btn" id="panic-btn"><i data-lucide="shield-off"></i> Lock Down Server</button>
+          <div class="md-panic-status">Server is running normally</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div class="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-4">
+        <div class="md-section-title">Message Purge Tool</div>
+        <div class="md-purge">
+          <select id="purge-channel"><option value="">Select channel...</option></select>
+          <div class="md-purge-slider-wrap">
+            <input type="range" id="purge-count" min="1" max="100" value="10" />
+            <span class="md-purge-count" id="purge-label">10</span>
+          </div>
+          <button class="md-sweep-btn" id="purge-btn"><i data-lucide="trash-2"></i> Sweep</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div class="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-4">
+        <div class="md-section-title">Currently Muted Users</div>
+        <div class="md-muted-list" id="muted-list">
+          <div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div class="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-4">
+        <div class="md-section-title">Mod Role Assignment</div>
+        <div class="md-role-list" id="role-list">
+          <div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div class="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-4">
+        <div class="md-section-title">General Behavior</div>
+        <div class="md-behavior-list" id="behavior-list">
+          <div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section anim-fade-in-up" style="animation-delay:.18s">
+      <div class="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-4">
+        <div class="md-section-title">Individual Command Toggles</div>
+        <div class="md-cmd-grid" id="cmd-grid">
+          <div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const GID = window.__GUILD_ID;
+const api = (path, opts) => fetch(`/api/mod/${GID}${path}`, opts||{}).then(r=>r.json());
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+
+document.addEventListener('DOMContentLoaded', async () => {
+
+  // ── Feed ──
+  api('/feed').then(d => {
+    const el = document.getElementById('activity-feed');
+    if (!d.events?.length) { el.innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No recent activity.</div>'; return; }
+    el.innerHTML = d.events.map(e => `<div class="md-feed-item"><span class="md-feed-dot ${e.color||'gray'}"></span><span class="md-feed-user">${esc(e.user)}</span><span class="md-feed-action">${esc(e.action)}</span><span class="md-feed-reason">${esc(e.reason||'')}</span><span class="md-feed-time">${esc(e.time)}</span></div>`).join('');
+  }).catch(() => document.getElementById('activity-feed').innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load.</div>');
+
+  // ── Members ──
+  api('/members').then(d => {
+    const w = document.querySelector('.md-member-table-wrap');
+    if (!d.members?.length) { w.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No members loaded.</div>'; return; }
+    w.innerHTML = '<table class="md-member-table"><thead><tr><th>Member</th><th style="width:180px;">Actions</th></tr></thead><tbody>' +
+      d.members.map(m => `<tr><td><div class="md-member-info"><div class="md-member-avatar">${m.avatar?('<img src="https://cdn.discordapp.com/avatars/'+m.id+'/'+m.avatar+'.png?size=32" />'):esc(m.name[0]).toUpperCase()}</div><span class="md-member-name">${esc(m.name)}</span></div></td><td><button class="md-action-btn warn" data-action="mute" data-user="${m.id}"><i data-lucide="volume-x"></i> Mute <span class="md-presets"><button class="md-preset" data-dur="10">10m</button><button class="md-preset" data-dur="60">1h</button><button class="md-preset" data-dur="1440">1d</button></span></button><button class="md-action-btn warn" data-action="kick" data-user="${m.id}" style="margin-left:0.25rem;"><i data-lucide="log-out"></i> Kick</button><button class="md-action-btn danger" data-action="ban" data-user="${m.id}" style="margin-left:0.25rem;"><i data-lucide="ban"></i> Ban</button></td></tr>`).join('') +
+      '</tbody></table>';
+    lucide.createIcons();
+  }).catch(() => w.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load.</div>');
+
+  // ── Channels ──
+  api('/channels').then(d => { if(d.channels) document.getElementById('purge-channel').innerHTML = '<option value="">Select channel...</option>'+d.channels.map(c=>'<option value="'+c.id+'">#'+esc(c.name)+'</option>').join(''); }).catch(()=>{});
+
+  // ── Muted ──
+  api('/muted').then(d => {
+    const el = document.getElementById('muted-list');
+    if (!d.muted?.length) { el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No muted users</div>'; return; }
+    el.innerHTML = d.muted.map(m => `<div class="md-muted-item"><div class="md-muted-avatar">${m.avatar?('<img src="https://cdn.discordapp.com/avatars/'+m.id+'/'+m.avatar+'.png?size=64" />'):esc(m.name[0]).toUpperCase()}</div><div class="md-muted-info"><div class="md-muted-name">${esc(m.name)}</div><div class="md-muted-reason">${esc(m.reason)}</div></div><span class="md-muted-timer" data-end="${m.end_ts}">--:--:--</span><button class="md-action-btn" data-action="unmute" data-user="${m.id}"><i data-lucide="unlock"></i> Release</button></div>`).join('');
+    lucide.createIcons();
+    document.querySelectorAll('.md-muted-timer').forEach(el => {
+      const end = parseInt(el.dataset.end); if(!end) return;
+      (function t(){ const d=Math.max(0,end-Math.floor(Date.now()/1000)); if(d<=0){el.textContent='Expired';return;} el.textContent=[Math.floor(d/3600),Math.floor((d%3600)/60),d%60].map(v=>v.toString().padStart(2,'0')).join(':'); })();
+      setInterval(() => { const d=Math.max(0,end-Math.floor(Date.now()/1000)); if(d<=0){el.textContent='Expired';return;} el.textContent=[Math.floor(d/3600),Math.floor((d%3600)/60),d%60].map(v=>v.toString().padStart(2,'0')).join(':'); }, 1000);
+    });
+  }).catch(() => document.getElementById('muted-list').innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load.</div>');
+
+  // ── Roles ──
+  api('/roles').then(d => {
+    const el = document.getElementById('role-list');
+    if (!d.roles?.length) { el.innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No roles.</div>'; return; }
+    el.innerHTML = d.roles.map(r => `<div class="md-role-item"><div class="md-role-name">${esc(r.name)}</div><div class="md-role-count">${r.count} members</div><label class="md-toggle"><input type="checkbox" ${r.is_mod?'checked':''} data-role="${r.id}" /><span class="md-toggle-slider"></span></label></div>`).join('');
+    el.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.addEventListener('change', function(){ api('/roles',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role_id:this.dataset.role,is_mod:this.checked})}); }));
+  }).catch(() => document.getElementById('role-list').innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load.</div>');
+
+  // ── Behaviors ──
+  const behaviorItems = [
+    {key:'dm_on_action',label:'DM User on Action',desc:'Send a private message to users when warned, kicked, or banned'},
+    {key:'require_reason',label:'Require Reason',desc:'Force moderators to provide a reason for every action'},
+    {key:'silent_mod',label:'Silent Mod Actions',desc:"Don't post public confirmation when using mod commands"},
+    {key:'auto_thread',label:'Auto-Thread for Mod Logs',desc:'Create a private thread under each log entry for discussion'},
+    {key:'track_stats',label:'Track Moderator Stats',desc:'Count how many actions each moderator takes'},
+  ];
+  api('/settings').then(d => {
+    const el = document.getElementById('behavior-list');
+    el.innerHTML = behaviorItems.map(it => `<div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" ${(d.settings||{})[it.key]?'checked':''} data-key="${it.key}" /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">${it.label}</div><div class="md-behavior-desc">${it.desc}</div></div></div>`).join('');
+    el.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.addEventListener('change',function(){ api('/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:this.dataset.key,value:this.checked})}); }));
+  }).catch(() => document.getElementById('behavior-list').innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load.</div>');
+
+  // ── Command toggles ──
+  const cmdItems = [
+    {key:'ban',label:'Ban',code:'/ban / /unban'},{key:'kick',label:'Kick',code:'/kick'},
+    {key:'timeout',label:'Timeout',code:'/mute / /unmute'},{key:'warn',label:'Warn',code:'/warn / /unwarn / /warnings'},
+  ];
+  api('/settings').then(d => {
+    const el = document.getElementById('cmd-grid');
+    el.innerHTML = cmdItems.map(c => `<div class="md-cmd-item"><label class="md-toggle"><input type="checkbox" ${(d.settings||{})['cmd_'+c.key]!==false?'checked':''} data-key="cmd_${c.key}" /><span class="md-toggle-slider"></span></label><div class="md-cmd-name">${c.label} <code>${c.code}</code></div></div>`).join('');
+    el.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.addEventListener('change',function(){ api('/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:this.dataset.key,value:this.checked})}); }));
+  }).catch(()=>{});
+
+  // ── Sweep ──
+  document.getElementById('purge-count')?.addEventListener('input', function(){ document.getElementById('purge-label').textContent = this.value; });
+  document.getElementById('purge-btn')?.addEventListener('click', async function() {
+    const ch = document.getElementById('purge-channel')?.value;
+    if (!ch) { alert('Select a channel first.'); return; }
+    this.textContent = 'Purging...'; this.disabled = true;
+    await api('/purge', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({channel_id:ch, count:parseInt(document.getElementById('purge-count').value)}) });
+    this.innerHTML = '<i data-lucide="trash-2"></i> Sweep'; this.disabled = false;
+    lucide.createIcons();
+  });
+
+  // ── Panic ──
+  document.getElementById('panic-btn')?.addEventListener('click', async function() {
+    const active = this.classList.toggle('is-active');
+    document.getElementById('panic-card')?.classList.toggle('is-locked');
+    const st = this.parentElement.querySelector('.md-panic-status');
+    if (active) { this.innerHTML = '<i data-lucide="shield"></i> Unlock Server'; st.textContent = '⚠ Server is LOCKED DOWN'; }
+    else { this.innerHTML = '<i data-lucide="shield-off"></i> Lock Down Server'; st.textContent = 'Server is running normally'; }
+    await api('/emergency', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({locked:active}) });
+    lucide.createIcons();
+  });
+});
+</script>
+{% endblock %}

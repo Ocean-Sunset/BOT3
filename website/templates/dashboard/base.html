@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prowl — {{ guild.name if guild else 'Dashboard' }}</title>
+  <meta name="description" content="prowl is your next discord bot! designed to do everything easily without any issues, its made to tackle every problem with ease. from moderation and ai to music, leveling, and a full web dashboard." />
+  <link rel="icon" href="/static/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Lexend', 'system-ui', 'sans-serif'] },
+          colors: {
+            surface: { 0: '#0a0a0a', 1: '#111111', 2: '#151822' },
+            brand:   { DEFAULT: '#888', light: '#aaa' },
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="preload" href="/static/lucide.min.js" as="script" />
+  <link rel="stylesheet" href="/static/dashboard.css" />
+  <style>i[data-lucide]{visibility:hidden}svg[data-lucide]{visibility:visible}</style>
+  <script>
+    (function(){
+      var s = JSON.parse(localStorage.getItem('prowl_sidebar') || '{}');
+      if (s.collapsed) {
+        document.documentElement.style.setProperty('--sidebar-w', '72px');
+        document.documentElement.classList.add('sidebar-start-collapsed');
+      } else if (s.width) {
+        document.documentElement.style.setProperty('--sidebar-w', s.width + 'px');
+      }
+    })();
+  </script>
+</head>
+<body>
+
+  <div id="loading-bar"></div>
+
+  <div id="app-shell">
+
+    <aside id="sidebar" class="sidebar">
+
+      <div class="sidebar-header">
+        <div class="sidebar-top">
+          <a href="/" class="sidebar-brand">
+            <img src="/static/favicon.png" alt="Prowl" />
+            <span class="sidebar-brand-name sidebar-label">Prowl</span>
+          </a>
+          <button id="sidebar-toggle" data-tooltip="Toggle sidebar">
+            <i data-lucide="panel-left-close"></i>
+          </button>
+        </div>
+
+        <div class="server-info">
+          <div class="server-icon">
+            {% if guild and guild.icon %}
+              <img src="https://cdn.discordapp.com/icons/{{ guild_id }}/{{ guild.icon }}.png?size=64" alt="" />
+            {% elif guild %}
+              {{ guild.name[0] | upper }}
+            {% else %}
+              ?
+            {% endif %}
+          </div>
+          <div class="server-name sidebar-label">{{ guild.name if guild else 'No Server' }}</div>
+          <a href="/servers" class="server-switch" data-tooltip="Switch server">
+            <i data-lucide="repeat"></i>
+          </a>
+        </div>
+      </div>
+
+      {% macro nav_item(panel, icon, label, badge=none) %}
+      <a href="/guild/{{ guild_id }}/{{ panel }}"
+         class="nav-item{% if active_panel == panel %} is-active{% endif %}">
+        <i data-lucide="{{ icon }}"></i>
+        <span class="nav-label">{{ label }}</span>
+        {% if badge %}<span class="nav-badge">{{ badge }}</span>{% endif %}
+      </a>
+      {% endmacro %}
+
+      <nav class="sidebar-nav">
+
+        <div class="nav-section">
+          {{ nav_item('overview', 'layout-dashboard', 'Overview') }}
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-group-label nav-label">Intelligence</div>
+          {{ nav_item('ai', 'sparkles', 'AI', 'Beta') }}
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-group-label nav-label">Community</div>
+          {{ nav_item('welcomer', 'user-plus', 'Welcomer') }}
+          {{ nav_item('moderation', 'shield', 'Moderation') }}
+          {{ nav_item('users', 'users', 'Users') }}
+          {{ nav_item('verification', 'shield-check', 'Verification') }}
+          {{ nav_item('leveling', 'trending-up', 'Leveling') }}
+          {{ nav_item('automation', 'workflow', 'Automation') }}
+          {{ nav_item('autoresponder', 'reply', 'Autoresponder') }}
+          {{ nav_item('global_chat', 'globe', 'Global Chat') }}
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-group-label nav-label">Engagement</div>
+          {{ nav_item('social_alerts', 'bell', 'Social Alerts') }}
+          {{ nav_item('invite_tracker', 'git-fork', 'Invite Tracker') }}
+          {{ nav_item('tickets', 'ticket', 'Tickets') }}
+          {{ nav_item('music', 'music', 'Music', 'Beta') }}
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-group-label nav-label">Monitoring</div>
+          {{ nav_item('logs', 'scroll-text', 'Logs') }}
+          {{ nav_item('automod', 'bot', 'AutoMod') }}
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-group-label nav-label">Configuration</div>
+          {{ nav_item('oauth2', 'key', 'OAuth2') }}
+          {{ nav_item('settings', 'settings', 'Settings') }}
+        </div>
+
+      </nav>
+
+      <div class="sidebar-user">
+        <button id="user-menu-btn" class="user-btn">
+          <div class="user-avatar" id="user-avatar">
+            {% if user and user.avatar %}
+              <img src="https://cdn.discordapp.com/avatars/{{ user.id }}/{{ user.avatar }}.png?size=64" alt="" />
+            {% else %}
+              {{ user.username[0] | upper if user else '?' }}
+            {% endif %}
+          </div>
+          <div class="user-name sidebar-label">{{ user.username if user else 'User' }}</div>
+          <i data-lucide="chevron-up" class="user-chevron sidebar-label"></i>
+        </button>
+
+        <div id="user-popover" class="user-popover hidden">
+          <div class="popover-header">
+            <div class="popover-label">Signed in as</div>
+            <div class="popover-user">{{ user.username if user else 'User' }}#{{ user.discriminator if user else '0000' }}</div>
+          </div>
+          <a href="#" class="popover-item"><i data-lucide="user"></i> Profile</a>
+          <a href="/logout" class="popover-item danger"><i data-lucide="log-out"></i> Log out</a>
+        </div>
+      </div>
+
+      <div id="sidebar-resize"></div>
+    </aside>
+
+    <div class="main-content">
+      <header class="top-bar">
+        <div></div>
+        <div class="app-version">0.0.1 — Jul 16, 2026</div>
+      </header>
+
+      <main id="app-content">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <script src="/static/lucide.min.js"></script>
+  <script>lucide.createIcons();</script>
+  <script>
+    window.__GUILD_ID = "{{ guild_id }}";
+    window.__ACTIVE_PANEL = "{{ active_panel }}";
+    window.__USER = {{ user | tojson }};
+    window.__GUILD = {{ guild | tojson }};
+  </script>
+  <script src="/static/dashboard.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

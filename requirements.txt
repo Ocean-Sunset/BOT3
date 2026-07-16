@@ -14,10 +14,3 @@ psycopg2-binary
 python-dotenv
 gunicorn
 asyncpg
-fastapi
-uvicorn
-jinja2
-aiofiles
-itsdangerous
-httpx
-python-multipart

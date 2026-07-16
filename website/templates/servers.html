@@ -4,101 +4,127 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Prowl — Select Server</title>
+  <meta name="description" content="prowl is your next discord bot! designed to do everything easily without any issues, its made to tackle every problem with ease. from moderation and ai to music, leveling, and a full web dashboard" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
-          colors: {
-            surface: { 0: '#0f1117', 1: '#11131b', 2: '#151822' },
-            brand: { DEFAULT: '#7c5cff', light: '#a78bfa' },
-          },
-        },
-      },
-    }
-  </script>
-  <style>
-    @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(24px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .anim-in { animation: fadeInUp 0.6s cubic-bezier(0.16,1,0.3,1) forwards; opacity: 0; }
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/static/favicon.png" />
+  <script src="/static/lucide.min.js"></script>
+  <link rel="stylesheet" href="/static/servers.css" />
 </head>
-<body class="bg-surface-0 text-[#e9edf5] font-sans antialiased min-h-screen
-             bg-[radial-gradient(1200px_600px_at_50%_20%,rgba(124,92,255,0.18),transparent_60%)]
-             flex items-center justify-center">
+<body>
 
-  <div class="anim-in flex flex-col items-center gap-6 p-10 rounded-3xl border border-white/[0.08]
-              bg-gradient-to-b from-white/[0.04] to-white/[0.015] shadow-[0_20px_60px_rgba(0,0,0,0.5)]
-              max-w-lg w-full mx-4" style="animation-delay:.1s">
+  <div class="wave-field" id="wave-field"></div>
+  <div class="vignette"></div>
 
-    <!-- Header -->
-    <div class="flex flex-col items-center gap-2">
-      <div class="w-12 h-12 rounded-2xl grid place-items-center bg-brand/20 border border-brand/30">
-        <i data-lucide="paw-print" class="w-6 h-6 text-brand-light"></i>
+  <div class="card gsap-card">
+    <div class="card-inner">
+
+      <a href="/" class="brand">
+        <img src="/static/favicon.png" alt="Prowl" style="width:24px;height:24px;object-fit:contain;" />
+        <span class="brand-name">Prowl</span>
+      </a>
+
+      <div class="title-row">
+        <h1 class="title">Select a Server</h1>
       </div>
-      <h1 class="text-2xl font-black tracking-tight">Select a Server</h1>
-      <p class="text-white/50 text-sm font-semibold text-center">
+      <p class="subtitle">
         {% if guilds %}
-          Choose a server where you have <span class="text-white/80">Manage Server</span> permission and Prowl is installed.
+          Choose a server where you have <strong>Manage Server</strong> permission and Prowl is installed.
         {% else %}
           No eligible servers found.
         {% endif %}
       </p>
-    </div>
 
-    <!-- Guild list -->
-    {% if guilds %}
-    <div class="flex flex-col gap-2.5 w-full max-h-[50vh] overflow-y-auto pr-1">
-      {% for g in guilds %}
-      <form method="POST" action="/select_guild">
-        <input type="hidden" name="guild_id" value="{{ g.id }}" />
-        <input type="hidden" name="guild_name" value="{{ g.name }}" />
-        <input type="hidden" name="guild_icon" value="{{ g.icon or '' }}" />
-        <button type="submit"
-                class="w-full flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/[0.08]
-                       hover:bg-white/[0.05] hover:border-brand/25 hover:-translate-y-[2px]
-                       hover:shadow-[0_8px_24px_rgba(0,0,0,0.3)]
-                       transition-all duration-200 cursor-pointer text-left">
-          <div class="w-12 h-12 rounded-[14px] grid place-items-center bg-brand/15 border border-brand/25 shrink-0 overflow-hidden text-brand-light font-black text-lg">
-            {% if g.icon %}
-              <img src="https://cdn.discordapp.com/icons/{{ g.id }}/{{ g.icon }}.png?size=64" alt="{{ g.name }}" class="w-full h-full object-cover" />
-            {% else %}
-              {{ g.name[0] | upper }}
-            {% endif %}
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="font-extrabold text-[15px] truncate">{{ g.name }}</div>
-          </div>
-          <svg class="w-5 h-5 text-white/30 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-          </svg>
+      {% if guilds %}
+      <div class="glist-header">
+        <span></span>
+        <button id="view-toggle" class="view-toggle" data-tooltip="Toggle view">
+          <i data-lucide="layout-grid" id="view-icon"></i>
         </button>
-      </form>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="flex flex-col items-center gap-4 py-8">
-      <p class="text-white/40 text-sm font-semibold">You don't have Manage Server permission on any server with Prowl, or Prowl isn't in any of your servers.</p>
-      <a href="https://discord.com/oauth2/authorize?client_id={{ config.get('CLIENT_ID', '') }}&scope=bot&permissions=8"
-         target="_blank"
-         class="px-6 py-2.5 rounded-xl bg-brand/20 border border-brand/30 text-brand-light font-bold text-sm
-                hover:bg-brand/30 transition-colors duration-200">
-        Invite Prowl to a Server
-      </a>
-    </div>
-    {% endif %}
+      </div>
+      <div class="guild-list">
+        {% for g in guilds %}
+        <form method="POST" action="/select_guild">
+          <input type="hidden" name="guild_id" value="{{ g.id }}" />
+          <input type="hidden" name="guild_name" value="{{ g.name }}" />
+          <input type="hidden" name="guild_icon" value="{{ g.icon or '' }}" />
+          <button type="submit" class="guild-btn">
+            <div class="guild-icon">
+              {% if g.icon %}
+                <img src="https://cdn.discordapp.com/icons/{{ g.id }}/{{ g.icon }}.png?size=64" alt="{{ g.name }}" />
+              {% else %}
+                <span class="guild-initial">{{ g.name[0] | upper }}</span>
+              {% endif %}
+            </div>
+            <span class="guild-name">{{ g.name }}</span>
+            <svg class="guild-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </form>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <p>it seems we weren't able to detect Prowl in any of your servers (atleast the ones where you have the "Manage Roles" permission).<br/><br/>try adding Prowl to your server!</p>
+        <a href="https://discord.com/oauth2/authorize?client_id={{ config.get('CLIENT_ID', '') }}&scope=bot&permissions=8"
+           target="_blank" class="btn-invite">
+          <i data-lucide="plus"></i>
+          Invite Prowl to a Server
+        </a>
+      </div>
+      {% endif %}
 
-    <!-- Footer -->
-    <a href="/logout" class="text-white/30 text-xs font-semibold hover:text-white/60 transition-colors">Log out</a>
+      <a href="/logout" class="logout">Log out</a>
+
+    </div>
   </div>
 
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    const waveField = document.getElementById('wave-field');
+    const isMobile = window.innerWidth < 768;
+    const tildeCount = isMobile ? 30 : 60;
+
+    for (let i = 0; i < tildeCount; i++) {
+      const el = document.createElement('span');
+      el.textContent = '~';
+      let x, y;
+      do {
+        x = Math.random() * 100;
+        y = Math.random() * 100;
+      } while (x > 15 && x < 85 && y > 15 && y < 85);
+      el.style.left = x + '%';
+      el.style.top = y + '%';
+      el.style.fontSize = (1 + Math.random() * 1.8) + 'rem';
+      el.style.opacity = 0.04 + Math.random() * 0.1;
+      waveField.appendChild(el);
+    }
+
+    lucide.createIcons();
+
+    // ── View toggle (list / grid) ──
+    const viewBtn = document.getElementById('view-toggle');
+    const guildContainer = document.querySelector('.guild-list');
+    const viewIcon = document.getElementById('view-icon');
+    if (viewBtn && guildContainer) {
+      const saved = localStorage.getItem('prowl_view') || 'list';
+      if (saved === 'grid') {
+        guildContainer.classList.add('is-grid');
+        viewIcon.setAttribute('data-lucide', 'list');
+      }
+      viewBtn.addEventListener('click', () => {
+        guildContainer.style.transition = 'none';
+        document.querySelectorAll('.guild-btn').forEach(b => b.style.transition = 'none');
+        const isGrid = guildContainer.classList.toggle('is-grid');
+        viewIcon.setAttribute('data-lucide', isGrid ? 'list' : 'layout-grid');
+        localStorage.setItem('prowl_view', isGrid ? 'grid' : 'list');
+        lucide.createIcons();
+        guildContainer.offsetHeight;
+        guildContainer.style.transition = '';
+        document.querySelectorAll('.guild-btn').forEach(b => b.style.transition = '');
+      });
+    }
+  </script>
 </body>
 </html>

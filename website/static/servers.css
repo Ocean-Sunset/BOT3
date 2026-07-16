@@ -1,0 +1,305 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #0a0a0a;
+  color: #fff;
+  font-family: 'Lexend', system-ui, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.card {
+  width: 100%;
+  max-width: 540px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: #111111;
+  border-radius: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.card-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3rem 2.5rem;
+  gap: 1.5rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  color: #fff;
+}
+
+.brand-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,0.0);
+  background: rgba(255,255,255,0.0);
+  border-radius: 6px;
+}
+
+.brand-icon img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.brand-name {
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  text-align: center;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.view-toggle {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.08);
+  cursor: pointer;
+  color: rgba(255,255,255,0.4);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.view-toggle:hover {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.7);
+  border-color: rgba(255,255,255,0.15);
+}
+.view-toggle svg { width: 16px; height: 16px; }
+
+.glist-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.subtitle {
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.5;
+  max-width: 340px;
+}
+
+.subtitle strong {
+  color: #888;
+  font-weight: 700;
+}
+
+/* Guild list - list view (default) */
+.guild-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+/* Guild list - grid view */
+.guild-list.is-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.guild-list.is-grid .guild-btn {
+  flex-direction: column;
+  text-align: center;
+  padding: 1.25rem 0.75rem;
+  gap: 0.5rem;
+  min-height: 120px;
+  justify-content: center;
+}
+
+.guild-list.is-grid .guild-arrow { display: none; }
+.guild-list.is-grid .guild-icon { width: 48px; height: 48px; }
+.guild-list.is-grid .guild-name { flex: none; font-size: 0.8rem; }
+
+.guild-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  color: #fff;
+  font-family: 'Lexend', system-ui, sans-serif;
+}
+
+.guild-btn:hover {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.12);
+}
+
+.guild-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+}
+
+.guild-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.guild-initial {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #666;
+}
+
+.guild-name {
+  flex: 1;
+  font-size: 0.85rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guild-arrow {
+  width: 16px;
+  height: 16px;
+  color: #444;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+
+.guild-btn:hover .guild-arrow {
+  color: #888;
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.empty-state p {
+  font-size: 0.82rem;
+  color: #555;
+  font-weight: 500;
+  line-height: 1.6;
+  max-width: 320px;
+}
+
+.btn-invite {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.4rem;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #ccc;
+  font-weight: 700;
+  font-size: 0.8rem;
+  font-family: 'Lexend', system-ui, sans-serif;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.btn-invite:hover {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+.btn-invite svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Logout */
+.logout {
+  font-size: 0.72rem;
+  color: #333;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.logout:hover {
+  color: #666;
+}
+
+/* Tildes */
+.wave-field {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.wave-field span {
+  position: absolute;
+  color: #fff;
+  font-family: monospace;
+  user-select: none;
+  line-height: 1;
+}
+
+.vignette {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 30%, #0a0a0a 80%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Scrollbar */
+.guild-list::-webkit-scrollbar { width: 4px; }
+.guild-list::-webkit-scrollbar-track { background: transparent; }
+.guild-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 999px; }
+
+@media (max-width: 768px) {
+  .card { max-width: 440px; }
+  .card-inner { padding: 2rem 1.5rem; }
+  .guild-list.is-grid { grid-template-columns: 1fr; }
+}

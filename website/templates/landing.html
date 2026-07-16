@@ -4,85 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Prowl — We're Building Something</title>
+  <meta name="description" content="prowl is your next discord bot! designed to do everything easily without any issues, its made to tackle every problem with ease. from moderation and ai to music, leveling, and a full web dashboard" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/static/favicon.png" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: #0a0a0a;
-      color: #fff;
-      font-family: 'Inter', system-ui, sans-serif;
-      min-height: 100vh;
-      overflow-x: hidden;
-      display: flex;
-      align-items: center;
-    }
-
-    .hero {
-      padding: 0 6vw;
-      width: 100%;
-      position: relative;
-      z-index: 1;
-    }
-
-    .hero-line {
-      font-size: clamp(2.8rem, 7vw, 7rem);
-      font-weight: 900;
-      line-height: 1.15;
-      letter-spacing: -0.03em;
-      color: #fff;
-    }
-
-    .hero-line .scramble-word {
-      display: inline-block;
-      color: #fff;
-    }
-
-    .sub-text {
-      margin-top: 1.5rem;
-      font-size: clamp(0.9rem, 1.2vw, 1.1rem);
-      color: #666;
-      font-weight: 500;
-      letter-spacing: 0.01em;
-    }
-
-    /* Tilde wave field */
-    .wave-field {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    .wave-field span {
-      position: absolute;
-      color: #fff;
-      font-family: monospace;
-      user-select: none;
-      line-height: 1;
-    }
-
-    /* Vignette */
-    .vignette {
-      position: fixed;
-      inset: 0;
-      background: radial-gradient(ellipse at center, transparent 30%, #0a0a0a 80%);
-      pointer-events: none;
-      z-index: 2;
-    }
-
-    @media (max-width: 768px) {
-      .hero {
-        text-align: center;
-        padding: 0 1.5rem;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="/static/landing.css" />
 </head>
 <body>
 
@@ -150,6 +78,9 @@
       }, 30);
     }
 
+    // ── Start scramble immediately, don't wait for reveal ──
+    scrambleEffect(target, finalWord, 1200);
+
     // ── GSAP timeline ──
     gsap.set('.gsap-line-1', { opacity: 0, y: 40, clipPath: 'inset(100% 0 0 0)' });
     gsap.set('.gsap-line-2', { opacity: 0, y: 40, clipPath: 'inset(100% 0 0 0)' });
@@ -162,10 +93,7 @@
         opacity: 1, y: 0, clipPath: 'inset(0% 0 0 0)', duration: 0.8
       }, 0.2)
       .to('.gsap-line-2', {
-        opacity: 1, y: 0, clipPath: 'inset(0% 0 0 0)', duration: 0.8,
-        onStart: () => {
-          setTimeout(() => scrambleEffect(target, finalWord, 1200), 300);
-        }
+        opacity: 1, y: 0, clipPath: 'inset(0% 0 0 0)', duration: 0.8
       }, 0.5)
       .to('.gsap-sub', { opacity: 1, y: 0, duration: 0.6 }, 1.0);
   </script>

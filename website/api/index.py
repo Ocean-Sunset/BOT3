@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -74,6 +74,74 @@ app.mount("/static", StaticFiles(directory=str(ROOT / "static")), name="static")
 
 
 # ---------------------------------------------------------------------------
+#  Error handlers
+# ---------------------------------------------------------------------------
+
+ERROR_PAGES = {
+    400: ("Bad Request", "The request could not be understood."),
+    403: ("Forbidden", "You don't have permission to access this."),
+    404: ("Page Not Found", "The page you're looking for doesn't exist."),
+    405: ("Method Not Allowed", "This method is not allowed here."),
+    429: ("Too Many Requests", "Slow down there, partner."),
+    500: ("Internal Server Error", "Something went wrong on our end."),
+    502: ("Bad Gateway", "The upstream server is not responding."),
+    503: ("Service Unavailable", "The service is temporarily unavailable."),
+    504: ("Gateway Timeout", "The upstream server took too long to respond."),
+}
+
+
+@app.exception_handler(404)
+async def not_found(request, exc):
+    return templates.TemplateResponse(
+        request, "error.html",
+        {"code": 404, "title": ERROR_PAGES[404][0], "message": ERROR_PAGES[404][1]},
+        status_code=404,
+    )
+
+
+@app.exception_handler(500)
+async def server_error(request, exc):
+    return templates.TemplateResponse(
+        request, "error.html",
+        {"code": 500, "title": ERROR_PAGES[500][0], "message": ERROR_PAGES[500][1]},
+        status_code=500,
+    )
+
+
+@app.exception_handler(403)
+async def forbidden(request, exc):
+    return templates.TemplateResponse(
+        request, "error.html",
+        {"code": 403, "title": ERROR_PAGES[403][0], "message": ERROR_PAGES[403][1]},
+        status_code=403,
+    )
+
+
+@app.exception_handler(429)
+async def too_many(request, exc):
+    return templates.TemplateResponse(
+        request, "error.html",
+        {"code": 429, "title": ERROR_PAGES[429][0], "message": ERROR_PAGES[429][1]},
+        status_code=429,
+    )
+
+
+# ---------------------------------------------------------------------------
+#  Favicon
+# ---------------------------------------------------------------------------
+
+
+@app.get("/favicon.ico")
+async def favicon_ico():
+    return FileResponse(ROOT / "static" / "favicon.ico")
+
+
+@app.get("/favicon.png")
+async def favicon_png():
+    return FileResponse(ROOT / "static" / "favicon.png")
+
+
+# ---------------------------------------------------------------------------
 #  Helpers
 # ---------------------------------------------------------------------------
 
@@ -97,15 +165,32 @@ def get_selected_guild(request: Request):
     return request.session.get("selected_guild")
 
 
+def _relative_time(ts: float) -> str:
+    diff = time.time() - ts
+    if diff < 60: return f"{int(diff)}s ago"
+    if diff < 3600: return f"{int(diff // 60)}m ago"
+    if diff < 86400: return f"{int(diff // 3600)}h ago"
+    return f"{int(diff // 86400)}d ago"
+
+
 async def get_bot_guild_ids():
     rows = await query("SELECT guild_id FROM guild_data")
     return {row["guild_id"] for row in rows}
+
+
+CACHE_TTL = 120  # seconds
 
 
 async def get_user_guilds_filtered(request: Request):
     token = get_token(request)
     if not token:
         return []
+
+    now = time.time()
+    cached = request.session.get("guild_cache")
+    if cached and (now - cached.get("ts", 0)) < CACHE_TTL:
+        return cached["guilds"]
+
     user_guilds = await discord_get("/users/@me/guilds", token)
     if not user_guilds:
         return []
@@ -116,6 +201,8 @@ async def get_user_guilds_filtered(request: Request):
         gid = str(g["id"])
         if (perms & MANAGE_SERVER) and gid in bot_ids:
             eligible.append(g)
+
+    request.session["guild_cache"] = {"ts": now, "guilds": eligible}
     return eligible
 
 
@@ -125,11 +212,20 @@ async def get_user_guilds_filtered(request: Request):
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    return templates.TemplateResponse(request, "landing.html", {"config": _cfg()})
+    user = get_user(request)
+    return templates.TemplateResponse(request, "index.html", {
+        "config": _cfg(),
+        "user": user,
+    })
 
 
-@app.get("/login")
-async def login():
+@app.get("/login", response_class=HTMLResponse)
+async def login(request: Request):
+    return templates.TemplateResponse(request, "login.html", {"config": _cfg()})
+
+
+@app.get("/auth/discord")
+async def auth_discord():
     if not CLIENT_ID:
         return HTMLResponse("OAuth not configured.", status_code=500)
     params = urllib.parse.urlencode({
@@ -209,6 +305,9 @@ async def dashboard_redirect(request: Request):
     if not user:
         return RedirectResponse("/login")
 
+    # Bust guild cache so the picker shows fresh data
+    request.session.pop("guild_cache", None)
+
     guilds = await get_user_guilds_filtered(request)
     if not guilds:
         return templates.TemplateResponse(request, "servers.html", {
@@ -222,6 +321,20 @@ async def dashboard_redirect(request: Request):
         })
 
     return RedirectResponse(f"/guild/{selected['id']}/overview")
+
+
+@app.get("/servers")
+async def servers_page(request: Request):
+    """Always shows the server picker, never auto-redirects."""
+    user = get_user(request)
+    if not user:
+        return RedirectResponse("/login")
+
+    request.session.pop("guild_cache", None)
+    guilds = await get_user_guilds_filtered(request)
+    return templates.TemplateResponse(request, "servers.html", {
+        "user": user, "guilds": guilds, "config": _cfg(),
+    })
 
 
 @app.post("/select_guild")
@@ -250,20 +363,24 @@ async def dashboard(request: Request, guild_id: str, panel: str = "overview"):
     guild_info = next((g for g in guilds if str(g["id"]) == guild_id), None)
 
     valid_panels = [
-        "overview", "ai", "welcomer", "verification", "roles", "leveling",
-        "commands", "lideration", "logs", "statistics", "music", "settings",
+        "overview", "welcomer", "ai", "moderation", "users", "logs", "automod",
+        "oauth2", "music", "leveling", "verification", "automation",
+        "social_alerts", "invite_tracker", "tickets", "global_chat",
+        "autoresponder", "settings",
     ]
     if panel not in valid_panels:
         panel = "overview"
 
-    return templates.TemplateResponse(request, "dashboard.html", {
+    ctx = {
         "user": user,
         "guild": guild_info,
         "guild_id": guild_id,
         "active_panel": panel,
         "bot_data": {},
         "config": _cfg(),
-    })
+    }
+
+    return templates.TemplateResponse(request, f"dashboard/{panel}.html", ctx)
 
 
 # ---------------------------------------------------------------------------
@@ -370,3 +487,124 @@ async def api_commands():
         pass
 
     return {"commands": commands, "cogs": cogs}
+
+
+# ---------------------------------------------------------------------------
+#  Moderation API
+# ---------------------------------------------------------------------------
+
+MOD_SETTINGS_DEFAULTS = {
+    "dm_on_action": True, "require_reason": True, "silent_mod": False,
+    "auto_thread": False, "track_stats": True,
+    "cmd_ban": True, "cmd_kick": True, "cmd_timeout": True, "cmd_warn": True,
+}
+
+
+async def _get_mod_settings(guild_id: str):
+    row = await fetchrow("SELECT settings FROM mod_settings WHERE guild_id = $1", str(guild_id))
+    if row:
+        return {**MOD_SETTINGS_DEFAULTS, **row["settings"]}
+    return dict(MOD_SETTINGS_DEFAULTS)
+
+
+@app.get("/api/mod/{guild_id}/settings")
+async def mod_settings(guild_id: str):
+    return {"settings": await _get_mod_settings(guild_id)}
+
+
+@app.post("/api/mod/{guild_id}/settings")
+async def mod_settings_set(guild_id: str, request: Request):
+    body = await request.json()
+    key = body.get("key")
+    value = body.get("value")
+    if not key:
+        return JSONResponse({"error": "missing key"}, status_code=400)
+    current = await _get_mod_settings(guild_id)
+    current[key] = value
+    await execute(
+        "INSERT INTO mod_settings (guild_id, settings) VALUES ($1, $2::jsonb) "
+        "ON CONFLICT (guild_id) DO UPDATE SET settings = $2::jsonb",
+        str(guild_id), json.dumps(current),
+    )
+    return {"ok": True}
+
+
+@app.get("/api/mod/{guild_id}/feed")
+async def mod_feed(guild_id: str):
+    rows = await query(
+        "SELECT user_name, action, reason, created_at FROM mod_log WHERE guild_id = $1 ORDER BY created_at DESC LIMIT 20",
+        str(guild_id),
+    )
+    if rows:
+        return {"events": [{
+            "user": r["user_name"],
+            "action": r["action"],
+            "reason": r.get("reason", ""),
+            "time": _relative_time(r["created_at"]),
+            "color": {"ban": "red", "kick": "red", "mute": "blue", "warn": "yellow", "join": "green"}.get(r["action"], "gray"),
+        } for r in rows]}
+    return {"events": []}
+
+
+@app.post("/api/mod/{guild_id}/log")
+async def mod_log_push(guild_id: str, request: Request):
+    """Endpoint for the bot to push moderation events."""
+    body = await request.json()
+    await execute(
+        "INSERT INTO mod_log (guild_id, user_id, user_name, action, reason, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+        str(guild_id), body.get("user_id", ""), body.get("user_name", ""),
+        body.get("action", ""), body.get("reason", ""), time.time(),
+    )
+    return {"ok": True}
+
+
+@app.get("/api/mod/{guild_id}/members")
+async def mod_members(guild_id: str):
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    return {"members": []}
+
+
+@app.get("/api/mod/{guild_id}/channels")
+async def mod_channels(guild_id: str):
+    return {"channels": []}
+
+
+@app.get("/api/mod/{guild_id}/muted")
+async def mod_muted(guild_id: str):
+    return {"muted": []}
+
+
+@app.get("/api/mod/{guild_id}/roles")
+async def mod_roles(guild_id: str):
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    if row and "roles" in row["data"]:
+        return {"roles": row["data"]["roles"]}
+    return {"roles": []}
+
+
+@app.post("/api/mod/{guild_id}/roles")
+async def mod_roles_set(guild_id: str, request: Request):
+    body = await request.json()
+    return {"ok": True}
+
+
+@app.post("/api/mod/{guild_id}/emergency")
+async def mod_emergency(guild_id: str, request: Request):
+    body = await request.json()
+    await execute(
+        "INSERT INTO mod_settings (guild_id, settings) VALUES ($1, $2::jsonb) "
+        "ON CONFLICT (guild_id) DO UPDATE SET settings = mod_settings.settings || $2::jsonb",
+        str(guild_id), json.dumps({"emergency_lock": body.get("locked", False)}),
+    )
+    return {"ok": True}
+
+
+@app.post("/api/mod/{guild_id}/purge")
+async def mod_purge(guild_id: str, request: Request):
+    body = await request.json()
+    return {"ok": True, "purged": body.get("count", 0)}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("api.index:app", host="127.0.0.1", port=8000, reload=True)

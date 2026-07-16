@@ -1,0 +1,110 @@
+{% extends "dashboard/base.html" %}
+{% block content %}
+<div class="anim-page-in">
+  <div class="mb-5 anim-fade-in-up" style="animation-delay:.05s">
+    <h1 class="text-[26px] font-black tracking-tight leading-tight">Overview</h1>
+    <p class="text-white/50 text-sm font-semibold mt-0.5">Live stats from your bot</p>
+  </div>
+  <div class="mb-5 anim-fade-in-up" style="animation-delay:.08s">
+    <h2 class="text-sm font-extrabold uppercase tracking-[0.08em] text-white/40 mb-3">Quick Links</h2>
+    <div class="grid grid-cols-5 gap-3 max-xl:grid-cols-3 max-md:grid-cols-2 max-sm:grid-cols-1">
+      <a href="/guild/{{ guild_id }}/ai" class="flex items-center gap-3 p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.08] hover:bg-white/[0.05] hover:border-white/20 hover:-translate-y-[2px] transition-all duration-200 cursor-pointer" style="text-decoration:none;color:inherit">
+        <div class="w-10 h-10 rounded-xl grid place-items-center bg-white/[0.06] shrink-0"><i data-lucide="sparkles" class="w-5 h-5 text-white/60"></i></div>
+        <div class="font-bold text-[13px]">AI</div>
+      </a>
+      <a href="/guild/{{ guild_id }}/moderation" class="flex items-center gap-3 p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.08] hover:bg-white/[0.05] hover:border-white/20 hover:-translate-y-[2px] transition-all duration-200 cursor-pointer" style="text-decoration:none;color:inherit">
+        <div class="w-10 h-10 rounded-xl grid place-items-center bg-white/[0.06] shrink-0"><i data-lucide="shield" class="w-5 h-5 text-white/60"></i></div>
+        <div class="font-bold text-[13px]">Moderation</div>
+      </a>
+      <a href="/guild/{{ guild_id }}/music" class="flex items-center gap-3 p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.08] hover:bg-white/[0.05] hover:border-white/20 hover:-translate-y-[2px] transition-all duration-200 cursor-pointer" style="text-decoration:none;color:inherit">
+        <div class="w-10 h-10 rounded-xl grid place-items-center bg-white/[0.06] shrink-0"><i data-lucide="music" class="w-5 h-5 text-white/60"></i></div>
+        <div class="font-bold text-[13px]">Music</div>
+      </a>
+      <a href="/guild/{{ guild_id }}/leveling" class="flex items-center gap-3 p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.08] hover:bg-white/[0.05] hover:border-white/20 hover:-translate-y-[2px] transition-all duration-200 cursor-pointer" style="text-decoration:none;color:inherit">
+        <div class="w-10 h-10 rounded-xl grid place-items-center bg-white/[0.06] shrink-0"><i data-lucide="trending-up" class="w-5 h-5 text-white/60"></i></div>
+        <div class="font-bold text-[13px]">Leveling</div>
+      </a>
+      <a href="/guild/{{ guild_id }}/settings" class="flex items-center gap-3 p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.08] hover:bg-white/[0.05] hover:border-white/20 hover:-translate-y-[2px] transition-all duration-200 cursor-pointer" style="text-decoration:none;color:inherit">
+        <div class="w-10 h-10 rounded-xl grid place-items-center bg-white/[0.06] shrink-0"><i data-lucide="settings" class="w-5 h-5 text-white/60"></i></div>
+        <div class="font-bold text-[13px]">Settings</div>
+      </a>
+    </div>
+  </div>
+  <div class="grid grid-cols-4 gap-3.5 mb-4 max-lg:grid-cols-2 max-sm:grid-cols-1" id="overview-stats">
+    <div class="flex items-center gap-3.5 p-4 rounded-2xl bg-white/[0.025] border border-white/[0.08]">
+      <div class="w-12 h-12 rounded-[14px] grid place-items-center bg-brand/10 shrink-0"><i data-lucide="globe" class="w-6 h-6 text-brand-light"></i></div>
+      <div class="flex flex-col gap-0.5">
+        <div class="text-[24px] font-black tracking-tight" id="stat-guilds">—</div>
+        <div class="text-[11.5px] text-white/50 font-bold uppercase tracking-[0.04em]">Servers</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-3.5 p-4 rounded-2xl bg-white/[0.025] border border-white/[0.08]">
+      <div class="w-12 h-12 rounded-[14px] grid place-items-center bg-brand/10 shrink-0"><i data-lucide="users" class="w-6 h-6 text-brand-light"></i></div>
+      <div class="flex flex-col gap-0.5">
+        <div class="text-[24px] font-black tracking-tight" id="stat-users">—</div>
+        <div class="text-[11.5px] text-white/50 font-bold uppercase tracking-[0.04em]">Users</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-3.5 p-4 rounded-2xl bg-white/[0.025] border border-white/[0.08]">
+      <div class="w-12 h-12 rounded-[14px] grid place-items-center bg-brand/10 shrink-0"><i data-lucide="clock" class="w-6 h-6 text-brand-light"></i></div>
+      <div class="flex flex-col gap-0.5">
+        <div class="text-[24px] font-black tracking-tight" id="stat-uptime">—</div>
+        <div class="text-[11.5px] text-white/50 font-bold uppercase tracking-[0.04em]">Uptime</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-3.5 p-4 rounded-2xl bg-white/[0.025] border border-white/[0.08]">
+      <div class="w-12 h-12 rounded-[14px] grid place-items-center bg-brand/10 shrink-0"><i data-lucide="hard-drive" class="w-6 h-6 text-brand-light"></i></div>
+      <div class="flex flex-col gap-0.5">
+        <div class="text-[24px] font-black tracking-tight" id="stat-memory">—</div>
+        <div class="text-[11.5px] text-white/50 font-bold uppercase tracking-[0.04em]">Memory</div>
+      </div>
+    </div>
+  </div>
+  <div class="grid grid-cols-4 gap-3.5 max-lg:grid-cols-2 max-sm:grid-cols-1 anim-fade-in-up" style="animation-delay:.3s">
+    <div class="p-3.5 px-4 rounded-[10px] bg-white/[0.02] border border-white/[0.08]">
+      <div class="text-[11px] text-white/50 font-extrabold uppercase tracking-[0.04em] mb-1">Channels</div>
+      <div class="text-xl font-black" id="stat-channels">—</div>
+    </div>
+    <div class="p-3.5 px-4 rounded-[10px] bg-white/[0.02] border border-white/[0.08]">
+      <div class="text-[11px] text-white/50 font-extrabold uppercase tracking-[0.04em] mb-1">Roles</div>
+      <div class="text-xl font-black" id="stat-roles">—</div>
+    </div>
+    <div class="p-3.5 px-4 rounded-[10px] bg-white/[0.02] border border-white/[0.08]">
+      <div class="text-[11px] text-white/50 font-extrabold uppercase tracking-[0.04em] mb-1">Emojis</div>
+      <div class="text-xl font-black" id="stat-emojis">—</div>
+    </div>
+    <div class="p-3.5 px-4 rounded-[10px] bg-white/[0.02] border border-white/[0.08]">
+      <div class="text-[11px] text-white/50 font-extrabold uppercase tracking-[0.04em] mb-1">CPU</div>
+      <div class="text-xl font-black" id="stat-cpu">—</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(async()=>{
+  try {
+    const r = await fetch('/api/status');
+    const d = await r.json();
+    const anim = (el, t) => { if (!el) return; const s=parseInt(el.textContent)||0, diff=t-s, st=performance.now(); (function step(n){const p=Math.min((n-st)/800,1); el.textContent=Math.round(s+diff*(1-Math.pow(1-p,3))); if(p<1) requestAnimationFrame(step)})(); };
+    anim(document.getElementById('stat-guilds'), parseInt(d.guilds)||0);
+    anim(document.getElementById('stat-users'), parseInt(d.users)||0);
+    const mem = document.getElementById('stat-memory'); if(mem) mem.textContent = d.memory_mb!=='N/A' ? d.memory_mb+' MB' : '—';
+    const ch = document.getElementById('stat-channels'); if(ch) ch.textContent = d.channels||'—';
+    const rl = document.getElementById('stat-roles'); if(rl) rl.textContent = d.roles||'—';
+    const em = document.getElementById('stat-emojis'); if(em) em.textContent = d.emojis||'—';
+    const cp = document.getElementById('stat-cpu'); if(cp) cp.textContent = d.cpu_percent!=='N/A' ? d.cpu_percent+'%' : '—';
+
+    // Live uptime ticker
+    const upEl = document.getElementById('stat-uptime');
+    if (upEl && d.uptime) {
+      const parts = d.uptime.match(/(\d+)h\s*(\d+)m\s*(\d+)s/);
+      let totalSec = parts ? parseInt(parts[1])*3600 + parseInt(parts[2])*60 + parseInt(parts[3]) : 0;
+      const fmt = (s) => { const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60; return h+'h '+m+'m '+sec+'s'; };
+      upEl.textContent = fmt(totalSec);
+      setInterval(() => { totalSec++; upEl.textContent = fmt(totalSec); }, 1000);
+    }
+  } catch {}
+})();
+</script>
+{% endblock %}

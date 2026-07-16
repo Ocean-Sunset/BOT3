@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prowl</title>
+  <meta name="description" content="prowl is your next discord bot! designed to do everything easily without any issues, its made to tackle every problem with ease. from moderation and ai to music, leveling, and a full web dashboard" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/static/favicon.png" />
+  <script src="/static/lucide.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
+  <script src="https://unpkg.com/lenis@1.1.18/dist/lenis.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
+  <link rel="stylesheet" href="/static/index.css" />
+</head>
+<body>
+
+  <div class="wave-field" id="wave-field"></div>
+  <div class="vignette"></div>
+
+  <!-- Nav -->
+  <nav id="nav">
+    <a href="/" class="nav-brand">
+      <img src="/static/favicon.png" alt="Prowl" />
+      <span>Prowl</span>
+    </a>
+    <div class="nav-links">
+      {% if user %}
+        <a href="/dashboard" class="btn-nav-primary">Open Dashboard</a>
+      {% else %}
+        <a href="/login" class="btn-nav-secondary">Login</a>
+        <a href="/login?mode=signup" class="btn-nav-primary">Sign Up</a>
+      {% endif %}
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-content">
+      <h1 class="hero-title">
+        <span class="anim-hero anim-scramble" data-word="THE Cat Discord bot"></span><br/>
+        <span class="line-dim anim-hero anim-scramble" data-word="you actually want."></span>
+      </h1>
+      <p class="hero-sub anim-hero">
+        THE cat bot that does literally everything with one click!
+        easy to setup, easy to use, and you can always ask for more features!
+      </p>
+      <div class="hero-actions anim-hero">
+        {% if user %}
+          <a href="/dashboard" class="btn-primary">Open Dashboard</a>
+        {% else %}
+          <a href="/login" class="btn-primary">Get Started</a>
+          <a href="https://discord.com/oauth2/authorize?client_id={{ config.get('CLIENT_ID', '') }}&scope=bot&permissions=8"
+             target="_blank" rel="noopener" class="btn-secondary">Add to Server</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="hero-cat-wrap">
+      <div class="hero-cat anim-hero">
+        <img src="/static/cat-cats.gif" alt="Cat" />
+        <div class="hero-cat-glare"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Features -->
+  <section id="features">
+    <div class="section-label anim-scroll">Features</div>
+    <h2 class="section-title anim-scroll" data-scramble="everything you need! literally everything.">everything you need! <span class="line-dim">literally everything.</span></h2>
+    <p class="section-desc anim-scroll">just ONE bot. a dashboard. and its complete</p>
+
+    <div class="features">
+      <div class="feature-wrap">
+        <div class="feature anim-feature">
+          <div class="feature-icon"><i data-lucide="shield"></i></div>
+          <h3>Moderation</h3>
+          <p>ban, kick, mute, warn — with full logging and conditional bans</p>
+          <div class="feature-glare"></div>
+        </div>
+      </div>
+      <div class="feature-wrap">
+        <div class="feature anim-feature">
+          <div class="feature-icon"><i data-lucide="sparkles"></i></div>
+          <h3>AI</h3>
+          <p>chat, generate images, summarize threads — powered by gpt-oss-120b</p>
+          <div class="feature-glare"></div>
+        </div>
+      </div>
+      <div class="feature-wrap">
+        <div class="feature anim-feature">
+          <div class="feature-icon"><i data-lucide="music"></i></div>
+          <h3>Music</h3>
+          <p>listen to your music from plenty of providers or from your own server!</p>
+          <div class="feature-glare"></div>
+        </div>
+      </div>
+      <div class="feature-wrap">
+        <div class="feature anim-feature">
+          <div class="feature-icon"><i data-lucide="trending-up"></i></div>
+          <h3>Leveling</h3>
+          <p>xp, ranks, leaderboards, and role rewards — fully configurable</p>
+          <div class="feature-glare"></div>
+        </div>
+      </div>
+      <div class="feature-wrap">
+        <div class="feature anim-feature">
+          <div class="feature-icon"><i data-lucide="lock"></i></div>
+          <h3>Verification</h3>
+          <p>keep raiders out with reactions roles, quick captchas and more</p>
+          <div class="feature-glare"></div>
+        </div>
+      </div>
+      <div class="feature-wrap">
+        <div class="feature anim-feature">
+          <div class="feature-icon"><i data-lucide="layout-dashboard"></i></div>
+          <h3>Dashboard</h3>
+          <p>manage everything at a glance, no commands needed</p>
+          <div class="feature-glare"></div>
+        </div>
+      </div>
+      <div class="feature-wrap">
+        <div class="feature anim-feature">
+          <div class="feature-icon"><i data-lucide="hammer"></i></div>
+          <h3>AutoMod</h3>
+          <p>automatically ban, kick, mute based on the severity of a message</p>
+          <div class="feature-glare"></div>
+        </div>
+      </div>
+      <div class="feature-wrap">
+        <div class="feature anim-feature">
+          <div class="feature-icon"><i data-lucide="eye"></i></div>
+          <h3>OAuth2</h3>
+          <p>use our API to configure an OAuth2 check users for your bot or for us</p>
+          <div class="feature-glare"></div>
+        </div>
+      </div>
+      <div class="feature-wrap">
+        <div class="feature anim-feature">
+          <div class="feature-icon"><i data-lucide="wrench"></i></div>
+          <h3>Automation</h3>
+          <p>build your own little programs that do exactly what you want easily</p>
+          <div class="feature-glare"></div>
+        </div>
+      </div>
+      <div class="feature-wrap">
+        <div class="feature anim-feature">
+          <div class="feature-icon"><i data-lucide="package"></i></div>
+          <h3>And so much more!</h3>
+          <p>tickets, global chatting, social, autoresponder.. i can't even list it all!</p>
+          <div class="feature-glare"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <div class="cta">
+    <h2 class="cta-title anim-scroll-cta">wanna add a cute cat bot to your server?</h2>
+    <p class="cta-sub anim-scroll-cta">it's free and we have so much features!</p>
+    {% if user %}
+      <a href="/dashboard" class="btn-primary anim-scroll-cta">Open Dashboard</a>
+    {% else %}
+      <a href="/login" class="btn-primary anim-scroll-cta">Get Started</a>
+    {% endif %}
+  </div>
+
+  <!-- Footer links -->
+  <div class="footer-links">
+    <div class="footer-col">
+      <h4>Product</h4>
+      <a href="#features">Features</a>
+      <a href="/login">Dashboard</a>
+      <a href="#">Pricing</a>
+      <a href="#">Changelog</a>
+    </div>
+    <div class="footer-col">
+      <h4>Resources</h4>
+      <a href="#">Documentation</a>
+      <a href="#">API Reference</a>
+      <a href="#">Status</a>
+      <a href="#">Support</a>
+    </div>
+    <div class="footer-col">
+      <h4>Community</h4>
+      <a href="#">Discord Server</a>
+      <a href="#">GitHub</a>
+      <a href="#">Twitter</a>
+    </div>
+    <div class="footer-col">
+      <h4>Legal</h4>
+      <a href="#">Privacy Policy</a>
+      <a href="#">Terms of Service</a>
+    </div>
+  </div>
+
+  <!-- Footer bottom -->
+  <div class="footer-bottom">
+    <span>&copy; 2026 Prowl. All rights reserved.</span>
+    <span>
+      <a href="#">Privacy</a> &middot;
+      <a href="#">Terms</a> &middot;
+      <a href="#">Cookies</a>
+    </span>
+  </div>
+
+  <!-- Big PROWL -->
+  <div class="big-prowl">
+    <h1 id="big-text">PROWL</h1>
+  </div>
+
+  <script>
+    gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
+
+    // ── Lenis smooth scroll ──
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smoothWheel: true,
+    });
+
+    function raf(time) {
+      lenis.raf(time);
+      requestAnimationFrame(raf);
+    }
+    requestAnimationFrame(raf);
+
+    lenis.on('scroll', ScrollTrigger.update);
+    gsap.ticker.add((time) => lenis.raf(time * 1000));
+    gsap.ticker.lagSmoothing(0);
+
+    // ── Tildes ──
+    const waveField = document.getElementById('wave-field');
+    const isMobile = window.innerWidth < 768;
+    const tildeCount = isMobile ? 30 : 60;
+
+    for (let i = 0; i < tildeCount; i++) {
+      const el = document.createElement('span');
+      el.textContent = '~';
+      el.style.fontSize = (1 + Math.random() * 1.8) + 'rem';
+      el.style.opacity = 0.03 + Math.random() * 0.08;
+      el.style.left = Math.random() * 100 + '%';
+      el.style.top = Math.random() * 100 + '%';
+      waveField.appendChild(el);
+
+      anime({
+        targets: el,
+        translateY: [
+          { value: -20 + Math.random() * 10, duration: 2000 + Math.random() * 3000 },
+          { value: 20 - Math.random() * 10, duration: 2000 + Math.random() * 3000 },
+        ],
+        translateX: [
+          { value: -10 + Math.random() * 5, duration: 2500 + Math.random() * 2500 },
+          { value: 10 - Math.random() * 5, duration: 2500 + Math.random() * 2500 },
+        ],
+        easing: 'easeInOutSine',
+        loop: true,
+        direction: 'alternate',
+      });
+    }
+
+    // ── Nav float on scroll ──
+    ScrollTrigger.create({
+      start: 80,
+      onUpdate: (self) => {
+        document.getElementById('nav').classList.toggle('is-floating', self.progress > 0);
+      },
+    });
+
+    // ── Smooth anchor scroll (Lenis) ──
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          lenis.scrollTo(target, { offset: -80 });
+        }
+      });
+    });
+
+    // ── Word scramble ──
+    const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+    function scramble(el, duration) {
+      const word = el.dataset.scramble || el.dataset.word || el.textContent.trim();
+      if (!word || el._scrambling) return;
+      el._scrambling = true;
+      const steps = Math.ceil(duration / 25);
+      let frame = 0;
+      const iv = setInterval(() => {
+        el.textContent = word.split('').map((ch, i) => {
+          if (i < (frame * word.length) / steps) return word[i];
+          return CHARS[Math.floor(Math.random() * CHARS.length)];
+        }).join('');
+        frame++;
+        if (frame > steps) { el.textContent = word; clearInterval(iv); el._scrambling = false; }
+      }, 25);
+    }
+
+    // ── Hero load (Anime.js) ──
+    document.getElementById('nav').style.opacity = '0';
+
+    const heroEls = document.querySelectorAll('.anim-hero');
+    heroEls.forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(30px)';
+    });
+
+    // Start scramble immediately, don't wait for hero fade-in
+    document.querySelectorAll('.anim-scramble.anim-hero').forEach((el, i) => {
+      setTimeout(() => scramble(el, 1000), i * 200 + 100);
+    });
+
+    anime.timeline({ easing: 'easeOutQuart' })
+      .add({
+        targets: '#nav',
+        opacity: [0, 1],
+        duration: 600,
+      }, 200)
+      .add({
+        targets: '.anim-hero',
+        opacity: [0, 1],
+        translateY: [30, 0],
+        duration: 800,
+        delay: anime.stagger(150, { start: 300 }),
+      }, 0);
+
+    // ── Scroll animations (Anime.js) ──
+    const scrollEls = document.querySelectorAll('.anim-scroll');
+    scrollEls.forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(30px)';
+    });
+
+    const featureEls = document.querySelectorAll('.anim-feature');
+    featureEls.forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(20px)';
+    });
+
+    const ctaEls = document.querySelectorAll('.anim-scroll-cta');
+    ctaEls.forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(25px)';
+    });
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const el = entry.target;
+          observer.unobserve(el);
+
+          if (el.classList.contains('anim-scroll')) {
+            anime({ targets: el, opacity: [0, 1], translateY: [30, 0], duration: 700, easing: 'easeOutQuart',
+              begin: () => { if (el.dataset.scramble) scramble(el, 1200); } });
+          }
+
+          if (el.classList.contains('anim-feature')) {
+            const idx = Array.from(featureEls).indexOf(el);
+            anime({ targets: el, opacity: [0, 1], translateY: [20, 0], duration: 500, easing: 'easeOutQuart', delay: idx * 80 });
+          }
+
+          if (el.classList.contains('anim-scroll-cta')) {
+            const idx = Array.from(ctaEls).indexOf(el);
+            anime({ targets: el, opacity: [0, 1], translateY: [25, 0], duration: 600, easing: 'easeOutQuart', delay: idx * 200,
+              begin: () => { if (el.dataset.scramble) scramble(el, 1200); } });
+          }
+        }
+      });
+    }, { threshold: 0.15 });
+
+    scrollEls.forEach(el => observer.observe(el));
+    featureEls.forEach(el => observer.observe(el));
+    ctaEls.forEach(el => observer.observe(el));
+
+    // ── Big PROWL parallax (GSAP) ──
+    gsap.to('#big-text', {
+      scrollTrigger: {
+        trigger: '.big-prowl',
+        start: 'top bottom',
+        end: 'bottom top',
+        scrub: 1,
+      },
+      scale: 1.05,
+      opacity: 0.08,
+      ease: 'none',
+    });
+
+    // ── Tilt parallax on hero cat ──
+    const heroCatWrap = document.querySelector('.hero-cat-wrap');
+    const heroCat = document.querySelector('.hero-cat');
+    const heroCatGlare = document.querySelector('.hero-cat-glare');
+    const CAT_MAX_TILT = 15;
+    const CAT_SCALE = 1.06;
+
+    if (heroCatWrap && heroCat) {
+      gsap.set(heroCat, { transformStyle: 'preserve-3d', backfaceVisibility: 'hidden' });
+
+      heroCatWrap.addEventListener('mousemove', (e) => {
+        const rect = heroCat.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dx = (e.clientX - cx) / (rect.width / 2);
+        const dy = (e.clientY - cy) / (rect.height / 2);
+        const px = ((e.clientX - rect.left) / rect.width) * 100;
+        const py = ((e.clientY - rect.top) / rect.height) * 100;
+
+        gsap.to(heroCat, {
+          rotateY: dx * CAT_MAX_TILT,
+          rotateX: -dy * CAT_MAX_TILT,
+          scale: CAT_SCALE,
+          ease: 'power2.out',
+          duration: 0.4,
+          overwrite: true,
+        });
+
+        heroCatGlare.style.background = `radial-gradient(circle at ${px}% ${py}%, rgba(255,255,255,0.1), transparent 60%)`;
+        gsap.to(heroCatGlare, { opacity: 1, duration: 0.4, ease: 'power2.out', overwrite: true });
+      });
+
+      heroCatWrap.addEventListener('mouseleave', () => {
+        gsap.to(heroCat, {
+          rotateX: 0,
+          rotateY: 0,
+          scale: 1,
+          ease: 'elastic.out(1, 0.5)',
+          duration: 0.6,
+          overwrite: true,
+        });
+        gsap.to(heroCatGlare, { opacity: 0, duration: 0.4, ease: 'power2.out', overwrite: true });
+      });
+    }
+
+    // ── Tilt parallax on feature cards ──
+    const tiltCards = document.querySelectorAll('.feature-wrap .feature');
+    const MAX_TILT = 12;
+    const SCALE = 1.04;
+
+    tiltCards.forEach((card) => {
+      const wrap = card.closest('.feature-wrap');
+      const glare = card.querySelector('.feature-glare');
+
+      gsap.set(card, { transformStyle: 'preserve-3d', backfaceVisibility: 'hidden' });
+
+      wrap.addEventListener('mousemove', (e) => {
+        const rect = card.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dx = (e.clientX - cx) / (rect.width / 2);
+        const dy = (e.clientY - cy) / (rect.height / 2);
+
+        gsap.to(card, {
+          rotateY: dx * MAX_TILT,
+          rotateX: -dy * MAX_TILT,
+          scale: SCALE,
+          ease: 'power2.out',
+          duration: 0.4,
+          overwrite: true,
+        });
+
+        if (glare) {
+          const px = ((e.clientX - rect.left) / rect.width) * 100;
+          const py = ((e.clientY - rect.top) / rect.height) * 100;
+          glare.style.background = `radial-gradient(circle at ${px}% ${py}%, rgba(255,255,255,0.06), transparent 60%)`;
+          gsap.to(glare, { opacity: 1, duration: 0.4, ease: 'power2.out', overwrite: true });
+        }
+      });
+
+      wrap.addEventListener('mouseleave', () => {
+        gsap.to(card, {
+          rotateX: 0,
+          rotateY: 0,
+          scale: 1,
+          ease: 'elastic.out(1, 0.5)',
+          duration: 0.6,
+          overwrite: true,
+        });
+        if (glare) gsap.to(glare, { opacity: 0, duration: 0.4, ease: 'power2.out', overwrite: true });
+      });
+    });
+
+    lucide.createIcons();
+  </script>
+</body>
+</html>

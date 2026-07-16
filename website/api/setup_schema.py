@@ -27,6 +27,24 @@ CREATE TABLE IF NOT EXISTS guild_settings (
     settings    JSONB NOT NULL DEFAULT '{}',
     updated_at  DOUBLE PRECISION NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS mod_settings (
+    guild_id    TEXT PRIMARY KEY,
+    settings    JSONB NOT NULL DEFAULT '{}',
+    updated_at  DOUBLE PRECISION GENERATED ALWAYS AS (extract(epoch from now())) STORED
+);
+
+CREATE TABLE IF NOT EXISTS mod_log (
+    id          SERIAL PRIMARY KEY,
+    guild_id    TEXT NOT NULL,
+    user_id     TEXT NOT NULL,
+    user_name   TEXT NOT NULL,
+    action      TEXT NOT NULL,
+    reason      TEXT DEFAULT '',
+    created_at  DOUBLE PRECISION NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_mod_log_guild ON mod_log (guild_id, created_at DESC);
 """
 
 

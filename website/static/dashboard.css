@@ -31,9 +31,10 @@ body {
 
 /* ── Sidebar ── */
 .sidebar {
+  flex-shrink: 0;
+  width: var(--sidebar-w, 280px);
   display: flex;
   flex-direction: column;
-  transition: width 0.3s ease-out;
   position: relative;
   background: #0d0d0d;
   border-right: 1px solid rgba(255,255,255,0.06);

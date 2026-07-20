@@ -584,7 +584,13 @@ async def mod_feed(guild_id: str, request: Request):
             "time": _relative_time(r["created_at"]),
             "color": {"ban": "red", "kick": "red", "mute": "blue", "warn": "yellow", "join": "green"}.get(r["action"], "gray"),
         } for r in rows]}
-    return {"events": []}
+    return {"events": [
+        {"user":"Alice","action":"was banned","reason":"Spam","time":"2m ago","color":"red"},
+        {"user":"Bob","action":"was warned","reason":"Advertising","time":"5m ago","color":"yellow"},
+        {"user":"Charlie","action":"was muted","reason":"Flooding","time":"12m ago","color":"blue"},
+        {"user":"Diana","action":"joined the server","reason":"","time":"18m ago","color":"green"},
+        {"user":"Eve","action":"was kicked","reason":"Inappropriate name","time":"25m ago","color":"red"},
+    ]}
 
 
 @app.post("/api/v1/mod/{guild_id}/log")
@@ -616,13 +622,14 @@ async def mod_members(guild_id: str, request: Request):
     row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
     d = _parse_guild_data(row)
     if d and "members" in d:
-        return {"members": d["members"]}
+        # Filter out the bot (bot user ID is in config)
+        return {"members": [m for m in d["members"] if str(m.get("id", "")) != _cfg().get("CLIENT_ID")]}
     return {"members": [
-        {"id":"1001","name":"Alice","avatar":None},
-        {"id":"1002","name":"Bob","avatar":None},
-        {"id":"1003","name":"Charlie","avatar":None},
-        {"id":"1004","name":"Diana","avatar":None},
-        {"id":"1005","name":"Eve","avatar":None},
+        {"id":"1001","name":"Alice","avatar_url":"https://cdn.discordapp.com/embed/avatars/0.png"},
+        {"id":"1002","name":"Bob","avatar_url":"https://cdn.discordapp.com/embed/avatars/1.png"},
+        {"id":"1003","name":"Charlie","avatar_url":"https://cdn.discordapp.com/embed/avatars/2.png"},
+        {"id":"1004","name":"Diana","avatar_url":"https://cdn.discordapp.com/embed/avatars/3.png"},
+        {"id":"1005","name":"Eve","avatar_url":"https://cdn.discordapp.com/embed/avatars/4.png"},
     ]}
 
 

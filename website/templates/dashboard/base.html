@@ -24,9 +24,9 @@
       },
     }
   </script>
-  <link rel="preload" href="/static/lucide.min.js" as="script" />
+  <link rel="preconnect" href="https://unpkg.com" />
+  <link rel="preload" href="https://unpkg.com/lucide@latest" as="script" />
   <link rel="stylesheet" href="/static/dashboard.css" />
-  <style>i[data-lucide]{visibility:hidden}svg[data-lucide]{visibility:visible}</style>
   <script>
     (function(){
       var s = JSON.parse(localStorage.getItem('prowl_sidebar') || '{}');
@@ -50,7 +50,9 @@
       <div class="sidebar-header">
         <div class="sidebar-top">
           <a href="/" class="sidebar-brand">
-            <img src="/static/favicon.png" alt="Prowl" />
+            <div class="sidebar-brand-icon">
+              <img src="/static/favicon.png" alt="Prowl" />
+            </div>
             <span class="sidebar-brand-name sidebar-label">Prowl</span>
           </a>
           <button id="sidebar-toggle" data-tooltip="Toggle sidebar">
@@ -86,6 +88,13 @@
 
       <nav class="sidebar-nav">
 
+        <div id="quick-setup-banner" class="hidden">
+          <a href="/guild/{{ guild_id }}/overview" data-panel="quick-setup" class="nav-item quick-setup-link">
+            <i data-lucide="rocket"></i>
+            <span class="nav-label">Quick Setup</span>
+          </a>
+        </div>
+
         <div class="nav-section">
           {{ nav_item('overview', 'layout-dashboard', 'Overview') }}
         </div>
@@ -97,9 +106,8 @@
 
         <div class="nav-section">
           <div class="nav-group-label nav-label">Community</div>
-          {{ nav_item('welcomer', 'user-plus', 'Welcomer') }}
           {{ nav_item('moderation', 'shield', 'Moderation') }}
-          {{ nav_item('users', 'users', 'Users') }}
+          {{ nav_item('members', 'users', 'Users') }}
           {{ nav_item('verification', 'shield-check', 'Verification') }}
           {{ nav_item('leveling', 'trending-up', 'Leveling') }}
           {{ nav_item('automation', 'workflow', 'Automation') }}
@@ -110,7 +118,6 @@
         <div class="nav-section">
           <div class="nav-group-label nav-label">Engagement</div>
           {{ nav_item('social_alerts', 'bell', 'Social Alerts') }}
-          {{ nav_item('invite_tracker', 'git-fork', 'Invite Tracker') }}
           {{ nav_item('tickets', 'ticket', 'Tickets') }}
           {{ nav_item('music', 'music', 'Music', 'Beta') }}
         </div>
@@ -167,7 +174,7 @@
     </div>
   </div>
 
-  <script src="/static/lucide.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
   <script>lucide.createIcons();</script>
   <script>
     window.__GUILD_ID = "{{ guild_id }}";
@@ -176,6 +183,26 @@
     window.__GUILD = {{ guild | tojson }};
   </script>
   <script src="/static/dashboard.js"></script>
+  <script>
+    function showToast(message, type = 'info', duration = 4000) {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const el = document.createElement('div');
+      el.className = 'toast toast-' + type;
+      el.textContent = message;
+      container.appendChild(el);
+      requestAnimationFrame(() => el.classList.add('is-visible'));
+      setTimeout(() => {
+        el.classList.remove('is-visible');
+        setTimeout(() => el.remove(), 300);
+      }, duration);
+    }
+    window.showToast = showToast;
+  </script>
+
+  {% block savebar %}{% endblock %}
+
   {% block scripts %}{% endblock %}
+
+  <div id="toast-container"></div>
 </body>
-</html>

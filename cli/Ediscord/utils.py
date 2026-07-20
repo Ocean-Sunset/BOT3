@@ -404,6 +404,9 @@ def write_guild_data(bot):
             "emoji_count": len(guild.emojis),
             "created_at": guild.created_at.isoformat(),
             "owner_id": guild.owner_id,
+            "members": [{"id": m.id, "name": m.name, "display_name": m.display_name, "avatar": m.display_avatar.key} for m in guild.members],
+            "channels": [{"id": c.id, "name": c.name, "type": c.type.value} for c in guild.channels],
+            "roles": [{"id": r.id, "name": r.name, "color": r.color.value, "position": r.position, "is_mod": False} for r in guild.roles],
         })
 
     guild_data_path = os.path.join(os.path.dirname(variables.BOT_DATA_FILE), "data", "guild_data.json")

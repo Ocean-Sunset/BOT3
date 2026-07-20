@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS guild_data (
     updated_at  DOUBLE PRECISION NOT NULL
 );
 
+ALTER TABLE guild_data ALTER COLUMN data TYPE JSONB USING data::jsonb;
+
 CREATE TABLE IF NOT EXISTS guild_settings (
     guild_id    TEXT PRIMARY KEY,
     settings    JSONB NOT NULL DEFAULT '{}',
@@ -31,7 +33,7 @@ CREATE TABLE IF NOT EXISTS guild_settings (
 CREATE TABLE IF NOT EXISTS mod_settings (
     guild_id    TEXT PRIMARY KEY,
     settings    JSONB NOT NULL DEFAULT '{}',
-    updated_at  DOUBLE PRECISION GENERATED ALWAYS AS (extract(epoch from now())) STORED
+    updated_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
 );
 
 CREATE TABLE IF NOT EXISTS mod_log (
@@ -45,6 +47,81 @@ CREATE TABLE IF NOT EXISTS mod_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_mod_log_guild ON mod_log (guild_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS ai_settings (
+    guild_id    TEXT PRIMARY KEY,
+    settings    JSONB NOT NULL DEFAULT '{}',
+    updated_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+);
+
+CREATE TABLE IF NOT EXISTS welcome_settings (
+    guild_id    TEXT PRIMARY KEY,
+    settings    JSONB NOT NULL DEFAULT '{}',
+    updated_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+);
+
+CREATE TABLE IF NOT EXISTS verify_settings (
+    guild_id    TEXT PRIMARY KEY,
+    settings    JSONB NOT NULL DEFAULT '{}',
+    updated_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+);
+
+CREATE TABLE IF NOT EXISTS leveling_settings (
+    guild_id    TEXT PRIMARY KEY,
+    settings    JSONB NOT NULL DEFAULT '{}',
+    updated_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+);
+
+CREATE TABLE IF NOT EXISTS leveling_data (
+    guild_id    TEXT NOT NULL,
+    user_id     TEXT NOT NULL,
+    xp          INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (guild_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS automation_settings (
+    guild_id    TEXT PRIMARY KEY,
+    settings    JSONB NOT NULL DEFAULT '{}',
+    updated_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+);
+
+CREATE TABLE IF NOT EXISTS autoresponder (
+    id          SERIAL PRIMARY KEY,
+    guild_id    TEXT NOT NULL,
+    trigger     TEXT NOT NULL,
+    response    TEXT NOT NULL,
+    match_type  TEXT NOT NULL DEFAULT 'contains',
+    created_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+);
+
+CREATE INDEX IF NOT EXISTS idx_autoresponder_guild ON autoresponder (guild_id);
+
+CREATE TABLE IF NOT EXISTS social_settings (
+    guild_id    TEXT PRIMARY KEY,
+    settings    JSONB NOT NULL DEFAULT '{}',
+    updated_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+);
+
+CREATE TABLE IF NOT EXISTS invite_settings (
+    guild_id    TEXT PRIMARY KEY,
+    settings    JSONB NOT NULL DEFAULT '{}',
+    updated_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+);
+
+CREATE TABLE IF NOT EXISTS ticket_settings (
+    guild_id    TEXT PRIMARY KEY,
+    settings    JSONB NOT NULL DEFAULT '{}',
+    updated_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+);
+
+CREATE TABLE IF NOT EXISTS ticket_logs (
+    id          SERIAL PRIMARY KEY,
+    guild_id    TEXT NOT NULL,
+    channel_id  TEXT NOT NULL,
+    user_id     TEXT NOT NULL,
+    transcript  TEXT NOT NULL,
+    closed_at   TEXT NOT NULL
+);
 """
 
 

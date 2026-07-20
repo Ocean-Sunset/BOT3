@@ -1,110 +1,146 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
-<div class="anim-page-in">
-  <div class="mb-5 anim-fade-in-up" style="animation-delay:.05s">
-    <h1 class="text-[26px] font-black tracking-tight leading-tight">Overview</h1>
-    <p class="text-white/50 text-sm font-semibold mt-0.5">Live stats from your bot</p>
-  </div>
-  <div class="mb-5 anim-fade-in-up" style="animation-delay:.08s">
-    <h2 class="text-sm font-extrabold uppercase tracking-[0.08em] text-white/40 mb-3">Quick Links</h2>
-    <div class="grid grid-cols-5 gap-3 max-xl:grid-cols-3 max-md:grid-cols-2 max-sm:grid-cols-1">
-      <a href="/guild/{{ guild_id }}/ai" class="flex items-center gap-3 p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.08] hover:bg-white/[0.05] hover:border-white/20 hover:-translate-y-[2px] transition-all duration-200 cursor-pointer" style="text-decoration:none;color:inherit">
-        <div class="w-10 h-10 rounded-xl grid place-items-center bg-white/[0.06] shrink-0"><i data-lucide="sparkles" class="w-5 h-5 text-white/60"></i></div>
-        <div class="font-bold text-[13px]">AI</div>
-      </a>
-      <a href="/guild/{{ guild_id }}/moderation" class="flex items-center gap-3 p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.08] hover:bg-white/[0.05] hover:border-white/20 hover:-translate-y-[2px] transition-all duration-200 cursor-pointer" style="text-decoration:none;color:inherit">
-        <div class="w-10 h-10 rounded-xl grid place-items-center bg-white/[0.06] shrink-0"><i data-lucide="shield" class="w-5 h-5 text-white/60"></i></div>
-        <div class="font-bold text-[13px]">Moderation</div>
-      </a>
-      <a href="/guild/{{ guild_id }}/music" class="flex items-center gap-3 p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.08] hover:bg-white/[0.05] hover:border-white/20 hover:-translate-y-[2px] transition-all duration-200 cursor-pointer" style="text-decoration:none;color:inherit">
-        <div class="w-10 h-10 rounded-xl grid place-items-center bg-white/[0.06] shrink-0"><i data-lucide="music" class="w-5 h-5 text-white/60"></i></div>
-        <div class="font-bold text-[13px]">Music</div>
-      </a>
-      <a href="/guild/{{ guild_id }}/leveling" class="flex items-center gap-3 p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.08] hover:bg-white/[0.05] hover:border-white/20 hover:-translate-y-[2px] transition-all duration-200 cursor-pointer" style="text-decoration:none;color:inherit">
-        <div class="w-10 h-10 rounded-xl grid place-items-center bg-white/[0.06] shrink-0"><i data-lucide="trending-up" class="w-5 h-5 text-white/60"></i></div>
-        <div class="font-bold text-[13px]">Leveling</div>
-      </a>
-      <a href="/guild/{{ guild_id }}/settings" class="flex items-center gap-3 p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.08] hover:bg-white/[0.05] hover:border-white/20 hover:-translate-y-[2px] transition-all duration-200 cursor-pointer" style="text-decoration:none;color:inherit">
-        <div class="w-10 h-10 rounded-xl grid place-items-center bg-white/[0.06] shrink-0"><i data-lucide="settings" class="w-5 h-5 text-white/60"></i></div>
-        <div class="font-bold text-[13px]">Settings</div>
-      </a>
+<div>
+
+  <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;animation-delay:.05s;" >
+    <div style="width:48px;height:48px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);flex-shrink:0;display:grid;place-items:center;font-weight:700;font-size:14px;color:rgba(255,255,255,0.5);">
+      {% if guild and guild.icon %}
+        <img src="https://cdn.discordapp.com/icons/{{ guild_id }}/{{ guild.icon }}.png?size=64" style="width:100%;height:100%;object-fit:cover;" alt="" />
+      {% else %}
+        {{ guild.name[0] | upper if guild else '?' }}
+      {% endif %}
+    </div>
+    <div>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">{{ guild.name if guild else 'Server' }}</h1>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Here's what's happening with your server.</p>
     </div>
   </div>
-  <div class="grid grid-cols-4 gap-3.5 mb-4 max-lg:grid-cols-2 max-sm:grid-cols-1" id="overview-stats">
-    <div class="flex items-center gap-3.5 p-4 rounded-2xl bg-white/[0.025] border border-white/[0.08]">
-      <div class="w-12 h-12 rounded-[14px] grid place-items-center bg-brand/10 shrink-0"><i data-lucide="globe" class="w-6 h-6 text-brand-light"></i></div>
-      <div class="flex flex-col gap-0.5">
-        <div class="text-[24px] font-black tracking-tight" id="stat-guilds">—</div>
-        <div class="text-[11.5px] text-white/50 font-bold uppercase tracking-[0.04em]">Servers</div>
-      </div>
-    </div>
-    <div class="flex items-center gap-3.5 p-4 rounded-2xl bg-white/[0.025] border border-white/[0.08]">
-      <div class="w-12 h-12 rounded-[14px] grid place-items-center bg-brand/10 shrink-0"><i data-lucide="users" class="w-6 h-6 text-brand-light"></i></div>
-      <div class="flex flex-col gap-0.5">
-        <div class="text-[24px] font-black tracking-tight" id="stat-users">—</div>
-        <div class="text-[11.5px] text-white/50 font-bold uppercase tracking-[0.04em]">Users</div>
-      </div>
-    </div>
-    <div class="flex items-center gap-3.5 p-4 rounded-2xl bg-white/[0.025] border border-white/[0.08]">
-      <div class="w-12 h-12 rounded-[14px] grid place-items-center bg-brand/10 shrink-0"><i data-lucide="clock" class="w-6 h-6 text-brand-light"></i></div>
-      <div class="flex flex-col gap-0.5">
-        <div class="text-[24px] font-black tracking-tight" id="stat-uptime">—</div>
-        <div class="text-[11.5px] text-white/50 font-bold uppercase tracking-[0.04em]">Uptime</div>
-      </div>
-    </div>
-    <div class="flex items-center gap-3.5 p-4 rounded-2xl bg-white/[0.025] border border-white/[0.08]">
-      <div class="w-12 h-12 rounded-[14px] grid place-items-center bg-brand/10 shrink-0"><i data-lucide="hard-drive" class="w-6 h-6 text-brand-light"></i></div>
-      <div class="flex flex-col gap-0.5">
-        <div class="text-[24px] font-black tracking-tight" id="stat-memory">—</div>
-        <div class="text-[11.5px] text-white/50 font-bold uppercase tracking-[0.04em]">Memory</div>
-      </div>
+
+  <div style="margin-bottom:1.5rem;animation-delay:.08s;" >
+    <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.3);margin-bottom:0.75rem;">Quick Links</h2>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.625rem;">
+      <a href="/guild/{{ guild_id }}/moderation" style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:4px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);text-decoration:none;color:inherit;transition:all 0.2s;" onmouseover="this.style.borderColor='rgba(255,255,255,0.2)';this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.background='rgba(255,255,255,0.02)';">
+        <div style="width:36px;height:36px;border-radius:4px;display:grid;place-items:center;background:rgba(255,255,255,0.06);flex-shrink:0;"><i data-lucide="shield" style="width:16px;height:16px;color:rgba(255,255,255,0.6);"></i></div>
+        <span style="font-weight:700;font-size:13px;">Moderation</span>
+      </a>
+      <a href="/guild/{{ guild_id }}/ai" style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:4px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);text-decoration:none;color:inherit;transition:all 0.2s;" onmouseover="this.style.borderColor='rgba(255,255,255,0.2)';this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.background='rgba(255,255,255,0.02)';">
+        <div style="width:36px;height:36px;border-radius:4px;display:grid;place-items:center;background:rgba(255,255,255,0.06);flex-shrink:0;"><i data-lucide="sparkles" style="width:16px;height:16px;color:rgba(255,255,255,0.6);"></i></div>
+        <span style="font-weight:700;font-size:13px;">AI</span>
+      </a>
+      <a href="/guild/{{ guild_id }}/leveling" style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:4px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);text-decoration:none;color:inherit;transition:all 0.2s;" onmouseover="this.style.borderColor='rgba(255,255,255,0.2)';this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.background='rgba(255,255,255,0.02)';">
+        <div style="width:36px;height:36px;border-radius:4px;display:grid;place-items:center;background:rgba(255,255,255,0.06);flex-shrink:0;"><i data-lucide="trending-up" style="width:16px;height:16px;color:rgba(255,255,255,0.6);"></i></div>
+        <span style="font-weight:700;font-size:13px;">Leveling</span>
+      </a>
+      <a href="/guild/{{ guild_id }}/welcomer" style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:4px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);text-decoration:none;color:inherit;transition:all 0.2s;" onmouseover="this.style.borderColor='rgba(255,255,255,0.2)';this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.background='rgba(255,255,255,0.02)';">
+        <div style="width:36px;height:36px;border-radius:4px;display:grid;place-items:center;background:rgba(255,255,255,0.06);flex-shrink:0;"><i data-lucide="user-plus" style="width:16px;height:16px;color:rgba(255,255,255,0.6);"></i></div>
+        <span style="font-weight:700;font-size:13px;">Welcomer</span>
+      </a>
+      <a href="/guild/{{ guild_id }}/settings" style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:4px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);text-decoration:none;color:inherit;transition:all 0.2s;" onmouseover="this.style.borderColor='rgba(255,255,255,0.2)';this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.background='rgba(255,255,255,0.02)';">
+        <div style="width:36px;height:36px;border-radius:4px;display:grid;place-items:center;background:rgba(255,255,255,0.06);flex-shrink:0;"><i data-lucide="settings" style="width:16px;height:16px;color:rgba(255,255,255,0.6);"></i></div>
+        <span style="font-weight:700;font-size:13px;">Settings</span>
+      </a>
     </div>
   </div>
-  <div class="grid grid-cols-4 gap-3.5 max-lg:grid-cols-2 max-sm:grid-cols-1 anim-fade-in-up" style="animation-delay:.3s">
-    <div class="p-3.5 px-4 rounded-[10px] bg-white/[0.02] border border-white/[0.08]">
-      <div class="text-[11px] text-white/50 font-extrabold uppercase tracking-[0.04em] mb-1">Channels</div>
-      <div class="text-xl font-black" id="stat-channels">—</div>
+
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;">
+    <div  style="animation-delay:.12s">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.3);margin-bottom:0.75rem;">Recent Activity</h2>
+        <div style="color:rgba(255,255,255,0.4);font-size:14px;font-weight:600;padding:2.5rem 0;text-align:center;" id="activity-feed">Loading...</div>
+      </div>
     </div>
-    <div class="p-3.5 px-4 rounded-[10px] bg-white/[0.02] border border-white/[0.08]">
-      <div class="text-[11px] text-white/50 font-extrabold uppercase tracking-[0.04em] mb-1">Roles</div>
-      <div class="text-xl font-black" id="stat-roles">—</div>
-    </div>
-    <div class="p-3.5 px-4 rounded-[10px] bg-white/[0.02] border border-white/[0.08]">
-      <div class="text-[11px] text-white/50 font-extrabold uppercase tracking-[0.04em] mb-1">Emojis</div>
-      <div class="text-xl font-black" id="stat-emojis">—</div>
-    </div>
-    <div class="p-3.5 px-4 rounded-[10px] bg-white/[0.02] border border-white/[0.08]">
-      <div class="text-[11px] text-white/50 font-extrabold uppercase tracking-[0.04em] mb-1">CPU</div>
-      <div class="text-xl font-black" id="stat-cpu">—</div>
+    <div  style="animation-delay:.14s">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;margin-bottom:1rem;">
+        <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.3);margin-bottom:0.75rem;">Server Stats</h2>
+        <div style="display:flex;flex-direction:column;gap:0.75rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:14px;color:rgba(255,255,255,0.5);">Members</span>
+            <span style="font-size:14px;font-weight:700;" id="stat-members">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:14px;color:rgba(255,255,255,0.5);">Channels</span>
+            <span style="font-size:14px;font-weight:700;" id="stat-channels">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:14px;color:rgba(255,255,255,0.5);">Roles</span>
+            <span style="font-size:14px;font-weight:700;" id="stat-roles">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:14px;color:rgba(255,255,255,0.5);">Categories</span>
+            <span style="font-size:14px;font-weight:700;" id="stat-categories">—</span>
+          </div>
+        </div>
+      </div>
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.3);margin-bottom:0.75rem;">Feature Status</h2>
+        <div style="display:flex;flex-direction:column;gap:0.625rem;" id="feature-status">
+          <div style="color:rgba(255,255,255,0.4);font-size:14px;font-weight:600;padding:1rem 0;text-align:center;">Loading...</div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
-(async()=>{
-  try {
-    const r = await fetch('/api/status');
-    const d = await r.json();
-    const anim = (el, t) => { if (!el) return; const s=parseInt(el.textContent)||0, diff=t-s, st=performance.now(); (function step(n){const p=Math.min((n-st)/800,1); el.textContent=Math.round(s+diff*(1-Math.pow(1-p,3))); if(p<1) requestAnimationFrame(step)})(); };
-    anim(document.getElementById('stat-guilds'), parseInt(d.guilds)||0);
-    anim(document.getElementById('stat-users'), parseInt(d.users)||0);
-    const mem = document.getElementById('stat-memory'); if(mem) mem.textContent = d.memory_mb!=='N/A' ? d.memory_mb+' MB' : '—';
-    const ch = document.getElementById('stat-channels'); if(ch) ch.textContent = d.channels||'—';
-    const rl = document.getElementById('stat-roles'); if(rl) rl.textContent = d.roles||'—';
-    const em = document.getElementById('stat-emojis'); if(em) em.textContent = d.emojis||'—';
-    const cp = document.getElementById('stat-cpu'); if(cp) cp.textContent = d.cpu_percent!=='N/A' ? d.cpu_percent+'%' : '—';
+const GID = window.__GUILD_ID;
+const guild = window.__GUILD || {};
 
-    // Live uptime ticker
-    const upEl = document.getElementById('stat-uptime');
-    if (upEl && d.uptime) {
-      const parts = d.uptime.match(/(\d+)h\s*(\d+)m\s*(\d+)s/);
-      let totalSec = parts ? parseInt(parts[1])*3600 + parseInt(parts[2])*60 + parseInt(parts[3]) : 0;
-      const fmt = (s) => { const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60; return h+'h '+m+'m '+sec+'s'; };
-      upEl.textContent = fmt(totalSec);
-      setInterval(() => { totalSec++; upEl.textContent = fmt(totalSec); }, 1000);
-    }
-  } catch {}
-})();
+document.getElementById('stat-members').textContent = guild.approximate_member_count ?? guild.member_count ?? '—';
+
+fetch(`/api/v1/mod/${GID}/debug`).then(r=>r.json()).then(d => {
+  if (d.member_count > 0) document.getElementById('stat-members').textContent = d.member_count;
+}).catch(() => {});
+
+api('/channels').then(d => {
+  const count = d.channels?.length;
+  document.getElementById('stat-channels').textContent = count != null ? count : '—';
+  if (d.channels) {
+    const cats = d.channels.filter(c => c.type === 4).length;
+    document.getElementById('stat-categories').textContent = cats || 0;
+  }
+}).catch(() => {});
+
+api('/roles').then(d => {
+  const count = d.roles?.length;
+  document.getElementById('stat-roles').textContent = count != null ? count : '—';
+}).catch(() => {});
+
+api('/feed').then(d => {
+  const el = document.getElementById('activity-feed');
+  if (!d.events?.length) { el.textContent = 'No recent activity.'; return; }
+  el.innerHTML = d.events.slice(0, 8).map(e =>
+    `<div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+      <span style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${e.color === 'green' ? '#34d399' : e.color === 'red' ? '#f87171' : e.color === 'yellow' ? '#fbbf24' : '#666'}"></span>
+      <span style="font-size:14px;font-weight:600;color:rgba(255,255,255,0.7);">${esc(e.user)}</span>
+      <span style="font-size:14px;color:rgba(255,255,255,0.5);">${esc(e.action)}</span>
+      <span style="font-size:12px;color:rgba(255,255,255,0.3);margin-left:auto;">${esc(e.time)}</span>
+    </div>`
+  ).join('');
+}).catch(() => document.getElementById('activity-feed').textContent = 'Failed to load.');
+
+api('/settings').then(d => {
+  const s = d.settings || {};
+  const features = [
+    { key: 'dm_on_action', label: 'Mod Notifications', icon: 'bell' },
+    { key: 'track_stats', label: 'Stats Tracking', icon: 'bar-chart-3' },
+    { key: 'silent_mod', label: 'Silent Mode', icon: 'eye-off' },
+  ];
+  const el = document.getElementById('feature-status');
+  el.innerHTML = features.map(f => {
+    const on = s[f.key] === true;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        <i data-lucide="${f.icon}" style="width:14px;height:14px;${on ? 'color:rgba(255,255,255,0.6);' : 'color:rgba(255,255,255,0.2);'}"></i>
+        <span style="font-size:14px;${on ? 'color:rgba(255,255,255,0.7);' : 'color:rgba(255,255,255,0.3);'}">${f.label}</span>
+      </div>
+      <span style="font-size:12px;font-weight:700;${on ? 'color:#34d399;' : 'color:rgba(255,255,255,0.3);'}">${on ? 'ON' : 'OFF'}</span>
+    </div>`;
+  }).join('');
+  lucide.createIcons();
+}).catch(() => document.getElementById('feature-status').textContent = 'Failed to load.');
+
+function api(path, opts) { return fetch(`/api/v1/mod/${GID}${path}`, opts||{}).then(r=>r.json()); }
+function esc(s) { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
 </script>
 {% endblock %}

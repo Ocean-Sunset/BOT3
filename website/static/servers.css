@@ -76,6 +76,7 @@ body {
 }
 
 .view-toggle {
+  font-family: inherit;
   width: 32px;
   height: 32px;
   border-radius: 4px;
@@ -94,6 +95,9 @@ body {
   border-color: rgba(255,255,255,0.15);
 }
 .view-toggle svg { width: 16px; height: 16px; }
+
+.view-toggle.is-spinning svg { animation: spin 0.6s linear; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .glist-header {
   display: flex;
@@ -254,6 +258,24 @@ body {
 .btn-invite svg {
   width: 16px;
   height: 16px;
+}
+
+/* Invite text */
+.invite-text {
+  font-size: 0.72rem;
+  color: #444;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.5;
+}
+.invite-text a {
+  color: #777;
+  text-decoration: none;
+  font-weight: 700;
+  transition: color 0.2s;
+}
+.invite-text a:hover {
+  color: #bbb;
 }
 
 /* Logout */

@@ -18,6 +18,9 @@ from discord.ext.commands import CooldownMapping, BucketType
 # --------------------- CONSTANT VARIABLES --------------------
 SPAM_THRESHOLD = 4
 TIME_WINDOW = 5
+
+# ── API Keys ──
+OPENAI_API_KEY = environ.get("OPENAI_API_KEY", "")
 EASTER_FILE = "data/easter.json"
 TROPHY_FILE = "data/trophies.json"
 BOT_DATA_FILE = "bot_data.txt"

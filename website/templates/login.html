@@ -39,7 +39,7 @@
 
       <div class="heading gsap-heading">
         <h1 id="heading">Welcome back</h1>
-        <p id="subtitle">Sign in to manage your servers and customize Prowl.</p>
+        <p id="subtitle">sign in to manage your servers and customize Prowl</p>
       </div>
 
       <div class="buttons gsap-buttons">
@@ -66,32 +66,32 @@
       <div class="showcase-block" data-mode="signin">
         <div class="showcase-number">10+</div>
         <div class="showcase-title">Powerful Modules</div>
-        <div class="showcase-desc">Moderation, AI, music, leveling, and more — all in one bot.</div>
+        <div class="showcase-desc">moderation, AI, music, leveling, and more all in Prowl!</div>
       </div>
       <div class="showcase-block" data-mode="signin">
         <div class="showcase-number">100%</div>
         <div class="showcase-title">Free Forever</div>
-        <div class="showcase-desc">No paywalls, no premium tiers. Everything included.</div>
+        <div class="showcase-desc">no paywalls, no premium tiers, no cookies, just free</div>
       </div>
       <div class="showcase-block" data-mode="signin">
         <div class="showcase-number">24/7</div>
         <div class="showcase-title">Always Online</div>
-        <div class="showcase-desc">Hosted on reliable infrastructure with 99.9% uptime.</div>
+        <div class="showcase-desc">hosted on reliable infrastructure with 99.9% uptime!</div>
       </div>
       <div class="showcase-block" data-mode="signup">
         <div class="showcase-number">1</div>
         <div class="showcase-title">Click Setup</div>
-        <div class="showcase-desc">Link your Discord account and you're ready in seconds.</div>
+        <div class="showcase-desc">link your Discord account and you're ready in seconds, literally</div>
       </div>
       <div class="showcase-block" data-mode="signup">
-        <div class="showcase-number">5k+</div>
-        <div class="showcase-title">Happy Servers</div>
-        <div class="showcase-desc">Join thousands of communities already powered by Prowl.</div>
+        <div class="showcase-number">1min</div>
+        <div class="showcase-title">Fast Setup</div>
+        <div class="showcase-desc">be fully configured in under a minute</div>
       </div>
       <div class="showcase-block" data-mode="signup">
         <div class="showcase-number">&infin;</div>
         <div class="showcase-title">Customizable</div>
-        <div class="showcase-desc">Tweak every setting from the dashboard — no limits.</div>
+        <div class="showcase-desc">tweak every setting from the dashboard, no commands</div>
       </div>
     </div>
   </div>
@@ -141,7 +141,7 @@
     // Sync heading, buttons, and Google btn if initial mode is signup
     if (initialMode === 'signup') {
       document.getElementById('heading').textContent = 'Create an account';
-      document.getElementById('subtitle').textContent = 'Sign up with Discord to get started with Prowl.';
+      document.getElementById('subtitle').textContent = 'sign up with Discord to get started with Prowl';
       document.getElementById('btn-signin').classList.remove('active');
       document.getElementById('btn-signup').classList.add('active');
       document.getElementById('google-btn').style.display = 'none';
@@ -210,8 +210,8 @@
         onComplete: () => {
           heading.textContent  = m === 'signin' ? 'Welcome back' : 'Create an account';
           subtitle.textContent = m === 'signin'
-            ? 'Sign in to manage your servers and customize Prowl.'
-            : 'Sign up with Discord to get started with Prowl.';
+            ? 'sign in to manage your servers and customize Prowl'
+            : 'sign up with Discord to get started with Prowl';
         }
       })
       .to([heading, subtitle], { opacity: 1, y: 0, duration: 0.25, ease: 'power2.out', stagger: 0 })

@@ -37,6 +37,8 @@
     const saved = JSON.parse(localStorage.getItem(SIDEBAR_KEY) || "{}");
 
     toggle.addEventListener("click", () => {
+      const inner = sidebar.querySelectorAll('.sidebar-nav, .sidebar-header, .sidebar-user');
+      inner.forEach(el => el.style.transition = 'none');
       const isCollapsed = sidebar.classList.toggle("is-collapsed");
       if (!isCollapsed) {
         sidebar.style.width = (saved.width || SIDEBAR_DEFAULT) + "px";
@@ -47,6 +49,7 @@
         icon.setAttribute('data-lucide', isCollapsed ? 'panel-left' : 'panel-left-close');
         lucide.createIcons();
       }
+      requestAnimationFrame(() => inner.forEach(el => el.style.transition = ''));
     });
   }
 
@@ -180,12 +183,33 @@
     }
   }
 
+  // ========================= SIDEBAR: SCROLL POSITION =========================
+
+  function initSidebarScroll() {
+    const nav = $(".sidebar-nav");
+    if (!nav) return;
+
+    // Restore scroll position
+    const saved = JSON.parse(localStorage.getItem(SIDEBAR_KEY) || "{}");
+    if (saved.scrollTop != null) {
+      nav.scrollTop = saved.scrollTop;
+    }
+
+    // Save scroll position before page unload
+    nav.addEventListener("scroll", () => {
+      const data = JSON.parse(localStorage.getItem(SIDEBAR_KEY) || "{}");
+      data.scrollTop = nav.scrollTop;
+      localStorage.setItem(SIDEBAR_KEY, JSON.stringify(data));
+    });
+  }
+
   // ========================= INIT =========================
 
   function init() {
     initSidebarWidth();
     initSidebarToggle();
     initSidebarResize();
+    initSidebarScroll();
     initUserPopover();
     initTooltips();
   }

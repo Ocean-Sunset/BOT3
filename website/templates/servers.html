@@ -39,9 +39,14 @@
       {% if guilds %}
       <div class="glist-header">
         <span></span>
-        <button id="view-toggle" class="view-toggle" data-tooltip="Toggle view">
-          <i data-lucide="layout-grid" id="view-icon"></i>
-        </button>
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <button id="refresh-btn" class="view-toggle" data-tooltip="Refresh list">
+            <i data-lucide="refresh-cw"></i>
+          </button>
+          <button id="view-toggle" class="view-toggle" data-tooltip="Toggle view">
+            <i data-lucide="layout-grid" id="view-icon"></i>
+          </button>
+        </div>
       </div>
       <div class="guild-list">
         {% for g in guilds %}
@@ -75,6 +80,8 @@
         </a>
       </div>
       {% endif %}
+
+      <div class="subtitle">don't see your server? <a href="https://discord.com/oauth2/authorize?client_id={{ config.get('CLIENT_ID', '') }}&scope=bot&permissions=8" target="_blank">invite prowl</a> to your server!</div>
 
       <a href="/logout" class="logout">Log out</a>
 
@@ -125,6 +132,12 @@
         document.querySelectorAll('.guild-btn').forEach(b => b.style.transition = '');
       });
     }
+
+    // ── Refresh button ──
+    document.getElementById('refresh-btn')?.addEventListener('click', function() {
+      this.classList.add('is-spinning');
+      window.location.reload();
+    });
   </script>
 </body>
 </html>

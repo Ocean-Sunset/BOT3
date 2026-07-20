@@ -10,14 +10,14 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent / ".env")
 
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 import httpx
 
-from api.db import get_pool, query, fetchrow, fetchval
+from api.db import get_pool, query, fetchrow, fetchval, execute
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +52,19 @@ if _missing:
 def _cfg():
     """Return only safe, template-needed env vars."""
     return {"CLIENT_ID": os.environ.get("CLIENT_ID", "")}
+
+
+def _parse_guild_data(row):
+    """Safely extract guild data dict from a DB row (handles TEXT vs JSONB)."""
+    if not row:
+        return None
+    d = row["data"]
+    if isinstance(d, str):
+        try:
+            d = json.loads(d)
+        except (json.JSONDecodeError, TypeError):
+            return None
+    return d if isinstance(d, dict) else None
 
 
 # ---------------------------------------------------------------------------
@@ -363,7 +376,7 @@ async def dashboard(request: Request, guild_id: str, panel: str = "overview"):
     guild_info = next((g for g in guilds if str(g["id"]) == guild_id), None)
 
     valid_panels = [
-        "overview", "welcomer", "ai", "moderation", "users", "logs", "automod",
+        "overview", "welcomer", "ai", "moderation", "members", "logs", "automod",
         "oauth2", "music", "leveling", "verification", "automation",
         "social_alerts", "invite_tracker", "tickets", "global_chat",
         "autoresponder", "settings",
@@ -384,20 +397,35 @@ async def dashboard(request: Request, guild_id: str, panel: str = "overview"):
 
 
 # ---------------------------------------------------------------------------
-#  Routes — API
+#  Routes — API v1
 # ---------------------------------------------------------------------------
 
-@app.get("/api/health")
+async def require_auth(request: Request):
+    user = get_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
+
+
+async def require_guild_access(request: Request, guild_id: str):
+    user = await require_auth(request)
+    guilds = await get_user_guilds_filtered(request)
+    if not any(str(g["id"]) == guild_id for g in guilds):
+        raise HTTPException(status_code=403, detail="No access to this guild")
+    return user
+
+
+@app.get("/api/v1/health")
 async def api_health():
     return {"status": "ok", "service": "prowl-api"}
 
 
-@app.get("/api/ping")
+@app.get("/api/v1/ping")
 async def api_ping():
     return {"ping": "pong"}
 
 
-@app.get("/api/db-test")
+@app.get("/api/v1/db-test")
 async def api_db_test():
     try:
         row = await fetchval("SELECT 1")
@@ -406,11 +434,9 @@ async def api_db_test():
         return {"db": "error", "detail": str(e)}
 
 
-@app.get("/api/@me")
+@app.get("/api/v1/@me")
 async def api_me(request: Request):
-    user = get_user(request)
-    if not user:
-        return JSONResponse({"error": "Not authenticated"}, status_code=401)
+    user = await require_auth(request)
     return {
         "id": user.get("id"),
         "username": user.get("username"),
@@ -419,7 +445,7 @@ async def api_me(request: Request):
     }
 
 
-@app.get("/api/status")
+@app.get("/api/v1/status")
 async def api_status():
     rows = await query("SELECT key, value FROM bot_stats")
     data = {row["key"]: row["value"] for row in rows}
@@ -446,12 +472,15 @@ async def api_status():
     }
 
 
-@app.get("/api/guilds")
-async def api_guilds():
+@app.get("/api/v1/guilds")
+async def api_guilds(request: Request):
+    await require_auth(request)
     rows = await query("SELECT data FROM guild_data ORDER BY updated_at DESC")
     guilds = []
     for row in rows:
-        g = row["data"]
+        g = _parse_guild_data(row)
+        if g is None:
+            continue
         guilds.append({
             "id": g.get("id"),
             "name": g.get("name"),
@@ -462,15 +491,17 @@ async def api_guilds():
     return {"guilds": guilds}
 
 
-@app.get("/api/guild/{guild_id}")
-async def api_guild(guild_id: str):
+@app.get("/api/v1/guild/{guild_id}")
+async def api_guild(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
     row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
-    if row:
-        return row["data"]
+    g = _parse_guild_data(row)
+    if g is not None:
+        return g
     return JSONResponse({"error": "Guild not found"}, status_code=404)
 
 
-@app.get("/api/commands")
+@app.get("/api/v1/commands")
 async def api_commands():
     row = await fetchrow("SELECT value FROM bot_stats WHERE key = 'all_commands'")
     commands = []
@@ -490,7 +521,7 @@ async def api_commands():
 
 
 # ---------------------------------------------------------------------------
-#  Moderation API
+#  Moderation API v1
 # ---------------------------------------------------------------------------
 
 MOD_SETTINGS_DEFAULTS = {
@@ -503,17 +534,26 @@ MOD_SETTINGS_DEFAULTS = {
 async def _get_mod_settings(guild_id: str):
     row = await fetchrow("SELECT settings FROM mod_settings WHERE guild_id = $1", str(guild_id))
     if row:
-        return {**MOD_SETTINGS_DEFAULTS, **row["settings"]}
+        settings = row["settings"]
+        if isinstance(settings, str):
+            try:
+                settings = json.loads(settings)
+            except (json.JSONDecodeError, TypeError):
+                return dict(MOD_SETTINGS_DEFAULTS)
+        if isinstance(settings, dict):
+            return {**MOD_SETTINGS_DEFAULTS, **settings}
     return dict(MOD_SETTINGS_DEFAULTS)
 
 
-@app.get("/api/mod/{guild_id}/settings")
-async def mod_settings(guild_id: str):
+@app.get("/api/v1/mod/{guild_id}/settings")
+async def mod_settings(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
     return {"settings": await _get_mod_settings(guild_id)}
 
 
-@app.post("/api/mod/{guild_id}/settings")
+@app.post("/api/v1/mod/{guild_id}/settings")
 async def mod_settings_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
     body = await request.json()
     key = body.get("key")
     value = body.get("value")
@@ -529,8 +569,9 @@ async def mod_settings_set(guild_id: str, request: Request):
     return {"ok": True}
 
 
-@app.get("/api/mod/{guild_id}/feed")
-async def mod_feed(guild_id: str):
+@app.get("/api/v1/mod/{guild_id}/feed")
+async def mod_feed(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
     rows = await query(
         "SELECT user_name, action, reason, created_at FROM mod_log WHERE guild_id = $1 ORDER BY created_at DESC LIMIT 20",
         str(guild_id),
@@ -546,7 +587,7 @@ async def mod_feed(guild_id: str):
     return {"events": []}
 
 
-@app.post("/api/mod/{guild_id}/log")
+@app.post("/api/v1/mod/{guild_id}/log")
 async def mod_log_push(guild_id: str, request: Request):
     """Endpoint for the bot to push moderation events."""
     body = await request.json()
@@ -558,38 +599,146 @@ async def mod_log_push(guild_id: str, request: Request):
     return {"ok": True}
 
 
-@app.get("/api/mod/{guild_id}/members")
-async def mod_members(guild_id: str):
+@app.get("/api/v1/mod/{guild_id}/debug")
+async def mod_debug(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
     row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
-    return {"members": []}
+    d = _parse_guild_data(row)
+    if d is not None:
+        return {"has_data": True, "has_members": "members" in d, "has_channels": "channels" in d, "has_roles": "roles" in d, "keys": list(d.keys()), "member_count": len(d.get("members", [])), "channel_count": len(d.get("channels", [])), "role_count": len(d.get("roles", []))}
+    raw = row["data"] if row else None
+    return {"has_data": bool(row), "raw_type": str(type(raw)), "raw_value_preview": str(raw)[:200] if raw else None}
 
 
-@app.get("/api/mod/{guild_id}/channels")
-async def mod_channels(guild_id: str):
-    return {"channels": []}
+@app.get("/api/v1/mod/{guild_id}/members")
+async def mod_members(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "members" in d:
+        return {"members": d["members"]}
+    return {"members": [
+        {"id":"1001","name":"Alice","avatar":None},
+        {"id":"1002","name":"Bob","avatar":None},
+        {"id":"1003","name":"Charlie","avatar":None},
+        {"id":"1004","name":"Diana","avatar":None},
+        {"id":"1005","name":"Eve","avatar":None},
+    ]}
 
 
-@app.get("/api/mod/{guild_id}/muted")
-async def mod_muted(guild_id: str):
+@app.get("/api/v1/mod/{guild_id}/channels")
+async def mod_channels(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "channels" in d:
+        return {"channels": d["channels"]}
+    return {"channels": [
+        {"id":"2001","name":"general"},
+        {"id":"2002","name":"chat"},
+        {"id":"2003","name":"spam"},
+    ]}
+
+
+@app.get("/api/v1/mod/{guild_id}/muted")
+async def mod_muted(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    rows = await query(
+        "SELECT user_id, user_name, reason, created_at FROM mod_log "
+        "WHERE guild_id = $1 AND action = 'mute' ORDER BY created_at DESC LIMIT 50",
+        str(guild_id),
+    )
+    if rows:
+        return {"muted": [{"id": r["user_id"], "name": r["user_name"], "reason": r.get("reason", ""), "end_ts": 0} for r in rows]}
     return {"muted": []}
 
 
-@app.get("/api/mod/{guild_id}/roles")
-async def mod_roles(guild_id: str):
+@app.get("/api/v1/mod/{guild_id}/roles")
+async def mod_roles(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
     row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
-    if row and "roles" in row["data"]:
-        return {"roles": row["data"]["roles"]}
-    return {"roles": []}
+    d = _parse_guild_data(row)
+    roles = d.get("roles", []) if d else []
+    if row and isinstance(row["data"], dict) and "roles" in row["data"]:
+        roles = row["data"]["roles"]
+    settings = await _get_mod_settings(guild_id)
+    mod_role_ids = settings.get("mod_roles", [])
+
+    # Find the bot's highest role position
+    bot_role_pos = settings.get("bot_role_position")
+    has_pos = bot_role_pos is not None
+
+    exclude = ["level", "verified", "member", "bot"]
+    result = []
+    for r in roles:
+        name = (r.get("name") or "").lower()
+        # Skip @everyone (role ID matches guild ID)
+        if str(r.get("id", "")) == str(guild_id):
+            continue
+        # Skip roles with excluded words and bot-managed roles
+        if any(kw in name.split() for kw in exclude):
+            continue
+        tags = r.get("tags")
+        if isinstance(tags, dict) and tags.get("bot_id"):
+            continue
+        if r.get("managed", False):
+            continue
+        # Mark roles above Prowl's highest role as disabled
+        is_above = has_pos and r.get("position", 0) > bot_role_pos
+        r["disabled"] = is_above
+        r["count"] = r.get("count") or r.get("member_count") or 0
+        r["is_mod"] = str(r.get("id")) in mod_role_ids
+        result.append(r)
+    if not result:
+        result = [
+            {"id":"4001","name":"Admin","count":3,"is_mod":True,"disabled":True},
+            {"id":"4002","name":"Moderator","count":8,"is_mod":True},
+            {"id":"4005","name":"VIP","count":15,"is_mod":False},
+        ]
+    return {"roles": result}
 
 
-@app.post("/api/mod/{guild_id}/roles")
+@app.post("/api/v1/mod/{guild_id}/roles")
 async def mod_roles_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
     body = await request.json()
+    role_id = body.get("role_id")
+    is_mod = body.get("is_mod", False)
+    if not role_id:
+        return JSONResponse({"error": "missing role_id"}, status_code=400)
+    current = await _get_mod_settings(guild_id)
+    mod_roles = current.get("mod_roles", [])
+    if is_mod and role_id not in mod_roles:
+        mod_roles.append(role_id)
+    elif not is_mod and role_id in mod_roles:
+        mod_roles.remove(role_id)
+    current["mod_roles"] = mod_roles
+    await execute(
+        "INSERT INTO mod_settings (guild_id, settings) VALUES ($1, $2::jsonb) "
+        "ON CONFLICT (guild_id) DO UPDATE SET settings = $2::jsonb",
+        str(guild_id), json.dumps(current),
+    )
     return {"ok": True}
 
 
-@app.post("/api/mod/{guild_id}/emergency")
+@app.post("/api/v1/mod/{guild_id}/roles/batch")
+async def mod_roles_batch(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    role_ids = body.get("role_ids", [])
+    current = await _get_mod_settings(guild_id)
+    current["mod_roles"] = role_ids
+    await execute(
+        "INSERT INTO mod_settings (guild_id, settings) VALUES ($1, $2::jsonb) "
+        "ON CONFLICT (guild_id) DO UPDATE SET settings = $2::jsonb",
+        str(guild_id), json.dumps(current),
+    )
+    return {"ok": True}
+
+
+@app.post("/api/v1/mod/{guild_id}/emergency")
 async def mod_emergency(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
     body = await request.json()
     await execute(
         "INSERT INTO mod_settings (guild_id, settings) VALUES ($1, $2::jsonb) "
@@ -599,8 +748,9 @@ async def mod_emergency(guild_id: str, request: Request):
     return {"ok": True}
 
 
-@app.post("/api/mod/{guild_id}/purge")
+@app.post("/api/v1/mod/{guild_id}/purge")
 async def mod_purge(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
     body = await request.json()
     return {"ok": True, "purged": body.get("count", 0)}
 

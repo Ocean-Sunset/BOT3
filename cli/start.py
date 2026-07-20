@@ -42,8 +42,21 @@ class ProwlBot(commands.Bot):
         synced = await self.tree.sync()
         logger.info(f"Synced {len(synced)} slash commands.")
         self.loop.create_task(self._dashboard_writer())
+        self.loop.create_task(self._initial_neon_push())
         self.loop.create_task(self._neon_syncer())
         logger.info("Setup hook complete.")
+
+    async def _initial_neon_push(self):
+        await self.wait_until_ready()
+        import os as _os
+        if not _os.environ.get("DATABASE_URL"):
+            logger.warning("DATABASE_URL not set — bot won't push guild data to Neon. Set it in cli/.env")
+            return
+        try:
+            await self._push_to_neon()
+            logger.info("Initial Neon push complete.")
+        except Exception as e:
+            logger.error(f"Initial Neon push failed: {e}")
 
     async def load_cogs(self):
         for file in COGS_DIR.glob("*.py"):
@@ -143,6 +156,9 @@ class ProwlBot(commands.Bot):
                 "emoji_count": len(guild.emojis),
                 "created_at": guild.created_at.isoformat(),
                 "owner_id": guild.owner_id,
+                "members": [{"id": m.id, "name": m.name, "display_name": m.display_name, "avatar": m.display_avatar.key} for m in guild.members],
+                "channels": [{"id": c.id, "name": c.name, "type": c.type.value} for c in guild.channels],
+                "roles": [{"id": r.id, "name": r.name, "color": r.color.value, "position": r.position, "managed": r.managed, "count": len(r.members)} for r in guild.roles],
             })
 
         await neon_db.push_bot_stats(bot_stats)

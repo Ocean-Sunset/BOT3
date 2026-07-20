@@ -1,0 +1,103 @@
+import discord
+from discord.ext import commands
+from discord import app_commands
+import json
+import datetime
+
+from Ediscord import logger, EmbedBuilder
+from Ediscord import db as neon_db
+
+
+class Members(commands.Cog, name="Members"):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+
+    def can_manage(self, interaction: discord.Interaction) -> bool:
+        return interaction.user.guild_permissions.manage_roles or interaction.user.guild_permissions.administrator
+
+    members_group = app_commands.Group(name="members", description="Member management commands")
+
+    @members_group.command(name="list", description="List members with a specific role")
+    @app_commands.describe(role="The role to filter by")
+    async def list_members(self, interaction: discord.Interaction, role: discord.Role):
+        if not self.can_manage(interaction):
+            return await interaction.response.send_message("You need Manage Roles permission.", ephemeral=True)
+        members = [m for m in interaction.guild.members if role in m.roles]
+        if not members:
+            return await interaction.response.send_message(f"No members with {role.mention}.", ephemeral=True)
+        chunks = [members[i:i+20] for i in range(0, len(members), 20)]
+        embed = EmbedBuilder().title(f"Members with {role.name}").description(f"Total: {len(members)}").color("blue")
+        for chunk in chunks[:5]:
+            names = "\n".join(f"{m.mention} - {m.display_name}" for m in chunk)
+            embed.field(role.name, names[:1000])
+        await interaction.response.send_message(embed=embed.build())
+
+    @members_group.command(name="info", description="Get detailed info about a member")
+    @app_commands.describe(member="The member to look up")
+    async def member_info(self, interaction: discord.Interaction, member: discord.Member):
+        roles = " ".join(r.mention for r in member.roles[1:]) or "None"
+        embed = EmbedBuilder().title(member.display_name).color("blue") \
+            .field("ID", member.id) \
+            .field("Joined", discord.utils.format_dt(member.joined_at, style="R") if member.joined_at else "Unknown") \
+            .field("Created", discord.utils.format_dt(member.created_at, style="R")) \
+            .field("Roles", roles[:1000]) \
+            .field("Top Role", member.top_role.mention) \
+            .thumbnail(member.display_avatar.url)
+        await interaction.response.send_message(embed=embed.build())
+
+    @members_group.command(name="role", description="Add or remove a role from a member")
+    @app_commands.describe(member="The member", role="The role")
+    async def role(self, interaction: discord.Interaction, member: discord.Member, role: discord.Role):
+        if not self.can_manage(interaction):
+            return await interaction.response.send_message("You need Manage Roles permission.", ephemeral=True)
+        if role >= interaction.user.top_role and interaction.user != interaction.guild.owner:
+            return await interaction.response.send_message("You cannot manage this role.", ephemeral=True)
+        if role in member.roles:
+            await member.remove_roles(role, reason=f"Removed by {interaction.user}")
+            await interaction.response.send_message(f"Removed {role.mention} from {member.mention}.", ephemeral=True)
+        else:
+            await member.add_roles(role, reason=f"Added by {interaction.user}")
+            await interaction.response.send_message(f"Added {role.mention} to {member.mention}.", ephemeral=True)
+
+    @members_group.command(name="note", description="Add a note about a member (stored locally)")
+    @app_commands.describe(member="The member", note="The note text")
+    async def note(self, interaction: discord.Interaction, member: discord.Member, note: str):
+        if not self.can_manage(interaction):
+            return await interaction.response.send_message("You need Manage Roles permission.", ephemeral=True)
+        notes_file = f"data/notes_{interaction.guild_id}.json"
+        try:
+            with open(notes_file) as f:
+                notes = json.load(f)
+        except:
+            notes = {}
+        key = str(member.id)
+        if key not in notes:
+            notes[key] = []
+        notes[key].append({"author": interaction.user.id, "note": note, "time": str(datetime.datetime.utcnow())})
+        with open(notes_file, "w") as f:
+            json.dump(notes, f, indent=2)
+        await interaction.response.send_message(f"Note added for {member.mention}.", ephemeral=True)
+
+    @members_group.command(name="warnings", description="View a member's warning history")
+    @app_commands.describe(member="The member")
+    async def warnings(self, interaction: discord.Interaction, member: discord.Member):
+        if not self.can_manage(interaction):
+            return await interaction.response.send_message("You need Manage Roles permission.", ephemeral=True)
+        pool = await neon_db.get_pool()
+        if not pool:
+            return await interaction.response.send_message("Database unavailable.", ephemeral=True)
+        rows = await pool.fetch(
+            "SELECT action, reason, created_at FROM mod_log WHERE guild_id = $1 AND user_id = $2 AND action = 'warn' ORDER BY created_at DESC",
+            str(interaction.guild_id), str(member.id),
+        )
+        if not rows:
+            return await interaction.response.send_message(f"{member.mention} has no warnings.", ephemeral=True)
+        embed = EmbedBuilder().title(f"Warnings for {member.display_name}").description(f"Total: {len(rows)}").color("yellow")
+        for row in rows[:10]:
+            reason = row["reason"] or "No reason"
+            embed.field(reason[:200], discord.utils.format_dt(row["created_at"], style="R"))
+        await interaction.response.send_message(embed=embed.build())
+
+
+async def setup(bot: commands.Bot):
+    await bot.add_cog(Members(bot))

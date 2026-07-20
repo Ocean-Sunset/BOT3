@@ -79,3 +79,20 @@ async def push_mod_event(guild_id: str, user_id: str, user_name: str, action: st
             )
     except Exception as e:
         logger.error(f"push_mod_event failed: {e}")
+
+
+async def fetch_mod_settings(guild_id: str) -> dict:
+    pool = await get_pool()
+    if pool is None:
+        return {}
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT settings FROM mod_settings WHERE guild_id = $1", str(guild_id))
+            if row:
+                d = row["settings"]
+                if isinstance(d, str):
+                    return json.loads(d)
+                return d if isinstance(d, dict) else {}
+    except Exception as e:
+        logger.error(f"fetch_mod_settings failed: {e}")
+    return {}

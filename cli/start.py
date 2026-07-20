@@ -44,6 +44,7 @@ class ProwlBot(commands.Bot):
         self.loop.create_task(self._dashboard_writer())
         self.loop.create_task(self._initial_neon_push())
         self.loop.create_task(self._neon_syncer())
+        self.loop.create_task(self._mod_settings_poller())
         logger.info("Setup hook complete.")
 
     async def _initial_neon_push(self):
@@ -98,6 +99,19 @@ class ProwlBot(commands.Bot):
             except Exception as e:
                 logger.error(f"Neon sync failed: {e}")
             await asyncio.sleep(300)
+
+    async def _mod_settings_poller(self):
+        """Periodically cache mod_settings from Neon for command permission checks."""
+        await self.wait_until_ready()
+        self._mod_cache = {}
+        while not self.is_closed():
+            try:
+                for guild in self.guilds:
+                    gid = str(guild.id)
+                    self._mod_cache[gid] = await neon_db.fetch_mod_settings(gid)
+            except Exception as e:
+                logger.error(f"Mod settings poller failed: {e}")
+            await asyncio.sleep(120)
 
     async def _push_to_neon(self):
         """Build stats and push directly to Neon PostgreSQL."""

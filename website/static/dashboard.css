@@ -35,13 +35,13 @@ body {
   width: var(--sidebar-w, 280px);
   display: flex;
   flex-direction: column;
-  transition: width 0.3s ease-out;
   position: relative;
   background: #0d0d0d;
   border-right: 1px solid rgba(255,255,255,0.06);
   user-select: none;
   overflow: hidden;
 }
+.sidebar.is-collapsed { width: 72px !important; }
 .sidebar.is-collapsed .nav-item {
   justify-content: center;
   padding-left: 0;
@@ -62,25 +62,6 @@ body {
 .sidebar-header { padding: 1rem 1rem 0; overflow: hidden; }
 
 .sidebar-user { padding: 0.75rem; overflow: visible; }
-.sidebar.is-collapsed .nav-label,
-.sidebar.is-collapsed .sidebar-label,
-.sidebar.is-collapsed .nav-group-label { opacity: 0; width: 0; overflow: hidden; }
-.sidebar.is-collapsed .nav-item { justify-content: center; padding-left: 0; padding-right: 0; }
-.sidebar.is-collapsed .nav-item span { display: none; }
-.sidebar.is-collapsed .nav-section { margin-bottom: 0; }
-.sidebar.is-collapsed .sidebar-brand { display: none; }
-.sidebar.is-collapsed .sidebar-top { justify-content: center; padding: 0; }
-.sidebar.is-collapsed .sidebar-header { padding: 0.75rem 0; }
-.sidebar.is-collapsed .server-info { padding: 0; justify-content: center; }
-.sidebar.is-collapsed .server-info .server-name,
-.sidebar.is-collapsed .server-info .server-switch { display: none; }
-.sidebar.is-collapsed .sidebar-nav { padding-left: 0; }
-.sidebar.is-collapsed .sidebar-user { padding: 0.5rem; }
-.sidebar.is-collapsed .user-btn { padding: 0; justify-content: center; }
-.sidebar.is-collapsed .user-btn .user-name,
-.sidebar.is-collapsed .user-btn .user-chevron { display: none; }
-.sidebar.is-collapsed #sidebar-toggle { width: 40px; height: 40px; background: rgba(255,255,255,0.04); border-radius: 8px; color: rgba(255,255,255,0.6); }
-.sidebar.is-collapsed #sidebar-toggle:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.9); }
 
 /* ── Sidebar header ── */
 .sidebar-header {

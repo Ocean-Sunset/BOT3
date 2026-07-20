@@ -664,9 +664,10 @@ async def mod_roles(guild_id: str, request: Request):
     settings = await _get_mod_settings(guild_id)
     mod_role_ids = settings.get("mod_roles", [])
 
-    # Find the bot's highest role position
-    bot_role_pos = settings.get("bot_role_position")
-    has_pos = bot_role_pos is not None
+    # Get bot's highest role position from guild data
+    bot_role_pos = None
+    if d and "bot_top_role_position" in d:
+        bot_role_pos = d["bot_top_role_position"]
 
     exclude = ["level", "verified", "member", "bot"]
     result = []
@@ -683,11 +684,14 @@ async def mod_roles(guild_id: str, request: Request):
             continue
         if r.get("managed", False):
             continue
-        # Mark roles above Prowl's highest role as disabled
-        is_above = has_pos and r.get("position", 0) > bot_role_pos
+        # Auto-enable for roles with administrator permission (bit 3 = 8)
+        perms = r.get("permissions", 0) or 0
+        has_admin = bool(perms & 8)
+        # Mark roles above Prowl's highest role as disabled (can't assign)
+        is_above = bot_role_pos is not None and r.get("position", 0) > bot_role_pos
         r["disabled"] = is_above
+        r["is_mod"] = has_admin or (str(r.get("id")) in mod_role_ids)
         r["count"] = r.get("count") or r.get("member_count") or 0
-        r["is_mod"] = str(r.get("id")) in mod_role_ids
         result.append(r)
     if not result:
         result = [

@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!d.members?.length) { w.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No members loaded.</div>'; return; }
     const members = d.members;
     w.innerHTML = '<table class="md-member-table"><thead><tr><th>Member</th><th style="width:95px;">Actions</th></tr></thead><tbody>' +
-      members.map((m,i) => `<tr><td><div class="md-member-info"><div class="md-member-avatar"><img src="${m.avatar?('https://cdn.discordapp.com/avatars/'+m.id+'/'+m.avatar+'.png?size=32'):('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png')}" style="width:100%;height:100%;object-fit:cover;" /></div><span class="md-member-name">${esc(m.name)}</span></div></td><td><div class="md-actions-wrap"><button class="md-actions-btn" data-idx="${i}"><i data-lucide="chevron-down"></i>Actions</button></div></td></tr>`).join('') +
+      members.map((m,i) => `<tr><td><div class="md-member-info"><div class="md-member-avatar"><img src="${m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png')}" style="width:100%;height:100%;object-fit:cover;" /></div><span class="md-member-name">${esc(m.name)}</span></div></td><td><div class="md-actions-wrap"><button class="md-actions-btn" data-idx="${i}"><i data-lucide="chevron-down"></i>Actions</button></div></td></tr>`).join('') +
       '</tbody></table>';
     lucide.createIcons();
     const overlay = document.createElement('div');
@@ -172,7 +172,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   api('/muted').then(d => {
     const el = document.getElementById('muted-list');
     if (!d.muted?.length) { el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No muted users</div>'; return; }
-    el.innerHTML = d.muted.map(m => `<div class="md-muted-item"><div class="md-muted-avatar"><img src="${m.avatar?('https://cdn.discordapp.com/avatars/'+m.id+'/'+m.avatar+'.png?size=64'):('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png')}" style="width:100%;height:100%;object-fit:cover;" /></div><div class="md-muted-info"><div class="md-muted-name">${esc(m.name)}</div><div class="md-muted-reason">${esc(m.reason)}</div></div><span class="md-muted-timer" data-end="${m.end_ts}">--:--:--</span><button class="md-action-btn" data-action="unmute" data-user="${m.id}"><i data-lucide="unlock"></i> Release</button></div>`).join('');
+    el.innerHTML = d.muted.map(m => `<div class="md-muted-item"><div class="md-muted-avatar"><img src="${m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png')}" style="width:100%;height:100%;object-fit:cover;" /></div><div class="md-muted-info"><div class="md-muted-name">${esc(m.name)}</div><div class="md-muted-reason">${esc(m.reason)}</div></div><span class="md-muted-timer" data-end="${m.end_ts}">--:--:--</span><button class="md-action-btn" data-action="unmute" data-user="${m.id}"><i data-lucide="unlock"></i> Release</button></div>`).join('');
     lucide.createIcons();
     document.querySelectorAll('.md-muted-timer').forEach(el => {
       const end = parseInt(el.dataset.end); if(!end) return;

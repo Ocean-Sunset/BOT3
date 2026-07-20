@@ -399,9 +399,9 @@
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
+  -webkit-appearance: none; color-scheme: dark;
+  -moz-appearance: none; color-scheme: dark;
+  appearance: none; color-scheme: dark;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.5rem center;
@@ -415,8 +415,8 @@
   gap: 0.6rem;
 }
 .md-purge-slider-wrap input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
+  -webkit-appearance: none; color-scheme: dark;
+  appearance: none; color-scheme: dark;
   width: 120px;
   height: 4px;
   background: rgba(255,255,255,0.08);
@@ -425,7 +425,7 @@
   cursor: pointer;
 }
 .md-purge-slider-wrap input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
+  -webkit-appearance: none; color-scheme: dark;
   width: 14px;
   height: 14px;
   border-radius: 50%;
@@ -695,3 +695,4 @@
   background: rgba(255,255,255,0.06);
   color: rgba(255,255,255,0.8);
 }
+

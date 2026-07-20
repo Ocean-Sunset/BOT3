@@ -2,7 +2,7 @@
 body {
   background: #0a0a0a;
   color: #fff;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Lexend', system-ui, sans-serif;
   min-height: 100vh;
   overflow-x: hidden;
   display: flex;
@@ -10,10 +10,23 @@ body {
 }
 
 .hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4rem;
   padding: 0 6vw;
   width: 100%;
   position: relative;
   z-index: 1;
+}
+
+.hero-left {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.hero-right {
+  flex-shrink: 0;
 }
 
 .hero-line {
@@ -37,6 +50,49 @@ body {
   letter-spacing: 0.01em;
 }
 
+/* ── Status box ── */
+.status-box {
+  width: 320px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.status-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #36d399;
+}
+.status-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.5);
+}
+.status-content {
+  padding: 1rem;
+}
+.status-text {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.65);
+  line-height: 1.55;
+  font-weight: 500;
+}
+.status-date {
+  margin-top: 0.75rem;
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.25);
+  font-weight: 600;
+}
+
+/* ── Tildes ── */
 .wave-field {
   position: fixed;
   inset: 0;
@@ -64,8 +120,8 @@ body {
   .hero {
     text-align: center;
     padding: 0 1.5rem;
-    display: flex;
     flex-direction: column;
     align-items: center;
   }
+  .status-box { width: 100%; max-width: 320px; }
 }

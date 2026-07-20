@@ -584,13 +584,7 @@ async def mod_feed(guild_id: str, request: Request):
             "time": _relative_time(r["created_at"]),
             "color": {"ban": "red", "kick": "red", "mute": "blue", "warn": "yellow", "join": "green"}.get(r["action"], "gray"),
         } for r in rows]}
-    return {"events": [
-        {"user":"Alice","action":"was banned","reason":"Spam","time":"2m ago","color":"red"},
-        {"user":"Bob","action":"was warned","reason":"Advertising","time":"5m ago","color":"yellow"},
-        {"user":"Charlie","action":"was muted","reason":"Flooding","time":"12m ago","color":"blue"},
-        {"user":"Diana","action":"joined the server","reason":"","time":"18m ago","color":"green"},
-        {"user":"Eve","action":"was kicked","reason":"Inappropriate name","time":"25m ago","color":"red"},
-    ]}
+    return {"events": []}
 
 
 @app.post("/api/v1/mod/{guild_id}/log")
@@ -764,6 +758,28 @@ async def mod_purge(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
     return {"ok": True, "purged": body.get("count", 0)}
+
+
+@app.post("/api/v1/mod/{guild_id}/action")
+async def mod_action(guild_id: str, request: Request):
+    """Queue a moderation action for the bot to process."""
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    action = body.get("action")
+    user_id = body.get("user_id")
+    reason = body.get("reason", "")
+    duration = body.get("duration")
+    user_name = body.get("user_name", "")
+    if action not in ("mute", "unmute", "kick", "ban"):
+        return JSONResponse({"error": "Invalid action"}, status_code=400)
+    await execute(
+        "INSERT INTO mod_actions (guild_id, action, target_id, target_name, reason, duration, status, created_at) "
+        "VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)",
+        str(guild_id), action, str(user_id), user_name, reason,
+        duration, time.time(),
+    )
+    await push_mod_event(str(guild_id), str(user_id), user_name, action, reason)
+    return {"ok": True, "queued": True}
 
 
 if __name__ == "__main__":

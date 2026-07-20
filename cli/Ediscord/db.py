@@ -96,3 +96,30 @@ async def fetch_mod_settings(guild_id: str) -> dict:
     except Exception as e:
         logger.error(f"fetch_mod_settings failed: {e}")
     return {}
+
+
+async def fetch_pending_actions() -> list:
+    pool = await get_pool()
+    if pool is None:
+        return []
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT id, guild_id, action, target_id, target_name, reason, duration "
+                "FROM mod_actions WHERE status = 'pending' ORDER BY created_at ASC LIMIT 50"
+            )
+            return [dict(r) for r in rows]
+    except Exception as e:
+        logger.error(f"fetch_pending_actions failed: {e}")
+    return []
+
+
+async def complete_action(action_id: int, status: str = "completed"):
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute("UPDATE mod_actions SET status = $1 WHERE id = $2", status, action_id)
+    except Exception as e:
+        logger.error(f"complete_action failed: {e}")

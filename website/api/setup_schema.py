@@ -48,6 +48,20 @@ CREATE TABLE IF NOT EXISTS mod_log (
 
 CREATE INDEX IF NOT EXISTS idx_mod_log_guild ON mod_log (guild_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS mod_actions (
+    id          SERIAL PRIMARY KEY,
+    guild_id    TEXT NOT NULL,
+    action      TEXT NOT NULL,
+    target_id   TEXT NOT NULL,
+    target_name TEXT NOT NULL DEFAULT '',
+    reason      TEXT DEFAULT '',
+    duration    INTEGER,
+    status      TEXT NOT NULL DEFAULT 'pending',
+    created_at  DOUBLE PRECISION NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_mod_actions_pending ON mod_actions (guild_id, status) WHERE status = 'pending';
+
 CREATE TABLE IF NOT EXISTS ai_settings (
     guild_id    TEXT PRIMARY KEY,
     settings    JSONB NOT NULL DEFAULT '{}',

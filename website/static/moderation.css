@@ -412,7 +412,7 @@
 /* Custom dropdown */
 .md-custom-select {
   position: relative;
-  min-width: 160px;
+  min-width: 220px;
 }
 .md-custom-select-btn {
   width: 100%;
@@ -448,6 +448,9 @@
   overflow-y: auto;
 }
 .md-custom-select-drop.is-open { display: block; }
+.md-custom-select-drop::-webkit-scrollbar { width: 4px; }
+.md-custom-select-drop::-webkit-scrollbar-track { background: transparent; }
+.md-custom-select-drop::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; }
 .md-custom-opt {
   width: 100%;
   display: block;

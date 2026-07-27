@@ -226,7 +226,7 @@ async def get_user_guilds_filtered(request: Request):
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     user = get_user(request)
-    return templates.TemplateResponse(request, "landing.html", {
+    return templates.TemplateResponse(request, "index.html", {
         "config": _cfg(),
         "user": user,
     })

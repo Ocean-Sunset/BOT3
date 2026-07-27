@@ -3,91 +3,47 @@
 --------------------------------------------------------------------------------------------------------
 
 🌿 Inspired by Elysia & macOS naming style:
+Lunara — evokes the moon, soft and serene. (1.0.0)
+Solandra — sunny, vivid, and has a Californian coast vibe. (8.0.0)
+Velora — elegant and futuristic, yet place-name-like. (5.0.0)
+Auralis — echoes "aurora" and "Elysia" combined. (2.0.0)
+Serava — serene, flowing, almost like a macOS mountain range or coastal city. (4.0.0)
+Oralya — mythic yet plausible as a high-end software codename. (9.0.0)
+Caelira — from "caelum" (sky in Latin), fantasy-modern hybrid. (6.0.0)
+Zephara — inspired by "zephyr" (a soft breeze), light and sleek. (7.0.0)
+Mystralyn — mysterious and refined, nodding to "mistral" winds. (3.0.0)
 
-Lunara — evokes the moon, soft and serene. (3.0.0)
+Prowl Beta
 
-Solandra — sunny, vivid, and has a Californian coast vibe. (10.0.0)
+--------------------------------------------------------------------------------------------------------
+-------------------------------------------------- TO DO -----------------------------------------------
+--------------------------------------------------------------------------------------------------------
 
-Velora — elegant and futuristic, yet place-name-like. (7.0.0)
+----   Current build: Prowl Beta || Next build: Prowl Lunara   ----
 
-Auralis — echoes "aurora" and "Elysia" combined. (4.0.0)
+--------------------------------------------- TO ADD / TO FIX ------------------------------------------------
 
-Serava — serene, flowing, almost like a macOS mountain range or coastal city. (6.0.0)
+- Theme website to the current build
+- Make a beta for users
+- Fix dashboard
+- Make the abilities present in the presentation page
+- Test commands to see if they work:
 
-Oralya — mythic yet plausible as a high-end software codename. (11.0.0)
-
-Caelira — from "caelum" (sky in Latin), fantasy-modern hybrid. (8.0.0)
-
-Zephara — inspired by "zephyr" (a soft breeze), light and sleek. (9.0.0)
-
-Mystralyn — mysterious and refined, nodding to "mistral" winds. (5.0.0)
-
-
-
-________________________________________________ At date 01/04, 00:12 ______________________________________________________
-
-########## UPDATE DATA FILES TOO DONT FORGET OR I WILL EAT YOUR SOUL ############
-
----- Sovra, Current build: beta-Auralis-4.0.0-3, Previewed updated build: Auralis-4.0.0 ----
-
----------------------------------------- TO ADD / TO FIX ------------------------------------------------
-- Regroup all commands into smaller commands for easier use:
-- For example:
-Instead of /setlevelrole, /removelevelrole, /listlevelroles, just use
-/levelrole and then use discord's UI thing to select an option like:
-- Set
-- Remove
-- List
-
-The commands that should be revamped are:
-- levelrole including levelrole notifications
-- autorole
-- ban and unban server (M)
-- lockdown and unlockdown
-- /withdraw and /deposit becoming /bank withdraw and /bank deposit
-- a whole /welcome command that will desplay everything you can do to the welcome message (this includes image editing)
-- a whole /goodbye command that will desplay everything you can do to the goodbye message (this includes image editing)
-- announcements
-- self-roles
-- role reactions
-- assets
-- giveaway
-- livestream
-
-- make every owner command custom prefix (%) and DONT display an error message for them.
-- delete balance command
 --------------------------------- WHATS BEEN ADDED / FIXED --------------------------------
 
-- Fixed support_server.py (status updater and changelog updater)
-- Modified Terms of Service
-- Change a setting in events.py at line 1279 where 5 should be a customisable number using jsons (stored in server_settings.json)
-- Don't forget to edit events.py xp_gain for server_settings.json for each server.
-- Fix my own data in user_data.json
-- FOR THE LOVE OF GOD FIX THE GODDAMN USER_DATA.JSON IT KEEPS RESETTING IM GONNA LOSE MY MIND
-- For Auralis, make all the messages embeds. (except the ones that are not supposed to be embeds)
-- Fix purge command not acutally responding
-- Fix sell command also not working
-- Make the level system PER SERVER. (edit user_data.json and EACH SAVE MADE FOR user_data.json)
-- Use this following system:    
-
-for each server id like the preview sotre different data, and for each save and load modify it to be according to
-{ctx.guild.id}and then load the json or save the json. create 2 jsons, one with the old data and one with the new. since there is no way to
-know in which server people's data go into, make a survey with all the server's available. (look where (in which servers) the questioned user is)
-and make them save their data in that specific server. while taking the survey, the bot should still hang on to the old data scheme as loading the new data without the servey
-being completed can lead to catastrophic failures. and yeah just, IDFK JUST DO THE DAMN THING BEFORE A CERTAIN DATE BECAUSE MY DEADLINE HAS BEEN PUSHED AGAIN AND AGAIN and then you're good.
-DO NOT FORGET: apply the same principle of loading new data as soon as someone joins a new server, the new server example data should be in next.txt
-
----- Omninode, Current build: N/A ----
-Continue 10/02/2026
+nil
 
 
 -- CURRENT PHASE OF UPDATE: (Status Check) --
-[X] - Fixing glitches (Current build at time: Celestra-3.2.1)
-[O] - Moving stuff from insider to stable based on reviews
-[...] - Release!!!
+[0] - Fixing dashboard entirely (along with other database problems)
+[...] - Configure betterstack
+[...] - Create an insider branch
+[...] - Push to insider first (with warning on website)
+[...] - Check reviews (NO INSIDER UPDATE UNLESS NECESSARY)
+[...] - Push insider to stable
+[...] - Completed Lunara
 
-
--- MORE NOTES --
+-- MORE NOTES -- IMPLEMENT THIS ON 3 (Mystralyn) or LATER
 2.99€ for PLUS
 5.99€ for MAX
 per Month Each.

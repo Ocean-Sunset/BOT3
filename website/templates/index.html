@@ -58,7 +58,7 @@
         {% if user %}
           <a href="/dashboard" class="btn-primary">Open Dashboard</a>
         {% else %}
-          <a href="/login" class="btn-primary">Get Started</a>
+          <a href="/login?mode=signup" class="btn-primary">Get Started</a>
           <a href="https://discord.com/oauth2/authorize?client_id={{ config.get('CLIENT_ID', '') }}&scope=bot&permissions=8"
              target="_blank" rel="noopener" class="btn-secondary">Add to Server</a>
         {% endif %}

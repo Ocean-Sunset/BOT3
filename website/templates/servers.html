@@ -38,7 +38,9 @@
 
       {% if guilds %}
       <div class="glist-header">
-        <span></span>
+        <button id="sort-btn" class="view-toggle" data-tooltip="Sort servers">
+          <i data-lucide="arrow-up-down"></i>
+        </button>
         <div style="display:flex;align-items:center;gap:0.5rem">
           <button id="refresh-btn" class="view-toggle" data-tooltip="Refresh list">
             <i data-lucide="refresh-cw"></i>
@@ -110,34 +112,83 @@
 
     lucide.createIcons();
 
-    // ── View toggle (list / grid) ──
+    // ── Guild data ──
+    const guilds = [
+      {% for g in guilds %}
+      { id: "{{ g.id }}", name: {{ g.name | tojson }}, icon: {{ (g.icon or '') | tojson }}, created: (parseInt("{{ g.id }}") / 4194304) + 1420070400000 },
+      {% endfor %}
+    ];
+
+    function sortGuilds(method) {
+      if (method === 'name') guilds.sort((a, b) => a.name.localeCompare(b.name));
+      else if (method === 'date') guilds.sort((a, b) => a.created - b.created);
+    }
+
+    function renderGuilds() {
+      const c = document.querySelector('.guild-list');
+      const isGrid = c.classList.contains('is-grid');
+      c.innerHTML = guilds.map(g => `
+        <form method="POST" action="/select_guild">
+          <input type="hidden" name="guild_id" value="${g.id}" />
+          <input type="hidden" name="guild_name" value="${esc(g.name)}" />
+          <input type="hidden" name="guild_icon" value="${g.icon}" />
+          <button type="submit" class="guild-btn">
+            <div class="guild-icon">
+              ${g.icon ? '<img src="https://cdn.discordapp.com/icons/'+g.id+'/'+g.icon+'.png?size=64" alt="" />' : '<span class="guild-initial">'+g.name[0].toUpperCase()+'</span>'}
+            </div>
+            <span class="guild-name">${esc(g.name)}</span>
+            <svg class="guild-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </form>
+      `).join('');
+      if (isGrid) c.classList.add('is-grid');
+    }
+
+    // ── View toggle ──
     const viewBtn = document.getElementById('view-toggle');
     const guildContainer = document.querySelector('.guild-list');
-    const viewIcon = document.getElementById('view-icon');
     if (viewBtn && guildContainer) {
       const saved = localStorage.getItem('prowl_view') || 'list';
       if (saved === 'grid') {
         guildContainer.classList.add('is-grid');
-        viewIcon.setAttribute('data-lucide', 'list');
+        document.getElementById('view-icon')?.setAttribute('data-lucide', 'list');
       }
       viewBtn.addEventListener('click', () => {
+        const icon = document.getElementById('view-icon');
         guildContainer.style.transition = 'none';
         document.querySelectorAll('.guild-btn').forEach(b => b.style.transition = 'none');
         const isGrid = guildContainer.classList.toggle('is-grid');
-        viewIcon.setAttribute('data-lucide', isGrid ? 'list' : 'layout-grid');
+        if (icon) {
+          icon.setAttribute('data-lucide', isGrid ? 'list' : 'layout-grid');
+          lucide.createIcons();
+        }
         localStorage.setItem('prowl_view', isGrid ? 'grid' : 'list');
-        lucide.createIcons();
         guildContainer.offsetHeight;
         guildContainer.style.transition = '';
         document.querySelectorAll('.guild-btn').forEach(b => b.style.transition = '');
       });
     }
 
+    // ── Sort button ──
+    let sortMethod = localStorage.getItem('prowl_sort') || 'name';
+    sortGuilds(sortMethod);
+    renderGuilds();
+    document.getElementById('sort-btn')?.addEventListener('click', function() {
+      sortMethod = sortMethod === 'name' ? 'date' : 'name';
+      localStorage.setItem('prowl_sort', sortMethod);
+      sortGuilds(sortMethod);
+      renderGuilds();
+      const icon = this.querySelector('[data-lucide]');
+      if (icon) { icon.setAttribute('data-lucide', sortMethod === 'name' ? 'arrow-up-down' : 'calendar'); lucide.createIcons(); }
+    });
+
     // ── Refresh button ──
     document.getElementById('refresh-btn')?.addEventListener('click', function() {
       this.classList.add('is-spinning');
       window.location.reload();
     });
+
+    function esc(s) { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
   </script>
 </body>
 </html>

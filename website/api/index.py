@@ -14,7 +14,7 @@ from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from starlette.middleware.sessions import SessionMiddleware
+from api import session as rotating_session
 import httpx
 
 from api.db import get_pool, query, fetchrow, fetchval, execute
@@ -80,7 +80,102 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="Prowl", version="1.0.0", lifespan=lifespan)
-app.add_middleware(SessionMiddleware, secret_key=os.environ.get("SECRET_KEY", secrets.token_hex(32)))
+
+
+class RotatingSessionMiddleware:
+    """
+    ASGI middleware that replaces Starlette's SessionMiddleware with
+    server-side sessions and 30-second key rotation with 5-minute grace.
+    """
+
+    def __init__(self, app):
+        self.app = app
+        self._initial_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+        # Prime the key ring
+        rotating_session._get_current_key()
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        from starlette.datastructures import MutableHeaders
+        from starlette.requests import HTTPConnection
+
+        conn = HTTPConnection(scope)
+        cookie_val = conn.cookies.get("session")
+        sid = None
+        if cookie_val:
+            sid = rotating_session.unsign_session_id(cookie_val)
+
+        is_new = False
+        if not sid:
+            sid = rotating_session.create_session()
+            is_new = True
+
+        session_data = rotating_session.get_session(sid)
+        if session_data is None:
+            session_data = {}
+            rotating_session.save_session(sid, session_data)
+
+        scope["session"] = session_data
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                # Save session data back
+                if scope.get("session") is not None:
+                    rotating_session.save_session(sid, scope["session"])
+                # Set cookie on new sessions or re-set on each response to refresh expiry
+                signed = rotating_session.sign_session_id(sid)
+                headers["Set-Cookie"] = (
+                    f"session={signed}; Path=/; HttpOnly; SameSite=lax; Max-Age={86400}"
+                )
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
+            return
+
+        async def send_wrapper(message):
+            await send(message)
+
+        from starlette.datastructures import MutableHeaders
+        from starlette.requests import HTTPConnection
+
+        # Build a request-like object to access cookies
+        conn = HTTPConnection(scope)
+        cookie_val = conn.cookies.get("session")
+
+        sid = None
+        if cookie_val:
+            sid = rotating_session.unsign_session_id(cookie_val)
+
+        if not sid:
+            sid = rotating_session.create_session()
+            # Set cookie via send
+            signed = rotating_session.sign_session_id(sid)
+
+            async def send_with_cookie(message):
+                if message["type"] == "http.response.start":
+                    headers = MutableHeaders(scope=message)
+                    cookie_header = (
+                        f"session={signed}; Path=/; HttpOnly; SameSite=lax; Max-Age={86400}"
+                    )
+                    headers.append("Set-Cookie", cookie_header)
+                await send(message)
+
+            # Store session data in scope so request.session works
+            scope["session"] = rotating_session.get_session(sid) or {}
+            await self.app(scope, receive, send_with_cookie)
+        else:
+            session_data = rotating_session.get_session(sid)
+            if session_data is None:
+                session_data = {}
+            scope["session"] = session_data
+            await self.app(scope, receive, send)
+
+
+app.add_middleware(RotatingSessionMiddleware)
 
 templates = Jinja2Templates(directory=str(ROOT / "templates"))
 app.mount("/static", StaticFiles(directory=str(ROOT / "static")), name="static")

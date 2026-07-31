@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord import app_commands
 import asyncio
 import datetime
@@ -24,10 +24,11 @@ MOD_DEFAULTS = {
     "ban_message": "{username} has been banned.", "ban_message_enabled": True,
     # ── Temp ban ──
     "tempban_dm": True, "tempban_purge": True,
-    "tempban_message": "{username} has been temporarily banned.", "tempban_message_enabled": True,
+    "tempban_message": "{username} has been temporarily banned for {time}.", "tempban_message_enabled": True,
     "tempban_duration": 1440,  # minutes
     # ── Mute ──
     "mute_dm": True, "mute_duration": 60,
+    "mute_message": "{username} has been muted for {time}.", "mute_message_enabled": True,
     # ── Kick ──
     "kick_dm": True, "kick_message": "{username} has been kicked.", "kick_message_enabled": True,
     # ── Warn ──
@@ -35,7 +36,7 @@ MOD_DEFAULTS = {
 }
 
 
-def render_template(template: str, member: discord.Member, reason: str = "", msg_count: int = 0) -> str:
+def render_template(template: str, member: discord.Member, reason: str = "", msg_count: int = 0, time_str: str = "") -> str:
     """Replace template placeholders with member/context values."""
     if not template:
         return ""
@@ -49,7 +50,18 @@ def render_template(template: str, member: discord.Member, reason: str = "", msg
             .replace("{servermembercount}", str(guild.member_count if guild else 0))
             .replace("{datejoined}", joined)
             .replace("{messagessent}", str(msg_count))
-            .replace("{reason}", reason))
+            .replace("{reason}", reason)
+            .replace("{time}", time_str))
+
+
+def format_duration(minutes: int) -> str:
+    """Convert minutes to a human-readable duration string like '2 hours 30 minutes'."""
+    if minutes < 60:
+        return f"{minutes} minute{'s' if minutes != 1 else ''}"
+    hours, rem = divmod(minutes, 60)
+    if rem == 0:
+        return f"{hours} hour{'s' if hours != 1 else ''}"
+    return f"{hours} hour{'s' if hours != 1 else ''} {rem} minute{'s' if rem != 1 else ''}"
 
 
 async def send_modlog(guild, settings, embed):
@@ -110,6 +122,10 @@ def is_mod():
             return True
         if interaction.user.guild_permissions.moderate_members:
             return True
+        logger.info(
+            f"[Mod] {interaction.user.name} denied /{interaction.command.name if interaction.command else '?'} "
+            f"in {interaction.guild.name} (mod_roles={mod_roles}, user roles={user_roles})"
+        )
         await interaction.response.send_message(
             "You don't have permission to use this command.", ephemeral=True
         )
@@ -153,6 +169,105 @@ class Moderation(commands.Cog, name="Moderation"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.msg_counts = {}
+        self.message_accum = {}  # guild_id -> message count this hour
+        self.member_counts = {}  # guild_id -> {ts, count}
+        self.hour_started = int(time.time())
+        # Action processing is handled by the bot's _mod_action_processor in start.py.
+        self.flush_history.start()
+
+    def cog_unload(self):
+        self.flush_history.cancel()
+
+    async def _ensure_tables(self):
+        """Create the mod_actions / history tables if they don't exist."""
+        pool = await neon_db.get_pool()
+        if not pool:
+            logger.warning("No DB pool — cannot ensure tables. Check DATABASE_URL in cli/.env")
+            return False
+        try:
+            await pool.execute("""
+                CREATE TABLE IF NOT EXISTS mod_actions (
+                    id          SERIAL PRIMARY KEY,
+                    guild_id    TEXT NOT NULL,
+                    action      TEXT NOT NULL,
+                    target_id   TEXT NOT NULL,
+                    target_name TEXT DEFAULT '',
+                    reason      TEXT DEFAULT '',
+                    duration    INTEGER,
+                    status      TEXT NOT NULL DEFAULT 'pending',
+                    created_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+                );
+                CREATE INDEX IF NOT EXISTS idx_mod_actions_pending ON mod_actions (status, created_at);
+                CREATE TABLE IF NOT EXISTS member_history (
+                    guild_id TEXT NOT NULL, timestamp DOUBLE PRECISION NOT NULL,
+                    member_count INTEGER NOT NULL, PRIMARY KEY (guild_id, timestamp)
+                );
+                CREATE TABLE IF NOT EXISTS message_history (
+                    guild_id TEXT NOT NULL, timestamp DOUBLE PRECISION NOT NULL,
+                    message_count INTEGER NOT NULL, PRIMARY KEY (guild_id, timestamp)
+                );
+            """)
+            logger.info("Ensured moderation tables exist.")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to ensure tables: {e}")
+            return False
+
+    async def cog_load(self):
+        # Non-blocking: kick off ready-dependent init as a background task.
+        logger.info("[Moderation] cog loaded — starting action poller.")
+        self.bot.loop.create_task(self._on_ready_init())
+
+    async def _on_ready_init(self):
+        await self.bot.wait_until_ready()
+        try:
+            ok = await self._ensure_tables()
+            logger.info(f"[Moderation] init: tables {'ensured' if ok else 'FAILED — check DATABASE_URL in cli/.env'}")
+            now = time.time()
+            for guild in self.bot.guilds:
+                self.member_counts[guild.id] = {"ts": now, "count": guild.member_count}
+            await self._flush_history()
+        except Exception as e:
+            logger.error(f"Moderation init error: {e}")
+
+    @tasks.loop(hours=1)
+    async def flush_history(self):
+        await self.bot.wait_until_ready()
+        await self._flush_history()
+
+    async def _flush_history(self):
+        pool = await neon_db.get_pool()
+        if not pool:
+            return
+        now = time.time()
+        try:
+            for guild_id, mc in self.member_counts.items():
+                await pool.execute(
+                    "INSERT INTO member_history (guild_id, timestamp, member_count) VALUES ($1, $2, $3) "
+                    "ON CONFLICT (guild_id, timestamp) DO UPDATE SET member_count = $3",
+                    str(guild_id), mc["ts"], mc["count"],
+                )
+            for guild_id, msg_count in self.message_accum.items():
+                if msg_count > 0:
+                    await pool.execute(
+                        "INSERT INTO message_history (guild_id, timestamp, message_count) VALUES ($1, $2, $3) "
+                        "ON CONFLICT (guild_id, timestamp) DO UPDATE SET message_count = $3",
+                        str(guild_id), now, msg_count,
+                    )
+            self.message_accum = {}
+            self.member_counts = {g.id: {"ts": now, "count": g.member_count} for g in self.bot.guilds}
+            self.hour_started = now
+            logger.info("History flush complete.")
+        except Exception as e:
+            logger.error(f"History flush failed: {e}")
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member):
+        self.member_counts[member.guild.id] = {"ts": time.time(), "count": member.guild.member_count}
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member: discord.Member):
+        self.member_counts[member.guild.id] = {"ts": time.time(), "count": member.guild.member_count}
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -160,6 +275,7 @@ class Moderation(commands.Cog, name="Moderation"):
             return
         key = (str(message.guild.id), str(message.author.id))
         self.msg_counts[key] = self.msg_counts.get(key, 0) + 1
+        self.message_accum[message.guild.id] = self.message_accum.get(message.guild.id, 0) + 1
 
     def get_msg_count(self, guild_id, user_id) -> int:
         return self.msg_counts.get((str(guild_id), str(user_id)), 0)
@@ -193,18 +309,13 @@ class Moderation(commands.Cog, name="Moderation"):
             await member.kick(reason=reason)
 
             if not settings.get("silent_mod"):
-                embed = EmbedBuilder().title("Member Kicked").description(f"{member.mention} has been kicked.").color("red").field("Reason", reason).build()
+                msg = render_template(settings.get("kick_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id))
+                if not msg:
+                    msg = f"{member.mention} has been kicked."
+                embed = EmbedBuilder().title("Member Kicked").description(msg).color("red").field("Reason", reason).build()
                 await interaction.followup.send(embed=embed)
             else:
                 await interaction.followup.send("Member kicked.", ephemeral=True)
-
-            # Announcement in channel with custom message
-            msg = render_template(settings.get("kick_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id))
-            if msg and settings.get("kick_message_enabled", True) and not settings.get("silent_mod"):
-                try:
-                    await interaction.channel.send(msg)
-                except Exception:
-                    pass
 
             # Modlog
             log_embed = EmbedBuilder().title("Member Kicked").description(f"{member.mention} ({member.id})").color("red").field("Moderator", interaction.user.mention).field("Reason", reason).build()
@@ -238,17 +349,13 @@ class Moderation(commands.Cog, name="Moderation"):
             await member.ban(reason=reason, delete_message_days=delete_days)
 
             if not settings.get("silent_mod"):
-                embed = EmbedBuilder().title("Member Banned").description(f"{member.mention} has been banned.").color("red").field("Reason", reason).build()
+                msg = render_template(settings.get("ban_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id))
+                if not msg:
+                    msg = f"{member.mention} has been banned."
+                embed = EmbedBuilder().title("Member Banned").description(msg).color("red").field("Reason", reason).build()
                 await interaction.followup.send(embed=embed)
             else:
                 await interaction.followup.send("Member banned.", ephemeral=True)
-
-            msg = render_template(settings.get("ban_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id))
-            if msg and settings.get("ban_message_enabled", True) and not settings.get("silent_mod"):
-                try:
-                    await interaction.channel.send(msg)
-                except Exception:
-                    pass
 
             log_embed = EmbedBuilder().title("Member Banned").description(f"{member.mention} ({member.id})").color("red").field("Moderator", interaction.user.mention).field("Reason", reason).field("Delete Days", str(delete_days)).build()
             await send_modlog(interaction.guild, settings, log_embed)
@@ -283,17 +390,13 @@ class Moderation(commands.Cog, name="Moderation"):
             await member.ban(reason=f"Temp ban ({duration}m): {reason}", delete_message_days=delete_days)
 
             if not settings.get("silent_mod"):
-                embed = EmbedBuilder().title("Member Temp-Banned").description(f"{member.mention} has been banned for **{duration}** minutes.").color("red").field("Reason", reason).build()
+                msg = render_template(settings.get("tempban_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id), format_duration(duration))
+                if not msg:
+                    msg = f"{member.mention} has been banned for **{format_duration(duration)}**."
+                embed = EmbedBuilder().title("Member Temp-Banned").description(msg).color("red").field("Reason", reason).build()
                 await interaction.followup.send(embed=embed)
             else:
                 await interaction.followup.send("Member temp-banned.", ephemeral=True)
-
-            msg = render_template(settings.get("tempban_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id))
-            if msg and settings.get("tempban_message_enabled", True) and not settings.get("silent_mod"):
-                try:
-                    await interaction.channel.send(msg)
-                except Exception:
-                    pass
 
             log_embed = EmbedBuilder().title("Member Temp-Banned").description(f"{member.mention} ({member.id})").color("red").field("Moderator", interaction.user.mention).field("Duration", f"{duration} minutes").field("Reason", reason).build()
             await send_modlog(interaction.guild, settings, log_embed)
@@ -353,7 +456,10 @@ class Moderation(commands.Cog, name="Moderation"):
         await member.timeout(until, reason=reason)
 
         if not settings.get("silent_mod"):
-            embed = EmbedBuilder().title("Member Muted").description(f"{member.mention} has been timed out.").color("orange").field("Duration", f"{duration} minutes").field("Reason", reason).build()
+            msg = render_template(settings.get("mute_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id), format_duration(duration))
+            if not msg:
+                msg = f"{member.mention} has been timed out."
+            embed = EmbedBuilder().title("Member Muted").description(msg).color("orange").field("Duration", f"{duration} minutes").field("Reason", reason).build()
             await interaction.response.send_message(embed=embed)
         else:
             await interaction.response.send_message("Member muted.", ephemeral=True)
@@ -387,17 +493,13 @@ class Moderation(commands.Cog, name="Moderation"):
             reason = "No reason provided"
 
         if not settings.get("silent_mod"):
-            embed = EmbedBuilder().title("Member Warned").description(f"{member.mention} has been warned.").color("yellow").field("Reason", reason).build()
+            msg = render_template(settings.get("warn_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id))
+            if not msg:
+                msg = f"{member.mention} has been warned."
+            embed = EmbedBuilder().title("Member Warned").description(msg).color("yellow").field("Reason", reason).build()
             await interaction.response.send_message(embed=embed)
         else:
             await interaction.response.send_message("Member warned.", ephemeral=True)
-
-        msg = render_template(settings.get("warn_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id))
-        if msg and settings.get("warn_message_enabled", True) and not settings.get("silent_mod"):
-            try:
-                await interaction.channel.send(msg)
-            except Exception:
-                pass
 
         if settings.get("warn_dm", True):
             await safe_dm(member, f"You have been warned in {interaction.guild.name}.\nReason: {reason}")

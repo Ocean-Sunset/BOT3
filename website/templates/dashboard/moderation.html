@@ -257,6 +257,8 @@ let saveTimer = null;
 function markChanged(key, value) {
   if (!(key in original)) original[key] = (key in SETTINGS_SNAPSHOT) ? SETTINGS_SNAPSHOT[key] : !value;
   pending[key] = value;
+  // Keep the live snapshot in sync so real-time checks (require_reason, etc.) use fresh values
+  SETTINGS_SNAPSHOT[key] = value;
   saveBar.classList.remove('is-closed');
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
@@ -333,13 +335,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('action-reason')?.addEventListener('keydown', e => { if(e.key==='Escape') overlay.classList.remove('is-open'); });
     async function sendAction(action, duration) {
       if (!activeMember) return;
-      const reason = document.getElementById('action-reason').value;
+      const reason = document.getElementById('action-reason').value.trim();
+      const reqReason = SETTINGS_SNAPSHOT.require_reason === true;
+      if (reqReason && !reason) {
+        if (typeof showToast === 'function') {
+          showToast('You need a reason to do that! To disable this, go to the moderation page and turn off "Require Reason".', 'warning', 8000);
+        }
+        return;
+      }
       overlay.classList.remove('is-open');
       try {
-        await api('/action', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action, user_id: activeMember.id, user_name: activeMember.name, reason, duration: duration || null}) });
+        const res = await fetch(`/api/v1/mod/${GID}/action`, { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action, user_id: activeMember.id, user_name: activeMember.name, reason, duration: duration || null}) });
+        if (!res.ok) {
+          let detail = 'Action failed';
+          try { const j = await res.json(); if (j && j.detail) detail = String(j.detail); else if (j && j.error) detail = String(j.error); } catch {}
+          if (res.status === 401) detail = 'Your session expired — refresh the page or log in again.';
+          if (typeof showToast === 'function') showToast(detail.slice(0, 120), 'error', 6000);
+          return;
+        }
         if (typeof showToast === 'function') showToast('Action queued for the bot.', 'success');
       } catch (e) {
-        if (typeof showToast === 'function') showToast('Failed to queue action.', 'error');
+        if (typeof showToast === 'function') showToast('Network error: ' + String(e).slice(0, 120), 'error', 6000);
       }
     }
     overlay.querySelectorAll('[data-dur]').forEach(b => b.addEventListener('click', () => sendAction('mute', b.dataset.dur)));
@@ -369,8 +385,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   api('/muted').then(d => {
     const el = document.getElementById('muted-list');
     if (!d.muted?.length) { el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No muted users</div>'; return; }
-    el.innerHTML = d.muted.map(m => `<div class="md-muted-item"><div class="md-muted-avatar"><img src="${m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png')}" style="width:100%;height:100%;object-fit:cover;" /></div><div class="md-muted-info"><div class="md-muted-name">${esc(m.name)}</div><div class="md-muted-reason">${esc(m.reason)}</div></div><span class="md-muted-timer" data-end="${m.end_ts}">--:--:--</span><button class="md-action-btn" data-action="unmute" data-user="${m.id}"><i data-lucide="unlock"></i> Release</button></div>`).join('');
+    el.innerHTML = d.muted.map(m => `<div class="md-muted-item"><div class="md-muted-avatar"><img src="${m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png')}" style="width:100%;height:100%;object-fit:cover;" /></div><div class="md-muted-info"><div class="md-muted-name">${esc(m.name)}</div><div class="md-muted-reason">${esc(m.reason)}</div></div><span class="md-muted-timer" data-end="${m.end_ts}">--:--:--</span><button class="md-action-btn" data-action="unmute" data-user="${m.id}" data-name="${esc(m.name)}"><i data-lucide="unlock"></i> Release</button></div>`).join('');
     lucide.createIcons();
+    // Release button -> queue unmute action for the bot
+    el.querySelectorAll('button[data-action="unmute"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const uid = btn.dataset.user;
+        const name = btn.dataset.name;
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader" class="spin"></i>...';
+        lucide.createIcons();
+        try {
+          const res = await fetch(`/api/v1/mod/${GID}/action`, { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'unmute', user_id: uid, user_name: name, reason:'Unmuted from dashboard'}) });
+          if (!res.ok) throw new Error('bad status');
+          if (typeof showToast === 'function') showToast('Unmute queued for the bot.', 'success');
+          btn.closest('.md-muted-item').style.opacity = '0.4';
+        } catch (e) {
+          if (typeof showToast === 'function') showToast('Failed to queue unmute.', 'error');
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="unlock"></i> Release';
+          lucide.createIcons();
+        }
+      });
+    });
     document.querySelectorAll('.md-muted-timer').forEach(el => {
       const end = parseInt(el.dataset.end); if(!end) return;
       (function t(){ const d=Math.max(0,end-Math.floor(Date.now()/1000)); if(d<=0){el.textContent='Expired';return;} el.textContent=[Math.floor(d/3600),Math.floor((d%3600)/60),d%60].map(v=>v.toString().padStart(2,'0')).join(':'); })();
@@ -465,7 +502,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     // Bind change events
     document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); updateActionUI(); }));
-    document.querySelectorAll('input[type="text"][data-key], input[type="number"][data-key]').forEach(inp => inp.addEventListener('change', function(){
+    document.querySelectorAll('input[type="text"][data-key], input[type="number"][data-key]').forEach(inp => inp.addEventListener('input', function(){
       const v = inp.type === 'number' ? (parseInt(inp.value) || 0) : inp.value;
       markChanged(this.dataset.key, v);
     }));
@@ -498,11 +535,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('purge-count')?.addEventListener('input', function(){ document.getElementById('purge-label').textContent = this.value; });
   document.getElementById('purge-btn')?.addEventListener('click', async function() {
     const ch = window._purgeChannel ? window._purgeChannel() : null;
-    if (!ch) { alert('Select a channel first.'); return; }
+    if (!ch) { if (typeof showToast === 'function') showToast('Select a channel first.', 'warning'); return; }
     this.textContent = 'Purging...'; this.disabled = true;
     await api('/purge', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({channel_id:ch, count:parseInt(document.getElementById('purge-count').value)}) });
     this.innerHTML = '<i data-lucide="trash-2"></i> Sweep'; this.disabled = false;
     lucide.createIcons();
+    if (typeof showToast === 'function') showToast('Purge queued for the bot.', 'success');
   });
 
   document.getElementById('panic-btn')?.addEventListener('click', async function() {

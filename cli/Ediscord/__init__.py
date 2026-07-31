@@ -18,13 +18,19 @@ logger = logging.getLogger(__name__)
 __version__ = "1.6.3"
 __author__ = "th3_t1sm"
 
-
-def __getattr__(name):
-    if name in ("EmbedBuilder", "ButtonBuilder", "ModalBuilder", "LinkBuilder", "quick_embed", "success_embed", "error_embed", "info_embed"):
-        import importlib
-        mod = importlib.import_module("Ediscord.builders")
-        return getattr(mod, name)
-    if name in ("variables", "utils", "db"):
-        import importlib
-        return importlib.import_module(f"Ediscord.{name}")
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+# Import order matters: `variables` has no Ediscord deps, and both
+# `builders` and `utils` import it. Import it first to avoid circular imports.
+from Ediscord import variables
+from Ediscord import db
+from Ediscord import utils
+from Ediscord import builders
+from Ediscord.builders import (
+    EmbedBuilder,
+    ButtonBuilder,
+    ModalBuilder,
+    LinkBuilder,
+    quick_embed,
+    success_embed,
+    error_embed,
+    info_embed,
+)

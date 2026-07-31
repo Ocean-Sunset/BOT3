@@ -461,10 +461,30 @@ async def dashboard(request: Request, guild_id: str, panel: str = "overview"):
 #  Routes — API v1
 # ---------------------------------------------------------------------------
 
+# Simple per-user rate limiter to mitigate API scraping
+_RATE_LIMIT = {}
+_RATE_WINDOW = 60
+_RATE_MAX = 60  # requests per minute per user
+
+
+def _check_rate_limit(user_id: str):
+    now = time.time()
+    entry = _RATE_LIMIT.get(user_id)
+    if not entry or now - entry["start"] >= _RATE_WINDOW:
+        _RATE_LIMIT[user_id] = {"start": now, "count": 1}
+        return
+    entry["count"] += 1
+    if entry["count"] > _RATE_MAX:
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a moment.")
+    if len(_RATE_LIMIT) > 10000:
+        _RATE_LIMIT.clear()
+
+
 async def require_auth(request: Request):
     user = get_user(request)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    _check_rate_limit(str(user.get("id", "anon")))
     return user
 
 
@@ -487,7 +507,8 @@ async def api_ping():
 
 
 @app.get("/api/v1/db-test")
-async def api_db_test():
+async def api_db_test(request: Request):
+    await require_auth(request)
     try:
         row = await fetchval("SELECT 1")
         return {"db": "connected", "result": row}
@@ -507,7 +528,8 @@ async def api_me(request: Request):
 
 
 @app.get("/api/v1/status")
-async def api_status():
+async def api_status(request: Request):
+    await require_auth(request)
     rows = await query("SELECT key, value FROM bot_stats")
     data = {row["key"]: row["value"] for row in rows}
 
@@ -563,7 +585,8 @@ async def api_guild(guild_id: str, request: Request):
 
 
 @app.get("/api/v1/commands")
-async def api_commands():
+async def api_commands(request: Request):
+    await require_auth(request)
     row = await fetchrow("SELECT value FROM bot_stats WHERE key = 'all_commands'")
     commands = []
     try:
@@ -674,6 +697,56 @@ async def mod_log_push(guild_id: str, request: Request):
     return {"ok": True}
 
 
+async def push_mod_event(guild_id, user_id, user_name, action, reason=""):
+    """Insert a moderation event into mod_log."""
+    await execute(
+        "INSERT INTO mod_log (guild_id, user_id, user_name, action, reason, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+        str(guild_id), str(user_id), user_name, action, reason, time.time(),
+    )
+
+
+_MOD_ACTIONS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS mod_actions (
+    id SERIAL PRIMARY KEY,
+    guild_id TEXT NOT NULL,
+    action TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    target_name TEXT DEFAULT '',
+    reason TEXT DEFAULT '',
+    duration INTEGER,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+);
+CREATE INDEX IF NOT EXISTS idx_mod_actions_pending ON mod_actions (status, created_at);
+"""
+
+
+async def _ensure_mod_actions_table():
+    await execute(_MOD_ACTIONS_TABLE_SQL)
+
+
+async def _queue_action(guild_id, action, target_id, target_name="", reason="", duration=None):
+    try:
+        duration_int = int(duration) if duration is not None and duration != "" else None
+    except (ValueError, TypeError):
+        duration_int = None
+    try:
+        await execute(
+            "INSERT INTO mod_actions (guild_id, action, target_id, target_name, reason, duration, status, created_at) "
+            "VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)",
+            str(guild_id), action, str(target_id), target_name, reason,
+            duration_int, time.time(),
+        )
+    except Exception:
+        await _ensure_mod_actions_table()
+        await execute(
+            "INSERT INTO mod_actions (guild_id, action, target_id, target_name, reason, duration, status, created_at) "
+            "VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)",
+            str(guild_id), action, str(target_id), target_name, reason,
+            duration_int, time.time(),
+        )
+
+
 @app.get("/api/v1/mod/{guild_id}/debug")
 async def mod_debug(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
@@ -725,12 +798,38 @@ async def mod_muted(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     rows = await query(
         "SELECT user_id, user_name, reason, created_at FROM mod_log "
-        "WHERE guild_id = $1 AND action = 'mute' ORDER BY created_at DESC LIMIT 50",
+        "WHERE guild_id = $1 AND action = 'mute' ORDER BY created_at DESC LIMIT 100",
         str(guild_id),
     )
-    if rows:
-        return {"muted": [{"id": r["user_id"], "name": r["user_name"], "reason": r.get("reason", ""), "end_ts": 0} for r in rows]}
-    return {"muted": []}
+    if not rows:
+        return {"muted": []}
+
+    # Avatar lookup from guild_data members
+    avatar_map = {}
+    gd = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    parsed = _parse_guild_data({"data": gd["data"]}) if gd else None
+    if parsed and isinstance(parsed.get("members"), list):
+        for m in parsed["members"]:
+            avatar_map[str(m.get("id"))] = m.get("avatar")
+
+    # Dedupe by user, keep the most recent mute per user
+    seen = set()
+    muted = []
+    for r in rows:
+        uid = str(r["user_id"])
+        if uid in seen:
+            continue
+        seen.add(uid)
+        avatar = avatar_map.get(uid)
+        muted.append({
+            "id": uid,
+            "name": r["user_name"],
+            "reason": r.get("reason", ""),
+            "end_ts": 0,
+            "avatar": avatar,
+            "avatar_url": f"https://cdn.discordapp.com/avatars/{uid}/{avatar}.png?size=64" if avatar else None,
+        })
+    return {"muted": muted}
 
 
 @app.get("/api/v1/mod/{guild_id}/roles")
@@ -817,7 +916,8 @@ async def mod_roles_batch(guild_id: str, request: Request):
         "ON CONFLICT (guild_id) DO UPDATE SET settings = $2::jsonb",
         str(guild_id), json.dumps(current),
     )
-    return {"ok": True}
+    logger.info(f"Mod roles saved for guild {guild_id}: {role_ids}")
+    return {"ok": True, "mod_roles": role_ids}
 
 
 @app.post("/api/v1/mod/{guild_id}/emergency")
@@ -836,7 +936,45 @@ async def mod_emergency(guild_id: str, request: Request):
 async def mod_purge(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
-    return {"ok": True, "purged": body.get("count", 0)}
+    channel_id = body.get("channel_id")
+    count = int(body.get("count", 10))
+    if not channel_id:
+        return JSONResponse({"error": "missing channel_id"}, status_code=400)
+    if count < 1 or count > 100:
+        return JSONResponse({"error": "count must be 1-100"}, status_code=400)
+    await _queue_action(guild_id, "purge", channel_id, "", f"Purge {count} messages", count)
+    return {"ok": True, "queued": True, "purged": count}
+
+
+@app.get("/api/v1/mod/{guild_id}/stats/members")
+async def mod_member_stats(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    rows = await query(
+        "SELECT timestamp, member_count FROM member_history WHERE guild_id = $1 ORDER BY timestamp ASC LIMIT 168",
+        str(guild_id),
+    )
+    return {"points": [{"t": r["timestamp"], "v": r["member_count"]} for r in rows]}
+
+
+@app.get("/api/v1/mod/{guild_id}/stats/messages")
+async def mod_message_stats(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    rows = await query(
+        "SELECT timestamp, message_count FROM message_history WHERE guild_id = $1 ORDER BY timestamp ASC LIMIT 168",
+        str(guild_id),
+    )
+    return {"points": [{"t": r["timestamp"], "v": r["message_count"]} for r in rows]}
+
+
+@app.get("/api/v1/mod/{guild_id}/actions")
+async def mod_actions_list(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    rows = await query(
+        "SELECT id, action, target_id, target_name, reason, duration, status, created_at "
+        "FROM mod_actions WHERE guild_id = $1 ORDER BY created_at DESC LIMIT 20",
+        str(guild_id),
+    )
+    return {"actions": [dict(r) for r in rows]}
 
 
 @app.post("/api/v1/mod/{guild_id}/action")
@@ -851,13 +989,7 @@ async def mod_action(guild_id: str, request: Request):
     user_name = body.get("user_name", "")
     if action not in ("mute", "unmute", "kick", "ban"):
         return JSONResponse({"error": "Invalid action"}, status_code=400)
-    await execute(
-        "INSERT INTO mod_actions (guild_id, action, target_id, target_name, reason, duration, status, created_at) "
-        "VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)",
-        str(guild_id), action, str(user_id), user_name, reason,
-        duration, time.time(),
-    )
-    await push_mod_event(str(guild_id), str(user_id), user_name, action, reason)
+    await _queue_action(guild_id, action, user_id, user_name, reason, duration)
     return {"ok": True, "queued": True}
 
 

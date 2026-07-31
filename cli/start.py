@@ -103,17 +103,24 @@ class ProwlBot(commands.Bot):
             await asyncio.sleep(300)
 
     async def _mod_settings_poller(self):
-        """Periodically cache mod_settings from Neon for command permission checks."""
+        """Watch mod_settings for changes and log them (e.g. role promoted to admin)."""
         await self.wait_until_ready()
         self._mod_cache = {}
         while not self.is_closed():
             try:
                 for guild in self.guilds:
                     gid = str(guild.id)
-                    self._mod_cache[gid] = await neon_db.fetch_mod_settings(gid)
+                    new = await neon_db.fetch_mod_settings(gid)
+                    old = self._mod_cache.get(gid)
+                    if old is None:
+                        if new.get("mod_roles"):
+                            logger.info(f"[Settings] {guild.name}: current mod roles -> {new.get('mod_roles')}")
+                    elif new.get("mod_roles") != old.get("mod_roles"):
+                        logger.info(f"[Settings] {guild.name}: mod roles changed -> {new.get('mod_roles', [])}")
+                    self._mod_cache[gid] = new
             except Exception as e:
                 logger.error(f"Mod settings poller failed: {e}")
-            await asyncio.sleep(120)
+            await asyncio.sleep(30)
 
     async def _mod_action_processor(self):
         """Process queued moderation actions from the dashboard."""
@@ -121,10 +128,13 @@ class ProwlBot(commands.Bot):
         while not self.is_closed():
             try:
                 actions = await neon_db.fetch_pending_actions()
+                if actions:
+                    logger.info(f"Mod action processor: {len(actions)} pending action(s).")
                 for a in actions:
                     guild = self.get_guild(int(a["guild_id"]))
                     if not guild:
                         await neon_db.complete_action(a["id"], "skipped")
+                        logger.warning(f"Action {a['id']} skipped: guild not found.")
                         continue
                     member = None
                     try:
@@ -138,25 +148,38 @@ class ProwlBot(commands.Bot):
                         if act == "kick":
                             if member:
                                 await member.kick(reason=reason)
+                            else:
+                                raise Exception("member not in guild")
                         elif act == "ban":
                             if member:
                                 await member.ban(reason=reason)
                             else:
                                 await guild.ban(discord.Object(id=int(a["target_id"])), reason=reason)
                         elif act == "mute":
-                            if member and duration:
-                                until = discord.utils.utcnow() + datetime.timedelta(minutes=int(duration))
-                                await member.timeout(until, reason=reason)
+                            if not member:
+                                raise Exception("member not in guild")
+                            until = discord.utils.utcnow() + datetime.timedelta(minutes=int(duration or 60))
+                            await member.timeout(until, reason=reason)
                         elif act == "unmute":
-                            if member:
-                                await member.timeout(None, reason=reason)
+                            if not member:
+                                raise Exception("member not in guild")
+                            await member.timeout(None, reason=reason)
+                        elif act == "purge":
+                            channel = guild.get_channel(int(a["target_id"]))
+                            if not isinstance(channel, discord.TextChannel):
+                                raise Exception("channel not found")
+                            deleted = await channel.purge(limit=int(duration or 10))
+                            reason = f"Purged {len(deleted)} messages"
                         await neon_db.complete_action(a["id"], "completed")
+                        logger.info(f"Processed action {a['id']}: {act} -> {a['target_id']} in {a['guild_id']} ({reason})")
+                        # Log to mod_log only on actual success
+                        await neon_db.push_mod_event(a["guild_id"], a["target_id"], a.get("target_name") or str(a["target_id"]), act, reason)
                     except Exception as e:
-                        logger.error(f"Action {a['id']} failed: {e}")
+                        logger.error(f"Action {a['id']} ({act} on {a['target_id']}) failed: {e}")
                         await neon_db.complete_action(a["id"], "failed")
             except Exception as e:
                 logger.error(f"Mod action processor failed: {e}")
-            await asyncio.sleep(15)
+            await asyncio.sleep(5)
 
     async def _push_to_neon(self):
         """Build stats and push directly to Neon PostgreSQL."""

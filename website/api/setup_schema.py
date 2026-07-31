@@ -53,6 +53,38 @@ CREATE TABLE IF NOT EXISTS mod_actions (
     guild_id    TEXT NOT NULL,
     action      TEXT NOT NULL,
     target_id   TEXT NOT NULL,
+    target_name TEXT DEFAULT '',
+    reason      TEXT DEFAULT '',
+    duration    INTEGER,
+    status      TEXT NOT NULL DEFAULT 'pending',
+    created_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+);
+
+CREATE INDEX IF NOT EXISTS idx_mod_actions_guild ON mod_actions (guild_id, status);
+
+CREATE TABLE IF NOT EXISTS member_history (
+    guild_id    TEXT NOT NULL,
+    timestamp   DOUBLE PRECISION NOT NULL,
+    member_count INTEGER NOT NULL,
+    PRIMARY KEY (guild_id, timestamp)
+);
+
+CREATE INDEX IF NOT EXISTS idx_member_history_guild ON member_history (guild_id, timestamp);
+
+CREATE TABLE IF NOT EXISTS message_history (
+    guild_id    TEXT NOT NULL,
+    timestamp   DOUBLE PRECISION NOT NULL,
+    message_count INTEGER NOT NULL,
+    PRIMARY KEY (guild_id, timestamp)
+);
+
+CREATE INDEX IF NOT EXISTS idx_message_history_guild ON message_history (guild_id, timestamp);
+
+CREATE TABLE IF NOT EXISTS mod_actions (
+    id          SERIAL PRIMARY KEY,
+    guild_id    TEXT NOT NULL,
+    action      TEXT NOT NULL,
+    target_id   TEXT NOT NULL,
     target_name TEXT NOT NULL DEFAULT '',
     reason      TEXT DEFAULT '',
     duration    INTEGER,

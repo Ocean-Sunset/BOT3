@@ -85,7 +85,7 @@
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Modlog Channel</div>
-        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:0.6rem;line-height:1.5;">Only moderation logs will be posted here — nothing else.</p>
+        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:0.6rem;line-height:1.5;">Only moderation logs will be posted here - nothing else.</p>
         <div class="md-custom-select" id="modlog-select-wrap">
           <button class="md-custom-select-btn" id="modlog-select-btn">Select channel...</button>
           <div class="md-custom-select-drop" id="modlog-select-drop"></div>
@@ -98,7 +98,7 @@
         <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Ban Settings</div>
         <div class="md-block-warn" data-warn="ban">
           <i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>
-          DM and server message are both disabled — command will be silent.
+          DM and server message are both disabled - command will be silent.
         </div>
         <div class="md-behavior-list">
           <div class="md-behavior-item">
@@ -128,7 +128,7 @@
         <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Temp Ban Settings</div>
         <div class="md-block-warn" data-warn="tempban">
           <i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>
-          DM and server message are both disabled — command will be silent.
+          DM and server message are both disabled - command will be silent.
         </div>
         <div class="md-behavior-list">
           <div class="md-behavior-item">
@@ -182,7 +182,7 @@
         <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Kick Settings</div>
         <div class="md-block-warn" data-warn="kick">
           <i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>
-          DM and server message are both disabled — command will be silent.
+          DM and server message are both disabled - command will be silent.
         </div>
         <div class="md-behavior-list">
           <div class="md-behavior-item">
@@ -208,7 +208,7 @@
         <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Warn Settings</div>
         <div class="md-block-warn" data-warn="warn">
           <i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>
-          DM and server message are both disabled — command will be silent.
+          DM and server message are both disabled - command will be silent.
         </div>
         <div class="md-behavior-list">
           <div class="md-behavior-item">
@@ -317,7 +317,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     lucide.createIcons();
     const overlay = document.createElement('div');
     overlay.className = 'md-modal-overlay';
-    overlay.innerHTML = '<div class="md-modal"><h3>Actions</h3><div class="md-member-info" style="margin:0.25rem 0 0.75rem;"><div class="md-member-avatar" id="modal-user-avatar" style="width:36px;height:36px;"></div><span class="md-member-name" id="modal-user-name"></span></div><input type="text" placeholder="Reason (will use default if empty)" id="action-reason" /><div class="md-popover-label">Mute duration</div><div class="md-popover-row"><button class="md-action-btn" data-dur="10">10m</button><button class="md-action-btn" data-dur="60">1h</button><button class="md-action-btn" data-dur="1440">1d</button></div><div class="md-popover-label">Mod actions</div><div class="md-popover-row"><button class="md-action-btn warn" id="pop-kick"><i data-lucide="log-out"></i> Kick</button><button class="md-action-btn danger" id="pop-ban"><i data-lucide="ban"></i> Ban</button></div><button class="md-modal-close">Cancel</button></div>';
+    overlay.innerHTML = '<div class="md-modal"><h3>Actions</h3><div class="md-member-info" style="margin:0.25rem 0 0.75rem;"><div class="md-member-avatar" id="modal-user-avatar" style="width:36px;height:36px;"></div><span class="md-member-name" id="modal-user-name"></span></div><input type="text" placeholder="Reason" id="action-reason" /><div class="md-popover-label">Mute duration</div><div class="md-popover-row"><button class="md-action-btn" data-dur="10">10m</button><button class="md-action-btn" data-dur="60">1h</button><button class="md-action-btn" data-dur="1440">1d</button></div><div class="md-popover-label">Mod actions</div><div class="md-popover-row"><button class="md-action-btn warn" id="pop-kick"><i data-lucide="log-out"></i> Kick</button><button class="md-action-btn danger" id="pop-ban"><i data-lucide="ban"></i> Ban</button></div><button class="md-modal-close">Cancel</button></div>';
     document.body.appendChild(overlay);
     let activeMember = null;
     document.querySelectorAll('.md-actions-btn').forEach(btn => {
@@ -349,7 +349,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!res.ok) {
           let detail = 'Action failed';
           try { const j = await res.json(); if (j && j.detail) detail = String(j.detail); else if (j && j.error) detail = String(j.error); } catch {}
-          if (res.status === 401) detail = 'Your session expired — refresh the page or log in again.';
+          if (res.status === 401) detail = 'Your session expired - refresh the page or log in again.';
           if (typeof showToast === 'function') showToast(detail.slice(0, 120), 'error', 6000);
           return;
         }

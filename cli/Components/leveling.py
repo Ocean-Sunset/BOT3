@@ -145,7 +145,7 @@ class Leveling(commands.Cog, name="Leveling"):
             user = interaction.guild.get_member(int(row["user_id"]))
             name = user.display_name if user else row["user_id"][:8]
             lvl = level_from_xp(row["xp"])
-            lines.append(f"**{i}.** {name} — Level {lvl} ({row['xp']} XP)")
+            lines.append(f"**{i}.** {name} - Level {lvl} ({row['xp']} XP)")
         embed = EmbedBuilder().title("Leaderboard").description("\n".join(lines)).color("blue").build()
         await interaction.response.send_message(embed=embed)
 

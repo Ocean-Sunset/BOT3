@@ -3,15 +3,15 @@
 --------------------------------------------------------------------------------------------------------
 
 🌿 Inspired by Elysia & macOS naming style:
-Lunara — evokes the moon, soft and serene. (1.0.0)
-Solandra — sunny, vivid, and has a Californian coast vibe. (8.0.0)
-Velora — elegant and futuristic, yet place-name-like. (5.0.0)
-Auralis — echoes "aurora" and "Elysia" combined. (2.0.0)
-Serava — serene, flowing, almost like a macOS mountain range or coastal city. (4.0.0)
-Oralya — mythic yet plausible as a high-end software codename. (9.0.0)
-Caelira — from "caelum" (sky in Latin), fantasy-modern hybrid. (6.0.0)
-Zephara — inspired by "zephyr" (a soft breeze), light and sleek. (7.0.0)
-Mystralyn — mysterious and refined, nodding to "mistral" winds. (3.0.0)
+Lunara - evokes the moon, soft and serene. (1.0.0)
+Solandra - sunny, vivid, and has a Californian coast vibe. (8.0.0)
+Velora - elegant and futuristic, yet place-name-like. (5.0.0)
+Auralis - echoes "aurora" and "Elysia" combined. (2.0.0)
+Serava - serene, flowing, almost like a macOS mountain range or coastal city. (4.0.0)
+Oralya - mythic yet plausible as a high-end software codename. (9.0.0)
+Caelira - from "caelum" (sky in Latin), fantasy-modern hybrid. (6.0.0)
+Zephara - inspired by "zephyr" (a soft breeze), light and sleek. (7.0.0)
+Mystralyn - mysterious and refined, nodding to "mistral" winds. (3.0.0)
 
 Prowl Beta
 

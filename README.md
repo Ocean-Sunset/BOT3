@@ -1,4 +1,4 @@
-# Eobot — Sovra 🐍
+# Eobot - Sovra 🐍
 
 A multifunctional Discord bot built with Python, featuring a deep economy system and an experimental insider program.
 

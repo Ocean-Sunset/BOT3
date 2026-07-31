@@ -276,7 +276,7 @@ async def get_user_guilds_filtered(request: Request):
 
 
 # ---------------------------------------------------------------------------
-#  Routes — Pages
+#  Routes - Pages
 # ---------------------------------------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
@@ -458,7 +458,7 @@ async def dashboard(request: Request, guild_id: str, panel: str = "overview"):
 
 
 # ---------------------------------------------------------------------------
-#  Routes — API v1
+#  Routes - API v1
 # ---------------------------------------------------------------------------
 
 # Simple per-user rate limiter to mitigate API scraping
@@ -764,8 +764,8 @@ async def mod_members(guild_id: str, request: Request):
     row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
     d = _parse_guild_data(row)
     if d and "members" in d:
-        # Filter out the bot (bot user ID is in config)
-        return {"members": [m for m in d["members"] if str(m.get("id", "")) != _cfg().get("CLIENT_ID")]}
+        # Filter out the bot (bot user ID is in config); coerce IDs to strings
+        return {"members": [{"id": str(m.get("id")), "name": m.get("name", ""), "display_name": m.get("display_name", ""), "avatar_url": m.get("avatar_url")} for m in d["members"] if str(m.get("id", "")) != _cfg().get("CLIENT_ID")]}
     return {"members": [
         {"id":"1001","name":"Alice","avatar_url":"https://cdn.discordapp.com/embed/avatars/0.png"},
         {"id":"1002","name":"Bob","avatar_url":"https://cdn.discordapp.com/embed/avatars/1.png"},
@@ -781,10 +781,10 @@ async def mod_channels(guild_id: str, request: Request):
     row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
     d = _parse_guild_data(row)
     if d and "channels" in d:
-        # Dropdowns only need text channels (type 0); categories (4) reported separately
+        # Coerce IDs to strings (JS-safe) — categories reported separately
         return {
-            "channels": [c for c in d["channels"] if c.get("type", 0) == 0],
-            "categories": [c for c in d["channels"] if c.get("type", 0) == 4],
+            "channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0],
+            "categories": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 4],
         }
     return {"channels": [
         {"id":"2001","name":"general","type":0},
@@ -868,6 +868,7 @@ async def mod_roles(guild_id: str, request: Request):
         has_admin = bool(perms & 8)
         # Mark roles above Prowl's highest role as disabled (can't assign)
         is_above = bot_role_pos is not None and r.get("position", 0) > bot_role_pos
+        r["id"] = str(r.get("id"))
         r["disabled"] = is_above
         r["is_mod"] = has_admin or (str(r.get("id")) in mod_role_ids)
         r["count"] = r.get("count") or r.get("member_count") or 0

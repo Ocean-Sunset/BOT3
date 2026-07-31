@@ -31,7 +31,7 @@ async def get_pool():
         return _pool
     dsn = os.environ.get("DATABASE_URL")
     if not dsn:
-        logger.warning("DATABASE_URL not set — Neon sync disabled.")
+        logger.warning("DATABASE_URL not set - Neon sync disabled.")
         return None
     try:
         import asyncpg

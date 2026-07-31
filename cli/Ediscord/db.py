@@ -37,11 +37,33 @@ async def get_pool():
         import asyncpg
         _pool = await asyncpg.create_pool(dsn, min_size=1, max_size=3)
         logger.info("Connected to Neon PostgreSQL.")
+        await _ensure_tables()
         return _pool
     except Exception as e:
         logger.error(f"Failed to connect to Neon: {e}")
         _pool = None
         return None
+
+
+async def _ensure_tables():
+    """Create required tables if they don't exist (self-healing)."""
+    pool = _pool
+    if pool is None:
+        return
+    statements = [
+        "CREATE TABLE IF NOT EXISTS bot_stats (key TEXT PRIMARY KEY, value TEXT, updated_at DOUBLE PRECISION)",
+        "CREATE TABLE IF NOT EXISTS guild_data (guild_id TEXT PRIMARY KEY, data JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION)",
+        "CREATE TABLE IF NOT EXISTS mod_settings (guild_id TEXT PRIMARY KEY, settings JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
+        "CREATE TABLE IF NOT EXISTS mod_log (id SERIAL PRIMARY KEY, guild_id TEXT, user_id TEXT, user_name TEXT, action TEXT, reason TEXT DEFAULT '', created_at DOUBLE PRECISION)",
+        "CREATE TABLE IF NOT EXISTS mod_actions (id SERIAL PRIMARY KEY, guild_id TEXT, action TEXT, target_id TEXT, target_name TEXT DEFAULT '', reason TEXT DEFAULT '', duration INTEGER, status TEXT DEFAULT 'pending', created_at DOUBLE PRECISION)",
+    ]
+    try:
+        async with pool.acquire() as conn:
+            for stmt in statements:
+                await conn.execute(stmt)
+        logger.info("Ensured database tables exist.")
+    except Exception as e:
+        logger.error(f"ensure_tables failed: {e}")
 
 
 async def push_bot_stats(data: dict):

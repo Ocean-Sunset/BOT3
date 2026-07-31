@@ -628,7 +628,8 @@
 }
 
 /* ── Text / number input ── */
-.md-input {
+.md-input,
+.md-behavior-item .md-input {
   width: 100% !important;
   padding: 0.45rem 0.6rem !important;
   font-size: 0.8rem !important;
@@ -640,9 +641,12 @@
   outline: none !important;
   transition: border-color 0.15s !important;
   box-shadow: none !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  margin: 0 !important;
 }
 .md-input::placeholder { color: rgba(255,255,255,0.25) !important; }
-.md-input:focus { border-color: rgba(255,255,255,0.2) !important; }
+.md-input:focus { border-color: rgba(255,255,255,0.2) !important; box-shadow: none !important; }
 .md-input[type="number"] { max-width: 140px !important; }
 
 /* ── Behavior toggles list ── */

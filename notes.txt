@@ -35,6 +35,7 @@ nil
 
 
 -- CURRENT PHASE OF UPDATE: (Status Check) --
+[0] - Fix bot back-end + Get a server to host the damn thing
 [0] - Fixing dashboard entirely (along with other database problems)
 [...] - Configure betterstack
 [...] - Create an insider branch

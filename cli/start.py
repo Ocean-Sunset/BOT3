@@ -18,6 +18,7 @@ import discord
 from discord.ext import commands
 import psutil
 import json
+import datetime
 
 from Ediscord import variables, logger, utils, __version__
 from Ediscord import db as neon_db
@@ -45,6 +46,7 @@ class ProwlBot(commands.Bot):
         self.loop.create_task(self._initial_neon_push())
         self.loop.create_task(self._neon_syncer())
         self.loop.create_task(self._mod_settings_poller())
+        self.loop.create_task(self._mod_action_processor())
         logger.info("Setup hook complete.")
 
     async def _initial_neon_push(self):
@@ -112,6 +114,49 @@ class ProwlBot(commands.Bot):
             except Exception as e:
                 logger.error(f"Mod settings poller failed: {e}")
             await asyncio.sleep(120)
+
+    async def _mod_action_processor(self):
+        """Process queued moderation actions from the dashboard."""
+        await self.wait_until_ready()
+        while not self.is_closed():
+            try:
+                actions = await neon_db.fetch_pending_actions()
+                for a in actions:
+                    guild = self.get_guild(int(a["guild_id"]))
+                    if not guild:
+                        await neon_db.complete_action(a["id"], "skipped")
+                        continue
+                    member = None
+                    try:
+                        member = await guild.fetch_member(int(a["target_id"]))
+                    except Exception:
+                        member = None
+                    act = a["action"]
+                    reason = a.get("reason") or "No reason provided"
+                    duration = a.get("duration")
+                    try:
+                        if act == "kick":
+                            if member:
+                                await member.kick(reason=reason)
+                        elif act == "ban":
+                            if member:
+                                await member.ban(reason=reason)
+                            else:
+                                await guild.ban(discord.Object(id=int(a["target_id"])), reason=reason)
+                        elif act == "mute":
+                            if member and duration:
+                                until = discord.utils.utcnow() + datetime.timedelta(minutes=int(duration))
+                                await member.timeout(until, reason=reason)
+                        elif act == "unmute":
+                            if member:
+                                await member.timeout(None, reason=reason)
+                        await neon_db.complete_action(a["id"], "completed")
+                    except Exception as e:
+                        logger.error(f"Action {a['id']} failed: {e}")
+                        await neon_db.complete_action(a["id"], "failed")
+            except Exception as e:
+                logger.error(f"Mod action processor failed: {e}")
+            await asyncio.sleep(15)
 
     async def _push_to_neon(self):
         """Build stats and push directly to Neon PostgreSQL."""

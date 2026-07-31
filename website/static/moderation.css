@@ -627,6 +627,23 @@
   background: #36d399;
 }
 
+/* ── Text / number input ── */
+.md-input {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.8rem;
+  font-family: 'Lexend', system-ui, sans-serif;
+  background: #1a1a1a;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 4px;
+  color: #e9edf5;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.md-input::placeholder { color: rgba(255,255,255,0.25); }
+.md-input:focus { border-color: rgba(255,255,255,0.2); }
+.md-input[type="number"] { max-width: 140px; }
+
 /* ── Behavior toggles list ── */
 .md-behavior-list {
   display: flex;

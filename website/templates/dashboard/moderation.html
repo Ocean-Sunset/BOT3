@@ -82,6 +82,125 @@
       </div>
     </div>
 
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Modlog Channel</div>
+        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:0.6rem;line-height:1.5;">Only moderation logs will be posted here — nothing else.</p>
+        <div class="md-custom-select" id="modlog-select-wrap">
+          <button class="md-custom-select-btn" id="modlog-select-btn">Select channel...</button>
+          <div class="md-custom-select-drop" id="modlog-select-drop"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Ban Settings</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <label class="md-toggle"><input type="checkbox" data-key="ban_dm" /><span class="md-toggle-slider"></span></label>
+            <div><div class="md-behavior-label">DM Offender</div><div class="md-behavior-desc">Send a private message when banned</div></div>
+          </div>
+          <div class="md-behavior-item">
+            <label class="md-toggle"><input type="checkbox" data-key="ban_purge" /><span class="md-toggle-slider"></span></label>
+            <div><div class="md-behavior-label">Purge Messages</div><div class="md-behavior-desc">Delete the offender's recent messages</div></div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Server Message</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Appears when a ban occurs. Variables: <code style="color:rgba(255,255,255,0.5)">{username}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code></div>
+              <input type="text" class="md-input" data-key="ban_message" placeholder="{username} has been banned." />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Temp Ban Settings</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <label class="md-toggle"><input type="checkbox" data-key="tempban_dm" /><span class="md-toggle-slider"></span></label>
+            <div><div class="md-behavior-label">DM Offender</div><div class="md-behavior-desc">Send a private message when temp-banned</div></div>
+          </div>
+          <div class="md-behavior-item">
+            <label class="md-toggle"><input type="checkbox" data-key="tempban_purge" /><span class="md-toggle-slider"></span></label>
+            <div><div class="md-behavior-label">Purge Messages</div><div class="md-behavior-desc">Delete the offender's recent messages</div></div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Default Duration (minutes)</div>
+              <input type="number" class="md-input" data-key="tempban_duration" min="1" placeholder="1440" />
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Server Message</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{username}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code></div>
+              <input type="text" class="md-input" data-key="tempban_message" placeholder="{username} has been temporarily banned." />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Mute Settings</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <label class="md-toggle"><input type="checkbox" data-key="mute_dm" /><span class="md-toggle-slider"></span></label>
+            <div><div class="md-behavior-label">DM Offender</div><div class="md-behavior-desc">Send a private message when muted</div></div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Default Duration (minutes)</div>
+              <input type="number" class="md-input" data-key="mute_duration" min="1" placeholder="60" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Kick Settings</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <label class="md-toggle"><input type="checkbox" data-key="kick_dm" /><span class="md-toggle-slider"></span></label>
+            <div><div class="md-behavior-label">DM Offender</div><div class="md-behavior-desc">Send a private message when kicked</div></div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Server Message</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{username}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code></div>
+              <input type="text" class="md-input" data-key="kick_message" placeholder="{username} has been kicked." />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Warn Settings</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <label class="md-toggle"><input type="checkbox" data-key="warn_dm" /><span class="md-toggle-slider"></span></label>
+            <div><div class="md-behavior-label">DM Offender</div><div class="md-behavior-desc">Send a private message when warned</div></div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Server Message</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{username}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code></div>
+              <input type="text" class="md-input" data-key="warn_message" placeholder="{username} has been warned." />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="md-section" style="animation-delay:.18s">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Individual Command Toggles</div>
@@ -153,13 +272,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     lucide.createIcons();
     const overlay = document.createElement('div');
     overlay.className = 'md-modal-overlay';
-    overlay.innerHTML = '<div class="md-modal"><h3>Actions</h3><div class="md-member-name" id="modal-user-name"></div><input type="text" placeholder="Reason" id="action-reason" /><div class="md-popover-label">Mute duration</div><div class="md-popover-row"><button class="md-action-btn" data-dur="10">10m</button><button class="md-action-btn" data-dur="60">1h</button><button class="md-action-btn" data-dur="1440">1d</button></div><div class="md-popover-label">Mod actions</div><div class="md-popover-row"><button class="md-action-btn warn" id="pop-kick"><i data-lucide="log-out"></i> Kick</button><button class="md-action-btn danger" id="pop-ban"><i data-lucide="ban"></i> Ban</button></div><button class="md-modal-close">Cancel</button></div>';
+    overlay.innerHTML = '<div class="md-modal"><h3>Actions</h3><div class="md-member-info" style="margin:0.25rem 0 0.75rem;"><div class="md-member-avatar" id="modal-user-avatar" style="width:36px;height:36px;"></div><span class="md-member-name" id="modal-user-name"></span></div><input type="text" placeholder="Reason (will use default if empty)" id="action-reason" /><div class="md-popover-label">Mute duration</div><div class="md-popover-row"><button class="md-action-btn" data-dur="10">10m</button><button class="md-action-btn" data-dur="60">1h</button><button class="md-action-btn" data-dur="1440">1d</button></div><div class="md-popover-label">Mod actions</div><div class="md-popover-row"><button class="md-action-btn warn" id="pop-kick"><i data-lucide="log-out"></i> Kick</button><button class="md-action-btn danger" id="pop-ban"><i data-lucide="ban"></i> Ban</button></div><button class="md-modal-close">Cancel</button></div>';
     document.body.appendChild(overlay);
+    let activeMember = null;
     document.querySelectorAll('.md-actions-btn').forEach(btn => {
       btn.addEventListener('click', e => {
         e.stopPropagation();
-        const u = members[parseInt(btn.dataset.idx)];
-        document.getElementById('modal-user-name').textContent = u.name;
+        activeMember = members[parseInt(btn.dataset.idx)];
+        document.getElementById('modal-user-name').textContent = activeMember.name;
+        document.getElementById('modal-user-avatar').innerHTML = '<img src="' + (activeMember.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(activeMember.id)%5)+'.png')) + '" style="width:100%;height:100%;object-fit:cover;" />';
         document.getElementById('action-reason').value = '';
         overlay.classList.add('is-open');
       });
@@ -167,7 +288,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     overlay.addEventListener('click', e => { if(e.target===overlay) overlay.classList.remove('is-open'); });
     overlay.querySelector('.md-modal-close').addEventListener('click', () => overlay.classList.remove('is-open'));
     document.getElementById('action-reason')?.addEventListener('keydown', e => { if(e.key==='Escape') overlay.classList.remove('is-open'); });
-    overlay.querySelectorAll('.md-popover-row .md-action-btn').forEach(b => b.addEventListener('click', () => overlay.classList.remove('is-open')));
+    async function sendAction(action, duration) {
+      if (!activeMember) return;
+      const reason = document.getElementById('action-reason').value;
+      overlay.classList.remove('is-open');
+      try {
+        await api('/action', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action, user_id: activeMember.id, user_name: activeMember.name, reason, duration: duration || null}) });
+        if (typeof showToast === 'function') showToast('Action queued for the bot.', 'success');
+      } catch (e) {
+        if (typeof showToast === 'function') showToast('Failed to queue action.', 'error');
+      }
+    }
+    overlay.querySelectorAll('[data-dur]').forEach(b => b.addEventListener('click', () => sendAction('mute', b.dataset.dur)));
+    document.getElementById('pop-kick')?.addEventListener('click', () => sendAction('kick'));
+    document.getElementById('pop-ban')?.addEventListener('click', () => sendAction('ban'));
   }).catch(() => w.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load.</div>');
 
   // ── Channels ──
@@ -269,6 +403,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     const el = document.getElementById('cmd-grid');
     el.innerHTML = cmdItems.map(c => `<div class="md-cmd-item"><label class="md-toggle"><input type="checkbox" ${(d.settings||{})['cmd_'+c.key]!==false?'checked':''} data-key="cmd_${c.key}" /><span class="md-toggle-slider"></span></label><div class="md-cmd-name">${c.label} <code>${c.code}</code></div></div>`).join('');
     el.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.addEventListener('change',function(){ markChanged(this.dataset.key, this.checked); }));
+  }).catch(()=>{});
+
+  // ── New action settings (ban/tempban/mute/kick/warn + modlog) ──
+  api('/settings').then(d => {
+    const s = d.settings || {};
+    // Set all data-key controls (checkboxes, text, number)
+    document.querySelectorAll('[data-key]').forEach(el => {
+      const key = el.dataset.key;
+      if (!(key in s)) return;
+      if (el.type === 'checkbox') {
+        el.checked = !!s[key];
+      } else if (el.type === 'number') {
+        el.value = s[key];
+      } else {
+        el.value = s[key] || '';
+      }
+    });
+    // Bind change events
+    document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); }));
+    document.querySelectorAll('input[type="text"][data-key], input[type="number"][data-key]').forEach(inp => inp.addEventListener('change', function(){
+      const v = inp.type === 'number' ? (parseInt(inp.value) || 0) : inp.value;
+      markChanged(this.dataset.key, v);
+    }));
+    // Modlog channel dropdown
+    const modBtn = document.getElementById('modlog-select-btn');
+    const modDrop = document.getElementById('modlog-select-drop');
+    if (modBtn && modDrop) {
+      const selected = s.modlog_channel_id;
+      api('/channels').then(cd => {
+        if (!cd.channels) return;
+        modDrop.innerHTML = `<button class="md-custom-opt" data-id="">None</button>` + cd.channels.map(c => `<button class="md-custom-opt" data-id="${c.id}">#${esc(c.name)}</button>`).join('');
+        if (selected) {
+          const match = cd.channels.find(c => String(c.id) === String(selected));
+          modBtn.textContent = match ? '#' + match.name : 'Select channel...';
+        }
+        modDrop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+          modBtn.textContent = b.dataset.id ? b.textContent : 'None';
+          markChanged('modlog_channel_id', b.dataset.id || null);
+          modDrop.classList.remove('is-open');
+        }));
+      });
+      modBtn.addEventListener('click', (e) => { e.stopPropagation(); modDrop.classList.toggle('is-open'); });
+      document.addEventListener('click', (e) => { if(!e.target.closest('#modlog-select-wrap')) modDrop.classList.remove('is-open'); });
+    }
   }).catch(()=>{});
 
   document.getElementById('purge-count')?.addEventListener('input', function(){ document.getElementById('purge-label').textContent = this.value; });

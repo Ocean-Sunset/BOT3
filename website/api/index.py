@@ -589,6 +589,20 @@ MOD_SETTINGS_DEFAULTS = {
     "dm_on_action": True, "require_reason": True, "silent_mod": False,
     "auto_thread": False, "track_stats": True,
     "cmd_ban": True, "cmd_kick": True, "cmd_timeout": True, "cmd_warn": True,
+    # ── Modlog ──
+    "modlog_channel_id": None,
+    # ── Ban ──
+    "ban_dm": True, "ban_purge": True, "ban_message": "{username} has been banned.",
+    # ── Temp ban ──
+    "tempban_dm": True, "tempban_purge": True,
+    "tempban_message": "{username} has been temporarily banned.",
+    "tempban_duration": 1440,
+    # ── Mute ──
+    "mute_dm": True, "mute_duration": 60,
+    # ── Kick ──
+    "kick_dm": True, "kick_message": "{username} has been kicked.",
+    # ── Warn ──
+    "warn_dm": True, "warn_message": "{username} has been warned.",
 }
 
 

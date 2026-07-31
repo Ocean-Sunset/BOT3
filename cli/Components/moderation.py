@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
+import asyncio
 import datetime
 import time
 import json
@@ -16,7 +17,52 @@ MOD_DEFAULTS = {
     "auto_thread": False, "track_stats": True,
     "cmd_ban": True, "cmd_kick": True, "cmd_timeout": True, "cmd_warn": True,
     "mod_roles": [], "emergency_lock": False,
+    # ── Modlog ──
+    "modlog_channel_id": None,
+    # ── Ban ──
+    "ban_dm": True, "ban_purge": True,
+    "ban_message": "{username} has been banned.",
+    # ── Temp ban ──
+    "tempban_dm": True, "tempban_purge": True,
+    "tempban_message": "{username} has been temporarily banned.",
+    "tempban_duration": 1440,  # minutes
+    # ── Mute ──
+    "mute_dm": True, "mute_duration": 60,
+    # ── Kick ──
+    "kick_dm": True, "kick_message": "{username} has been kicked.",
+    # ── Warn ──
+    "warn_dm": True, "warn_message": "{username} has been warned.",
 }
+
+
+def render_template(template: str, member: discord.Member) -> str:
+    """Replace {username}/{name}/{server} placeholders in a message template."""
+    if not template:
+        return ""
+    return (template
+            .replace("{username}", member.name)
+            .replace("{name}", member.display_name)
+            .replace("{server}", str(getattr(member, "guild", None) and member.guild.name)))
+
+
+async def send_modlog(guild, settings, embed):
+    """Send a log embed to the configured modlog channel."""
+    channel_id = settings.get("modlog_channel_id")
+    if not channel_id:
+        return
+    channel = guild.get_channel(int(channel_id))
+    if channel:
+        try:
+            await channel.send(embed=embed)
+        except Exception:
+            pass
+
+
+async def safe_dm(member, content):
+    try:
+        await member.send(content)
+    except Exception:
+        pass
 
 
 async def get_mod_settings(guild_id: int):
@@ -107,14 +153,16 @@ class Moderation(commands.Cog, name="Moderation"):
         return True
 
     @app_commands.command(name="kick", description="Kick a member from the server")
-    @app_commands.describe(member="The member to kick", reason="Reason for the kick")
+    @app_commands.describe(member="The member to kick", reason="Reason for the kick (optional)")
     @is_mod()
-    async def kick(self, interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
+    async def kick(self, interaction: discord.Interaction, member: discord.Member, reason: str = None):
         settings = await get_mod_settings(interaction.guild_id)
         if not settings.get("cmd_kick", True):
             return await interaction.response.send_message("Kick command is disabled.", ephemeral=True)
         if not await check_emergency_lock(interaction):
             return
+        if not reason:
+            reason = "No reason provided"
 
         view = ConfirmationView()
         await interaction.response.send_message(
@@ -122,27 +170,44 @@ class Moderation(commands.Cog, name="Moderation"):
         )
         await view.wait()
         if view.value is True:
-            try:
-                if settings.get("dm_on_action"):
-                    await member.send(f"You have been kicked from {interaction.guild.name}.\nReason: {reason}")
-            except:
-                pass
+            if settings.get("kick_dm", True):
+                await safe_dm(member, f"You have been kicked from {interaction.guild.name}.\nReason: {reason}")
             await member.kick(reason=reason)
-            embed = EmbedBuilder().title("Member Kicked").description(f"{member.mention} has been kicked.").color("red").field("Reason", reason).build()
-            await interaction.followup.send(embed=embed)
+
+            if not settings.get("silent_mod"):
+                embed = EmbedBuilder().title("Member Kicked").description(f"{member.mention} has been kicked.").color("red").field("Reason", reason).build()
+                await interaction.followup.send(embed=embed)
+            else:
+                await interaction.followup.send("Member kicked.", ephemeral=True)
+
+            # Announcement in channel with custom message
+            msg = render_template(settings.get("kick_message", ""), member)
+            if msg and not settings.get("silent_mod"):
+                try:
+                    await interaction.channel.send(msg)
+                except Exception:
+                    pass
+
+            # Modlog
+            log_embed = EmbedBuilder().title("Member Kicked").description(f"{member.mention} ({member.id})").color("red").field("Moderator", interaction.user.mention).field("Reason", reason).build()
+            await send_modlog(interaction.guild, settings, log_embed)
             await log_mod_action(interaction.guild_id, str(member.id), member.name, "kick", reason)
         else:
             await interaction.followup.send("Kick cancelled.", ephemeral=True)
 
     @app_commands.command(name="ban", description="Ban a member from the server")
-    @app_commands.describe(member="The member to ban", reason="Reason for the ban", delete_days="Days of messages to delete (0-7)")
+    @app_commands.describe(member="The member to ban", reason="Reason for the ban (optional)", delete_days="Days of messages to delete (0-7)")
     @is_mod()
-    async def ban(self, interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided", delete_days: int = 1):
+    async def ban(self, interaction: discord.Interaction, member: discord.Member, reason: str = None, delete_days: int = None):
         settings = await get_mod_settings(interaction.guild_id)
         if not settings.get("cmd_ban", True):
             return await interaction.response.send_message("Ban command is disabled.", ephemeral=True)
         if not await check_emergency_lock(interaction):
             return
+        if not reason:
+            reason = "No reason provided"
+        if delete_days is None:
+            delete_days = 1 if settings.get("ban_purge", True) else 0
         if delete_days < 0 or delete_days > 7:
             return await interaction.response.send_message("Delete days must be between 0 and 7.", ephemeral=True)
 
@@ -150,17 +215,88 @@ class Moderation(commands.Cog, name="Moderation"):
         await interaction.response.send_message(f"Are you sure you want to ban {member.mention}?", view=view, ephemeral=True)
         await view.wait()
         if view.value is True:
-            try:
-                if settings.get("dm_on_action"):
-                    await member.send(f"You have been banned from {interaction.guild.name}.\nReason: {reason}")
-            except:
-                pass
+            if settings.get("ban_dm", True):
+                await safe_dm(member, f"You have been banned from {interaction.guild.name}.\nReason: {reason}")
             await member.ban(reason=reason, delete_message_days=delete_days)
-            embed = EmbedBuilder().title("Member Banned").description(f"{member.mention} has been banned.").color("red").field("Reason", reason).build()
-            await interaction.followup.send(embed=embed)
+
+            if not settings.get("silent_mod"):
+                embed = EmbedBuilder().title("Member Banned").description(f"{member.mention} has been banned.").color("red").field("Reason", reason).build()
+                await interaction.followup.send(embed=embed)
+            else:
+                await interaction.followup.send("Member banned.", ephemeral=True)
+
+            msg = render_template(settings.get("ban_message", ""), member)
+            if msg and not settings.get("silent_mod"):
+                try:
+                    await interaction.channel.send(msg)
+                except Exception:
+                    pass
+
+            log_embed = EmbedBuilder().title("Member Banned").description(f"{member.mention} ({member.id})").color("red").field("Moderator", interaction.user.mention).field("Reason", reason).field("Delete Days", str(delete_days)).build()
+            await send_modlog(interaction.guild, settings, log_embed)
             await log_mod_action(interaction.guild_id, str(member.id), member.name, "ban", reason)
         else:
             await interaction.followup.send("Ban cancelled.", ephemeral=True)
+
+    @app_commands.command(name="tempban", description="Temporarily ban a member (auto-unbans after duration)")
+    @app_commands.describe(member="The member to temporarily ban", duration="Duration in minutes", reason="Reason for the temp ban (optional)")
+    @is_mod()
+    async def tempban(self, interaction: discord.Interaction, member: discord.Member, duration: int = None, reason: str = None):
+        settings = await get_mod_settings(interaction.guild_id)
+        if not settings.get("cmd_ban", True):
+            return await interaction.response.send_message("Ban command is disabled.", ephemeral=True)
+        if not await check_emergency_lock(interaction):
+            return
+        if duration is None:
+            duration = int(settings.get("tempban_duration", 1440))
+        if duration <= 0:
+            return await interaction.response.send_message("Duration must be positive.", ephemeral=True)
+        if not reason:
+            reason = "No reason provided"
+
+        delete_days = 1 if settings.get("tempban_purge", True) else 0
+
+        view = ConfirmationView()
+        await interaction.response.send_message(f"Are you sure you want to temp-ban {member.mention} for {duration} minutes?", view=view, ephemeral=True)
+        await view.wait()
+        if view.value is True:
+            if settings.get("tempban_dm", True):
+                await safe_dm(member, f"You have been temporarily banned from {interaction.guild.name} for {duration} minutes.\nReason: {reason}")
+            await member.ban(reason=f"Temp ban ({duration}m): {reason}", delete_message_days=delete_days)
+
+            if not settings.get("silent_mod"):
+                embed = EmbedBuilder().title("Member Temp-Banned").description(f"{member.mention} has been banned for **{duration}** minutes.").color("red").field("Reason", reason).build()
+                await interaction.followup.send(embed=embed)
+            else:
+                await interaction.followup.send("Member temp-banned.", ephemeral=True)
+
+            msg = render_template(settings.get("tempban_message", ""), member)
+            if msg and not settings.get("silent_mod"):
+                try:
+                    await interaction.channel.send(msg)
+                except Exception:
+                    pass
+
+            log_embed = EmbedBuilder().title("Member Temp-Banned").description(f"{member.mention} ({member.id})").color("red").field("Moderator", interaction.user.mention).field("Duration", f"{duration} minutes").field("Reason", reason).build()
+            await send_modlog(interaction.guild, settings, log_embed)
+            await log_mod_action(interaction.guild_id, str(member.id), member.name, "tempban", f"{duration}min - {reason}")
+
+            # Auto-unban after duration
+            self.bot.loop.create_task(self._auto_unban(interaction.guild_id, member.id, duration))
+        else:
+            await interaction.followup.send("Temp ban cancelled.", ephemeral=True)
+
+    async def _auto_unban(self, guild_id, user_id, duration_minutes):
+        await asyncio.sleep(duration_minutes * 60)
+        guild = self.bot.get_guild(guild_id)
+        if not guild:
+            return
+        try:
+            user = await self.bot.fetch_user(user_id)
+            await guild.unban(user, reason="Temp ban expired")
+            logger.info(f"Auto-unbanned {user_id} in {guild_id} (temp ban expired)")
+        except Exception as e:
+            logger.error(f"Auto-unban failed: {e}")
 
     @app_commands.command(name="unban", description="Unban a user by ID")
     @app_commands.describe(user_id="The user ID to unban", reason="Reason for the unban")
@@ -182,26 +318,34 @@ class Moderation(commands.Cog, name="Moderation"):
             await interaction.response.send_message("User not found or not banned.", ephemeral=True)
 
     @app_commands.command(name="mute", description="Timeout a member")
-    @app_commands.describe(member="The member to mute", duration="Duration in minutes", reason="Reason for the mute")
+    @app_commands.describe(member="The member to mute", duration="Duration in minutes (optional)", reason="Reason for the mute (optional)")
     @is_mod()
-    async def mute(self, interaction: discord.Interaction, member: discord.Member, duration: int = 60, reason: str = "No reason provided"):
+    async def mute(self, interaction: discord.Interaction, member: discord.Member, duration: int = None, reason: str = None):
         settings = await get_mod_settings(interaction.guild_id)
         if not settings.get("cmd_timeout", True):
             return await interaction.response.send_message("Timeout command is disabled.", ephemeral=True)
         if not await check_emergency_lock(interaction):
             return
+        if duration is None:
+            duration = int(settings.get("mute_duration", 60))
+        if not reason:
+            reason = "No reason provided"
 
         until = discord.utils.utcnow() + datetime.timedelta(minutes=duration)
         await member.timeout(until, reason=reason)
-        embed = EmbedBuilder().title("Member Muted").description(f"{member.mention} has been timed out.").color("orange").field("Duration", f"{duration} minutes").field("Reason", reason).build()
-        await interaction.response.send_message(embed=embed)
-        await log_mod_action(interaction.guild_id, str(member.id), member.name, "mute", f"{duration}min - {reason}")
 
-        if settings.get("dm_on_action"):
-            try:
-                await member.send(f"You have been muted in {interaction.guild.name} for {duration} minutes.\nReason: {reason}")
-            except:
-                pass
+        if not settings.get("silent_mod"):
+            embed = EmbedBuilder().title("Member Muted").description(f"{member.mention} has been timed out.").color("orange").field("Duration", f"{duration} minutes").field("Reason", reason).build()
+            await interaction.response.send_message(embed=embed)
+        else:
+            await interaction.response.send_message("Member muted.", ephemeral=True)
+
+        if settings.get("mute_dm", True):
+            await safe_dm(member, f"You have been muted in {interaction.guild.name} for {duration} minutes.\nReason: {reason}")
+
+        log_embed = EmbedBuilder().title("Member Muted").description(f"{member.mention} ({member.id})").color("orange").field("Moderator", interaction.user.mention).field("Duration", f"{duration} minutes").field("Reason", reason).build()
+        await send_modlog(interaction.guild, settings, log_embed)
+        await log_mod_action(interaction.guild_id, str(member.id), member.name, "mute", f"{duration}min - {reason}")
 
     @app_commands.command(name="unmute", description="Remove a timeout from a member")
     @app_commands.describe(member="The member to unmute", reason="Reason for the unmute")
@@ -213,24 +357,36 @@ class Moderation(commands.Cog, name="Moderation"):
         await log_mod_action(interaction.guild_id, str(member.id), member.name, "unmute", reason)
 
     @app_commands.command(name="warn", description="Warn a member")
-    @app_commands.describe(member="The member to warn", reason="Warning reason")
+    @app_commands.describe(member="The member to warn", reason="Warning reason (optional)")
     @is_mod()
-    async def warn(self, interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
+    async def warn(self, interaction: discord.Interaction, member: discord.Member, reason: str = None):
         settings = await get_mod_settings(interaction.guild_id)
         if not settings.get("cmd_warn", True):
             return await interaction.response.send_message("Warn command is disabled.", ephemeral=True)
         if not await check_emergency_lock(interaction):
             return
+        if not reason:
+            reason = "No reason provided"
 
-        embed = EmbedBuilder().title("Member Warned").description(f"{member.mention} has been warned.").color("yellow").field("Reason", reason).build()
-        await interaction.response.send_message(embed=embed)
-        await log_mod_action(interaction.guild_id, str(member.id), member.name, "warn", reason)
+        if not settings.get("silent_mod"):
+            embed = EmbedBuilder().title("Member Warned").description(f"{member.mention} has been warned.").color("yellow").field("Reason", reason).build()
+            await interaction.response.send_message(embed=embed)
+        else:
+            await interaction.response.send_message("Member warned.", ephemeral=True)
 
-        if settings.get("dm_on_action"):
+        msg = render_template(settings.get("warn_message", ""), member)
+        if msg and not settings.get("silent_mod"):
             try:
-                await member.send(f"You have been warned in {interaction.guild.name}.\nReason: {reason}")
-            except:
+                await interaction.channel.send(msg)
+            except Exception:
                 pass
+
+        if settings.get("warn_dm", True):
+            await safe_dm(member, f"You have been warned in {interaction.guild.name}.\nReason: {reason}")
+
+        log_embed = EmbedBuilder().title("Member Warned").description(f"{member.mention} ({member.id})").color("yellow").field("Moderator", interaction.user.mention).field("Reason", reason).build()
+        await send_modlog(interaction.guild, settings, log_embed)
+        await log_mod_action(interaction.guild_id, str(member.id), member.name, "warn", reason)
 
     @app_commands.command(name="purge", description="Bulk delete messages in a channel")
     @app_commands.describe(count="Number of messages to delete (1-100)")

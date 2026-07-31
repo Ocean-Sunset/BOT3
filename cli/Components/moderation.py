@@ -35,14 +35,21 @@ MOD_DEFAULTS = {
 }
 
 
-def render_template(template: str, member: discord.Member) -> str:
-    """Replace {username}/{name}/{server} placeholders in a message template."""
+def render_template(template: str, member: discord.Member, reason: str = "", msg_count: int = 0) -> str:
+    """Replace template placeholders with member/context values."""
     if not template:
         return ""
+    guild = member.guild
+    joined = member.joined_at.strftime("%Y-%m-%d") if member.joined_at else "unknown"
     return (template
             .replace("{username}", member.name)
             .replace("{name}", member.display_name)
-            .replace("{server}", str(getattr(member, "guild", None) and member.guild.name)))
+            .replace("{server}", guild.name if guild else "")
+            .replace("{servername}", guild.name if guild else "")
+            .replace("{servermembercount}", str(guild.member_count if guild else 0))
+            .replace("{datejoined}", joined)
+            .replace("{messagessent}", str(msg_count))
+            .replace("{reason}", reason))
 
 
 async def send_modlog(guild, settings, embed):
@@ -145,6 +152,17 @@ class ConfirmationView(discord.ui.View):
 class Moderation(commands.Cog, name="Moderation"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.msg_counts = {}
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        if message.author.bot or not message.guild:
+            return
+        key = (str(message.guild.id), str(message.author.id))
+        self.msg_counts[key] = self.msg_counts.get(key, 0) + 1
+
+    def get_msg_count(self, guild_id, user_id) -> int:
+        return self.msg_counts.get((str(guild_id), str(user_id)), 0)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if not interaction.guild:
@@ -181,7 +199,7 @@ class Moderation(commands.Cog, name="Moderation"):
                 await interaction.followup.send("Member kicked.", ephemeral=True)
 
             # Announcement in channel with custom message
-            msg = render_template(settings.get("kick_message", ""), member)
+            msg = render_template(settings.get("kick_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id))
             if msg and not settings.get("silent_mod"):
                 try:
                     await interaction.channel.send(msg)
@@ -225,7 +243,7 @@ class Moderation(commands.Cog, name="Moderation"):
             else:
                 await interaction.followup.send("Member banned.", ephemeral=True)
 
-            msg = render_template(settings.get("ban_message", ""), member)
+            msg = render_template(settings.get("ban_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id))
             if msg and not settings.get("silent_mod"):
                 try:
                     await interaction.channel.send(msg)
@@ -270,7 +288,7 @@ class Moderation(commands.Cog, name="Moderation"):
             else:
                 await interaction.followup.send("Member temp-banned.", ephemeral=True)
 
-            msg = render_template(settings.get("tempban_message", ""), member)
+            msg = render_template(settings.get("tempban_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id))
             if msg and not settings.get("silent_mod"):
                 try:
                     await interaction.channel.send(msg)
@@ -374,7 +392,7 @@ class Moderation(commands.Cog, name="Moderation"):
         else:
             await interaction.response.send_message("Member warned.", ephemeral=True)
 
-        msg = render_template(settings.get("warn_message", ""), member)
+        msg = render_template(settings.get("warn_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id))
         if msg and not settings.get("silent_mod"):
             try:
                 await interaction.channel.send(msg)

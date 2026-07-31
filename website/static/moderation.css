@@ -643,11 +643,16 @@
   box-shadow: none !important;
   -webkit-appearance: none !important;
   appearance: none !important;
+  color-scheme: dark !important;
   margin: 0 !important;
 }
 .md-input::placeholder { color: rgba(255,255,255,0.25) !important; }
 .md-input:focus { border-color: rgba(255,255,255,0.2) !important; box-shadow: none !important; }
-.md-input[type="number"] { max-width: 140px !important; }
+.md-input[type="number"] { max-width: 140px !important; -webkit-appearance: auto !important; appearance: auto !important; }
+.md-input[type="number"]::-webkit-inner-spin-button,
+.md-input[type="number"]::-webkit-outer-spin-button {
+  opacity: 0.7;
+}
 
 /* ── Behavior toggles list ── */
 .md-behavior-list {

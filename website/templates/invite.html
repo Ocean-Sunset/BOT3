@@ -12,7 +12,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <link rel="stylesheet" href="/static/landing.css" />
   <style>
-    .invite-page { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 6vw; position: relative; z-index: 1; }
+    .invite-page { min-height: 100vh; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 6vw; position: relative; z-index: 1; }
     .invite-brand { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; color: #fff; margin-bottom: 2rem; }
     .invite-brand img { width: 32px; height: 32px; object-fit: contain; }
     .invite-brand span { font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; }
@@ -20,11 +20,11 @@
     .invite-title .gray { color: #999; }
     .invite-title .white { color: #fff; }
     .invite-sub { margin-top: 1.5rem; font-size: clamp(0.9rem, 1.2vw, 1.1rem); color: #666; font-weight: 500; max-width: 480px; line-height: 1.6; }
-    .invite-btns { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; margin-top: 2.5rem; }
-    .invite-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.75rem; width: 240px; padding: 0.9rem 1.5rem; background: rgba(255,255,255,0.06); color: #fff; font-weight: 700; font-size: 0.9rem; font-family: 'Lexend', system-ui, sans-serif; border-radius: 6px; border: 1px solid rgba(255,255,255,0.12); text-decoration: none; transition: all 0.2s; }
+    .invite-btns { display: flex; align-items: center; gap: 0.75rem; margin-top: 2.5rem; }
+    .invite-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem; padding: 0.85rem 1.4rem; background: rgba(255,255,255,0.06); color: #fff; font-weight: 700; font-size: 0.9rem; font-family: 'Lexend', system-ui, sans-serif; border-radius: 6px; border: 1px solid rgba(255,255,255,0.12); text-decoration: none; transition: all 0.2s; }
     .invite-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); transform: translateY(-1px); }
     .invite-btn svg { width: 18px; height: 18px; }
-    .invite-btn .soon { font-size: 0.7rem; font-weight: 600; color: rgba(255,255,255,0.35); border: 1px solid rgba(255,255,255,0.12); padding: 0.15rem 0.5rem; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .invite-btn .soon { font-size: 0.65rem; font-weight: 600; color: rgba(255,255,255,0.35); border: 1px solid rgba(255,255,255,0.12); padding: 0.15rem 0.5rem; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em; }
     .invite-btn.soon-btn { opacity: 0.6; cursor: not-allowed; }
     .invite-btn.soon-btn:hover { transform: none; background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); }
     .invite-perms { margin-top: 1.5rem; font-size: 0.75rem; color: rgba(255,255,255,0.25); font-weight: 500; }
@@ -53,6 +53,7 @@
         Add to Discord
       </a>
       <button class="invite-btn soon-btn gsap-btn" disabled>
+        <img src="https://img.itch.zone/aW1nLzE1OTU3OTMzLnBuZw==/original/ocCxEs.png" alt="Nerimity" style="width:18px;height:18px;object-fit:contain;" />
         Add to Nerimity <span class="soon">Soon</span>
       </button>
     </div>

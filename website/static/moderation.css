@@ -629,20 +629,21 @@
 
 /* ── Text / number input ── */
 .md-input {
-  width: 100%;
-  padding: 0.45rem 0.6rem;
-  font-size: 0.8rem;
-  font-family: 'Lexend', system-ui, sans-serif;
-  background: #1a1a1a;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 4px;
-  color: #e9edf5;
-  outline: none;
-  transition: border-color 0.15s;
+  width: 100% !important;
+  padding: 0.45rem 0.6rem !important;
+  font-size: 0.8rem !important;
+  font-family: 'Lexend', system-ui, sans-serif !important;
+  background: #1a1a1a !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 4px !important;
+  color: #e9edf5 !important;
+  outline: none !important;
+  transition: border-color 0.15s !important;
+  box-shadow: none !important;
 }
-.md-input::placeholder { color: rgba(255,255,255,0.25); }
-.md-input:focus { border-color: rgba(255,255,255,0.2); }
-.md-input[type="number"] { max-width: 140px; }
+.md-input::placeholder { color: rgba(255,255,255,0.25) !important; }
+.md-input:focus { border-color: rgba(255,255,255,0.2) !important; }
+.md-input[type="number"] { max-width: 140px !important; }
 
 /* ── Behavior toggles list ── */
 .md-behavior-list {

@@ -134,45 +134,6 @@ class RotatingSessionMiddleware:
             await send(message)
 
         await self.app(scope, receive, send_wrapper)
-            return
-
-        async def send_wrapper(message):
-            await send(message)
-
-        from starlette.datastructures import MutableHeaders
-        from starlette.requests import HTTPConnection
-
-        # Build a request-like object to access cookies
-        conn = HTTPConnection(scope)
-        cookie_val = conn.cookies.get("session")
-
-        sid = None
-        if cookie_val:
-            sid = rotating_session.unsign_session_id(cookie_val)
-
-        if not sid:
-            sid = rotating_session.create_session()
-            # Set cookie via send
-            signed = rotating_session.sign_session_id(sid)
-
-            async def send_with_cookie(message):
-                if message["type"] == "http.response.start":
-                    headers = MutableHeaders(scope=message)
-                    cookie_header = (
-                        f"session={signed}; Path=/; HttpOnly; SameSite=lax; Max-Age={86400}"
-                    )
-                    headers.append("Set-Cookie", cookie_header)
-                await send(message)
-
-            # Store session data in scope so request.session works
-            scope["session"] = rotating_session.get_session(sid) or {}
-            await self.app(scope, receive, send_with_cookie)
-        else:
-            session_data = rotating_session.get_session(sid)
-            if session_data is None:
-                session_data = {}
-            scope["session"] = session_data
-            await self.app(scope, receive, send)
 
 
 app.add_middleware(RotatingSessionMiddleware)
@@ -330,6 +291,11 @@ async def index(request: Request):
 @app.get("/login", response_class=HTMLResponse)
 async def login(request: Request):
     return templates.TemplateResponse(request, "login.html", {"config": _cfg()})
+
+
+@app.get("/invite", response_class=HTMLResponse)
+async def invite(request: Request):
+    return templates.TemplateResponse(request, "invite.html", {"config": _cfg()})
 
 
 @app.get("/auth/discord")

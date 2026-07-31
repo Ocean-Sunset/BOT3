@@ -708,11 +708,12 @@ async def mod_channels(guild_id: str, request: Request):
     row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
     d = _parse_guild_data(row)
     if d and "channels" in d:
-        return {"channels": d["channels"]}
+        # Filter out categories (type 4) and voice channels (type 2) — only text channels
+        return {"channels": [c for c in d["channels"] if c.get("type", 0) == 0]}
     return {"channels": [
-        {"id":"2001","name":"general"},
-        {"id":"2002","name":"chat"},
-        {"id":"2003","name":"spam"},
+        {"id":"2001","name":"general","type":0},
+        {"id":"2002","name":"chat","type":0},
+        {"id":"2003","name":"spam","type":0},
     ]}
 
 

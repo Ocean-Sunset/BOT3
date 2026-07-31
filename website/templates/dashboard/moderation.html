@@ -66,12 +66,6 @@
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Mod Role Assignment</div>
-        <div class="md-role-list" id="role-list">
-          <div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
-        </div>
-      </div>
-    </div>
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
@@ -285,11 +279,7 @@ async function saveChanges() {
   saveBtn.textContent = 'Saving...';
   for (const key of keys) {
     try {
-      if (key === 'mod_roles') {
-        await api('/roles/batch', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role_ids: pending[key]}) });
-      } else {
-        await api('/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]}) });
-      }
+      await api('/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]}) });
     } catch {}
   }
   for (const key of keys) delete pending[key];
@@ -414,53 +404,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       setInterval(() => { const d=Math.max(0,end-Math.floor(Date.now()/1000)); if(d<=0){el.textContent='Expired';return;} el.textContent=[Math.floor(d/3600),Math.floor((d%3600)/60),d%60].map(v=>v.toString().padStart(2,'0')).join(':'); }, 1000);
     });
   }).catch(() => document.getElementById('muted-list').innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load.</div>');
-
-  // ── Role warning modal ──
-  const roleModal = document.createElement('div');
-  roleModal.className = 'md-modal-overlay';
-  roleModal.innerHTML = '<div class="md-modal"><h3>Warning</h3><p style="font-size:0.8rem;color:rgba(255,255,255,0.55);margin:0.5rem 0 1rem;line-height:1.5;">By switching on this option for <strong id="role-warn-name"></strong>, you grant them moderator permissions.</p><div class="md-popover-row"><button id="role-warn-cancel" class="md-action-btn" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button><button id="role-warn-confirm" class="md-action-btn" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Alright</button></div></div>';
-  document.body.appendChild(roleModal);
-
-  const ROLES_PER_PAGE = 8;
-  api('/roles').then(d => {
-    const el = document.getElementById('role-list');
-    if (!d.roles?.length) { el.innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No roles.</div>'; return; }
-    const roles = d.roles;
-    let page = 0, pages = Math.ceil(roles.length / ROLES_PER_PAGE);
-    function renderRoles() {
-      const start = page * ROLES_PER_PAGE;
-      const items = roles.slice(start, start + ROLES_PER_PAGE).map(r => `<div class="md-role-item${r.disabled?' is-disabled':''}"><div class="md-role-name">${esc(r.name)}</div><div class="md-role-count">${r.count||0} members</div><label class="md-toggle${r.disabled?' is-disabled':''}"><input type="checkbox" ${r.disabled?'disabled':''} ${r.is_mod?'checked':''} data-role='${r.id}' /><span class="md-toggle-slider"></span></label></div>`).join('');
-      let nav = '';
-      if (pages > 1) {
-        nav = '<div style="display:flex;gap:0.35rem;justify-content:center;margin-top:0.5rem;">';
-        for (let i = 0; i < pages; i++) {
-          nav += `<button class="md-page-btn${i===page?' is-active':''}" data-p="${i}" style="width:26px;height:26px;font-size:0.7rem;font-weight:700;font-family:'Lexend',system-ui,sans-serif;border-radius:3px;border:1px solid rgba(255,255,255,0.08);cursor:pointer;background:${i===page?'rgba(255,255,255,0.1)':'transparent'};color:${i===page?'#e9edf5':'rgba(255,255,255,0.4)'}">${i+1}</button>`;
-        }
-        nav += '</div>';
-      }
-      el.innerHTML = items + nav;
-      el.querySelectorAll('.md-page-btn').forEach(b => b.addEventListener('click', () => { page = parseInt(b.dataset.p); renderRoles(); }));
-          el.querySelectorAll('input[type="checkbox"]:not(:disabled)').forEach(cb => {
-        cb.addEventListener('change', function() {
-          const role = roles.find(r => r.id == this.dataset.role);
-          if (this.checked && role) {
-            document.getElementById('role-warn-name').textContent = role.name;
-            roleModal.classList.add('is-open');
-            const doIt = () => { roleModal.classList.remove('is-open'); markChanged('mod_roles', getCheckedRoleIds()); };
-            const dont = () => { roleModal.classList.remove('is-open'); this.checked = false; };
-            document.getElementById('role-warn-confirm').onclick = doIt;
-            document.getElementById('role-warn-cancel').onclick = dont;
-          } else {
-            markChanged('mod_roles', getCheckedRoleIds());
-          }
-        });
-      });
-    }
-    function getCheckedRoleIds() {
-      return Array.from(document.querySelectorAll('#role-list input[type="checkbox"]:not(:disabled)')).filter(c=>c.checked).map(c=>c.dataset.role);
-    }
-    renderRoles();
-  }).catch(() => { document.getElementById('role-list').innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load.</div>'; if(typeof showToast==='function') showToast('Failed to load roles.','error'); });
 
   const behaviorItems = [
     {key:'require_reason',label:'Require Reason',desc:'Force moderators to provide a reason for every action'},

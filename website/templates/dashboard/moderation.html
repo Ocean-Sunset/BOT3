@@ -249,16 +249,31 @@ const esc = s => { const d=document.createElement('div'); d.textContent=s||''; r
 
 const pending = {};
 const original = {};
+let SETTINGS_SNAPSHOT = {};
 const saveBar = document.getElementById('save-bar');
 const saveBtn = document.getElementById('save-btn');
 let saveTimer = null;
 
 function markChanged(key, value) {
-  if (!(key in original)) original[key] = !value;
+  if (!(key in original)) original[key] = (key in SETTINGS_SNAPSHOT) ? SETTINGS_SNAPSHOT[key] : !value;
   pending[key] = value;
   saveBar.classList.remove('is-closed');
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
+}
+
+function updateActionUI() {
+  document.querySelectorAll('[data-warn]').forEach(warn => {
+    const prefix = warn.dataset.warn;
+    const dmOn = document.querySelector(`[data-key="${prefix}_dm"]`)?.checked ?? true;
+    const msgOn = document.querySelector(`[data-key="${prefix}_message_enabled"]`)?.checked ?? true;
+    warn.style.display = (!dmOn && !msgOn) ? 'flex' : 'none';
+  });
+  ['ban','tempban','kick','warn'].forEach(p => {
+    const enabled = document.querySelector(`[data-key="${p}_message_enabled"]`)?.checked ?? true;
+    const input = document.querySelector(`[data-key="${p}_message"]`);
+    if (input) input.classList.toggle('is-disabled', !enabled);
+  });
 }
 
 async function saveChanges() {
@@ -435,6 +450,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── New action settings (ban/tempban/mute/kick/warn + modlog) ──
   api('/settings').then(d => {
     const s = d.settings || {};
+    SETTINGS_SNAPSHOT = { ...s };
     // Set all data-key controls (checkboxes, text, number)
     document.querySelectorAll('[data-key]').forEach(el => {
       const key = el.dataset.key;
@@ -454,21 +470,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       markChanged(this.dataset.key, v);
     }));
 
-    // Message enable/disable + gray out + warning badges
-    function updateActionUI() {
-      document.querySelectorAll('[data-warn]').forEach(warn => {
-        const prefix = warn.dataset.warn;
-        const dmOn = document.querySelector(`[data-key="${prefix}_dm"]`)?.checked ?? true;
-        const msgOn = document.querySelector(`[data-key="${prefix}_message_enabled"]`)?.checked ?? true;
-        warn.style.display = (!dmOn && !msgOn) ? 'flex' : 'none';
-      });
-      // Gray out message inputs when their enabled toggle is off
-      ['ban','tempban','kick','warn'].forEach(p => {
-        const enabled = document.querySelector(`[data-key="${p}_message_enabled"]`)?.checked ?? true;
-        const input = document.querySelector(`[data-key="${p}_message"]`);
-        if (input) input.classList.toggle('is-disabled', !enabled);
-      });
-    }
     updateActionUI();
     lucide.createIcons();
     // Modlog channel dropdown
@@ -517,12 +518,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   saveBtn.addEventListener('click', saveChanges);
   document.getElementById('discard-btn').addEventListener('click', () => {
     for (const key of Object.keys(pending)) {
-      const cb = document.querySelector(`input[type="checkbox"][data-key="${key}"]`);
-      if (cb) cb.checked = original[key];
+      const el = document.querySelector(`[data-key="${key}"]`);
+      if (el) {
+        if (el.type === 'checkbox') el.checked = original[key];
+        else el.value = original[key] ?? '';
+      }
       delete original[key];
     }
     for (const key of Object.keys(pending)) delete pending[key];
     saveBar.classList.add('is-closed');
+    updateActionUI();
   });
 });
 </script>

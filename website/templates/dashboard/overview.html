@@ -95,9 +95,8 @@ fetch(`/api/v1/mod/${GID}/debug`).then(r=>r.json()).then(d => {
 api('/channels').then(d => {
   const count = d.channels?.length;
   document.getElementById('stat-channels').textContent = count != null ? count : '—';
-  if (d.channels) {
-    const cats = d.channels.filter(c => c.type === 4).length;
-    document.getElementById('stat-categories').textContent = cats || 0;
+  if (d.categories) {
+    document.getElementById('stat-categories').textContent = d.categories.length || 0;
   }
 }).catch(() => {});
 

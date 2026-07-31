@@ -708,13 +708,16 @@ async def mod_channels(guild_id: str, request: Request):
     row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
     d = _parse_guild_data(row)
     if d and "channels" in d:
-        # Filter out categories (type 4) and voice channels (type 2) — only text channels
-        return {"channels": [c for c in d["channels"] if c.get("type", 0) == 0]}
+        # Dropdowns only need text channels (type 0); categories (4) reported separately
+        return {
+            "channels": [c for c in d["channels"] if c.get("type", 0) == 0],
+            "categories": [c for c in d["channels"] if c.get("type", 0) == 4],
+        }
     return {"channels": [
         {"id":"2001","name":"general","type":0},
         {"id":"2002","name":"chat","type":0},
         {"id":"2003","name":"spam","type":0},
-    ]}
+    ], "categories": []}
 
 
 @app.get("/api/v1/mod/{guild_id}/muted")

@@ -144,6 +144,7 @@ class ProwlBot(commands.Bot):
                     act = a["action"]
                     reason = a.get("reason") or "No reason provided"
                     duration = a.get("duration")
+                    moderator = a.get("moderator") or "Dashboard"
                     try:
                         if act == "kick":
                             if member:
@@ -169,11 +170,15 @@ class ProwlBot(commands.Bot):
                             if not isinstance(channel, discord.TextChannel):
                                 raise Exception("channel not found")
                             deleted = await channel.purge(limit=int(duration or 10))
-                            reason = f"Purged {len(deleted)} messages"
+                            reason = f"Purged {len(deleted)} messages in #{channel.name}"
                         await neon_db.complete_action(a["id"], "completed")
                         logger.info(f"Processed action {a['id']}: {act} -> {a['target_id']} in {a['guild_id']} ({reason})")
                         # Log to mod_log only on actual success
-                        await neon_db.push_mod_event(a["guild_id"], a["target_id"], a.get("target_name") or str(a["target_id"]), act, reason)
+                        target_name = a.get("target_name")
+                        if act == "purge":
+                            channel = guild.get_channel(int(a["target_id"]))
+                            target_name = f"#{channel.name}" if channel else a["target_id"]
+                        await neon_db.push_mod_event(a["guild_id"], a["target_id"], target_name or str(a["target_id"]), act, reason, moderator)
                     except Exception as e:
                         logger.error(f"Action {a['id']} ({act} on {a['target_id']}) failed: {e}")
                         await neon_db.complete_action(a["id"], "failed")

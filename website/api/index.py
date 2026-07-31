@@ -671,7 +671,7 @@ async def mod_settings_set(guild_id: str, request: Request):
 async def mod_feed(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     rows = await query(
-        "SELECT user_name, action, reason, created_at FROM mod_log WHERE guild_id = $1 ORDER BY created_at DESC LIMIT 20",
+        "SELECT user_name, action, reason, moderator, created_at FROM mod_log WHERE guild_id = $1 ORDER BY created_at DESC LIMIT 20",
         str(guild_id),
     )
     if rows:
@@ -679,8 +679,9 @@ async def mod_feed(guild_id: str, request: Request):
             "user": r["user_name"],
             "action": r["action"],
             "reason": r.get("reason", ""),
+            "moderator": r.get("moderator") or "",
             "time": _relative_time(r["created_at"]),
-            "color": {"ban": "red", "kick": "red", "mute": "blue", "warn": "yellow", "join": "green"}.get(r["action"], "gray"),
+            "color": {"ban": "red", "kick": "red", "tempban": "red", "mute": "blue", "unmute": "green", "warn": "yellow", "unban": "green", "purge": "blue", "lockdown": "gray"}.get(r["action"], "gray"),
         } for r in rows]}
     return {"events": []}
 
@@ -725,24 +726,24 @@ async def _ensure_mod_actions_table():
     await execute(_MOD_ACTIONS_TABLE_SQL)
 
 
-async def _queue_action(guild_id, action, target_id, target_name="", reason="", duration=None):
+async def _queue_action(guild_id, action, target_id, target_name="", reason="", duration=None, moderator=""):
     try:
         duration_int = int(duration) if duration is not None and duration != "" else None
     except (ValueError, TypeError):
         duration_int = None
     try:
         await execute(
-            "INSERT INTO mod_actions (guild_id, action, target_id, target_name, reason, duration, status, created_at) "
-            "VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)",
-            str(guild_id), action, str(target_id), target_name, reason,
+            "INSERT INTO mod_actions (guild_id, action, target_id, target_name, reason, moderator, duration, status, created_at) "
+            "VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8)",
+            str(guild_id), action, str(target_id), target_name, reason, moderator,
             duration_int, time.time(),
         )
     except Exception:
         await _ensure_mod_actions_table()
         await execute(
-            "INSERT INTO mod_actions (guild_id, action, target_id, target_name, reason, duration, status, created_at) "
-            "VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)",
-            str(guild_id), action, str(target_id), target_name, reason,
+            "INSERT INTO mod_actions (guild_id, action, target_id, target_name, reason, moderator, duration, status, created_at) "
+            "VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8)",
+            str(guild_id), action, str(target_id), target_name, reason, moderator,
             duration_int, time.time(),
         )
 
@@ -990,7 +991,9 @@ async def mod_action(guild_id: str, request: Request):
     user_name = body.get("user_name", "")
     if action not in ("mute", "unmute", "kick", "ban"):
         return JSONResponse({"error": "Invalid action"}, status_code=400)
-    await _queue_action(guild_id, action, user_id, user_name, reason, duration)
+    session_user = request.session.get("user") or {}
+    moderator = session_user.get("username", "Unknown")
+    await _queue_action(guild_id, action, user_id, user_name, reason, duration, moderator)
     return {"ok": True, "queued": True}
 
 

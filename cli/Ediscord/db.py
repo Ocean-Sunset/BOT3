@@ -54,13 +54,16 @@ async def _ensure_tables():
         "CREATE TABLE IF NOT EXISTS bot_stats (key TEXT PRIMARY KEY, value TEXT, updated_at DOUBLE PRECISION)",
         "CREATE TABLE IF NOT EXISTS guild_data (guild_id TEXT PRIMARY KEY, data JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION)",
         "CREATE TABLE IF NOT EXISTS mod_settings (guild_id TEXT PRIMARY KEY, settings JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
-        "CREATE TABLE IF NOT EXISTS mod_log (id SERIAL PRIMARY KEY, guild_id TEXT, user_id TEXT, user_name TEXT, action TEXT, reason TEXT DEFAULT '', created_at DOUBLE PRECISION)",
-        "CREATE TABLE IF NOT EXISTS mod_actions (id SERIAL PRIMARY KEY, guild_id TEXT, action TEXT, target_id TEXT, target_name TEXT DEFAULT '', reason TEXT DEFAULT '', duration INTEGER, status TEXT DEFAULT 'pending', created_at DOUBLE PRECISION)",
+        "CREATE TABLE IF NOT EXISTS mod_log (id SERIAL PRIMARY KEY, guild_id TEXT, user_id TEXT, user_name TEXT, action TEXT, reason TEXT DEFAULT '', moderator TEXT DEFAULT '', created_at DOUBLE PRECISION)",
+        "CREATE TABLE IF NOT EXISTS mod_actions (id SERIAL PRIMARY KEY, guild_id TEXT, action TEXT, target_id TEXT, target_name TEXT DEFAULT '', reason TEXT DEFAULT '', moderator TEXT DEFAULT '', duration INTEGER, status TEXT DEFAULT 'pending', created_at DOUBLE PRECISION)",
     ]
     try:
         async with pool.acquire() as conn:
             for stmt in statements:
                 await conn.execute(stmt)
+            # Add columns to existing tables (safe no-op if already present)
+            await conn.execute("ALTER TABLE mod_log ADD COLUMN IF NOT EXISTS moderator TEXT DEFAULT ''")
+            await conn.execute("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS moderator TEXT DEFAULT ''")
         logger.info("Ensured database tables exist.")
     except Exception as e:
         logger.error(f"ensure_tables failed: {e}")
@@ -101,15 +104,15 @@ async def push_guild_data(guilds: list):
         logger.error(f"push_guild_data failed: {e}")
 
 
-async def push_mod_event(guild_id: str, user_id: str, user_name: str, action: str, reason: str = ""):
+async def push_mod_event(guild_id: str, user_id: str, user_name: str, action: str, reason: str = "", moderator: str = ""):
     pool = await get_pool()
     if pool is None:
         return
     try:
         async with pool.acquire() as conn:
             await conn.execute(
-                "INSERT INTO mod_log (guild_id, user_id, user_name, action, reason, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-                str(guild_id), str(user_id), user_name, action, reason, time.time(),
+                "INSERT INTO mod_log (guild_id, user_id, user_name, action, reason, moderator, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                str(guild_id), str(user_id), user_name, action, reason, moderator, time.time(),
             )
     except Exception as e:
         logger.error(f"push_mod_event failed: {e}")

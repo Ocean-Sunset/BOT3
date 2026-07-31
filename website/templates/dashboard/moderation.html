@@ -291,11 +291,29 @@ async function saveChanges() {
 
 document.addEventListener('DOMContentLoaded', async () => {
 
-  api('/feed').then(d => {
-    const el = document.getElementById('activity-feed');
-    if (!d.events?.length) { el.innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No recent activity.</div>'; return; }
-    el.innerHTML = d.events.map(e => `<div class="md-feed-item"><span class="md-feed-dot ${e.color||'gray'}"></span><span class="md-feed-user">${esc(e.user)}</span><span class="md-feed-action">${esc(e.action)}</span><span class="md-feed-reason">${esc(e.reason||'')}</span><span class="md-feed-time">${esc(e.time)}</span></div>`).join('');
-  }).catch(() => document.getElementById('activity-feed').innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load.</div>');
+  // ── Activity feed (live) ──
+  const ACTIONS = { kick:'was kicked', ban:'was banned', unban:'was unbanned', tempban:'was temp-banned', mute:'was muted', unmute:'was unmuted', warn:'was warned', purge:'purged messages in', lockdown:'locked down the server' };
+  function feedLabel(e) {
+    const verb = ACTIONS[e.action] || ('was ' + e.action);
+    if (e.action === 'purge') return `${esc(e.moderator||'Someone')} ${verb} ${esc(e.user)}`;
+    return `${esc(e.user)} ${verb}${e.moderator ? ' by ' + esc(e.moderator) : ''}`;
+  }
+  function loadFeed() {
+    api('/feed').then(d => {
+      const el = document.getElementById('activity-feed');
+      if (!d.events?.length) { el.innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No recent activity.</div>'; return; }
+      const existing = new Set(Array.from(el.querySelectorAll('.md-feed-item')).map(i => i.dataset.key));
+      const html = d.events.map(e => {
+        const key = e.time + '|' + e.user + '|' + e.action + '|' + (e.reason||'');
+        const isNew = !existing.has(key);
+        existing.add(key);
+        return `<div class="md-feed-item${isNew ? ' is-new' : ''}" data-key="${key}"><span class="md-feed-dot ${e.color||'gray'}"></span><span class="md-feed-label">${feedLabel(e)}</span><span class="md-feed-reason">${esc(e.reason||'')}</span><span class="md-feed-time">${esc(e.time)}</span></div>`;
+      }).join('');
+      el.innerHTML = html;
+    }).catch(() => {});
+  }
+  loadFeed();
+  setInterval(loadFeed, 5000);
 
   api('/members').then(d => {
     const w = document.querySelector('.md-member-table-wrap');

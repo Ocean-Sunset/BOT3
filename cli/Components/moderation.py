@@ -132,8 +132,8 @@ async def save_mod_settings(guild_id: int, settings: dict):
     )
 
 
-async def log_mod_action(guild_id: int, user_id: str, user_name: str, action: str, reason: str = ""):
-    await neon_db.push_mod_event(guild_id, user_id, user_name, action, reason)
+async def log_mod_action(guild_id: int, user_id: str, user_name: str, action: str, reason: str = "", moderator: str = ""):
+    await neon_db.push_mod_event(guild_id, user_id, user_name, action, reason, moderator)
 
 
 def is_mod():
@@ -391,7 +391,7 @@ class Moderation(commands.Cog, name="Moderation"):
                 .build()
             )
             await send_modlog(interaction.guild, settings, log_embed)
-            await log_mod_action(interaction.guild_id, str(member.id), member.name, "kick", reason)
+            await log_mod_action(interaction.guild_id, str(member.id), member.name, "kick", reason, interaction.user.name)
         else:
             await interaction.followup.send(embed=EmbedBuilder().title("Cancelled").description("Kick cancelled.").color("grey").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
@@ -458,7 +458,7 @@ class Moderation(commands.Cog, name="Moderation"):
                 .build()
             )
             await send_modlog(interaction.guild, settings, log_embed)
-            await log_mod_action(interaction.guild_id, str(member.id), member.name, "ban", reason)
+            await log_mod_action(interaction.guild_id, str(member.id), member.name, "ban", reason, interaction.user.name)
         else:
             await interaction.followup.send(embed=EmbedBuilder().title("Cancelled").description("Ban cancelled.").color("grey").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
@@ -527,7 +527,7 @@ class Moderation(commands.Cog, name="Moderation"):
                 .build()
             )
             await send_modlog(interaction.guild, settings, log_embed)
-            await log_mod_action(interaction.guild_id, str(member.id), member.name, "tempban", f"{duration}min - {reason}")
+            await log_mod_action(interaction.guild_id, str(member.id), member.name, "tempban", f"{duration}min - {reason}", interaction.user.name)
 
             self.bot.loop.create_task(self._auto_unban(interaction.guild_id, member.id, duration, reason))
         else:
@@ -545,7 +545,7 @@ class Moderation(commands.Cog, name="Moderation"):
             logger.info(f"Auto-unbanned {user_id} in {guild_id} (temp ban expired)")
             await log_mod_action(
                 guild_id, str(user_id), user.name if user else str(user_id),
-                "unban", f"Temp ban expired ({duration_minutes}min) - {original_reason}"
+                "unban", f"Temp ban expired ({duration_minutes}min) - {original_reason}", "Auto-unban"
             )
         except discord.NotFound:
             logger.info(f"Auto-unban: user {user_id} no longer banned in {guild_id}.")
@@ -607,7 +607,7 @@ class Moderation(commands.Cog, name="Moderation"):
             .build()
         )
         await send_modlog(interaction.guild, settings, log_embed)
-        await log_mod_action(interaction.guild_id, str(user.id), user.name, "unban", reason)
+        await log_mod_action(interaction.guild_id, str(user.id), user.name, "unban", reason, interaction.user.name)
 
     @app_commands.command(name="mute", description="Timeout a member")
     @app_commands.describe(member="The member to mute", duration="Duration in minutes (optional)", reason="Reason for the mute (optional)")
@@ -677,7 +677,7 @@ class Moderation(commands.Cog, name="Moderation"):
             .build()
         )
         await send_modlog(interaction.guild, settings, log_embed)
-        await log_mod_action(interaction.guild_id, str(member.id), member.name, "mute", f"{duration}min - {reason}")
+        await log_mod_action(interaction.guild_id, str(member.id), member.name, "mute", f"{duration}min - {reason}", interaction.user.name)
 
     @app_commands.command(name="unmute", description="Remove a timeout from a member")
     @app_commands.describe(member="The member to unmute", reason="Reason for the unmute")
@@ -734,7 +734,7 @@ class Moderation(commands.Cog, name="Moderation"):
             .build()
         )
         await send_modlog(interaction.guild, settings, log_embed)
-        await log_mod_action(interaction.guild_id, str(member.id), member.name, "unmute", reason)
+        await log_mod_action(interaction.guild_id, str(member.id), member.name, "unmute", reason, interaction.user.name)
 
     @app_commands.command(name="warn", description="Warn a member")
     @app_commands.describe(member="The member to warn", reason="Warning reason (optional)")
@@ -755,7 +755,7 @@ class Moderation(commands.Cog, name="Moderation"):
             if not msg:
                 msg = f"{member.mention} has been warned."
             embed = (
-                EmbedBuilder().title("⚠️ Member Warned")
+                EmbedBuilder().title("Member Warned")
                 .description(msg)
                 .color("yellow")
                 .field("Reason", reason)
@@ -765,7 +765,7 @@ class Moderation(commands.Cog, name="Moderation"):
             )
             await interaction.response.send_message(embed=embed)
         else:
-            await interaction.response.send_message(embed=EmbedBuilder().title("⚠️ Member Warned").description("Done.").color("yellow").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await interaction.response.send_message(embed=EmbedBuilder().title("Member Warned").description("Done.").color("yellow").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
         if settings.get("dm_on_action", True) and settings.get("warn_dm", True):
             dm_embed = self._user_dm_embed(
@@ -785,7 +785,7 @@ class Moderation(commands.Cog, name="Moderation"):
             .build()
         )
         await send_modlog(interaction.guild, settings, log_embed)
-        await log_mod_action(interaction.guild_id, str(member.id), member.name, "warn", reason)
+        await log_mod_action(interaction.guild_id, str(member.id), member.name, "warn", reason, interaction.user.name)
 
     @app_commands.command(name="purge", description="Bulk delete messages in a channel")
     @app_commands.describe(count="Number of messages to delete (1-100)")
@@ -834,6 +834,7 @@ class Moderation(commands.Cog, name="Moderation"):
             interaction.user.name,
             "purge",
             f"{len(deleted)} messages in #{interaction.channel.name}",
+            interaction.user.name,
         )
 
     @app_commands.command(name="settings", description="View current moderation settings")
@@ -902,6 +903,7 @@ class Moderation(commands.Cog, name="Moderation"):
             interaction.user.name,
             "lockdown",
             f"Set to {status}",
+            interaction.user.name,
         )
         log_embed = (
             EmbedBuilder().title(title)
@@ -916,3 +918,5 @@ class Moderation(commands.Cog, name="Moderation"):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Moderation(bot))
+
+

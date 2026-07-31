@@ -291,6 +291,21 @@
     // ── Word scramble ──
     const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
+    // ── Random hero titles (EDIT THESE MANUALLY) ──
+    const HERO_TITLES = [
+      ["THE Cat Discord bot", "you actually want."],
+      ["THE Cat Discord bot", "your server deserves."],
+      ["A Cat Discord bot", "that does everything."],
+    ];
+
+    function applyRandomTitle() {
+      const pick = HERO_TITLES[Math.floor(Math.random() * HERO_TITLES.length)];
+      const els = document.querySelectorAll('.anim-scramble.anim-hero');
+      if (els[0]) els[0].dataset.word = pick[0];
+      if (els[1]) els[1].dataset.word = pick[1];
+    }
+    applyRandomTitle();
+
     function scramble(el, duration) {
       const word = el.dataset.scramble || el.dataset.word || el.textContent.trim();
       if (!word || el._scrambling) return;

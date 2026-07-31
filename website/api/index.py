@@ -592,17 +592,17 @@ MOD_SETTINGS_DEFAULTS = {
     # ── Modlog ──
     "modlog_channel_id": None,
     # ── Ban ──
-    "ban_dm": True, "ban_purge": True, "ban_message": "{username} has been banned.",
+    "ban_dm": True, "ban_purge": True, "ban_message": "{username} has been banned.", "ban_message_enabled": True,
     # ── Temp ban ──
     "tempban_dm": True, "tempban_purge": True,
-    "tempban_message": "{username} has been temporarily banned.",
+    "tempban_message": "{username} has been temporarily banned.", "tempban_message_enabled": True,
     "tempban_duration": 1440,
     # ── Mute ──
     "mute_dm": True, "mute_duration": 60,
     # ── Kick ──
-    "kick_dm": True, "kick_message": "{username} has been kicked.",
+    "kick_dm": True, "kick_message": "{username} has been kicked.", "kick_message_enabled": True,
     # ── Warn ──
-    "warn_dm": True, "warn_message": "{username} has been warned.",
+    "warn_dm": True, "warn_message": "{username} has been warned.", "warn_message_enabled": True,
 }
 
 

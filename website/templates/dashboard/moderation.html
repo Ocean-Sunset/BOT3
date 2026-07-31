@@ -94,8 +94,12 @@
     </div>
 
     <div class="md-section">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;position:relative;">
         <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Ban Settings</div>
+        <div class="md-block-warn" data-warn="ban">
+          <i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>
+          DM and server message are both disabled — command will be silent.
+        </div>
         <div class="md-behavior-list">
           <div class="md-behavior-item">
             <label class="md-toggle"><input type="checkbox" data-key="ban_dm" /><span class="md-toggle-slider"></span></label>
@@ -107,9 +111,12 @@
           </div>
           <div class="md-behavior-item" style="align-items:flex-start">
             <div style="flex:1">
-              <div class="md-behavior-label">Server Message</div>
-              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Appears when a ban occurs. Variables: <code style="color:rgba(255,255,255,0.5)">{username}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3rem;">
+                <div class="md-behavior-label">Server Message</div>
+                <label class="md-toggle"><input type="checkbox" data-key="ban_message_enabled" checked /><span class="md-toggle-slider"></span></label>
+              </div>
               <input type="text" class="md-input" data-key="ban_message" placeholder="{username} has been banned." />
+              <div class="md-vars-hint">Variables: {username} {name} {servername} {servermembercount} {datejoined} {messagessent} {reason}</div>
             </div>
           </div>
         </div>
@@ -117,8 +124,12 @@
     </div>
 
     <div class="md-section">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;position:relative;">
         <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Temp Ban Settings</div>
+        <div class="md-block-warn" data-warn="tempban">
+          <i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>
+          DM and server message are both disabled — command will be silent.
+        </div>
         <div class="md-behavior-list">
           <div class="md-behavior-item">
             <label class="md-toggle"><input type="checkbox" data-key="tempban_dm" /><span class="md-toggle-slider"></span></label>
@@ -136,9 +147,12 @@
           </div>
           <div class="md-behavior-item" style="align-items:flex-start">
             <div style="flex:1">
-              <div class="md-behavior-label">Server Message</div>
-              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{username}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3rem;">
+                <div class="md-behavior-label">Server Message</div>
+                <label class="md-toggle"><input type="checkbox" data-key="tempban_message_enabled" checked /><span class="md-toggle-slider"></span></label>
+              </div>
               <input type="text" class="md-input" data-key="tempban_message" placeholder="{username} has been temporarily banned." />
+              <div class="md-vars-hint">Variables: {username} {name} {servername} {servermembercount} {datejoined} {messagessent} {reason}</div>
             </div>
           </div>
         </div>
@@ -164,8 +178,12 @@
     </div>
 
     <div class="md-section">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;position:relative;">
         <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Kick Settings</div>
+        <div class="md-block-warn" data-warn="kick">
+          <i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>
+          DM and server message are both disabled — command will be silent.
+        </div>
         <div class="md-behavior-list">
           <div class="md-behavior-item">
             <label class="md-toggle"><input type="checkbox" data-key="kick_dm" /><span class="md-toggle-slider"></span></label>
@@ -173,9 +191,12 @@
           </div>
           <div class="md-behavior-item" style="align-items:flex-start">
             <div style="flex:1">
-              <div class="md-behavior-label">Server Message</div>
-              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{username}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3rem;">
+                <div class="md-behavior-label">Server Message</div>
+                <label class="md-toggle"><input type="checkbox" data-key="kick_message_enabled" checked /><span class="md-toggle-slider"></span></label>
+              </div>
               <input type="text" class="md-input" data-key="kick_message" placeholder="{username} has been kicked." />
+              <div class="md-vars-hint">Variables: {username} {name} {servername} {servermembercount} {datejoined} {messagessent} {reason}</div>
             </div>
           </div>
         </div>
@@ -183,8 +204,12 @@
     </div>
 
     <div class="md-section">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;position:relative;">
         <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Warn Settings</div>
+        <div class="md-block-warn" data-warn="warn">
+          <i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>
+          DM and server message are both disabled — command will be silent.
+        </div>
         <div class="md-behavior-list">
           <div class="md-behavior-item">
             <label class="md-toggle"><input type="checkbox" data-key="warn_dm" /><span class="md-toggle-slider"></span></label>
@@ -192,9 +217,12 @@
           </div>
           <div class="md-behavior-item" style="align-items:flex-start">
             <div style="flex:1">
-              <div class="md-behavior-label">Server Message</div>
-              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{username}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3rem;">
+                <div class="md-behavior-label">Server Message</div>
+                <label class="md-toggle"><input type="checkbox" data-key="warn_message_enabled" checked /><span class="md-toggle-slider"></span></label>
+              </div>
               <input type="text" class="md-input" data-key="warn_message" placeholder="{username} has been warned." />
+              <div class="md-vars-hint">Variables: {username} {name} {servername} {servermembercount} {datejoined} {messagessent} {reason}</div>
             </div>
           </div>
         </div>
@@ -383,7 +411,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }).catch(() => { document.getElementById('role-list').innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load.</div>'; if(typeof showToast==='function') showToast('Failed to load roles.','error'); });
 
   const behaviorItems = [
-    {key:'dm_on_action',label:'DM User on Action',desc:'Send a private message to users when warned, kicked, or banned'},
     {key:'require_reason',label:'Require Reason',desc:'Force moderators to provide a reason for every action'},
     {key:'silent_mod',label:'Silent Mod Actions',desc:"Don't post public confirmation when using mod commands"},
     {key:'auto_thread',label:'Auto-Thread for Mod Logs',desc:'Create a private thread under each log entry for discussion'},
@@ -421,11 +448,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
     // Bind change events
-    document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); }));
+    document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); updateActionUI(); }));
     document.querySelectorAll('input[type="text"][data-key], input[type="number"][data-key]').forEach(inp => inp.addEventListener('change', function(){
       const v = inp.type === 'number' ? (parseInt(inp.value) || 0) : inp.value;
       markChanged(this.dataset.key, v);
     }));
+
+    // Message enable/disable + gray out + warning badges
+    function updateActionUI() {
+      document.querySelectorAll('[data-warn]').forEach(warn => {
+        const prefix = warn.dataset.warn;
+        const dmOn = document.querySelector(`[data-key="${prefix}_dm"]`)?.checked ?? true;
+        const msgOn = document.querySelector(`[data-key="${prefix}_message_enabled"]`)?.checked ?? true;
+        warn.style.display = (!dmOn && !msgOn) ? 'flex' : 'none';
+      });
+      // Gray out message inputs when their enabled toggle is off
+      ['ban','tempban','kick','warn'].forEach(p => {
+        const enabled = document.querySelector(`[data-key="${p}_message_enabled"]`)?.checked ?? true;
+        const input = document.querySelector(`[data-key="${p}_message"]`);
+        if (input) input.classList.toggle('is-disabled', !enabled);
+      });
+    }
+    updateActionUI();
+    lucide.createIcons();
     // Modlog channel dropdown
     const modBtn = document.getElementById('modlog-select-btn');
     const modDrop = document.getElementById('modlog-select-drop');

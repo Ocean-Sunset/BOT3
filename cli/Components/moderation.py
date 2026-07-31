@@ -21,17 +21,17 @@ MOD_DEFAULTS = {
     "modlog_channel_id": None,
     # ── Ban ──
     "ban_dm": True, "ban_purge": True,
-    "ban_message": "{username} has been banned.",
+    "ban_message": "{username} has been banned.", "ban_message_enabled": True,
     # ── Temp ban ──
     "tempban_dm": True, "tempban_purge": True,
-    "tempban_message": "{username} has been temporarily banned.",
+    "tempban_message": "{username} has been temporarily banned.", "tempban_message_enabled": True,
     "tempban_duration": 1440,  # minutes
     # ── Mute ──
     "mute_dm": True, "mute_duration": 60,
     # ── Kick ──
-    "kick_dm": True, "kick_message": "{username} has been kicked.",
+    "kick_dm": True, "kick_message": "{username} has been kicked.", "kick_message_enabled": True,
     # ── Warn ──
-    "warn_dm": True, "warn_message": "{username} has been warned.",
+    "warn_dm": True, "warn_message": "{username} has been warned.", "warn_message_enabled": True,
 }
 
 
@@ -200,7 +200,7 @@ class Moderation(commands.Cog, name="Moderation"):
 
             # Announcement in channel with custom message
             msg = render_template(settings.get("kick_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id))
-            if msg and not settings.get("silent_mod"):
+            if msg and settings.get("kick_message_enabled", True) and not settings.get("silent_mod"):
                 try:
                     await interaction.channel.send(msg)
                 except Exception:
@@ -244,7 +244,7 @@ class Moderation(commands.Cog, name="Moderation"):
                 await interaction.followup.send("Member banned.", ephemeral=True)
 
             msg = render_template(settings.get("ban_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id))
-            if msg and not settings.get("silent_mod"):
+            if msg and settings.get("ban_message_enabled", True) and not settings.get("silent_mod"):
                 try:
                     await interaction.channel.send(msg)
                 except Exception:
@@ -289,7 +289,7 @@ class Moderation(commands.Cog, name="Moderation"):
                 await interaction.followup.send("Member temp-banned.", ephemeral=True)
 
             msg = render_template(settings.get("tempban_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id))
-            if msg and not settings.get("silent_mod"):
+            if msg and settings.get("tempban_message_enabled", True) and not settings.get("silent_mod"):
                 try:
                     await interaction.channel.send(msg)
                 except Exception:
@@ -393,7 +393,7 @@ class Moderation(commands.Cog, name="Moderation"):
             await interaction.response.send_message("Member warned.", ephemeral=True)
 
         msg = render_template(settings.get("warn_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id))
-        if msg and not settings.get("silent_mod"):
+        if msg and settings.get("warn_message_enabled", True) and not settings.get("silent_mod"):
             try:
                 await interaction.channel.send(msg)
             except Exception:

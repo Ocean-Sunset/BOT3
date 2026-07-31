@@ -17,7 +17,7 @@ async def get_ticket_settings(guild_id: int):
     if not pool:
         return dict(TICKET_DEFAULTS)
     row = await pool.fetchrow("SELECT settings FROM ticket_settings WHERE guild_id = $1", str(guild_id))
-    return {**TICKET_DEFAULTS, **row["settings"]} if row else dict(TICKET_DEFAULTS)
+    return neon_db.parse_settings(row["settings"], TICKET_DEFAULTS) if row else dict(TICKET_DEFAULTS)
 
 
 async def save_ticket_settings(guild_id: int, settings: dict):

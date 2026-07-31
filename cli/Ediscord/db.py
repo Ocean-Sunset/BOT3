@@ -13,6 +13,18 @@ logger = logging.getLogger(__name__)
 _pool = None
 
 
+def parse_settings(raw, defaults: dict) -> dict:
+    """Safely merge a stored settings value (dict or JSON string) with defaults."""
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            return dict(defaults)
+    if isinstance(raw, dict):
+        return {**defaults, **raw}
+    return dict(defaults)
+
+
 async def get_pool():
     global _pool
     if _pool is not None:

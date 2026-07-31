@@ -18,7 +18,7 @@ async def get_ai_settings(guild_id: int):
     if not pool:
         return dict(AI_DEFAULTS)
     row = await pool.fetchrow("SELECT settings FROM ai_settings WHERE guild_id = $1", str(guild_id))
-    return {**AI_DEFAULTS, **row["settings"]} if row else dict(AI_DEFAULTS)
+    return neon_db.parse_settings(row["settings"], AI_DEFAULTS) if row else dict(AI_DEFAULTS)
 
 
 async def save_ai_settings(guild_id: int, settings: dict):

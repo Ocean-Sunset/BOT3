@@ -18,7 +18,7 @@ async def get_social_settings(guild_id: int):
     if not pool:
         return dict(SOCIAL_DEFAULTS)
     row = await pool.fetchrow("SELECT settings FROM social_settings WHERE guild_id = $1", str(guild_id))
-    return {**SOCIAL_DEFAULTS, **row["settings"]} if row else dict(SOCIAL_DEFAULTS)
+    return neon_db.parse_settings(row["settings"], SOCIAL_DEFAULTS) if row else dict(SOCIAL_DEFAULTS)
 
 
 async def save_social_settings(guild_id: int, settings: dict):

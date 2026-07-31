@@ -16,7 +16,7 @@ async def get_invite_settings(guild_id: int):
     if not pool:
         return dict(INVITE_DEFAULTS)
     row = await pool.fetchrow("SELECT settings FROM invite_settings WHERE guild_id = $1", str(guild_id))
-    return {**INVITE_DEFAULTS, **row["settings"]} if row else dict(INVITE_DEFAULTS)
+    return neon_db.parse_settings(row["settings"], INVITE_DEFAULTS) if row else dict(INVITE_DEFAULTS)
 
 
 async def save_invite_settings(guild_id: int, settings: dict):

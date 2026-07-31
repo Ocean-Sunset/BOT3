@@ -19,7 +19,7 @@ async def get_verify_settings(guild_id: int):
     if not pool:
         return dict(VERIFY_DEFAULTS)
     row = await pool.fetchrow("SELECT settings FROM verify_settings WHERE guild_id = $1", str(guild_id))
-    return {**VERIFY_DEFAULTS, **row["settings"]} if row else dict(VERIFY_DEFAULTS)
+    return neon_db.parse_settings(row["settings"], VERIFY_DEFAULTS) if row else dict(VERIFY_DEFAULTS)
 
 
 async def save_verify_settings(guild_id: int, settings: dict):

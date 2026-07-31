@@ -31,7 +31,7 @@ async def get_leveling_settings(guild_id: int):
     if not pool:
         return dict(LEVELING_DEFAULTS)
     row = await pool.fetchrow("SELECT settings FROM leveling_settings WHERE guild_id = $1", str(guild_id))
-    return {**LEVELING_DEFAULTS, **row["settings"]} if row else dict(LEVELING_DEFAULTS)
+    return neon_db.parse_settings(row["settings"], LEVELING_DEFAULTS) if row else dict(LEVELING_DEFAULTS)
 
 
 async def save_leveling_settings(guild_id: int, settings: dict):

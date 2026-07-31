@@ -27,7 +27,7 @@ async def get_mod_settings(guild_id: int):
         "SELECT settings FROM mod_settings WHERE guild_id = $1", str(guild_id)
     )
     if row:
-        return {**MOD_DEFAULTS, **row["settings"]}
+        return neon_db.parse_settings(row["settings"], MOD_DEFAULTS)
     return dict(MOD_DEFAULTS)
 
 

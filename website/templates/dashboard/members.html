@@ -173,7 +173,7 @@ function bindEvents() {
 
   document.querySelectorAll('[data-edit-nick]').forEach(icon => icon.addEventListener('click', e => {
     e.stopPropagation();
-    const m = memberById(icon.dataset.mid); if (!m) return;
+    const m = memberById(icon.dataset.editNick); if (!m) return;
     document.getElementById('nickname-user').textContent = (m.display_name || m.name) + ' @' + m.name;
     document.getElementById('nickname-input').value = m.display_name || '';
     document.getElementById('nickname-modal').classList.add('is-open');

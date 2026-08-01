@@ -1,6 +1,19 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
 <link rel="stylesheet" href="/static/moderation.css?v=7" />
+<style>
+  .mem-avatar { position: relative; }
+  .mem-avatar.recent { outline: 2px solid #60a5fa; outline-offset: -1px; }
+  .mem-avatar.raider { outline: 2px solid #f87171; outline-offset: -1px; }
+  .mem-name { position: relative; display: inline-flex; align-items: center; }
+  .mem-edit { position:absolute; right:-18px; top:50%; transform:translateY(-50%); cursor:pointer; color:rgba(255,255,255,0.4); width:13px; height:13px; display:none; }
+  .mem-edit:hover { color:#fff; }
+  .mem-name:hover .mem-edit { display:block; }
+  .role-tag { display:inline-flex; align-items:center; gap:0.25rem; font-size:0.68rem; padding:0.12rem 0.45rem; border-radius:4px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); color:rgba(255,255,255,0.6); white-space:nowrap; }
+  .role-tag .role-x { display:none; cursor:pointer; color:rgba(255,255,255,0.35); }
+  .role-tag .role-x:hover { color:#f87171; }
+  .role-tag:hover .role-x { display:inline; }
+</style>
 <div style="padding:2rem 0;">
 
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem;">
@@ -64,18 +77,6 @@
 </div>
 {% endblock %}
 {% block scripts %}
-<style>
-  .mem-avatar { position: relative; }
-  .mem-avatar.recent { outline: 2px solid #60a5fa; outline-offset: -1px; }
-  .mem-avatar.raider { outline: 2px solid #f87171; outline-offset: -1px; }
-  .role-tag { display:inline-flex; align-items:center; gap:0.25rem; font-size:0.68rem; padding:0.12rem 0.45rem; border-radius:4px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); color:rgba(255,255,255,0.6); white-space:nowrap; }
-  .role-tag .role-x { display:none; cursor:pointer; color:rgba(255,255,255,0.35); }
-  .role-tag .role-x:hover { color:#f87171; }
-  .role-tag:hover .role-x { display:inline; }
-  .mem-edit { display:none; cursor:pointer; color:rgba(255,255,255,0.4); width:13px; height:13px; margin-left:4px; vertical-align:middle; }
-  .mem-edit:hover { color:#fff; }
-  .md-member-info:hover .mem-edit { display:inline; }
-</style>
 <script>
 const GID = window.__GUILD_ID;
 const api = (p, o) => fetch(`/api/v1/mod/${GID}${p}`, o||{}).then(r=>r.json());
@@ -86,7 +87,10 @@ let MEMBERS = [];
 let ROLE_MAP = {};       // id -> name
 let ROLE_POS = {};       // id -> position
 let BOT = { bot_top_role_position: 0, can_manage_nicknames: false, can_manage_roles: false };
+let currentFilter = '';
 const RECENT_DAYS = 7;
+
+function memberById(id) { return MEMBERS.find(m => String(m.id) === String(id)); }
 
 function fmtDate(iso) {
   if (!iso) return '—';
@@ -94,27 +98,22 @@ function fmtDate(iso) {
   if (isNaN(d)) return '—';
   return d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
 }
-
 function isRecent(iso) {
   if (!iso) return false;
   const d = new Date(iso);
   if (isNaN(d)) return false;
   return (Date.now() - d.getTime()) < RECENT_DAYS * 86400000;
 }
-
 function memberTopRole(m) {
   let top = 0;
   (m.roles||[]).forEach(id => { const p = ROLE_POS[id]||0; if (p > top) top = p; });
   return top;
 }
+function canManageMember(m) { return BOT.bot_top_role_position > memberTopRole(m); }
 
-function canManageMember(m) {
-  return BOT.bot_top_role_position > memberTopRole(m);
-}
-
-function renderMembers(filter) {
+function renderMembers() {
   const wrap = document.getElementById('members-table-wrap');
-  const q = (filter||'').toLowerCase().trim();
+  const q = currentFilter.toLowerCase().trim();
   const rows = MEMBERS.filter(m => !q || (m.name||'').toLowerCase().includes(q) || (m.display_name||'').toLowerCase().includes(q));
   if (!rows.length) {
     wrap.innerHTML = '<div style="text-align:center;padding:2.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">' + (q ? 'No members match your search.' : 'No members loaded.') + '</div>';
@@ -127,28 +126,29 @@ function renderMembers(filter) {
       <th style="text-align:left;padding:0.3rem 0.5rem;font-size:0.68rem;color:rgba(255,255,255,0.3);">Roles</th>
       <th style="text-align:left;padding:0.3rem 0.5rem;font-size:0.68rem;color:rgba(255,255,255,0.3);">Actions</th>
     </tr></thead><tbody>` +
-    rows.map((m, i) => {
+    rows.map(m => {
       const avatarCls = (m.is_raider ? ' raider' : '') + (isRecent(m.joined_at) ? ' recent' : '');
       const manage = canManageMember(m);
+      const mid = m.id;
       return `<tr>
       <td style="padding:0.6rem 0.5rem;background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);border-left:1px solid rgba(255,255,255,0.06);border-radius:4px 0 0 4px;">
         <div class="md-member-info">
           <div class="md-member-avatar mem-avatar${avatarCls}"><img src="${esc(m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png'))}" style="width:100%;height:100%;object-fit:cover;" /></div>
           <div>
-            <div style="font-weight:700;font-size:0.82rem;color:#e9edf5;">${esc(m.display_name || m.name)}${manage && BOT.can_manage_nicknames ? '<svg class="mem-edit" data-edit-nick="'+i+'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.4-9.4a2.1 2.1 0 113 3L11 17l-4 1 1-4 9.6-9.6z"/></svg>' : ''}</div>
+            <div class="mem-name" style="font-weight:700;font-size:0.82rem;color:#e9edf5;padding-right:16px;">${esc(m.display_name || m.name)}${manage && BOT.can_manage_nicknames ? '<svg class="mem-edit" data-mid="'+mid+'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.4-9.4a2.1 2.1 0 113 3L11 17l-4 1 1-4 9.6-9.6z"/></svg>' : ''}</div>
             <div style="font-size:0.68rem;color:rgba(255,255,255,0.3);">@${esc(m.name)}</div>
           </div>
         </div>
       </td>
       <td style="padding:0.6rem 0.5rem;background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);font-size:0.76rem;color:${isRecent(m.joined_at)?'#60a5fa':'rgba(255,255,255,0.5)'};white-space:nowrap;">${fmtDate(m.joined_at)}</td>
       <td style="padding:0.6rem 0.5rem;background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);">
-        <div class="mem-roles" data-roles-col="${i}" style="display:flex;gap:0.25rem;flex-wrap:wrap;max-width:280px;align-items:center;">
-          ${(m.roles||[]).map(id => ROLE_MAP[id] ? `<span class="role-tag">${esc(ROLE_MAP[id])}${manage && BOT.can_manage_roles ? '<span class="role-x" data-remove-role="'+id+'" data-member="${i}" title="Remove role">✕</span>' : ''}</span>` : '').join('')}
-          ${manage && BOT.can_manage_roles ? '<span class="role-tag" data-add-role="${i}" style="cursor:pointer;color:rgba(255,255,255,0.35);font-weight:700;">+</span>' : ''}
+        <div class="mem-roles" data-roles-col style="display:flex;gap:0.25rem;flex-wrap:wrap;max-width:280px;align-items:center;min-height:20px;">
+          ${(m.roles||[]).map(id => ROLE_MAP[id] ? `<span class="role-tag">${esc(ROLE_MAP[id])}${manage && BOT.can_manage_roles ? '<span class="role-x" data-remove-role="'+id+'" data-mid="'+mid+'" title="Remove role">✕</span>' : ''}</span>` : '').join('')}
+          ${manage && BOT.can_manage_roles ? '<span class="role-tag" data-add-role="'+mid+'" style="cursor:pointer;color:rgba(255,255,255,0.35);font-weight:700;">+</span>' : ''}
         </div>
       </td>
       <td style="padding:0.6rem 0.5rem;background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);border-right:1px solid rgba(255,255,255,0.06);border-radius:0 4px 4px 0;">
-        <div class="md-actions-wrap"><button class="md-actions-btn" data-idx="${i}"><i data-lucide="chevron-down"></i> Actions</button></div>
+        <div class="md-actions-wrap"><button class="md-actions-btn" data-mid="${mid}"><i data-lucide="chevron-down"></i> Actions</button></div>
       </td>
     </tr>`;
     }).join('') + '</tbody></table>';
@@ -160,34 +160,31 @@ function bindEvents() {
   const overlay = document.getElementById('member-action-modal');
   document.querySelectorAll('.md-actions-btn').forEach(btn => btn.addEventListener('click', e => {
     e.stopPropagation();
-    const m = MEMBERS[parseInt(btn.dataset.idx)];
+    const m = memberById(btn.dataset.mid); if (!m) return;
     document.getElementById('modal-user-name').textContent = m.display_name || m.name;
     document.getElementById('modal-user-avatar').innerHTML = '<img src="' + esc(m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png')) + '" style="width:100%;height:100%;object-fit:cover;" />';
     document.getElementById('action-reason').value = '';
     overlay.classList.add('is-open'); overlay._member = m;
   }));
 
-  // Edit nickname
   document.querySelectorAll('[data-edit-nick]').forEach(icon => icon.addEventListener('click', e => {
     e.stopPropagation();
-    const m = MEMBERS[parseInt(icon.dataset.editNick)];
+    const m = memberById(icon.dataset.mid); if (!m) return;
     document.getElementById('nickname-user').textContent = (m.display_name || m.name) + ' @' + m.name;
     document.getElementById('nickname-input').value = m.display_name || '';
     document.getElementById('nickname-modal').classList.add('is-open');
     document.getElementById('nickname-modal')._member = m;
   }));
 
-  // Remove role
   document.querySelectorAll('[data-remove-role]').forEach(x => x.addEventListener('click', e => {
     e.stopPropagation();
-    const m = MEMBERS[parseInt(x.dataset.member)];
+    const m = memberById(x.dataset.mid); if (!m) return;
     queueAction({ action:'remove_role', user_id:m.id, user_name:m.name, target: x.dataset.removeRole });
   }));
 
-  // Add role
   document.querySelectorAll('[data-add-role]').forEach(btn => btn.addEventListener('click', e => {
     e.stopPropagation();
-    const m = MEMBERS[parseInt(btn.dataset.addRole)];
+    const m = memberById(btn.dataset.addRole); if (!m) return;
     openAddRole(m);
   }));
 }
@@ -208,8 +205,11 @@ function openAddRole(m) {
 
 function queueAction(payload) {
   fetch(`/api/v1/mod/${GID}/action`, { method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({ action: payload.action, user_id: payload.user_id, user_name: payload.user_name, reason: '', duration: null, target: payload.target }) })
-    .then(r => r.json()).then(() => { if (typeof showToast==='function') showToast('Queued for the bot.','success'); })
+    body:JSON.stringify({ action: payload.action, user_id: payload.user_id, user_name: payload.user_name, reason: payload.reason||'', duration: payload.duration||null, target: payload.target||null }) })
+    .then(r => r.json()).then(() => {
+      if (typeof showToast==='function') showToast('Queued for the bot.','success');
+      setTimeout(refreshMembers, 8000);
+    })
     .catch(() => { if (typeof showToast==='function') showToast('Failed to queue.','error'); });
 }
 
@@ -218,7 +218,11 @@ function sendAction(action, duration) {
   const m = overlay._member; if (!m) return;
   const reason = document.getElementById('action-reason').value;
   overlay.classList.remove('is-open');
-  queueAction({ action, user_id:m.id, user_name:m.name, reason, duration, target:null });
+  queueAction({ action, user_id:m.id, user_name:m.name, reason, duration });
+}
+
+function refreshMembers() {
+  api('/members').then(d => { MEMBERS = d.members || []; renderMembers(); }).catch(() => {});
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -226,11 +230,10 @@ document.addEventListener('DOMContentLoaded', () => {
     MEMBERS = md.members || [];
     (rd.roles||[]).forEach(r => { ROLE_MAP[r.id] = r.name; ROLE_POS[r.id] = r.position||0; });
     BOT = { bot_top_role_position: bd.bot_top_role_position||0, can_manage_nicknames: !!bd.can_manage_nicknames, can_manage_roles: !!bd.can_manage_roles };
-    renderMembers('');
-    document.getElementById('member-search').addEventListener('input', e => renderMembers(e.target.value));
+    renderMembers();
+    document.getElementById('member-search').addEventListener('input', e => { currentFilter = e.target.value; renderMembers(); });
   }).catch(() => document.getElementById('members-table-wrap').innerHTML = '<div style="text-align:center;padding:2.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load members.</div>');
 
-  // Modal wiring
   const overlay = document.getElementById('member-action-modal');
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('is-open'); });
   overlay.querySelector('.md-modal-close').addEventListener('click', () => overlay.classList.remove('is-open'));
@@ -250,7 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const m = nickModal._member; if (!m) return;
     const nick = document.getElementById('nickname-input').value;
     nickModal.classList.remove('is-open');
-    queueAction({ action:'nickname', user_id:m.id, user_name:m.name, reason:'', duration:null, target:nick });
+    queueAction({ action:'nickname', user_id:m.id, user_name:m.name, target:nick });
   });
   document.getElementById('nickname-input').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('nickname-save').click(); });
 });

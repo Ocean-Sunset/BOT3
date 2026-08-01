@@ -250,7 +250,7 @@ function checkFailedActions() {
 }
 
 setInterval(refreshMembers, 15000);
-setInterval(checkFailedActions, 15000);
+setInterval(checkFailedActions, 5000);
 
 document.addEventListener('DOMContentLoaded', () => {
   Promise.all([api('/members'), memApi('/roles'), memApi('/bot')]).then(([md, rd, bd]) => {

@@ -24,6 +24,7 @@ OPENAI_API_KEY = environ.get("OPENAI_API_KEY", "")
 TWITCH_CLIENT_ID = environ.get("TWITCH_CLIENT_ID", "")
 TWITCH_CLIENT_SECRET = environ.get("TWITCH_CLIENT_SECRET", "")
 TWITTER_BEARER_TOKEN = environ.get("TWITTER_BEARER_TOKEN", "")
+NITTER_INSTANCE = environ.get("NITTER_INSTANCE", "https://nitter.net")
 EASTER_FILE = "data/easter.json"
 TROPHY_FILE = "data/trophies.json"
 BOT_DATA_FILE = "bot_data.txt"

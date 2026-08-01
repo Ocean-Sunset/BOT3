@@ -221,13 +221,10 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         except Exception as e:
             logger.debug(f"Twitch channel check failed: {e}")
 
-    # ── Twitter/X (uses API v2; no-op without TWITTER_BEARER_TOKEN) ──
+    # ── Twitter/X (uses Nitter RSS bridge — free, may be unreliable) ──
     @tasks.loop(minutes=10)
     async def check_twitter(self):
         await self.bot.wait_until_ready()
-        from Ediscord.variables import TWITTER_BEARER_TOKEN
-        if not TWITTER_BEARER_TOKEN:
-            return
         for guild in self.bot.guilds:
             try:
                 settings = await get_social_settings(guild.id)
@@ -245,30 +242,36 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
                 logger.debug(f"Twitter check failed for {guild.id}: {e}")
 
     async def _check_twitter_handle(self, guild, settings, handle, custom_msg=None, ping_role_id=None):
-        from Ediscord.variables import TWITTER_BEARER_TOKEN
+        import xml.etree.ElementTree as ET
+        from Ediscord.variables import NITTER_INSTANCE
+        instance = NITTER_INSTANCE.rstrip("/")
+        url = f"{instance}/{handle}/rss"
         try:
             async with aiohttp.ClientSession() as s:
-                async with s.get(f"https://api.twitter.com/2/users/by/username/{handle}",
-                                 params={"user.fields": "id"},
-                                 headers={"Authorization": f"Bearer {TWITTER_BEARER_TOKEN}"}) as resp:
-                    data = await resp.json()
-            user_id = data.get("data", {}).get("id")
-            if not user_id:
-                return
-            async with aiohttp.ClientSession() as s:
-                async with s.get(f"https://api.twitter.com/2/users/{user_id}/tweets",
-                                 params={"max_results": 1, "tweet.fields": "id"},
-                                 headers={"Authorization": f"Bearer {TWITTER_BEARER_TOKEN}"}) as resp:
-                    tweets = await resp.json()
-            if tweets.get("data"):
-                tweet = tweets["data"][0]
-                url = f"https://twitter.com/{handle}/status/{tweet['id']}"
-                if self._last_videos.get(f"{guild.id}:twitter:{handle}") == url:
-                    return
-                self._last_videos[f"{guild.id}:twitter:{handle}"] = url
-                await self._send_alert(guild, settings, "twitter", f"@{handle}", custom_msg, ping_role_id, settings.get("twitter_announce_channel_id"), url)
+                async with s.get(url, timeout=15, headers={"User-Agent": "ProwlBot/1.0"}) as resp:
+                    if resp.status != 200:
+                        logger.debug(f"Nitter RSS {instance} returned {resp.status} for @{handle}")
+                        return
+                    data = await resp.text()
         except Exception as e:
-            logger.debug(f"Twitter handle check failed: {e}")
+            logger.debug(f"Nitter fetch failed for @{handle}: {e}")
+            return
+        try:
+            root = ET.fromstring(data)
+        except Exception:
+            return
+        item = root.find(".//item")
+        if item is None:
+            return
+        link = item.findtext("link") or ""
+        title = item.findtext("title") or f"@{handle}"
+        status_id = link.rstrip("/").split("/")[-1]
+        key = f"{guild.id}:twitter:{handle}"
+        if self._last_videos.get(key) == status_id:
+            return
+        self._last_videos[key] = status_id
+        tweet_url = f"https://twitter.com/{handle}/status/{status_id}"
+        await self._send_alert(guild, settings, "twitter", f"@{handle}", custom_msg, ping_role_id, settings.get("twitter_announce_channel_id"), tweet_url)
 
     social_group = app_commands.Group(name="social", description="Social media alert settings")
 

@@ -414,6 +414,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (block) block.classList.toggle('is-disabled', !enabled);
     });
   }
+  function resetDropdowns() {
+    document.querySelectorAll('[data-role-select], [data-channel-select]').forEach(wrap => {
+      const key = wrap.dataset.roleSelect || wrap.dataset.channelSelect;
+      const btn = wrap.querySelector('.md-custom-select-btn');
+      if (!btn) return;
+      const saved = SETTINGS_SNAPSHOT[key];
+      if (saved) {
+        const opt = wrap.querySelector(`.md-custom-opt[data-id="${saved}"]`);
+        btn.textContent = opt ? opt.textContent : (key.includes('channel') ? 'No channel' : 'No role');
+      } else {
+        btn.textContent = key.includes('channel') ? 'No channel' : 'No role';
+      }
+    });
+  }
   updateGrayOut();
 
   saveBtn.addEventListener('click', saveChanges);
@@ -435,6 +449,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     for (const key of Object.keys(pending)) delete pending[key];
     saveBar.classList.add('is-closed');
     updateGrayOut();
+    resetDropdowns();
   });
 });
 </script>

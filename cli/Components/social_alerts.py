@@ -55,9 +55,9 @@ async def save_social_settings(guild_id: int, settings: dict):
 
 class SocialAlerts(commands.Cog, name="SocialAlerts"):
     DEFAULT_MESSAGES = {
-        "youtube": "🎬 New video from {channel}!",
+        "youtube": "New video from {channel}!",
         "twitch": "🔴 {channel} is now live!",
-        "twitter": "🐦 New post from @{channel}!",
+        "twitter": "New post from @{channel}!",
     }
 
     def __init__(self, bot: commands.Bot):
@@ -87,15 +87,19 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         return None
 
     async def _send_alert(self, guild: discord.Guild, settings: dict, platform: str, channel_name: str,
-                          custom_msg=None, ping_role_id=None, announce_channel_id=None):
+                          custom_msg=None, ping_role_id=None, announce_channel_id=None, url=None):
         """Post an alert with the fallback chain: custom msg → default, role → default role, channel → default channel."""
         channel = self._resolve_channel(guild, announce_channel_id, settings.get("default_announce_channel_id"))
         if not channel:
             return
         role = self._resolve_role(guild, ping_role_id, settings.get("default_ping_role"))
-        text = (custom_msg or self.DEFAULT_MESSAGES.get(platform, "")).replace("{channel}", channel_name).replace("{name}", channel_name)
+        text = (custom_msg or self.DEFAULT_MESSAGES.get(platform, ""))
+        text = text.replace("{channel}", channel_name).replace("{name}", channel_name).replace("{url}", url or "")
         if role:
             text = f"{role.mention} {text}"
+        # Always append the link so the alert is clickable
+        if url and "{url}" not in (custom_msg or ""):
+            text = f"{text} {url}"
         try:
             await channel.send(text)
             logger.info(f"Posted {platform} alert for {channel_name} in {guild.id}")
@@ -128,7 +132,8 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         if self._last_videos.get(key) == vid:
             return
         self._last_videos[key] = vid
-        await self._send_alert(guild, settings, "youtube", title, custom_msg, ping_role_id, settings.get("youtube_announce_channel_id"))
+        video_url = f"https://www.youtube.com/watch?v={vid}"
+        await self._send_alert(guild, settings, "youtube", title, custom_msg, ping_role_id, settings.get("youtube_announce_channel_id"), video_url)
 
     @tasks.loop(minutes=10)
     async def check_youtube(self):

@@ -179,6 +179,14 @@ class ProwlBot(commands.Bot):
                                 raise Exception("channel not found")
                             deleted = await channel.purge(limit=int(duration or 10))
                             reason = f"Purged {len(deleted)} messages in #{channel.name}"
+                        elif act == "panel_send":
+                            from components.tickets import Tickets
+                            cog = self.get_cog("Tickets")
+                            if not cog:
+                                raise Exception("Tickets cog not loaded")
+                            if not await cog._send_panel(guild, a["target_id"]):
+                                raise Exception("panel send failed")
+                            reason = "Ticket panel sent"
                         await neon_db.complete_action(a["id"], "completed")
                         logger.info(f"Processed action {a['id']}: {act} -> {a['target_id']} in {a['guild_id']} ({reason})")
                         # Log to mod_log only on actual success

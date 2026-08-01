@@ -17,7 +17,40 @@ TICKET_DEFAULTS = {
     "welcome_message": "Support will be with you shortly. Please describe your issue.",
     "ticket_limit": 3,
     "auto_close_hours": 0,
+    "panel_channel_id": None,
+    "panel_embed": {},
+    "questions": [],
 }
+
+
+def build_embed(data: dict) -> discord.Embed:
+    """Build a discord.Embed from a dashboard-configured dict."""
+    if not isinstance(data, dict):
+        data = {}
+    color = data.get("color")
+    try:
+        color = int(str(color).lstrip("#"), 16) if color else 0x5865F2
+    except (ValueError, TypeError):
+        color = 0x5865F2
+    embed = discord.Embed(
+        title=data.get("title") or None,
+        description=data.get("description") or None,
+        color=color,
+    )
+    if data.get("url"):
+        embed.url = data["url"]
+    if data.get("author_name"):
+        embed.set_author(name=data["author_name"], url=data.get("author_url") or None, icon_url=data.get("author_icon") or None)
+    if data.get("image_url"):
+        embed.set_image(url=data["image_url"])
+    if data.get("thumbnail_url"):
+        embed.set_thumbnail(url=data["thumbnail_url"])
+    if data.get("footer_text") or data.get("footer_icon"):
+        embed.set_footer(text=data.get("footer_text") or "", icon_url=data.get("footer_icon") or None)
+    for f in (data.get("fields") or []):
+        if isinstance(f, dict) and f.get("name"):
+            embed.add_field(name=f["name"][:256], value=(f.get("value") or "\u200b")[:1024], inline=bool(f.get("inline")))
+    return embed
 
 
 async def get_ticket_settings(guild_id: int):
@@ -119,7 +152,42 @@ class CreateTicketView(discord.ui.View):
                 embed=EmbedBuilder().title("Not Configured").description("Ticket system is not configured.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
+        questions = settings.get("questions") or []
+        if questions:
+            modal = TicketQuestionsModal(self.cog, questions)
+            await interaction.response.send_modal(modal)
+        else:
+            await self.cog._create_ticket(interaction, [])
 
+
+class TicketQuestionsModal(discord.ui.Modal):
+    """Modal that asks the configured ticket questions before opening a ticket."""
+
+    def __init__(self, cog, questions):
+        super().__init__(title="Open a Ticket")
+        self.cog = cog
+        self._inputs = []
+        for q in questions[:5]:  # Discord allows max 5 modal inputs
+            item = discord.ui.TextInput(
+                label=(q.get("label") or "Question")[:45],
+                placeholder=(q.get("placeholder") or "")[:100] or None,
+                required=bool(q.get("required", True)),
+                max_length=1000,
+            )
+            self.add_item(item)
+            self._inputs.append(item)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        answers = [inp.value for inp in self._inputs]
+        await self.cog._create_ticket(interaction, answers)
+
+
+class Tickets(commands.Cog, name="Tickets"):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+
+    async def _create_ticket(self, interaction: discord.Interaction, answers: list):
+        settings = await get_ticket_settings(interaction.guild_id)
         existing_tickets = [c for c in interaction.guild.text_channels if c.name.startswith(f"ticket-{interaction.user.name.lower()[:20]}")]
         ticket_limit = settings.get("ticket_limit", 3)
         if len(existing_tickets) >= ticket_limit:
@@ -127,7 +195,6 @@ class CreateTicketView(discord.ui.View):
                 embed=EmbedBuilder().title("Limit Reached").description(f"You already have {len(existing_tickets)} open tickets (limit: {ticket_limit}).").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
-
         category = interaction.guild.get_channel(int(settings.get("category_id") or 0))
         overwrites = {
             interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False),
@@ -139,7 +206,6 @@ class CreateTicketView(discord.ui.View):
             role = interaction.guild.get_role(int(support_role_id))
             if role:
                 overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
-
         try:
             channel = await interaction.guild.create_text_channel(
                 f"ticket-{interaction.user.name[:20].lower().replace(' ', '-')}",
@@ -160,7 +226,14 @@ class CreateTicketView(discord.ui.View):
                 .build()
             )
             view = TicketView()
-            await channel.send(content=interaction.user.mention, embed=embed, view=view)
+            content = interaction.user.mention
+            # If custom questions were answered, post them in the ticket
+            questions = settings.get("questions") or []
+            if answers and questions:
+                qa = "\n".join(f"**{q.get('label','Question')}:** {a}" for q, a in zip(questions[:5], answers) if a)
+                if qa:
+                    content = f"{interaction.user.mention}\n{qa}"
+            await channel.send(content=content, embed=embed, view=view)
             await interaction.response.send_message(
                 embed=EmbedBuilder().title("Ticket Created").description(f"Your ticket has been created: {channel.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
@@ -172,10 +245,22 @@ class CreateTicketView(discord.ui.View):
                 ephemeral=True
             )
 
-
-class Tickets(commands.Cog, name="Tickets"):
-    def __init__(self, bot: commands.Bot):
-        self.bot = bot
+    async def _send_panel(self, guild, channel_id) -> bool:
+        """Send the ticket panel (embed + create button) to a channel."""
+        channel = guild.get_channel(int(channel_id))
+        if not channel or not isinstance(channel, discord.TextChannel):
+            return False
+        settings = await get_ticket_settings(guild.id)
+        embed = build_embed(settings.get("panel_embed") or {})
+        view = CreateTicketView(self)
+        try:
+            await channel.send(embed=embed, view=view)
+            settings["panel_channel_id"] = str(channel_id)
+            await save_ticket_settings(guild.id, settings)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send ticket panel: {e}")
+            return False
 
     ticket_group = app_commands.Group(name="ticket", description="Ticket system commands")
 

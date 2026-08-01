@@ -1,6 +1,6 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
-<link rel="stylesheet" href="/static/moderation.css?v=6" />
+<link rel="stylesheet" href="/static/moderation.css?v=7" />
 <div style="padding:2rem 0;">
 
   <div style="margin-bottom:1.25rem;">
@@ -84,8 +84,8 @@
         <div class="md-behavior-list">
           <div class="md-behavior-item" style="align-items:flex-start">
             <div style="flex:1">
-              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Message shown when a ticket is opened</div>
-              <input type="text" class="md-input" data-key="welcome_message" placeholder="Support will be with you shortly." />
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Message shown when a ticket is opened — Markdown supported (Shift+Enter for a new line)</div>
+              <textarea class="md-input md-textarea" data-key="welcome_message" rows="3" placeholder="Support will be with you shortly."></textarea>
             </div>
           </div>
         </div>
@@ -123,6 +123,113 @@
     </div>
 
   </div>
+
+  <!-- ═══ Ticket Panel Builder ═══ -->
+  <div class="md-section" style="margin-top:1.5rem;">
+    <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+      <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Ticket Panel Embed</div>
+      <div style="display:grid;grid-template-columns:1fr 320px;gap:1rem;">
+        <div style="display:flex;flex-direction:column;gap:0.6rem;">
+
+          <div>
+            <div class="md-behavior-label" style="margin-bottom:0.3rem;">Title</div>
+            <input type="text" class="md-input" id="pb-title" placeholder="Support Tickets" />
+          </div>
+
+          <div>
+            <div class="md-behavior-label" style="margin-bottom:0.3rem;">Description</div>
+            <textarea class="md-input md-textarea" id="pb-desc" rows="3" placeholder="Click the button below to create a ticket."></textarea>
+          </div>
+
+          <div style="display:flex;gap:0.6rem;">
+            <div style="flex:1">
+              <div class="md-behavior-label" style="margin-bottom:0.3rem;">Color</div>
+              <div style="display:flex;align-items:center;gap:0.4rem;">
+                <input type="color" id="pb-color" value="#5865f2" style="width:36px;height:32px;border:none;background:none;cursor:pointer;" />
+                <input type="text" class="md-input" id="pb-color-hex" value="#5865f2" style="max-width:90px;" />
+              </div>
+            </div>
+            <div style="flex:1">
+              <div class="md-behavior-label" style="margin-bottom:0.3rem;">URL</div>
+              <input type="text" class="md-input" id="pb-url" placeholder="https://..." />
+            </div>
+          </div>
+
+          <div style="display:flex;gap:0.6rem;">
+            <div style="flex:1">
+              <div class="md-behavior-label" style="margin-bottom:0.3rem;">Author Name</div>
+              <input type="text" class="md-input" id="pb-author" placeholder="Prowl" />
+            </div>
+            <div style="flex:1">
+              <div class="md-behavior-label" style="margin-bottom:0.3rem;">Author Icon URL</div>
+              <input type="text" class="md-input" id="pb-author-icon" placeholder="https://...png" />
+            </div>
+          </div>
+
+          <div style="display:flex;gap:0.6rem;">
+            <div style="flex:1">
+              <div class="md-behavior-label" style="margin-bottom:0.3rem;">Footer Text</div>
+              <input type="text" class="md-input" id="pb-footer" placeholder="Powered by Prowl" />
+            </div>
+            <div style="flex:1">
+              <div class="md-behavior-label" style="margin-bottom:0.3rem;">Footer Icon URL</div>
+              <input type="text" class="md-input" id="pb-footer-icon" placeholder="https://...png" />
+            </div>
+          </div>
+
+          <div style="display:flex;gap:0.6rem;">
+            <div style="flex:1">
+              <div class="md-behavior-label" style="margin-bottom:0.3rem;">Image URL</div>
+              <input type="text" class="md-input" id="pb-image" placeholder="https://...png" />
+            </div>
+            <div style="flex:1">
+              <div class="md-behavior-label" style="margin-bottom:0.3rem;">Thumbnail URL</div>
+              <input type="text" class="md-input" id="pb-thumbnail" placeholder="https://...png" />
+            </div>
+          </div>
+
+          <div>
+            <div class="md-behavior-label" style="margin-bottom:0.3rem;">Fields</div>
+            <div id="pb-fields" style="display:flex;flex-direction:column;gap:0.4rem;"></div>
+            <button class="md-action-btn" id="pb-add-field" style="margin-top:0.4rem;"><i data-lucide="plus"></i> Add Field</button>
+          </div>
+
+        </div>
+
+        <!-- Live preview -->
+        <div>
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Preview</div>
+          <div id="pb-preview" style="border-left:4px solid #5865f2;background:rgba(255,255,255,0.02);border-radius:4px;padding:0.75rem;"></div>
+        </div>
+      </div>
+
+      <!-- Send panel -->
+      <div style="border-top:1px solid rgba(255,255,255,0.06);margin-top:0.9rem;padding-top:0.9rem;">
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Send Panel To</div>
+        <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;">
+          <div class="md-custom-select" data-send-select style="min-width:220px;">
+            <button class="md-custom-select-btn">Select channel...</button>
+            <div class="md-custom-select-drop"></div>
+          </div>
+          <button class="md-sweep-btn" id="send-panel-btn" style="padding:0.5rem 1.4rem;"><i data-lucide="send"></i> Send Panel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Ticket Questions ═══ -->
+  <div class="md-section" style="margin-top:1.5rem;">
+    <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+        <div>
+          <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">Ticket Questions</div>
+          <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-top:2px;">Asked when opening a ticket — max 5. Leave empty for no questions.</div>
+        </div>
+      </div>
+      <div id="questions-list" style="display:flex;flex-direction:column;gap:0.5rem;"></div>
+      <button class="md-action-btn" id="add-question" style="margin-top:0.5rem;"><i data-lucide="plus"></i> Add Question</button>
+    </div>
+  </div>
 </div>
 {% endblock %}
 {% block scripts %}
@@ -130,6 +237,7 @@
 const GID = window.__GUILD_ID;
 const api = (path, opts) => fetch(`/api/v1/tickets/${GID}${path}`, opts||{}).then(r=>r.json());
 const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+const $ = s => document.querySelector(s);
 
 const pending = {};
 const original = {};
@@ -246,16 +354,149 @@ document.addEventListener('DOMContentLoaded', async () => {
       else el.value = s[key] ?? '';
     });
     document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); }));
-    document.querySelectorAll('input[type="text"][data-key], input[type="number"][data-key]').forEach(inp => inp.addEventListener('change', function(){
+    document.querySelectorAll('input[type="text"][data-key], input[type="number"][data-key], textarea[data-key]').forEach(inp => inp.addEventListener('change', function(){
       const v = inp.type === 'number' ? (parseInt(inp.value) || 0) : inp.value;
       markChanged(this.dataset.key, v);
     }));
     resetDropdowns();
+
+    // ── Load panel embed into builder ──
+    const pe = s.panel_embed || {};
+    $('#pb-title').value = pe.title || '';
+    $('#pb-desc').value = pe.description || '';
+    $('#pb-url').value = pe.url || '';
+    $('#pb-author').value = pe.author_name || '';
+    $('#pb-author-icon').value = pe.author_icon || '';
+    $('#pb-footer').value = pe.footer_text || '';
+    $('#pb-footer-icon').value = pe.footer_icon || '';
+    $('#pb-image').value = pe.image_url || '';
+    $('#pb-thumbnail').value = pe.thumbnail_url || '';
+    if (pe.color) { $('#pb-color').value = '#' + String(pe.color).replace('#','').padStart(6,'0'); $('#pb-color-hex').value = '#' + String(pe.color).replace('#',''); }
+    (pe.fields || []).forEach(f => addField(f.name, f.value, f.inline));
+    renderEmbedPreview();
+
+    // ── Load questions ──
+    questions = (s.questions || []).map(q => ({ label: q.label || '', placeholder: q.placeholder || '', required: q.required !== false }));
+    renderQuestions();
   }).catch(() => {});
+
+  // ── Embed builder state + preview ──
+  let embedFields = [];
+  function collectEmbed() {
+    return {
+      title: $('#pb-title').value.trim() || null,
+      description: $('#pb-desc').value.trim() || null,
+      url: $('#pb-url').value.trim() || null,
+      author_name: $('#pb-author').value.trim() || null,
+      author_icon: $('#pb-author-icon').value.trim() || null,
+      footer_text: $('#pb-footer').value.trim() || null,
+      footer_icon: $('#pb-footer-icon').value.trim() || null,
+      image_url: $('#pb-image').value.trim() || null,
+      thumbnail_url: $('#pb-thumbnail').value.trim() || null,
+      color: $('#pb-color-hex').value.trim() || null,
+      fields: embedFields,
+    };
+  }
+  ['pb-title','pb-desc','pb-url','pb-author','pb-author-icon','pb-footer','pb-footer-icon','pb-image','pb-thumbnail'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => { renderEmbedPreview(); markChanged('panel_embed', JSON.parse(JSON.stringify(collectEmbed()))); });
+  });
+  ['pb-color','pb-color-hex'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+      if (id === 'pb-color') $('#pb-color-hex').value = $('#pb-color').value;
+      else { const v = $('#pb-color-hex').value.replace('#',''); if (/^[0-9a-fA-F]{6}$/.test(v)) $('#pb-color').value = '#' + v; }
+      renderEmbedPreview();
+      markChanged('panel_embed', JSON.parse(JSON.stringify(collectEmbed())));
+    });
+  });
+  function addField(name, value, inline) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:0.4rem;align-items:center;';
+    row.innerHTML = `<input type="text" class="md-input" placeholder="Name" style="flex:1;" value="${esc(name||'')}" />
+      <input type="text" class="md-input" placeholder="Value" style="flex:1;" value="${esc(value||'')}" />
+      <label class="md-toggle" title="Inline"><input type="checkbox" ${inline?'checked':''} /><span class="md-toggle-slider"></span></label>
+      <button class="md-action-btn danger" style="flex-shrink:0;"><i data-lucide="trash-2"></i></button>`;
+    const [n,v,chk,del] = row.children;
+    del.addEventListener('click', () => { row.remove(); embedFields = embedFields.filter(f => f !== row._f); renderEmbedPreview(); markChanged('panel_embed', JSON.parse(JSON.stringify(collectEmbed()))); });
+    const sync = () => { row._f = { name: n.value, value: v.value, inline: chk.querySelector('input').checked }; renderEmbedPreview(); markChanged('panel_embed', JSON.parse(JSON.stringify(collectEmbed()))); };
+    n.addEventListener('input', sync); v.addEventListener('input', sync); chk.querySelector('input').addEventListener('change', sync);
+    row._f = { name: name||'', value: value||'', inline: !!inline };
+    $('#pb-fields').appendChild(row);
+    embedFields.push(row._f);
+    lucide.createIcons();
+  }
+  document.getElementById('pb-add-field').addEventListener('click', () => addField('', '', false));
+  function renderEmbedPreview() {
+    const e = collectEmbed();
+    const c = document.getElementById('pb-preview');
+    let color = '#5865f2';
+    const hex = (e.color||'').replace('#','');
+    if (/^[0-9a-fA-F]{6}$/.test(hex)) color = '#' + hex;
+    c.style.borderLeftColor = color;
+    let html = '';
+    if (e.author_name) html += `<div style="font-size:12px;color:#aaa;display:flex;align-items:center;gap:6px;">${e.author_icon ? '<img src="'+esc(e.author_icon)+'" style="width:20px;height:20px;border-radius:50%;"/>' : ''}${esc(e.author_name)}</div>`;
+    if (e.title) html += `<div style="font-weight:700;font-size:15px;margin-top:4px;">${esc(e.title)}</div>`;
+    if (e.description) html += `<div style="font-size:13px;color:#ddd;margin-top:4px;white-space:pre-wrap;">${esc(e.description)}</div>`;
+    (e.fields||[]).forEach(f => { if (f.name) html += `<div style="margin-top:6px;"><div style="font-size:13px;font-weight:600;">${esc(f.name)}</div><div style="font-size:12px;color:#ccc;white-space:pre-wrap;">${esc(f.value||'')}</div></div>`; });
+    if (e.thumbnail_url) html += `<img src="${esc(e.thumbnail_url)}" style="max-width:80px;border-radius:4px;margin-top:6px;"/>`;
+    if (e.image_url) html += `<img src="${esc(e.image_url)}" style="max-width:100%;border-radius:4px;margin-top:6px;"/>`;
+    if (e.footer_text) html += `<div style="font-size:11px;color:#888;margin-top:8px;">${e.footer_icon ? '<img src="'+esc(e.footer_icon)+'" style="width:16px;height:16px;margin-right:4px;vertical-align:middle;"/>' : ''}${esc(e.footer_text)}</div>`;
+    c.innerHTML = html || '<div style="color:rgba(255,255,255,0.25);font-size:12px;">Embed preview</div>';
+  }
+
+  // ── Send panel ──
+  api('/channels').then(d => {
+    const wrap = document.querySelector('[data-send-select]');
+    if (!wrap) return;
+    const btn = wrap.querySelector('.md-custom-select-btn');
+    const drop = wrap.querySelector('.md-custom-select-drop');
+    let selected = null;
+    drop.innerHTML = (d.channels||[]).map(ch => `<button class="md-custom-opt" data-id="${ch.id}">#${esc(ch.name)}</button>`).join('');
+    drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => { btn.textContent = b.textContent; selected = b.dataset.id; drop.classList.remove('is-open'); }));
+    btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+    document.addEventListener('click', (e) => { if(!e.target.closest('[data-send-select]')) drop.classList.remove('is-open'); });
+    document.getElementById('send-panel-btn').addEventListener('click', async function() {
+      if (!selected) { showToast('Select a channel first.', 'error'); return; }
+      this.textContent = 'Sending...'; this.disabled = true;
+      try {
+        await fetch(`/api/v1/tickets/${GID}/send_panel`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({channel_id: selected}) });
+        showToast('Panel queued — check the channel.', 'success');
+      } catch { showToast('Failed to queue panel.', 'error'); }
+      this.innerHTML = '<i data-lucide="send"></i> Send Panel'; this.disabled = false;
+      lucide.createIcons();
+    });
+  });
+
+  // ── Questions ──
+  let questions = [];
+  function renderQuestions() {
+    const list = document.getElementById('questions-list');
+    if (!questions.length) { list.innerHTML = '<div style="text-align:center;padding:0.75rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No questions — the ticket opens instantly.</div>'; return; }
+    list.innerHTML = questions.map((q, i) => `
+      <div class="md-behavior-item" style="align-items:flex-start;flex-wrap:wrap;gap:0.5rem;">
+        <div style="flex:2;min-width:150px;"><div class="md-behavior-label" style="margin-bottom:0.2rem;">Question</div><input type="text" class="md-input" data-q-label="${i}" value="${esc(q.label)}" /></div>
+        <div style="flex:2;min-width:150px;"><div class="md-behavior-label" style="margin-bottom:0.2rem;">Placeholder</div><input type="text" class="md-input" data-q-ph="${i}" value="${esc(q.placeholder)}" /></div>
+        <div style="display:flex;align-items:center;gap:0.4rem;padding-top:1.3rem;"><label class="md-toggle" title="Required"><input type="checkbox" ${q.required?'checked':''} data-q-req="${i}" /><span class="md-toggle-slider"></span></label><button class="md-action-btn danger" data-q-del="${i}" style="flex-shrink:0;"><i data-lucide="trash-2"></i></button></div>
+      </div>`).join('');
+    list.querySelectorAll('[data-q-label]').forEach(i => i.addEventListener('input', e => { questions[+i.dataset.qLabel].label = e.target.value; saveQuestions(); }));
+    list.querySelectorAll('[data-q-ph]').forEach(i => i.addEventListener('input', e => { questions[+i.dataset.qPh].placeholder = e.target.value; saveQuestions(); }));
+    list.querySelectorAll('[data-q-req]').forEach(i => i.addEventListener('change', e => { questions[+i.dataset.qReq].required = e.target.checked; saveQuestions(); }));
+    list.querySelectorAll('[data-q-del]').forEach(i => i.addEventListener('click', () => { questions.splice(+i.dataset.qDel, 1); renderQuestions(); saveQuestions(); }));
+    lucide.createIcons();
+  }
+  function saveQuestions() {
+    const clean = questions.map(q => ({ label: q.label, placeholder: q.placeholder, required: q.required }));
+    markChanged('questions', clean);
+  }
+  document.getElementById('add-question').addEventListener('click', () => {
+    if (questions.length >= 5) { showToast('Max 5 questions (Discord modal limit).', 'error'); return; }
+    questions.push({ label: '', placeholder: '', required: true });
+    renderQuestions(); saveQuestions();
+  });
 
   saveBtn.addEventListener('click', saveChanges);
   document.getElementById('discard-btn').addEventListener('click', () => {
     for (const key of Object.keys(pending)) {
+      if (key === 'panel_embed' || key === 'questions') { delete original[key]; continue; }
       const el = document.querySelector(`[data-key="${key}"]`);
       if (el) {
         if (el.type === 'checkbox') el.checked = original[key];
@@ -264,6 +505,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       delete original[key];
     }
     for (const key of Object.keys(pending)) delete pending[key];
+    // Restore embed builder + questions from snapshot
+    const pe = SETTINGS_SNAPSHOT.panel_embed || {};
+    $('#pb-title').value = pe.title || ''; $('#pb-desc').value = pe.description || '';
+    $('#pb-url').value = pe.url || ''; $('#pb-author').value = pe.author_name || '';
+    $('#pb-author-icon').value = pe.author_icon || ''; $('#pb-footer').value = pe.footer_text || '';
+    $('#pb-footer-icon').value = pe.footer_icon || ''; $('#pb-image').value = pe.image_url || '';
+    $('#pb-thumbnail').value = pe.thumbnail_url || '';
+    if (pe.color) { $('#pb-color').value = '#' + String(pe.color).replace('#','').padStart(6,'0'); $('#pb-color-hex').value = '#' + String(pe.color).replace('#',''); }
+    $('#pb-fields').innerHTML = '';
+    embedFields = [];
+    (pe.fields || []).forEach(f => addField(f.name, f.value, f.inline));
+    renderEmbedPreview();
+    questions = (SETTINGS_SNAPSHOT.questions || []).map(q => ({ label: q.label || '', placeholder: q.placeholder || '', required: q.required !== false }));
+    renderQuestions();
     saveBar.classList.add('is-closed');
     resetDropdowns();
   });

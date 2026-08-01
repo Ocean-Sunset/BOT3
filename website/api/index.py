@@ -1199,7 +1199,70 @@ TICKET_SETTINGS_DEFAULTS = {
     "welcome_message": "Support will be with you shortly. Please describe your issue.",
     "ticket_limit": 3,
     "auto_close_hours": 0,
+    "panel_channel_id": None,
+    "panel_embed": {},
+    "questions": [],
 }
+
+
+def _sanitize_panel_embed(value):
+    """Validate panel_embed: dict with bounded string/field limits."""
+    if not isinstance(value, dict):
+        return None, "panel_embed must be an object"
+    clean = {}
+    for key in ("title", "description", "url", "author_name", "author_url", "author_icon",
+                "image_url", "thumbnail_url", "footer_text", "footer_icon"):
+        v = value.get(key)
+        if v is not None:
+            if not isinstance(v, str):
+                return None, f"'{key}' must be a string"
+            clean[key] = v[:1024]
+    color = value.get("color")
+    if color is not None:
+        try:
+            int(str(color).lstrip("#"), 16)
+        except (ValueError, TypeError):
+            return None, "invalid color"
+        clean["color"] = str(color)
+    fields = value.get("fields")
+    if fields is not None:
+        if not isinstance(fields, list) or len(fields) > 25:
+            return None, "fields must be a list of max 25"
+        clean_fields = []
+        for f in fields:
+            if not isinstance(f, dict):
+                return None, "each field must be an object"
+            name = str(f.get("name") or "")[:256]
+            if not name:
+                return None, "field name is required"
+            clean_fields.append({
+                "name": name,
+                "value": str(f.get("value") or "\u200b")[:1024],
+                "inline": bool(f.get("inline")),
+            })
+        clean["fields"] = clean_fields
+    return clean, None
+
+
+def _sanitize_questions(value):
+    """Validate questions: list of {label, placeholder, required}, max 5 (Discord modal limit)."""
+    if not isinstance(value, list):
+        return None, "questions must be a list"
+    if len(value) > 5:
+        return None, "questions exceeds max of 5 (Discord modal limit)"
+    clean = []
+    for q in value:
+        if not isinstance(q, dict):
+            return None, "each question must be an object"
+        label = str(q.get("label") or "").strip()
+        if not label:
+            return None, "question label is required"
+        clean.append({
+            "label": label[:45],
+            "placeholder": (str(q.get("placeholder") or "").strip())[:100] or None,
+            "required": bool(q.get("required", True)),
+        })
+    return clean, None
 
 
 async def _get_ticket_settings(guild_id: str):
@@ -1230,10 +1293,40 @@ async def ticket_settings_set(guild_id: str, request: Request):
     value = body.get("value")
     if not key:
         return JSONResponse({"error": "missing key"}, status_code=400)
+    if key == "panel_embed":
+        clean, err = _sanitize_panel_embed(value)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        err = await _save_settings("ticket_settings", str(guild_id), "panel_embed", clean, TICKET_SETTINGS_DEFAULTS)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        return {"ok": True}
+    if key == "questions":
+        clean, err = _sanitize_questions(value)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        err = await _save_settings("ticket_settings", str(guild_id), "questions", clean, TICKET_SETTINGS_DEFAULTS)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        return {"ok": True}
     err = await _save_settings("ticket_settings", str(guild_id), key, value, TICKET_SETTINGS_DEFAULTS)
     if err:
         return JSONResponse({"error": err}, status_code=400)
     return {"ok": True}
+
+
+@app.post("/api/v1/tickets/{guild_id}/send_panel")
+async def ticket_send_panel(guild_id: str, request: Request):
+    """Queue the bot to send the ticket panel embed to a channel."""
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    channel_id = body.get("channel_id")
+    if not channel_id:
+        return JSONResponse({"error": "missing channel_id"}, status_code=400)
+    session_user = request.session.get("user") or {}
+    moderator = session_user.get("username", "Unknown")
+    await _queue_action(guild_id, "panel_send", channel_id, "panel", "Ticket panel", None, moderator)
+    return {"ok": True, "queued": True}
 
 
 @app.get("/api/v1/tickets/{guild_id}/categories")

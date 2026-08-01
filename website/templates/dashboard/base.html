@@ -152,7 +152,7 @@
         <div id="user-popover" class="user-popover hidden">
           <div class="popover-header">
             <div class="popover-label">Signed in as</div>
-            <div class="popover-user">{{ user.username if user else 'User' }}#{{ user.discriminator if user else '0000' }}</div>
+            <div class="popover-user">{{ user.username if user else 'User' }}</div>
           </div>
           <a href="#" class="popover-item"><i data-lucide="user"></i> Profile</a>
           <a href="/logout" class="popover-item danger"><i data-lucide="log-out"></i> Log out</a>

@@ -1363,6 +1363,116 @@ async def ticket_roles(guild_id: str, request: Request):
     return {"roles": []}
 
 
+# ---------------------------------------------------------------------------
+#  Verification API v1
+# ---------------------------------------------------------------------------
+
+VERIFY_SETTINGS_DEFAULTS = {
+    "enabled": False, "channel_id": None, "verified_role_id": None,
+    "log_channel_id": None, "type": "button", "captcha": False,
+}
+
+
+async def _get_verify_settings(guild_id: str):
+    row = await fetchrow("SELECT settings FROM verify_settings WHERE guild_id = $1", str(guild_id))
+    if row:
+        settings = row["settings"]
+        if isinstance(settings, str):
+            try: settings = json.loads(settings)
+            except: return dict(VERIFY_SETTINGS_DEFAULTS)
+        if isinstance(settings, dict):
+            return {**VERIFY_SETTINGS_DEFAULTS, **settings}
+    return dict(VERIFY_SETTINGS_DEFAULTS)
+
+
+@app.get("/api/v1/verify/{guild_id}/settings")
+async def verify_settings(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    return {"settings": await _get_verify_settings(guild_id)}
+
+
+@app.post("/api/v1/verify/{guild_id}/settings")
+async def verify_settings_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    key = body.get("key"); value = body.get("value")
+    if not key: return JSONResponse({"error": "missing key"}, 400)
+    err = await _save_settings("verify_settings", str(guild_id), key, value, VERIFY_SETTINGS_DEFAULTS)
+    if err: return JSONResponse({"error": err}, 400)
+    return {"ok": True}
+
+
+@app.get("/api/v1/verify/{guild_id}/channels")
+async def verify_channels(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "channels" in d:
+        return {"channels": [{"id": str(c.get("id")), "name": c.get("name")} for c in d["channels"] if c.get("type", 0) == 0]}
+    return {"channels": []}
+
+
+@app.get("/api/v1/verify/{guild_id}/roles")
+async def verify_roles(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "roles" in d:
+        return {"roles": [{"id": str(r.get("id")), "name": r.get("name")} for r in d["roles"]]}
+    return {"roles": []}
+
+
+# ---------------------------------------------------------------------------
+#  Global Chat API v1
+# ---------------------------------------------------------------------------
+
+GC_DEFAULTS = {"enabled": False, "channel_id": None}
+
+
+async def _get_gc_settings(guild_id: str):
+    d = dict(GC_DEFAULTS)
+    for key in ("global_chat_enabled", "global_chat_channel"):
+        row = await fetchrow("SELECT value FROM bot_stats WHERE key = $1", key)
+        if row:
+            d["enabled" if key == "global_chat_enabled" else "channel_id"] = (
+                row["value"].lower() == "true" if key == "global_chat_enabled" else str(row["value"])
+            )
+    return d
+
+
+@app.get("/api/v1/global_chat/{guild_id}/settings")
+async def gc_settings(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    return {"settings": await _get_gc_settings(guild_id)}
+
+
+@app.post("/api/v1/global_chat/{guild_id}/settings")
+async def gc_settings_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    key = body.get("key"); value = body.get("value")
+    if not key: return JSONResponse({"error": "missing key"}, 400)
+    if key not in GC_DEFAULTS and key not in ("enabled", "channel_id"):
+        return JSONResponse({"error": f"unknown key '{key}'"}, 400)
+    db_key = "global_chat_enabled" if key == "enabled" else "global_chat_channel" if key == "channel_id" else key
+    db_val = str(value) if value is not None else ""
+    await execute(
+        "INSERT INTO bot_stats (key, value, updated_at) VALUES ($1, $2, $3) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at",
+        db_key, db_val, time.time(),
+    )
+    return {"ok": True}
+
+
+@app.get("/api/v1/global_chat/{guild_id}/channels")
+async def gc_channels(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "channels" in d:
+        return {"channels": [{"id": str(c.get("id")), "name": c.get("name")} for c in d["channels"] if c.get("type", 0) == 0]}
+    return {"channels": []}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("api.index:app", host="127.0.0.1", port=8000, reload=True)

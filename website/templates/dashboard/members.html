@@ -1,1 +1,74 @@
-{% extends "dashboard/base.html" %}{% block content %}<div style="padding:2rem 0;"><div style="margin-bottom:1.25rem;"><h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Members</h1><p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">View and manage server members</p></div><div style="border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:1.25rem;background:rgba(255,255,255,0.015);text-align:center;"><p style="color:rgba(255,255,255,0.4);font-size:14px;font-weight:600;padding:4rem 0;">Coming soon.</p></div></div>{% endblock %}
+{% extends "dashboard/base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/moderation.css?v=7" />
+<div style="padding:2rem 0;">
+
+  <div style="margin-bottom:1.25rem;">
+    <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Members</h1>
+    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">View and manage server members</p>
+  </div>
+
+  <div class="md-row">
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Server Stats</div>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;">
+          <div class="md-behavior-item" style="justify-content:space-between;">
+            <span style="font-size:0.8rem;color:rgba(255,255,255,0.5);">Total Members</span>
+            <span style="font-size:0.8rem;font-weight:700;" id="stat-total">—</span>
+          </div>
+          <div class="md-behavior-item" style="justify-content:space-between;">
+            <span style="font-size:0.8rem;color:rgba(255,255,255,0.5);">Online</span>
+            <span style="font-size:0.8rem;font-weight:700;color:#36d399;" id="stat-online">—</span>
+          </div>
+          <div class="md-behavior-item" style="justify-content:space-between;">
+            <span style="font-size:0.8rem;color:rgba(255,255,255,0.5);">Roles</span>
+            <span style="font-size:0.8rem;font-weight:700;" id="stat-roles">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Top Roles</div>
+        <div id="top-roles" style="display:flex;flex-direction:column;gap:0.3rem;">
+          <div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Quick Actions</div>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;">
+          <p style="font-size:0.8rem;color:rgba(255,255,255,0.4);line-height:1.5;">Use Discord's built-in member list for full member management. The commands below are available:</p>
+          <div style="display:flex;flex-wrap:wrap;gap:0.25rem;font-size:0.72rem;color:rgba(255,255,255,0.35);">
+            <code style="background:rgba(255,255,255,0.04);padding:0.15rem 0.4rem;border-radius:3px;">/members list</code>
+            <code style="background:rgba(255,255,255,0.04);padding:0.15rem 0.4rem;border-radius:3px;">/members info</code>
+            <code style="background:rgba(255,255,255,0.04);padding:0.15rem 0.4rem;border-radius:3px;">/members role</code>
+            <code style="background:rgba(255,255,255,0.04);padding:0.15rem 0.4rem;border-radius:3px;">/members nickname</code>
+            <code style="background:rgba(255,255,255,0.04);padding:0.15rem 0.4rem;border-radius:3px;">/members move</code>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const GID = window.__GUILD_ID;
+fetch(`/api/v1/mod/${GID}/debug`).then(r=>r.json()).then(d => {
+  document.getElementById('stat-total').textContent = d.member_count || (window.__GUILD ? window.__GUILD.approximate_member_count : null) || '—';
+}).catch(() => {});
+fetch(`/api/v1/mod/${GID}/roles`).then(r=>r.json()).then(d => {
+  const roles = (d.roles||[]).filter(r=>!r.disabled).sort((a,b)=>(b.count||0)-(a.count||0)).slice(0,8);
+  const el = document.getElementById('top-roles');
+  if (!roles.length) { el.innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No roles loaded.</div>'; return; }
+  el.innerHTML = roles.map(r => `<div class="md-behavior-item" style="justify-content:space-between;"><span style="font-size:0.8rem;font-weight:600;color:rgba(255,255,255,0.7);">${r.name}</span><span style="font-size:0.75rem;color:rgba(255,255,255,0.35);">${r.count||0} members</span></div>`).join('');
+}).catch(() => {});
+</script>
+{% endblock %}

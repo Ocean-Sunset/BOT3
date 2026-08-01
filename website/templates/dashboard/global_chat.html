@@ -1,1 +1,135 @@
-{% extends "dashboard/base.html" %}{% block content %}<div style="padding:2rem 0;"><div style="margin-bottom:1.25rem;"><h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Global Chat</h1><p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Connect your server to the global network</p></div><div style="border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:1.25rem;background:rgba(255,255,255,0.015);text-align:center;"><p style="color:rgba(255,255,255,0.4);font-size:14px;font-weight:600;padding:4rem 0;">Coming soon.</p></div></div>{% endblock %}
+{% extends "dashboard/base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/moderation.css?v=7" />
+<div style="padding:2rem 0;">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem;">
+    <div>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Global Chat</h1>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Connect your server to the global network</p>
+    </div>
+    <label class="md-toggle md-toggle-xl"><input type="checkbox" data-key="enabled" /><span class="md-toggle-slider"></span></label>
+  </div>
+
+  <div id="gc-config">
+  <div class="md-row">
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Hub Channel</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Messages in this channel are relayed to all linked servers</div>
+              <div class="md-custom-select" data-channel-select="channel_id">
+                <button class="md-custom-select-btn">No channel</button>
+                <div class="md-custom-select-drop"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">How It Works</div>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.6;">
+          <p>1. Enable Global Chat and select a hub channel.</p>
+          <p>2. Any message sent in this channel is relayed to <strong>every server</strong> that has Global Chat enabled.</p>
+          <p>3. Messages from other servers appear here via webhook with the server name.</p>
+          <p>Use <code style="background:rgba(255,255,255,0.04);padding:0.1rem 0.35rem;border-radius:3px;font-size:0.75rem;">/globalchat link</code> in Discord to set the channel.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const GID = window.__GUILD_ID;
+const api = (p, o) => fetch(`/api/v1/global_chat/${GID}${p}`, o||{}).then(r=>r.json());
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+const $ = s => document.querySelector(s);
+
+const pending={}, original={};
+let SETTINGS_SNAPSHOT = {};
+const saveBar = document.getElementById('save-bar'), saveBtn = document.getElementById('save-btn');
+let saveTimer = null;
+
+function markChanged(k, v) {
+  if (!(k in original)) original[k] = (k in SETTINGS_SNAPSHOT) ? SETTINGS_SNAPSHOT[k] : !v;
+  pending[k] = v; saveBar.classList.remove('is-closed');
+  clearTimeout(saveTimer); saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
+}
+
+async function saveChanges() {
+  const keys = Object.keys(pending); if (!keys.length) return;
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving...';
+  for (const key of keys) {
+    try {
+      await api('/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]})});
+    } catch {}
+  }
+  for (const key of keys) delete pending[key];
+  saveBar.classList.add('is-closed'); saveBtn.disabled = false; saveBtn.textContent = 'Save';
+  if (typeof showToast==='function') showToast('Settings saved.','success');
+}
+
+function updateGrayOut() {
+  const enabled = $('[data-key="enabled"]')?.checked ?? false;
+  const config = document.getElementById('gc-config');
+  if (config) config.classList.toggle('is-disabled', !enabled);
+}
+
+function resetDropdowns() {
+  document.querySelectorAll('[data-channel-select]').forEach(wrap => {
+    const key = wrap.dataset.channelSelect;
+    const btn = wrap.querySelector('.md-custom-select-btn'); if (!btn) return;
+    const saved = SETTINGS_SNAPSHOT[key];
+    btn.textContent = saved ? (wrap.querySelector(`.md-custom-opt[data-id="${saved}"]`)?.textContent || 'No channel') : 'No channel';
+  });
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  api('/channels').then(d => {
+    const channels = d.channels||[];
+    const wrap = document.querySelector('[data-channel-select="channel_id"]');
+    if (!wrap) return;
+    const btn = wrap.querySelector('.md-custom-select-btn'), drop = wrap.querySelector('.md-custom-select-drop');
+    drop.innerHTML = `<button class="md-custom-opt" data-id="">No channel</button>` + channels.map(c => `<button class="md-custom-opt" data-id="${c.id}">#${esc(c.name)}</button>`).join('');
+    drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+      btn.textContent = b.dataset.id ? b.textContent : 'No channel';
+      markChanged('channel_id', b.dataset.id || null);
+      drop.classList.remove('is-open');
+    }));
+    btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+    document.addEventListener('click', e => { if(!e.target.closest('[data-channel-select]')) drop.classList.remove('is-open'); });
+  });
+
+  api('/settings').then(d => {
+    const s = d.settings || {}; SETTINGS_SNAPSHOT = { ...s };
+    document.querySelectorAll('[data-key]').forEach(el => {
+      const key = el.dataset.key; if (!(key in s)) return;
+      if (el.type==='checkbox') el.checked = !!s[key]; else el.value = s[key] ?? '';
+    });
+    document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); updateGrayOut(); }));
+    resetDropdowns(); updateGrayOut();
+  }).catch(() => {});
+
+  saveBtn.addEventListener('click', saveChanges);
+  document.getElementById('discard-btn').addEventListener('click', () => {
+    for (const key of Object.keys(pending)) {
+      const el = document.querySelector(`[data-key="${key}"]`); if (el) {
+        if (el.type==='checkbox') el.checked = original[key]; else el.value = original[key] ?? '';
+      }
+      delete original[key];
+    }
+    for (const key of Object.keys(pending)) delete pending[key];
+    saveBar.classList.add('is-closed'); updateGrayOut();
+  });
+});
+</script>
+{% endblock %}

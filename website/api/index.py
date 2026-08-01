@@ -1018,6 +1018,7 @@ SOCIAL_SETTINGS_DEFAULTS = {
     "youtube_enabled": False, "youtube_channel_id": None, "youtube_ping_role": None, "youtube_announce_channel_id": None, "youtube_message": None,
     "twitch_enabled": False, "twitch_channel": None, "twitch_ping_role": None, "twitch_announce_channel_id": None, "twitch_message": None,
     "twitter_enabled": False, "twitter_handle": None, "twitter_ping_role": None, "twitter_announce_channel_id": None, "twitter_message": None,
+    "default_announce_channel_id": None, "default_ping_role": None,
     "extra_alerts": {},
 }
 

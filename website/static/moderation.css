@@ -724,6 +724,21 @@
 [data-platform].is-disabled .md-behavior-list input,
 [data-platform].is-disabled .md-behavior-list .md-custom-select-btn { opacity: 0.35; }
 
+/* ── Required-field warning ── */
+.md-required-warn {
+  display: none;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #f87171;
+  background: rgba(248,113,113,0.08);
+  border: 1px solid rgba(248,113,113,0.15);
+  border-radius: 4px;
+}
+
 /* ── Behavior toggles list ── */
 .md-behavior-list {
   display: flex;

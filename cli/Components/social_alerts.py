@@ -27,6 +27,9 @@ SOCIAL_DEFAULTS = {
     "twitter_ping_role": None,
     "twitter_announce_channel_id": None,
     "twitter_message": None,
+    # Defaults (fallbacks, overwritten by per-platform values)
+    "default_announce_channel_id": None,
+    "default_ping_role": None,
     # Extra alerts per platform: { "youtube": [{target, ping_role, message}], ... }
     "extra_alerts": {},
 }

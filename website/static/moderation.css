@@ -660,6 +660,11 @@
   background: #36d399;
 }
 
+/* Big toggle (system on/off) */
+.md-toggle-xl { width: 64px; height: 34px; }
+.md-toggle-xl .md-toggle-slider::before { width: 28px; height: 28px; left: 3px; bottom: 3px; }
+.md-toggle-xl input:checked + .md-toggle-slider::before { transform: translateX(30px); }
+
 /* ── Text / number input ── */
 .md-input,
 .md-behavior-item .md-input {
@@ -729,6 +734,12 @@
 [data-platform].is-disabled .md-behavior-list { pointer-events: none; }
 [data-platform].is-disabled .md-behavior-list input,
 [data-platform].is-disabled .md-behavior-list .md-custom-select-btn { opacity: 0.35; }
+
+/* ── Disabled ticket config ── */
+#ticket-config.is-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
 
 /* ── Required-field warning ── */
 .md-required-warn {

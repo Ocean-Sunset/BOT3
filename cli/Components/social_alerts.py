@@ -221,7 +221,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         except Exception as e:
             logger.debug(f"Twitch channel check failed: {e}")
 
-    # ── Twitter/X (uses Nitter RSS bridge — free, may be unreliable) ──
+    # ── Twitter/X (uses Nitter RSS bridge - free, may be unreliable) ──
     @tasks.loop(minutes=10)
     async def check_twitter(self):
         await self.bot.wait_until_ready()

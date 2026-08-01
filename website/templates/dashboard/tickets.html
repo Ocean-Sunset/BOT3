@@ -3,25 +3,19 @@
 <link rel="stylesheet" href="/static/moderation.css?v=7" />
 <div style="padding:2rem 0;">
 
-  <div style="margin-bottom:1.25rem;">
-    <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Tickets</h1>
-    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Support ticket system configuration</p>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem;">
+    <div>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Tickets</h1>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Support ticket system configuration</p>
+    </div>
+    <div id="ticket-system-toggle">
+      <label class="md-toggle md-toggle-xl"><input type="checkbox" data-key="enabled" /><span class="md-toggle-slider"></span></label>
+    </div>
   </div>
 
-  <div class="md-row">
+  <div id="ticket-config">
 
-    <!-- Enable -->
-    <div class="md-section">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
-          <div>
-            <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">Ticket System</div>
-            <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-top:2px;">Enable or disable the ticket system for this server</div>
-          </div>
-          <label class="md-toggle"><input type="checkbox" data-key="enabled" /><span class="md-toggle-slider"></span></label>
-        </div>
-      </div>
-    </div>
+  <div class="md-row">
 
     <!-- Category -->
     <div class="md-section">
@@ -84,7 +78,7 @@
         <div class="md-behavior-list">
           <div class="md-behavior-item" style="align-items:flex-start">
             <div style="flex:1">
-              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Message shown when a ticket is opened — Markdown supported (Shift+Enter for a new line)</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Message shown when a ticket is opened - Markdown supported (Shift+Enter for a new line)</div>
               <textarea class="md-input md-textarea" data-key="welcome_message" rows="3" placeholder="Support will be with you shortly."></textarea>
             </div>
           </div>
@@ -223,12 +217,13 @@
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
         <div>
           <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">Ticket Questions</div>
-          <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-top:2px;">Asked when opening a ticket — max 5. Leave empty for no questions.</div>
+          <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-top:2px;">Asked when opening a ticket - max 5. Leave empty for no questions.</div>
         </div>
       </div>
       <div id="questions-list" style="display:flex;flex-direction:column;gap:0.5rem;"></div>
       <button class="md-action-btn" id="add-question" style="margin-top:0.5rem;"><i data-lucide="plus"></i> Add Question</button>
     </div>
+  </div>
   </div>
 </div>
 {% endblock %}
@@ -273,6 +268,12 @@ async function saveChanges() {
   saveBtn.disabled = false;
   saveBtn.textContent = 'Save';
   if (typeof showToast === 'function') showToast('Settings saved.', 'success');
+}
+
+function updateGrayOut() {
+  const enabled = document.querySelector(`[data-key="enabled"]`)?.checked ?? false;
+  const config = document.getElementById('ticket-config');
+  if (config) config.classList.toggle('is-disabled', !enabled);
 }
 
 function resetDropdowns() {
@@ -353,12 +354,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (el.type === 'checkbox') el.checked = !!s[key];
       else el.value = s[key] ?? '';
     });
-    document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); }));
+    document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); updateGrayOut(); }));
     document.querySelectorAll('input[type="text"][data-key], input[type="number"][data-key], textarea[data-key]').forEach(inp => inp.addEventListener('change', function(){
       const v = inp.type === 'number' ? (parseInt(inp.value) || 0) : inp.value;
       markChanged(this.dataset.key, v);
     }));
     resetDropdowns();
+    updateGrayOut();
 
     // ── Load panel embed into builder ──
     const pe = s.panel_embed || {};
@@ -459,7 +461,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       this.textContent = 'Sending...'; this.disabled = true;
       try {
         await fetch(`/api/v1/tickets/${GID}/send_panel`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({channel_id: selected}) });
-        showToast('Panel queued — check the channel.', 'success');
+        showToast('Panel queued - check the channel.', 'success');
       } catch { showToast('Failed to queue panel.', 'error'); }
       this.innerHTML = '<i data-lucide="send"></i> Send Panel'; this.disabled = false;
       lucide.createIcons();
@@ -470,7 +472,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let questions = [];
   function renderQuestions() {
     const list = document.getElementById('questions-list');
-    if (!questions.length) { list.innerHTML = '<div style="text-align:center;padding:0.75rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No questions — the ticket opens instantly.</div>'; return; }
+    if (!questions.length) { list.innerHTML = '<div style="text-align:center;padding:0.75rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No questions - the ticket opens instantly.</div>'; return; }
     list.innerHTML = questions.map((q, i) => `
       <div class="md-behavior-item" style="align-items:flex-start;flex-wrap:wrap;gap:0.5rem;">
         <div style="flex:2;min-width:150px;"><div class="md-behavior-label" style="margin-bottom:0.2rem;">Question</div><input type="text" class="md-input" data-q-label="${i}" value="${esc(q.label)}" /></div>
@@ -521,6 +523,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderQuestions();
     saveBar.classList.add('is-closed');
     resetDropdowns();
+    updateGrayOut();
   });
 });
 </script>

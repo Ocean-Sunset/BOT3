@@ -643,6 +643,107 @@ async def _get_mod_settings(guild_id: str):
     return dict(MOD_SETTINGS_DEFAULTS)
 
 
+def _valid_snowflake(value) -> bool:
+    """True if value is None or a numeric string/int (Discord ID)."""
+    if value is None:
+        return True
+    s = str(value).strip()
+    return s.isdigit() and len(s) <= 20
+
+
+def _sanitize_extra_alerts(value):
+    """Validate extra_alerts: dict of {platform: [{target, ping_role, message}]}, max 5/platform."""
+    if not isinstance(value, dict):
+        return None, "extra_alerts must be an object"
+    clean = {}
+    for platform, items in value.items():
+        if platform not in ("youtube", "twitch", "twitter"):
+            return None, f"invalid platform '{platform}'"
+        if not isinstance(items, list):
+            return None, f"'{platform}' alerts must be a list"
+        if len(items) > 5:
+            return None, f"'{platform}' exceeds max of 5 alerts"
+        clean_items = []
+        for it in items:
+            if not isinstance(it, dict):
+                return None, "each alert must be an object"
+            target = str(it.get("target") or "").strip()
+            if not target:
+                return None, "alert target is required"
+            ping_role = it.get("ping_role")
+            if ping_role is not None and not _valid_snowflake(ping_role):
+                return None, "invalid ping role id"
+            message = it.get("message")
+            if message is not None and not isinstance(message, str):
+                return None, "message must be a string"
+            clean_items.append({
+                "target": target[:200],
+                "ping_role": str(ping_role) if ping_role else None,
+                "message": message[:500] if message else None,
+            })
+        clean[platform] = clean_items
+    return clean, None
+
+
+def _sanitize_setting(key: str, value, defaults: dict):
+    """Coerce/validate a single settings key. Returns (clean_value, error)."""
+    if key not in defaults:
+        return value, f"unknown key '{key}'"
+    default = defaults[key]
+
+    # Discord ID fields (channel/role selectors) must be a snowflake or null
+    id_key = (key.endswith("_ping_role") or key.endswith("_announce_channel_id")
+              or key in ("modlog_channel_id", "default_announce_channel_id", "default_ping_role"))
+    if id_key:
+        if value is None or value == "":
+            return None, None
+        if not _valid_snowflake(value):
+            return None, f"'{key}' must be a valid Discord ID or null"
+        return str(value), None
+
+    # Booleans
+    if isinstance(default, bool):
+        return bool(value), None
+    # None-able free-text (handles, channel ids, messages)
+    if default is None:
+        if value is None or value == "":
+            return None, None
+        return str(value)[:500], None
+    # Integers (durations)
+    if isinstance(default, int):
+        try:
+            n = int(value)
+        except (TypeError, ValueError):
+            return None, f"'{key}' must be an integer"
+        return n, None
+    return str(value), None
+
+
+async def _save_settings(table, guild_id, key, value, defaults):
+    """Validate + persist a settings key with server-side checks."""
+    clean, err = _sanitize_setting(key, value, defaults)
+    if err:
+        return err
+    current = dict(defaults)
+    row = await fetchrow(f"SELECT settings FROM {table} WHERE guild_id = $1", str(guild_id))
+    if row:
+        stored = row["settings"]
+        if isinstance(stored, str):
+            try:
+                stored = json.loads(stored)
+            except (json.JSONDecodeError, TypeError):
+                stored = {}
+        if isinstance(stored, dict):
+            current.update(stored)
+    current[key] = clean
+    await execute(
+        f"INSERT INTO {table} (guild_id, settings) VALUES ($1, $2::jsonb) "
+        f"ON CONFLICT (guild_id) DO UPDATE SET settings = $2::jsonb",
+        str(guild_id), json.dumps(current),
+    )
+    return None
+
+
 @app.get("/api/v1/mod/{guild_id}/settings")
 async def mod_settings(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
@@ -657,13 +758,9 @@ async def mod_settings_set(guild_id: str, request: Request):
     value = body.get("value")
     if not key:
         return JSONResponse({"error": "missing key"}, status_code=400)
-    current = await _get_mod_settings(guild_id)
-    current[key] = value
-    await execute(
-        "INSERT INTO mod_settings (guild_id, settings) VALUES ($1, $2::jsonb) "
-        "ON CONFLICT (guild_id) DO UPDATE SET settings = $2::jsonb",
-        str(guild_id), json.dumps(current),
-    )
+    err = await _save_settings("mod_settings", str(guild_id), key, value, MOD_SETTINGS_DEFAULTS)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
     return {"ok": True}
 
 
@@ -1051,13 +1148,20 @@ async def social_settings_set(guild_id: str, request: Request):
     value = body.get("value")
     if not key:
         return JSONResponse({"error": "missing key"}, status_code=400)
-    current = await _get_social_settings(guild_id)
-    current[key] = value
-    await execute(
-        "INSERT INTO social_settings (guild_id, settings) VALUES ($1, $2::jsonb) "
-        "ON CONFLICT (guild_id) DO UPDATE SET settings = $2::jsonb",
-        str(guild_id), json.dumps(current),
-    )
+
+    # Special validation for extra_alerts
+    if key == "extra_alerts":
+        clean, err = _sanitize_extra_alerts(value)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        err = await _save_settings("social_settings", str(guild_id), "extra_alerts", clean, SOCIAL_SETTINGS_DEFAULTS)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        return {"ok": True}
+
+    err = await _save_settings("social_settings", str(guild_id), key, value, SOCIAL_SETTINGS_DEFAULTS)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
     return {"ok": True}
 
 

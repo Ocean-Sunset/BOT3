@@ -280,7 +280,11 @@ async function saveChanges() {
   saveBtn.textContent = 'Saving...';
   for (const key of keys) {
     try {
-      await api('/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]}) });
+      const r = await fetch(`/api/v1/social/${GID}/settings`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]}) });
+      if (!r.ok) {
+        const j = await r.json().catch(()=>({}));
+        if (typeof showToast === 'function') showToast(j.error || 'Server rejected a setting.', 'error');
+      }
     } catch {}
   }
   for (const key of keys) delete pending[key];

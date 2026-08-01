@@ -56,6 +56,20 @@ async def _ensure_tables():
         "CREATE TABLE IF NOT EXISTS mod_settings (guild_id TEXT PRIMARY KEY, settings JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
         "CREATE TABLE IF NOT EXISTS mod_log (id SERIAL PRIMARY KEY, guild_id TEXT, user_id TEXT, user_name TEXT, action TEXT, reason TEXT DEFAULT '', moderator TEXT DEFAULT '', created_at DOUBLE PRECISION)",
         "CREATE TABLE IF NOT EXISTS mod_actions (id SERIAL PRIMARY KEY, guild_id TEXT, action TEXT, target_id TEXT, target_name TEXT DEFAULT '', reason TEXT DEFAULT '', moderator TEXT DEFAULT '', duration INTEGER, status TEXT DEFAULT 'pending', created_at DOUBLE PRECISION)",
+        "CREATE TABLE IF NOT EXISTS ai_settings (guild_id TEXT PRIMARY KEY, settings JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
+        "CREATE TABLE IF NOT EXISTS welcome_settings (guild_id TEXT PRIMARY KEY, settings JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
+        "CREATE TABLE IF NOT EXISTS verify_settings (guild_id TEXT PRIMARY KEY, settings JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
+        "CREATE TABLE IF NOT EXISTS leveling_settings (guild_id TEXT PRIMARY KEY, settings JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
+        "CREATE TABLE IF NOT EXISTS leveling_data (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, xp INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, user_id))",
+        "CREATE TABLE IF NOT EXISTS automation_settings (guild_id TEXT PRIMARY KEY, settings JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
+        "CREATE TABLE IF NOT EXISTS autoresponder (id SERIAL PRIMARY KEY, guild_id TEXT NOT NULL, trigger TEXT NOT NULL, response TEXT NOT NULL, match_type TEXT NOT NULL DEFAULT 'contains', created_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
+        "CREATE TABLE IF NOT EXISTS social_settings (guild_id TEXT PRIMARY KEY, settings JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
+        "CREATE TABLE IF NOT EXISTS invite_settings (guild_id TEXT PRIMARY KEY, settings JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
+        "CREATE TABLE IF NOT EXISTS invite_stats (guild_id TEXT NOT NULL, inviter_id TEXT NOT NULL, code TEXT NOT NULL, uses INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, inviter_id, code))",
+        "CREATE TABLE IF NOT EXISTS ticket_settings (guild_id TEXT PRIMARY KEY, settings JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
+        "CREATE TABLE IF NOT EXISTS ticket_logs (id SERIAL PRIMARY KEY, guild_id TEXT NOT NULL, channel_id TEXT NOT NULL, user_id TEXT NOT NULL, transcript TEXT NOT NULL, closed_at TEXT NOT NULL)",
+        "CREATE TABLE IF NOT EXISTS member_history (guild_id TEXT NOT NULL, timestamp DOUBLE PRECISION NOT NULL, member_count INTEGER NOT NULL, PRIMARY KEY (guild_id, timestamp))",
+        "CREATE TABLE IF NOT EXISTS message_history (guild_id TEXT NOT NULL, timestamp DOUBLE PRECISION NOT NULL, message_count INTEGER NOT NULL, PRIMARY KEY (guild_id, timestamp))",
     ]
     try:
         async with pool.acquire() as conn:
@@ -64,6 +78,7 @@ async def _ensure_tables():
             # Add columns to existing tables (safe no-op if already present)
             await conn.execute("ALTER TABLE mod_log ADD COLUMN IF NOT EXISTS moderator TEXT DEFAULT ''")
             await conn.execute("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS moderator TEXT DEFAULT ''")
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_autoresponder_guild ON autoresponder (guild_id)")
         logger.info("Ensured database tables exist.")
     except Exception as e:
         logger.error(f"ensure_tables failed: {e}")

@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS mod_log (
     user_name   TEXT NOT NULL,
     action      TEXT NOT NULL,
     reason      TEXT DEFAULT '',
+    moderator   TEXT DEFAULT '',
     created_at  DOUBLE PRECISION NOT NULL
 );
 
@@ -55,12 +56,14 @@ CREATE TABLE IF NOT EXISTS mod_actions (
     target_id   TEXT NOT NULL,
     target_name TEXT DEFAULT '',
     reason      TEXT DEFAULT '',
+    moderator   TEXT DEFAULT '',
     duration    INTEGER,
     status      TEXT NOT NULL DEFAULT 'pending',
     created_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
 );
 
 CREATE INDEX IF NOT EXISTS idx_mod_actions_guild ON mod_actions (guild_id, status);
+CREATE INDEX IF NOT EXISTS idx_mod_actions_pending ON mod_actions (guild_id, status) WHERE status = 'pending';
 
 CREATE TABLE IF NOT EXISTS member_history (
     guild_id    TEXT NOT NULL,
@@ -80,19 +83,13 @@ CREATE TABLE IF NOT EXISTS message_history (
 
 CREATE INDEX IF NOT EXISTS idx_message_history_guild ON message_history (guild_id, timestamp);
 
-CREATE TABLE IF NOT EXISTS mod_actions (
-    id          SERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS invite_stats (
     guild_id    TEXT NOT NULL,
-    action      TEXT NOT NULL,
-    target_id   TEXT NOT NULL,
-    target_name TEXT NOT NULL DEFAULT '',
-    reason      TEXT DEFAULT '',
-    duration    INTEGER,
-    status      TEXT NOT NULL DEFAULT 'pending',
-    created_at  DOUBLE PRECISION NOT NULL
+    inviter_id  TEXT NOT NULL,
+    code        TEXT NOT NULL,
+    uses        INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (guild_id, inviter_id, code)
 );
-
-CREATE INDEX IF NOT EXISTS idx_mod_actions_pending ON mod_actions (guild_id, status) WHERE status = 'pending';
 
 CREATE TABLE IF NOT EXISTS ai_settings (
     guild_id    TEXT PRIMARY KEY,

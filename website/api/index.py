@@ -818,6 +818,7 @@ CREATE TABLE IF NOT EXISTS mod_actions (
     target_id TEXT NOT NULL,
     target_name TEXT DEFAULT '',
     reason TEXT DEFAULT '',
+    moderator TEXT DEFAULT '',
     duration INTEGER,
     status TEXT NOT NULL DEFAULT 'pending',
     created_at DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))

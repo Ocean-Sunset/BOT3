@@ -47,6 +47,7 @@
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.3);margin-bottom:0.75rem;">Recent Activity</h2>
         <div style="color:rgba(255,255,255,0.4);font-size:14px;font-weight:600;padding:2rem 0;text-align:center;max-height:300px;overflow-y:auto;" id="activity-feed">Loading...</div>
+        <style>#activity-feed::-webkit-scrollbar{width:4px}#activity-feed::-webkit-scrollbar-track{background:transparent}#activity-feed::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:999px}</style>
       </div>
     </div>
     <div  style="animation-delay:.14s">
@@ -189,10 +190,11 @@ api('/roles').then(d => {
 }).catch(() => {});
 
 // ── Activity feed (live) ──
-const ACTIONS = { kick:'was kicked', ban:'was banned', unban:'was unbanned', tempban:'was temp-banned', mute:'was muted', unmute:'was unmuted', warn:'was warned', purge:'purged messages in', lockdown:'locked down the server' };
+const ACTIONS = { kick:'was kicked', ban:'was banned', unban:'was unbanned', tempban:'was temp-banned', mute:'was muted', unmute:'was unmuted', warn:'was warned', purge:'purged messages in', lockdown:'locked down the server', nickname:'had their nickname changed', add_role:'had a role added', remove_role:'had a role removed' };
 function feedLabel(e) {
-  const verb = ACTIONS[e.action] || ('was ' + e.action);
-  if (e.action === 'purge') return `${esc(e.moderator||'Someone')} ${verb} ${esc(e.user)}`;
+  if (e.action === 'purge') return `${esc(e.moderator||'Someone')} purged messages in ${esc(e.user)}`;
+  const verb = ACTIONS[e.action];
+  if (!verb) return `${esc(e.user)} ${esc(e.action)}${e.moderator ? ' by ' + esc(e.moderator) : ''}`;
   return `${esc(e.user)} ${verb}${e.moderator ? ' by ' + esc(e.moderator) : ''}`;
 }
 function loadFeed() {

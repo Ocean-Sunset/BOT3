@@ -289,14 +289,15 @@ async function saveChanges() {
 document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Activity feed (live) ──
-  const ACTIONS = { kick:'was kicked', ban:'was banned', unban:'was unbanned', tempban:'was temp-banned', mute:'was muted', unmute:'was unmuted', warn:'was warned', purge:'purged messages in', lockdown:'locked down the server' };
+  const ACTIONS = { kick:'was kicked', ban:'was banned', unban:'was unbanned', tempban:'was temp-banned', mute:'was muted', unmute:'was unmuted', warn:'was warned', purge:'purged messages in', lockdown:'locked down the server', nickname:'had their nickname changed', add_role:'had a role added', remove_role:'had a role removed' };
   function feedLabel(e) {
-    const verb = ACTIONS[e.action] || ('was ' + e.action);
-    if (e.action === 'purge') return `${esc(e.moderator||'Someone')} ${verb} ${esc(e.user)}`;
+    if (e.action === 'purge') return `${esc(e.moderator||'Someone')} purged messages in ${esc(e.user)}`;
+    const verb = ACTIONS[e.action];
+    if (!verb) return `${esc(e.user)} ${esc(e.action)}${e.moderator ? ' by ' + esc(e.moderator) : ''}`;
     return `${esc(e.user)} ${verb}${e.moderator ? ' by ' + esc(e.moderator) : ''}`;
   }
   function loadFeed() {
-    api('/feed').then(d => {
+    api('/feed?scope=mod').then(d => {
       const el = document.getElementById('activity-feed');
       if (!d.events?.length) { el.innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No recent activity.</div>'; return; }
       const existing = new Set(Array.from(el.querySelectorAll('.md-feed-item')).map(i => i.dataset.key));

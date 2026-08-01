@@ -767,10 +767,15 @@ async def mod_settings_set(guild_id: str, request: Request):
 @app.get("/api/v1/mod/{guild_id}/feed")
 async def mod_feed(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    rows = await query(
-        "SELECT user_name, action, reason, moderator, created_at FROM mod_log WHERE guild_id = $1 ORDER BY created_at DESC LIMIT 20",
-        str(guild_id),
-    )
+    scope = request.query_params.get("scope", "all")
+    MOD_ONLY = ("kick", "ban", "unban", "tempban", "mute", "unmute", "warn", "purge", "lockdown")
+    sql = "SELECT user_name, action, reason, moderator, created_at FROM mod_log WHERE guild_id = $1"
+    params = [str(guild_id)]
+    if scope == "mod":
+        sql += " AND action = ANY($2::text[])"
+        params.append(list(MOD_ONLY))
+    sql += " ORDER BY created_at DESC LIMIT 20"
+    rows = await query(sql, *params)
     if rows:
         # Build channel-name lookup for purge events that stored raw IDs
         ch_map = {}
@@ -819,9 +824,11 @@ CREATE TABLE IF NOT EXISTS mod_actions (
     target_name TEXT DEFAULT '',
     reason TEXT DEFAULT '',
     moderator TEXT DEFAULT '',
+    error TEXT DEFAULT '',
     duration INTEGER,
     status TEXT NOT NULL DEFAULT 'pending',
-    created_at DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+    created_at DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now())),
+    processed_at DOUBLE PRECISION
 );
 CREATE INDEX IF NOT EXISTS idx_mod_actions_pending ON mod_actions (status, created_at);
 """
@@ -1086,8 +1093,8 @@ async def mod_message_stats(guild_id: str, request: Request):
 async def mod_actions_list(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     rows = await query(
-        "SELECT id, action, target_id, target_name, reason, duration, status, created_at "
-        "FROM mod_actions WHERE guild_id = $1 ORDER BY created_at DESC LIMIT 20",
+        "SELECT id, action, target_id, target_name, reason, moderator, duration, status, error, created_at, processed_at "
+        "FROM mod_actions WHERE guild_id = $1 ORDER BY created_at DESC LIMIT 30",
         str(guild_id),
     )
     return {"actions": [dict(r) for r in rows]}
@@ -1429,12 +1436,12 @@ async def verify_roles(guild_id: str, request: Request):
 
 @app.get("/api/v1/members/{guild_id}/roles")
 async def members_roles(guild_id: str, request: Request):
-    """All roles (unfiltered) with positions for member management."""
+    """All roles (unfiltered) with positions + managed flag for member management."""
     await require_guild_access(request, guild_id)
     row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
     d = _parse_guild_data(row)
     if d and "roles" in d:
-        return {"roles": [{"id": str(r.get("id")), "name": r.get("name", ""), "position": r.get("position", 0)} for r in d["roles"]]}
+        return {"roles": [{"id": str(r.get("id")), "name": r.get("name", ""), "position": r.get("position", 0), "managed": bool(r.get("managed", False))} for r in d["roles"]]}
     return {"roles": []}
 
 

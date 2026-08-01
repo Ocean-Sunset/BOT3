@@ -206,14 +206,21 @@ class ProwlBot(commands.Bot):
                         await neon_db.complete_action(a["id"], "completed")
                         logger.info(f"Processed action {a['id']}: {act} -> {a['target_id']} in {a['guild_id']} ({reason})")
                         # Log to mod_log only on actual success
-                        target_name = a.get("target_name")
+                        member_name = member.display_name if member else (a.get("target_name") or str(a["target_id"]))
+                        log_user = member_name
+                        log_reason = reason
                         if act == "purge":
                             channel = guild.get_channel(int(a["target_id"]))
-                            target_name = f"#{channel.name}" if channel else a["target_id"]
-                        await neon_db.push_mod_event(a["guild_id"], a["target_id"], target_name or str(a["target_id"]), act, reason, moderator)
+                            log_user = f"#{channel.name}" if channel else a["target_id"]
+                        elif act in ("add_role", "remove_role"):
+                            role = guild.get_role(int(a["target_name"]))
+                            log_reason = f"{'Added' if act=='add_role' else 'Removed'} role {role.name if role else a['target_name']} on @{member_name}"
+                        elif act == "nickname":
+                            log_reason = f"Changed nickname to '{a['target_name']}'"
+                        await neon_db.push_mod_event(a["guild_id"], a["target_id"], log_user, act, log_reason, moderator)
                     except Exception as e:
                         logger.error(f"Action {a['id']} ({act} on {a['target_id']}) failed: {e}")
-                        await neon_db.complete_action(a["id"], "failed")
+                        await neon_db.complete_action(a["id"], "failed", str(e)[:500])
             except Exception as e:
                 logger.error(f"Mod action processor failed: {e}")
             await asyncio.sleep(5)

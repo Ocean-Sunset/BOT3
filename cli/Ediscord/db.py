@@ -78,6 +78,8 @@ async def _ensure_tables():
             # Add columns to existing tables (safe no-op if already present)
             await conn.execute("ALTER TABLE mod_log ADD COLUMN IF NOT EXISTS moderator TEXT DEFAULT ''")
             await conn.execute("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS moderator TEXT DEFAULT ''")
+            await conn.execute("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS error TEXT DEFAULT ''")
+            await conn.execute("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS processed_at DOUBLE PRECISION")
             await conn.execute("CREATE INDEX IF NOT EXISTS idx_autoresponder_guild ON autoresponder (guild_id)")
         logger.info("Ensured database tables exist.")
     except Exception as e:
@@ -166,12 +168,15 @@ async def fetch_pending_actions() -> list:
     return []
 
 
-async def complete_action(action_id: int, status: str = "completed"):
+async def complete_action(action_id: int, status: str = "completed", error: str = ""):
     pool = await get_pool()
     if pool is None:
         return
     try:
         async with pool.acquire() as conn:
-            await conn.execute("UPDATE mod_actions SET status = $1 WHERE id = $2", status, action_id)
+            await conn.execute(
+                "UPDATE mod_actions SET status = $1, error = $2, processed_at = extract(epoch from now()) WHERE id = $3",
+                status, error, action_id,
+            )
     except Exception as e:
         logger.error(f"complete_action failed: {e}")

@@ -1103,11 +1103,13 @@ async def mod_action(guild_id: str, request: Request):
     reason = body.get("reason", "")
     duration = body.get("duration")
     user_name = body.get("user_name", "")
-    if action not in ("mute", "unmute", "kick", "ban"):
+    if action not in ("mute", "unmute", "kick", "ban", "add_role", "remove_role", "nickname"):
         return JSONResponse({"error": "Invalid action"}, status_code=400)
     session_user = request.session.get("user") or {}
     moderator = session_user.get("username", "Unknown")
-    await _queue_action(guild_id, action, user_id, user_name, reason, duration, moderator)
+    # For role/nickname actions, target_name carries the role ID or new nickname
+    target_name = body.get("target") if action in ("add_role", "remove_role", "nickname") else user_name
+    await _queue_action(guild_id, action, user_id, target_name, reason, duration, moderator)
     return {"ok": True, "queued": True}
 
 
@@ -1427,13 +1429,29 @@ async def verify_roles(guild_id: str, request: Request):
 
 @app.get("/api/v1/members/{guild_id}/roles")
 async def members_roles(guild_id: str, request: Request):
-    """All roles (unfiltered) for mapping member role IDs to names."""
+    """All roles (unfiltered) with positions for member management."""
     await require_guild_access(request, guild_id)
     row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
     d = _parse_guild_data(row)
     if d and "roles" in d:
-        return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
+        return {"roles": [{"id": str(r.get("id")), "name": r.get("name", ""), "position": r.get("position", 0)} for r in d["roles"]]}
     return {"roles": []}
+
+
+@app.get("/api/v1/members/{guild_id}/bot")
+async def members_bot_info(guild_id: str, request: Request):
+    """Bot hierarchy/permission info for member management checks."""
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d:
+        return {
+            "bot_top_role_position": d.get("bot_top_role_position", 0),
+            "bot_permissions": int(d.get("bot_permissions", 0) or 0),
+            "can_manage_nicknames": bool(int(d.get("bot_permissions", 0) or 0) & (1 << 27)),
+            "can_manage_roles": bool(int(d.get("bot_permissions", 0) or 0) & (1 << 28)),
+        }
+    return {"bot_top_role_position": 0, "bot_permissions": 0, "can_manage_nicknames": False, "can_manage_roles": False}
 
 
 # ---------------------------------------------------------------------------

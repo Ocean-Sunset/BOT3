@@ -8,9 +8,7 @@
       <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Users</h1>
       <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">All server members with quick actions</p>
     </div>
-    <div style="display:flex;align-items:center;gap:0.5rem;">
-      <input type="text" class="md-input" id="member-search" placeholder="Search members..." style="width:220px;" />
-    </div>
+    <input type="text" class="md-input" id="member-search" placeholder="Search members..." style="width:220px;" />
   </div>
 
   <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
@@ -40,16 +38,55 @@
     </div>
   </div>
 
+  <!-- Add role menu -->
+  <div class="md-modal-overlay" id="add-role-modal">
+    <div class="md-modal">
+      <h3>Add Role</h3>
+      <div class="md-member-name" id="add-role-user" style="margin-bottom:0.75rem;"></div>
+      <div style="display:flex;flex-direction:column;gap:0.3rem;max-height:260px;overflow-y:auto;margin-bottom:0.75rem;" id="add-role-list"></div>
+      <button class="md-modal-close" id="add-role-cancel">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Nickname modal -->
+  <div class="md-modal-overlay" id="nickname-modal">
+    <div class="md-modal">
+      <h3>Change Nickname</h3>
+      <div class="md-member-name" id="nickname-user" style="margin-bottom:0.75rem;"></div>
+      <input type="text" class="md-input" id="nickname-input" placeholder="New nickname" style="margin-bottom:0.75rem;" />
+      <div class="md-popover-row">
+        <button class="md-action-btn" id="nickname-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save</button>
+        <button class="md-action-btn" id="nickname-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 {% endblock %}
 {% block scripts %}
+<style>
+  .mem-avatar { position: relative; }
+  .mem-avatar.recent { outline: 2px solid #60a5fa; outline-offset: -1px; }
+  .mem-avatar.raider { outline: 2px solid #f87171; outline-offset: -1px; }
+  .role-tag { display:inline-flex; align-items:center; gap:0.25rem; font-size:0.68rem; padding:0.12rem 0.45rem; border-radius:4px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); color:rgba(255,255,255,0.6); white-space:nowrap; }
+  .role-tag .role-x { display:none; cursor:pointer; color:rgba(255,255,255,0.35); }
+  .role-tag .role-x:hover { color:#f87171; }
+  .role-tag:hover .role-x { display:inline; }
+  .mem-edit { display:none; cursor:pointer; color:rgba(255,255,255,0.4); width:13px; height:13px; margin-left:4px; vertical-align:middle; }
+  .mem-edit:hover { color:#fff; }
+  .md-member-info:hover .mem-edit { display:inline; }
+</style>
 <script>
 const GID = window.__GUILD_ID;
 const api = (p, o) => fetch(`/api/v1/mod/${GID}${p}`, o||{}).then(r=>r.json());
+const memApi = (p, o) => fetch(`/api/v1/members/${GID}${p}`, o||{}).then(r=>r.json());
 const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
 
 let MEMBERS = [];
-let ROLE_MAP = {};
+let ROLE_MAP = {};       // id -> name
+let ROLE_POS = {};       // id -> position
+let BOT = { bot_top_role_position: 0, can_manage_nicknames: false, can_manage_roles: false };
+const RECENT_DAYS = 7;
 
 function fmtDate(iso) {
   if (!iso) return '—';
@@ -58,10 +95,21 @@ function fmtDate(iso) {
   return d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
 }
 
-function roleTags(roleIds) {
-  const names = (roleIds||[]).map(id => ROLE_MAP[id]).filter(Boolean).slice(0, 4);
-  if (!names.length) return '<span style="color:rgba(255,255,255,0.3);font-size:0.72rem;">None</span>';
-  return names.map(n => `<span style="font-size:0.68rem;padding:0.1rem 0.4rem;border-radius:999px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);white-space:nowrap;">${esc(n)}</span>`).join(' ');
+function isRecent(iso) {
+  if (!iso) return false;
+  const d = new Date(iso);
+  if (isNaN(d)) return false;
+  return (Date.now() - d.getTime()) < RECENT_DAYS * 86400000;
+}
+
+function memberTopRole(m) {
+  let top = 0;
+  (m.roles||[]).forEach(id => { const p = ROLE_POS[id]||0; if (p > top) top = p; });
+  return top;
+}
+
+function canManageMember(m) {
+  return BOT.bot_top_role_position > memberTopRole(m);
 }
 
 function renderMembers(filter) {
@@ -79,63 +127,110 @@ function renderMembers(filter) {
       <th style="text-align:left;padding:0.3rem 0.5rem;font-size:0.68rem;color:rgba(255,255,255,0.3);">Roles</th>
       <th style="text-align:left;padding:0.3rem 0.5rem;font-size:0.68rem;color:rgba(255,255,255,0.3);">Actions</th>
     </tr></thead><tbody>` +
-    rows.map((m, i) => `<tr>
+    rows.map((m, i) => {
+      const avatarCls = (m.is_raider ? ' raider' : '') + (isRecent(m.joined_at) ? ' recent' : '');
+      const manage = canManageMember(m);
+      return `<tr>
       <td style="padding:0.6rem 0.5rem;background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);border-left:1px solid rgba(255,255,255,0.06);border-radius:4px 0 0 4px;">
         <div class="md-member-info">
-          <div class="md-member-avatar"><img src="${esc(m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png'))}" style="width:100%;height:100%;object-fit:cover;" /></div>
+          <div class="md-member-avatar mem-avatar${avatarCls}"><img src="${esc(m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png'))}" style="width:100%;height:100%;object-fit:cover;" /></div>
           <div>
-            <div style="font-weight:700;font-size:0.82rem;color:#e9edf5;">${esc(m.display_name || m.name)}</div>
+            <div style="font-weight:700;font-size:0.82rem;color:#e9edf5;">${esc(m.display_name || m.name)}${manage && BOT.can_manage_nicknames ? '<svg class="mem-edit" data-edit-nick="'+i+'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.4-9.4a2.1 2.1 0 113 3L11 17l-4 1 1-4 9.6-9.6z"/></svg>' : ''}</div>
             <div style="font-size:0.68rem;color:rgba(255,255,255,0.3);">@${esc(m.name)}</div>
           </div>
         </div>
       </td>
-      <td style="padding:0.6rem 0.5rem;background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);font-size:0.76rem;color:rgba(255,255,255,0.5);white-space:nowrap;">${fmtDate(m.joined_at)}</td>
+      <td style="padding:0.6rem 0.5rem;background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);font-size:0.76rem;color:${isRecent(m.joined_at)?'#60a5fa':'rgba(255,255,255,0.5)'};white-space:nowrap;">${fmtDate(m.joined_at)}</td>
       <td style="padding:0.6rem 0.5rem;background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);">
-        <div style="display:flex;gap:0.25rem;flex-wrap:wrap;max-width:280px;">${roleTags(m.roles)}</div>
+        <div class="mem-roles" data-roles-col="${i}" style="display:flex;gap:0.25rem;flex-wrap:wrap;max-width:280px;align-items:center;">
+          ${(m.roles||[]).map(id => ROLE_MAP[id] ? `<span class="role-tag">${esc(ROLE_MAP[id])}${manage && BOT.can_manage_roles ? '<span class="role-x" data-remove-role="'+id+'" data-member="${i}" title="Remove role">✕</span>' : ''}</span>` : '').join('')}
+          ${manage && BOT.can_manage_roles ? '<span class="role-tag" data-add-role="${i}" style="cursor:pointer;color:rgba(255,255,255,0.35);font-weight:700;">+</span>' : ''}
+        </div>
       </td>
       <td style="padding:0.6rem 0.5rem;background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);border-right:1px solid rgba(255,255,255,0.06);border-radius:0 4px 4px 0;">
         <div class="md-actions-wrap"><button class="md-actions-btn" data-idx="${i}"><i data-lucide="chevron-down"></i> Actions</button></div>
       </td>
-    </tr>`).join('') + '</tbody></table>';
+    </tr>`;
+    }).join('') + '</tbody></table>';
   lucide.createIcons();
-  bindActionButtons();
+  bindEvents();
 }
 
-function bindActionButtons() {
+function bindEvents() {
   const overlay = document.getElementById('member-action-modal');
-  document.querySelectorAll('.md-actions-btn').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const m = MEMBERS[parseInt(btn.dataset.idx)];
-      document.getElementById('modal-user-name').textContent = m.display_name || m.name;
-      document.getElementById('modal-user-avatar').innerHTML = '<img src="' + esc(m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png')) + '" style="width:100%;height:100%;object-fit:cover;" />';
-      document.getElementById('action-reason').value = '';
-      overlay.classList.add('is-open');
-      overlay._member = m;
-    });
-  });
+  document.querySelectorAll('.md-actions-btn').forEach(btn => btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const m = MEMBERS[parseInt(btn.dataset.idx)];
+    document.getElementById('modal-user-name').textContent = m.display_name || m.name;
+    document.getElementById('modal-user-avatar').innerHTML = '<img src="' + esc(m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png')) + '" style="width:100%;height:100%;object-fit:cover;" />';
+    document.getElementById('action-reason').value = '';
+    overlay.classList.add('is-open'); overlay._member = m;
+  }));
+
+  // Edit nickname
+  document.querySelectorAll('[data-edit-nick]').forEach(icon => icon.addEventListener('click', e => {
+    e.stopPropagation();
+    const m = MEMBERS[parseInt(icon.dataset.editNick)];
+    document.getElementById('nickname-user').textContent = (m.display_name || m.name) + ' @' + m.name;
+    document.getElementById('nickname-input').value = m.display_name || '';
+    document.getElementById('nickname-modal').classList.add('is-open');
+    document.getElementById('nickname-modal')._member = m;
+  }));
+
+  // Remove role
+  document.querySelectorAll('[data-remove-role]').forEach(x => x.addEventListener('click', e => {
+    e.stopPropagation();
+    const m = MEMBERS[parseInt(x.dataset.member)];
+    queueAction({ action:'remove_role', user_id:m.id, user_name:m.name, target: x.dataset.removeRole });
+  }));
+
+  // Add role
+  document.querySelectorAll('[data-add-role]').forEach(btn => btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const m = MEMBERS[parseInt(btn.dataset.addRole)];
+    openAddRole(m);
+  }));
 }
 
-async function sendAction(action, duration) {
+function openAddRole(m) {
+  const list = document.getElementById('add-role-list');
+  document.getElementById('add-role-user').textContent = m.display_name || m.name;
+  const have = new Set(m.roles||[]);
+  const options = Object.entries(ROLE_MAP).filter(([id]) => !have.has(id));
+  list.innerHTML = options.length ? options.map(([id, name]) => `<button class="md-action-btn" data-add="${id}" style="justify-content:flex-start;">${esc(name)}</button>`).join('') : '<div style="text-align:center;padding:0.75rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No roles to add.</div>';
+  list.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => {
+    document.getElementById('add-role-modal').classList.remove('is-open');
+    queueAction({ action:'add_role', user_id:m.id, user_name:m.name, target: b.dataset.add });
+  }));
+  document.getElementById('add-role-modal')._member = m;
+  document.getElementById('add-role-modal').classList.add('is-open');
+}
+
+function queueAction(payload) {
+  fetch(`/api/v1/mod/${GID}/action`, { method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ action: payload.action, user_id: payload.user_id, user_name: payload.user_name, reason: '', duration: null, target: payload.target }) })
+    .then(r => r.json()).then(() => { if (typeof showToast==='function') showToast('Queued for the bot.','success'); })
+    .catch(() => { if (typeof showToast==='function') showToast('Failed to queue.','error'); });
+}
+
+function sendAction(action, duration) {
   const overlay = document.getElementById('member-action-modal');
   const m = overlay._member; if (!m) return;
   const reason = document.getElementById('action-reason').value;
   overlay.classList.remove('is-open');
-  try {
-    await fetch(`/api/v1/mod/${GID}/action`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action, user_id: m.id, user_name: m.name, reason, duration: duration || null}) });
-    if (typeof showToast==='function') showToast('Action queued for the bot.','success');
-  } catch { if (typeof showToast==='function') showToast('Failed to queue action.','error'); }
+  queueAction({ action, user_id:m.id, user_name:m.name, reason, duration, target:null });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  Promise.all([api('/members'), api('/roles')]).then(([md, rd]) => {
+  Promise.all([api('/members'), memApi('/roles'), memApi('/bot')]).then(([md, rd, bd]) => {
     MEMBERS = md.members || [];
-    (rd.roles||[]).forEach(r => ROLE_MAP[r.id] = r.name);
+    (rd.roles||[]).forEach(r => { ROLE_MAP[r.id] = r.name; ROLE_POS[r.id] = r.position||0; });
+    BOT = { bot_top_role_position: bd.bot_top_role_position||0, can_manage_nicknames: !!bd.can_manage_nicknames, can_manage_roles: !!bd.can_manage_roles };
     renderMembers('');
     document.getElementById('member-search').addEventListener('input', e => renderMembers(e.target.value));
   }).catch(() => document.getElementById('members-table-wrap').innerHTML = '<div style="text-align:center;padding:2.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load members.</div>');
 
-  // Modal events
+  // Modal wiring
   const overlay = document.getElementById('member-action-modal');
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('is-open'); });
   overlay.querySelector('.md-modal-close').addEventListener('click', () => overlay.classList.remove('is-open'));
@@ -143,6 +238,21 @@ document.addEventListener('DOMContentLoaded', () => {
   overlay.querySelectorAll('[data-dur]').forEach(b => b.addEventListener('click', () => sendAction('mute', b.dataset.dur)));
   document.getElementById('modal-kick').addEventListener('click', () => sendAction('kick'));
   document.getElementById('modal-ban').addEventListener('click', () => sendAction('ban'));
+
+  const addRoleModal = document.getElementById('add-role-modal');
+  addRoleModal.addEventListener('click', e => { if (e.target === addRoleModal) addRoleModal.classList.remove('is-open'); });
+  document.getElementById('add-role-cancel').addEventListener('click', () => addRoleModal.classList.remove('is-open'));
+
+  const nickModal = document.getElementById('nickname-modal');
+  nickModal.addEventListener('click', e => { if (e.target === nickModal) nickModal.classList.remove('is-open'); });
+  document.getElementById('nickname-cancel').addEventListener('click', () => nickModal.classList.remove('is-open'));
+  document.getElementById('nickname-save').addEventListener('click', () => {
+    const m = nickModal._member; if (!m) return;
+    const nick = document.getElementById('nickname-input').value;
+    nickModal.classList.remove('is-open');
+    queueAction({ action:'nickname', user_id:m.id, user_name:m.name, reason:'', duration:null, target:nick });
+  });
+  document.getElementById('nickname-input').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('nickname-save').click(); });
 });
 </script>
 {% endblock %}

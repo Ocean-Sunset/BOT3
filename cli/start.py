@@ -187,6 +187,22 @@ class ProwlBot(commands.Bot):
                             if not await cog._send_panel(guild, a["target_id"]):
                                 raise Exception("panel send failed")
                             reason = "Ticket panel sent"
+                        elif act in ("add_role", "remove_role"):
+                            role = guild.get_role(int(a["target_name"]))
+                            if not role:
+                                raise Exception("role not found")
+                            if not member:
+                                raise Exception("member not in guild")
+                            if act == "add_role":
+                                await member.add_roles(role, reason="Prowl dashboard")
+                            else:
+                                await member.remove_roles(role, reason="Prowl dashboard")
+                            reason = f"{'Added' if act=='add_role' else 'Removed'} role {role.name}"
+                        elif act == "nickname":
+                            if not member:
+                                raise Exception("member not in guild")
+                            await member.edit(nick=a["target_name"], reason="Prowl dashboard")
+                            reason = f"Nickname set to {a['target_name']}"
                         await neon_db.complete_action(a["id"], "completed")
                         logger.info(f"Processed action {a['id']}: {act} -> {a['target_id']} in {a['guild_id']} ({reason})")
                         # Log to mod_log only on actual success
@@ -260,11 +276,13 @@ class ProwlBot(commands.Bot):
                 "created_at": guild.created_at.isoformat(),
                 "owner_id": guild.owner_id,
                 "bot_top_role_position": guild.me.top_role.position if guild.me else 0,
+                "bot_permissions": (guild.me.guild_permissions.value if guild.me else 0),
                 "members": [{
                     "id": str(m.id), "name": m.name, "display_name": m.display_name,
                     "avatar_url": str(m.display_avatar.url),
                     "joined_at": m.joined_at.isoformat() if m.joined_at else None,
                     "roles": [str(r.id) for r in m.roles[1:]],
+                    "is_raider": False,
                 } for m in guild.members],
                 "channels": [{"id": str(c.id), "name": c.name, "type": c.type.value} for c in guild.channels],
                 "roles": [{"id": str(r.id), "name": r.name, "color": r.color.value, "position": r.position, "managed": r.managed, "count": len(r.members), "permissions": r.permissions.value} for r in guild.roles],

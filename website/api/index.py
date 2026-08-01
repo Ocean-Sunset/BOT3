@@ -1010,6 +1010,78 @@ async def mod_action(guild_id: str, request: Request):
     return {"ok": True, "queued": True}
 
 
+# ---------------------------------------------------------------------------
+#  Social Alerts API v1
+# ---------------------------------------------------------------------------
+
+SOCIAL_SETTINGS_DEFAULTS = {
+    "youtube_enabled": False, "youtube_channel_id": None, "youtube_ping_role": None,
+    "twitch_enabled": False, "twitch_channel": None, "twitch_ping_role": None,
+    "twitter_enabled": False, "twitter_handle": None, "twitter_ping_role": None,
+    "announce_channel_id": None,
+}
+
+
+async def _get_social_settings(guild_id: str):
+    row = await fetchrow("SELECT settings FROM social_settings WHERE guild_id = $1", str(guild_id))
+    if row:
+        settings = row["settings"]
+        if isinstance(settings, str):
+            try:
+                settings = json.loads(settings)
+            except (json.JSONDecodeError, TypeError):
+                return dict(SOCIAL_SETTINGS_DEFAULTS)
+        if isinstance(settings, dict):
+            return {**SOCIAL_SETTINGS_DEFAULTS, **settings}
+    return dict(SOCIAL_SETTINGS_DEFAULTS)
+
+
+@app.get("/api/v1/social/{guild_id}/settings")
+async def social_settings(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    return {"settings": await _get_social_settings(guild_id)}
+
+
+@app.post("/api/v1/social/{guild_id}/settings")
+async def social_settings_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    key = body.get("key")
+    value = body.get("value")
+    if not key:
+        return JSONResponse({"error": "missing key"}, status_code=400)
+    current = await _get_social_settings(guild_id)
+    current[key] = value
+    await execute(
+        "INSERT INTO social_settings (guild_id, settings) VALUES ($1, $2::jsonb) "
+        "ON CONFLICT (guild_id) DO UPDATE SET settings = $2::jsonb",
+        str(guild_id), json.dumps(current),
+    )
+    return {"ok": True}
+
+
+@app.get("/api/v1/social/{guild_id}/roles")
+async def social_roles(guild_id: str, request: Request):
+    """All roles for ping-role dropdowns."""
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "roles" in d:
+        return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
+    return {"roles": []}
+
+
+@app.get("/api/v1/social/{guild_id}/channels")
+async def social_channels(guild_id: str, request: Request):
+    """Text channels for the announce-channel dropdown."""
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "channels" in d:
+        return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
+    return {"channels": []}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("api.index:app", host="127.0.0.1", port=8000, reload=True)

@@ -1,1 +1,231 @@
-{% extends "dashboard/base.html" %}{% block content %}<div style="padding:2rem 0;"><div style="margin-bottom:1.25rem;"><h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Social Alerts</h1><p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Twitch, YouTube, Twitter, and more</p></div><div style="border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:1.25rem;background:rgba(255,255,255,0.015);text-align:center;"><p style="color:rgba(255,255,255,0.4);font-size:14px;font-weight:600;padding:4rem 0;">Coming soon.</p></div></div>{% endblock %}
+{% extends "dashboard/base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/moderation.css?v=5" />
+<div style="padding:2rem 0;">
+
+  <div style="margin-bottom:1.25rem;">
+    <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Social Alerts</h1>
+    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Post stream, upload, and tweet alerts to your server</p>
+  </div>
+
+  <div class="md-row">
+
+    <!-- Announce Channel -->
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Announce Channel</div>
+        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:0.6rem;line-height:1.5;">Where all social alerts are posted.</p>
+        <div class="md-custom-select" id="announce-select-wrap">
+          <button class="md-custom-select-btn" id="announce-select-btn">Select channel...</button>
+          <div class="md-custom-select-drop" id="announce-select-drop"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- YouTube -->
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">YouTube</div>
+          <label class="md-toggle"><input type="checkbox" data-key="youtube_enabled" /><span class="md-toggle-slider"></span></label>
+        </div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Channel ID</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">The YouTube channel ID to watch for uploads</div>
+              <input type="text" class="md-input" data-key="youtube_channel_id" placeholder="UCxxxxxxxxxxxxxxxxxxxxxx" />
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Ping Role</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Role to ping when a new video is posted</div>
+              <div class="md-custom-select" data-role-select="youtube_ping_role">
+                <button class="md-custom-select-btn">No role</button>
+                <div class="md-custom-select-drop"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Twitch -->
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">Twitch</div>
+          <label class="md-toggle"><input type="checkbox" data-key="twitch_enabled" /><span class="md-toggle-slider"></span></label>
+        </div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Channel Name</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">The Twitch channel name to watch for streams</div>
+              <input type="text" class="md-input" data-key="twitch_channel" placeholder="twitch_channel" />
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Ping Role</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Role to ping when a stream goes live</div>
+              <div class="md-custom-select" data-role-select="twitch_ping_role">
+                <button class="md-custom-select-btn">No role</button>
+                <div class="md-custom-select-drop"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Twitter/X -->
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">Twitter / X</div>
+          <label class="md-toggle"><input type="checkbox" data-key="twitter_enabled" /><span class="md-toggle-slider"></span></label>
+        </div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Handle</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Twitter/X handle to watch for posts</div>
+              <input type="text" class="md-input" data-key="twitter_handle" placeholder="username (no @)" />
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Ping Role</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Role to ping when a new post is made</div>
+              <div class="md-custom-select" data-role-select="twitter_ping_role">
+                <button class="md-custom-select-btn">No role</button>
+                <div class="md-custom-select-drop"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const GID = window.__GUILD_ID;
+const api = (path, opts) => fetch(`/api/v1/social/${GID}${path}`, opts||{}).then(r=>r.json());
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+
+const pending = {};
+const original = {};
+let SETTINGS_SNAPSHOT = {};
+const saveBar = document.getElementById('save-bar');
+const saveBtn = document.getElementById('save-btn');
+let saveTimer = null;
+
+function markChanged(key, value) {
+  if (!(key in original)) original[key] = (key in SETTINGS_SNAPSHOT) ? SETTINGS_SNAPSHOT[key] : !value;
+  pending[key] = value;
+  saveBar.classList.remove('is-closed');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
+}
+
+async function saveChanges() {
+  const keys = Object.keys(pending);
+  if (!keys.length) return;
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving...';
+  for (const key of keys) {
+    try {
+      await api('/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]}) });
+    } catch {}
+  }
+  for (const key of keys) delete pending[key];
+  saveBar.classList.add('is-closed');
+  saveBtn.disabled = false;
+  saveBtn.textContent = 'Save';
+  if (typeof showToast === 'function') showToast('Settings saved.', 'success');
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+
+  // ── Channels for announce dropdown ──
+  api('/channels').then(d => {
+    const btn = document.getElementById('announce-select-btn');
+    const drop = document.getElementById('announce-select-drop');
+    if (!d.channels || !drop) return;
+    drop.innerHTML = `<button class="md-custom-opt" data-id="">None</button>` + d.channels.map(c => `<button class="md-custom-opt" data-id="${c.id}">#${esc(c.name)}</button>`).join('');
+    drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+      btn.textContent = b.dataset.id ? b.textContent : 'None';
+      markChanged('announce_channel_id', b.dataset.id || null);
+      drop.classList.remove('is-open');
+    }));
+    btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+    document.addEventListener('click', (e) => { if(!e.target.closest('#announce-select-wrap')) drop.classList.remove('is-open'); });
+  });
+
+  // ── Roles for ping-role dropdowns ──
+  api('/roles').then(d => {
+    const roles = d.roles || [];
+    document.querySelectorAll('[data-role-select]').forEach(wrap => {
+      const key = wrap.dataset.roleSelect;
+      const btn = wrap.querySelector('.md-custom-select-btn');
+      const drop = wrap.querySelector('.md-custom-select-drop');
+      drop.innerHTML = `<button class="md-custom-opt" data-id="">No role</button>` + roles.map(r => `<button class="md-custom-opt" data-id="${r.id}">${esc(r.name)}</button>`).join('');
+      drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+        btn.textContent = b.dataset.id ? b.textContent : 'No role';
+        markChanged(key, b.dataset.id || null);
+        drop.classList.remove('is-open');
+      }));
+      btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+      document.addEventListener('click', (e) => { if(!e.target.closest(`[data-role-select="${key}"]`)) drop.classList.remove('is-open'); });
+    });
+  });
+
+  // ── Settings load + bind ──
+  api('/settings').then(d => {
+    const s = d.settings || {};
+    SETTINGS_SNAPSHOT = { ...s };
+    document.querySelectorAll('[data-key]').forEach(el => {
+      const key = el.dataset.key;
+      if (!(key in s)) return;
+      if (el.type === 'checkbox') el.checked = !!s[key];
+      else el.value = s[key] || '';
+    });
+    document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); }));
+    document.querySelectorAll('input[type="text"][data-key]').forEach(inp => inp.addEventListener('change', function(){ markChanged(this.dataset.key, this.value); }));
+
+    // Set dropdown button labels from saved values
+    if (s.announce_channel_id) {
+      const btn = document.getElementById('announce-select-btn');
+      const opt = document.querySelector(`#announce-select-drop .md-custom-opt[data-id="${s.announce_channel_id}"]`);
+      if (opt) btn.textContent = opt.textContent;
+    }
+    document.querySelectorAll('[data-role-select]').forEach(wrap => {
+      const key = wrap.dataset.roleSelect;
+      if (s[key]) {
+        const opt = wrap.querySelector(`.md-custom-opt[data-id="${s[key]}"]`);
+        if (opt) wrap.querySelector('.md-custom-select-btn').textContent = opt.textContent;
+      }
+    });
+  }).catch(() => {});
+
+  saveBtn.addEventListener('click', saveChanges);
+  document.getElementById('discard-btn').addEventListener('click', () => {
+    for (const key of Object.keys(pending)) {
+      const el = document.querySelector(`[data-key="${key}"]`);
+      if (el) {
+        if (el.type === 'checkbox') el.checked = original[key];
+        else el.value = original[key] ?? '';
+      }
+      delete original[key];
+    }
+    for (const key of Object.keys(pending)) delete pending[key];
+    saveBar.classList.add('is-closed');
+  });
+});
+</script>
+{% endblock %}

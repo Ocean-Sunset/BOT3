@@ -284,6 +284,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
                 ephemeral=True
             )
         settings = await get_social_settings(interaction.guild_id)
+        settings["youtube_enabled"] = True
         settings["youtube_channel_id"] = youtube_channel_id
         settings["youtube_ping_role"] = str(ping_role.id) if ping_role else None
         settings["youtube_announce_channel_id"] = str(announce_channel.id) if announce_channel else str(interaction.channel_id)
@@ -309,6 +310,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
                 ephemeral=True
             )
         settings = await get_social_settings(interaction.guild_id)
+        settings["twitch_enabled"] = True
         settings["twitch_channel"] = twitch_channel
         settings["twitch_ping_role"] = str(ping_role.id) if ping_role else None
         settings["twitch_announce_channel_id"] = str(announce_channel.id) if announce_channel else str(interaction.channel_id)
@@ -334,6 +336,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
                 ephemeral=True
             )
         settings = await get_social_settings(interaction.guild_id)
+        settings["twitter_enabled"] = True
         settings["twitter_handle"] = handle.lstrip("@")
         settings["twitter_ping_role"] = str(ping_role.id) if ping_role else None
         settings["twitter_announce_channel_id"] = str(announce_channel.id) if announce_channel else str(interaction.channel_id)
@@ -392,14 +395,17 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
             )
         settings = await get_social_settings(interaction.guild_id)
         if platform in ("youtube", "all"):
+            settings["youtube_enabled"] = False
             settings["youtube_channel_id"] = None
             settings["youtube_ping_role"] = None
             settings["youtube_announce_channel_id"] = None
         if platform in ("twitch", "all"):
+            settings["twitch_enabled"] = False
             settings["twitch_channel"] = None
             settings["twitch_ping_role"] = None
             settings["twitch_announce_channel_id"] = None
         if platform in ("twitter", "all"):
+            settings["twitter_enabled"] = False
             settings["twitter_handle"] = None
             settings["twitter_ping_role"] = None
             settings["twitter_announce_channel_id"] = None

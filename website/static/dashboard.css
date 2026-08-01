@@ -558,11 +558,11 @@ button, .save-btn, .discard-btn {
   border: none;
   cursor: pointer;
   background: rgba(255,255,255,0.1);
-  color: #e9edf5;
+  color: #b0b1b4;
   transition: all 0.15s;
 }
-.save-btn:hover { background: rgba(255,255,255,0.15); }
-.save-btn:disabled { opacity: 0.4; cursor: default; }
+.save-btn:hover { background: rgba(255,255,255,1); }
+.save-btn:disabled { opacity: 0.6; cursor: default; }
 
 
 

@@ -260,7 +260,12 @@ class ProwlBot(commands.Bot):
                 "created_at": guild.created_at.isoformat(),
                 "owner_id": guild.owner_id,
                 "bot_top_role_position": guild.me.top_role.position if guild.me else 0,
-                "members": [{"id": str(m.id), "name": m.name, "display_name": m.display_name, "avatar_url": str(m.display_avatar.url)} for m in guild.members],
+                "members": [{
+                    "id": str(m.id), "name": m.name, "display_name": m.display_name,
+                    "avatar_url": str(m.display_avatar.url),
+                    "joined_at": m.joined_at.isoformat() if m.joined_at else None,
+                    "roles": [str(r.id) for r in m.roles[1:]],
+                } for m in guild.members],
                 "channels": [{"id": str(c.id), "name": c.name, "type": c.type.value} for c in guild.channels],
                 "roles": [{"id": str(r.id), "name": r.name, "color": r.color.value, "position": r.position, "managed": r.managed, "count": len(r.members), "permissions": r.permissions.value} for r in guild.roles],
             })

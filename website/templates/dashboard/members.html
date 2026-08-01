@@ -3,72 +3,146 @@
 <link rel="stylesheet" href="/static/moderation.css?v=7" />
 <div style="padding:2rem 0;">
 
-  <div style="margin-bottom:1.25rem;">
-    <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Members</h1>
-    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">View and manage server members</p>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem;">
+    <div>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Users</h1>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">All server members with quick actions</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.5rem;">
+      <input type="text" class="md-input" id="member-search" placeholder="Search members..." style="width:220px;" />
+    </div>
   </div>
 
-  <div class="md-row">
-
-    <div class="md-section">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Server Stats</div>
-        <div style="display:flex;flex-direction:column;gap:0.5rem;">
-          <div class="md-behavior-item" style="justify-content:space-between;">
-            <span style="font-size:0.8rem;color:rgba(255,255,255,0.5);">Total Members</span>
-            <span style="font-size:0.8rem;font-weight:700;" id="stat-total">—</span>
-          </div>
-          <div class="md-behavior-item" style="justify-content:space-between;">
-            <span style="font-size:0.8rem;color:rgba(255,255,255,0.5);">Online</span>
-            <span style="font-size:0.8rem;font-weight:700;color:#36d399;" id="stat-online">—</span>
-          </div>
-          <div class="md-behavior-item" style="justify-content:space-between;">
-            <span style="font-size:0.8rem;color:rgba(255,255,255,0.5);">Roles</span>
-            <span style="font-size:0.8rem;font-weight:700;" id="stat-roles">—</span>
-          </div>
-        </div>
-      </div>
+  <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+    <div id="members-table-wrap">
+      <div style="text-align:center;padding:2.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
     </div>
-
-    <div class="md-section">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Top Roles</div>
-        <div id="top-roles" style="display:flex;flex-direction:column;gap:0.3rem;">
-          <div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="md-section">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Quick Actions</div>
-        <div style="display:flex;flex-direction:column;gap:0.5rem;">
-          <p style="font-size:0.8rem;color:rgba(255,255,255,0.4);line-height:1.5;">Use Discord's built-in member list for full member management. The commands below are available:</p>
-          <div style="display:flex;flex-wrap:wrap;gap:0.25rem;font-size:0.72rem;color:rgba(255,255,255,0.35);">
-            <code style="background:rgba(255,255,255,0.04);padding:0.15rem 0.4rem;border-radius:3px;">/members list</code>
-            <code style="background:rgba(255,255,255,0.04);padding:0.15rem 0.4rem;border-radius:3px;">/members info</code>
-            <code style="background:rgba(255,255,255,0.04);padding:0.15rem 0.4rem;border-radius:3px;">/members role</code>
-            <code style="background:rgba(255,255,255,0.04);padding:0.15rem 0.4rem;border-radius:3px;">/members nickname</code>
-            <code style="background:rgba(255,255,255,0.04);padding:0.15rem 0.4rem;border-radius:3px;">/members move</code>
-          </div>
-        </div>
-      </div>
-    </div>
-
   </div>
+
+  <!-- Action modal -->
+  <div class="md-modal-overlay" id="member-action-modal">
+    <div class="md-modal">
+      <h3>Actions</h3>
+      <div class="md-member-info" style="margin:0.25rem 0 0.75rem;"><div class="md-member-avatar" id="modal-user-avatar" style="width:36px;height:36px;"></div><span class="md-member-name" id="modal-user-name"></span></div>
+      <input type="text" placeholder="Reason (optional)" id="action-reason" />
+      <div class="md-popover-label">Mute duration</div>
+      <div class="md-popover-row">
+        <button class="md-action-btn" data-dur="10">10m</button>
+        <button class="md-action-btn" data-dur="60">1h</button>
+        <button class="md-action-btn" data-dur="1440">1d</button>
+      </div>
+      <div class="md-popover-label">Mod actions</div>
+      <div class="md-popover-row">
+        <button class="md-action-btn warn" id="modal-kick"><i data-lucide="log-out"></i> Kick</button>
+        <button class="md-action-btn danger" id="modal-ban"><i data-lucide="ban"></i> Ban</button>
+      </div>
+      <button class="md-modal-close">Cancel</button>
+    </div>
+  </div>
+
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
 const GID = window.__GUILD_ID;
-fetch(`/api/v1/mod/${GID}/debug`).then(r=>r.json()).then(d => {
-  document.getElementById('stat-total').textContent = d.member_count || (window.__GUILD ? window.__GUILD.approximate_member_count : null) || '—';
-}).catch(() => {});
-fetch(`/api/v1/mod/${GID}/roles`).then(r=>r.json()).then(d => {
-  const roles = (d.roles||[]).filter(r=>!r.disabled).sort((a,b)=>(b.count||0)-(a.count||0)).slice(0,8);
-  const el = document.getElementById('top-roles');
-  if (!roles.length) { el.innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No roles loaded.</div>'; return; }
-  el.innerHTML = roles.map(r => `<div class="md-behavior-item" style="justify-content:space-between;"><span style="font-size:0.8rem;font-weight:600;color:rgba(255,255,255,0.7);">${r.name}</span><span style="font-size:0.75rem;color:rgba(255,255,255,0.35);">${r.count||0} members</span></div>`).join('');
-}).catch(() => {});
+const api = (p, o) => fetch(`/api/v1/mod/${GID}${p}`, o||{}).then(r=>r.json());
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+
+let MEMBERS = [];
+let ROLE_MAP = {};
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d)) return '—';
+  return d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
+}
+
+function roleTags(roleIds) {
+  const names = (roleIds||[]).map(id => ROLE_MAP[id]).filter(Boolean).slice(0, 4);
+  if (!names.length) return '<span style="color:rgba(255,255,255,0.3);font-size:0.72rem;">None</span>';
+  return names.map(n => `<span style="font-size:0.68rem;padding:0.1rem 0.4rem;border-radius:999px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);white-space:nowrap;">${esc(n)}</span>`).join(' ');
+}
+
+function renderMembers(filter) {
+  const wrap = document.getElementById('members-table-wrap');
+  const q = (filter||'').toLowerCase().trim();
+  const rows = MEMBERS.filter(m => !q || (m.name||'').toLowerCase().includes(q) || (m.display_name||'').toLowerCase().includes(q));
+  if (!rows.length) {
+    wrap.innerHTML = '<div style="text-align:center;padding:2.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">' + (q ? 'No members match your search.' : 'No members loaded.') + '</div>';
+    return;
+  }
+  wrap.innerHTML = `<table class="md-member-table" style="width:100%;border-collapse:separate;border-spacing:0 0.4rem;">
+    <thead><tr>
+      <th style="text-align:left;padding:0.3rem 0.5rem;font-size:0.68rem;color:rgba(255,255,255,0.3);">Member</th>
+      <th style="text-align:left;padding:0.3rem 0.5rem;font-size:0.68rem;color:rgba(255,255,255,0.3);">Joined</th>
+      <th style="text-align:left;padding:0.3rem 0.5rem;font-size:0.68rem;color:rgba(255,255,255,0.3);">Roles</th>
+      <th style="text-align:left;padding:0.3rem 0.5rem;font-size:0.68rem;color:rgba(255,255,255,0.3);">Actions</th>
+    </tr></thead><tbody>` +
+    rows.map((m, i) => `<tr>
+      <td style="padding:0.6rem 0.5rem;background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);border-left:1px solid rgba(255,255,255,0.06);border-radius:4px 0 0 4px;">
+        <div class="md-member-info">
+          <div class="md-member-avatar"><img src="${esc(m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png'))}" style="width:100%;height:100%;object-fit:cover;" /></div>
+          <div>
+            <div style="font-weight:700;font-size:0.82rem;color:#e9edf5;">${esc(m.display_name || m.name)}</div>
+            <div style="font-size:0.68rem;color:rgba(255,255,255,0.3);">@${esc(m.name)}</div>
+          </div>
+        </div>
+      </td>
+      <td style="padding:0.6rem 0.5rem;background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);font-size:0.76rem;color:rgba(255,255,255,0.5);white-space:nowrap;">${fmtDate(m.joined_at)}</td>
+      <td style="padding:0.6rem 0.5rem;background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);">
+        <div style="display:flex;gap:0.25rem;flex-wrap:wrap;max-width:280px;">${roleTags(m.roles)}</div>
+      </td>
+      <td style="padding:0.6rem 0.5rem;background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);border-right:1px solid rgba(255,255,255,0.06);border-radius:0 4px 4px 0;">
+        <div class="md-actions-wrap"><button class="md-actions-btn" data-idx="${i}"><i data-lucide="chevron-down"></i> Actions</button></div>
+      </td>
+    </tr>`).join('') + '</tbody></table>';
+  lucide.createIcons();
+  bindActionButtons();
+}
+
+function bindActionButtons() {
+  const overlay = document.getElementById('member-action-modal');
+  document.querySelectorAll('.md-actions-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const m = MEMBERS[parseInt(btn.dataset.idx)];
+      document.getElementById('modal-user-name').textContent = m.display_name || m.name;
+      document.getElementById('modal-user-avatar').innerHTML = '<img src="' + esc(m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png')) + '" style="width:100%;height:100%;object-fit:cover;" />';
+      document.getElementById('action-reason').value = '';
+      overlay.classList.add('is-open');
+      overlay._member = m;
+    });
+  });
+}
+
+async function sendAction(action, duration) {
+  const overlay = document.getElementById('member-action-modal');
+  const m = overlay._member; if (!m) return;
+  const reason = document.getElementById('action-reason').value;
+  overlay.classList.remove('is-open');
+  try {
+    await fetch(`/api/v1/mod/${GID}/action`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action, user_id: m.id, user_name: m.name, reason, duration: duration || null}) });
+    if (typeof showToast==='function') showToast('Action queued for the bot.','success');
+  } catch { if (typeof showToast==='function') showToast('Failed to queue action.','error'); }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  Promise.all([api('/members'), api('/roles')]).then(([md, rd]) => {
+    MEMBERS = md.members || [];
+    (rd.roles||[]).forEach(r => ROLE_MAP[r.id] = r.name);
+    renderMembers('');
+    document.getElementById('member-search').addEventListener('input', e => renderMembers(e.target.value));
+  }).catch(() => document.getElementById('members-table-wrap').innerHTML = '<div style="text-align:center;padding:2.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load members.</div>');
+
+  // Modal events
+  const overlay = document.getElementById('member-action-modal');
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('is-open'); });
+  overlay.querySelector('.md-modal-close').addEventListener('click', () => overlay.classList.remove('is-open'));
+  document.getElementById('action-reason').addEventListener('keydown', e => { if (e.key === 'Escape') overlay.classList.remove('is-open'); });
+  overlay.querySelectorAll('[data-dur]').forEach(b => b.addEventListener('click', () => sendAction('mute', b.dataset.dur)));
+  document.getElementById('modal-kick').addEventListener('click', () => sendAction('kick'));
+  document.getElementById('modal-ban').addEventListener('click', () => sendAction('ban'));
+});
 </script>
 {% endblock %}

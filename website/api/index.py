@@ -871,7 +871,10 @@ async def mod_members(guild_id: str, request: Request):
     d = _parse_guild_data(row)
     if d and "members" in d:
         # Filter out the bot (bot user ID is in config); coerce IDs to strings
-        return {"members": [{"id": str(m.get("id")), "name": m.get("name", ""), "display_name": m.get("display_name", ""), "avatar_url": m.get("avatar_url")} for m in d["members"] if str(m.get("id", "")) != _cfg().get("CLIENT_ID")]}
+        return {"members": [{
+            "id": str(m.get("id")), "name": m.get("name", ""), "display_name": m.get("display_name", ""),
+            "avatar_url": m.get("avatar_url"), "joined_at": m.get("joined_at"), "roles": m.get("roles") or [],
+        } for m in d["members"] if str(m.get("id", "")) != _cfg().get("CLIENT_ID")]}
     return {"members": [
         {"id":"1001","name":"Alice","avatar_url":"https://cdn.discordapp.com/embed/avatars/0.png"},
         {"id":"1002","name":"Bob","avatar_url":"https://cdn.discordapp.com/embed/avatars/1.png"},
@@ -1419,6 +1422,17 @@ async def verify_roles(guild_id: str, request: Request):
     d = _parse_guild_data(row)
     if d and "roles" in d:
         return {"roles": [{"id": str(r.get("id")), "name": r.get("name")} for r in d["roles"]]}
+    return {"roles": []}
+
+
+@app.get("/api/v1/members/{guild_id}/roles")
+async def members_roles(guild_id: str, request: Request):
+    """All roles (unfiltered) for mapping member role IDs to names."""
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "roles" in d:
+        return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
     return {"roles": []}
 
 

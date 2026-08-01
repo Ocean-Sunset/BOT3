@@ -1,1 +1,272 @@
-{% extends "dashboard/base.html" %}{% block content %}<div style="padding:2rem 0;"><div style="margin-bottom:1.25rem;"><h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Tickets</h1><p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Support ticket system configuration</p></div><div style="border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:1.25rem;background:rgba(255,255,255,0.015);text-align:center;"><p style="color:rgba(255,255,255,0.4);font-size:14px;font-weight:600;padding:4rem 0;">Coming soon.</p></div></div>{% endblock %}
+{% extends "dashboard/base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/moderation.css?v=6" />
+<div style="padding:2rem 0;">
+
+  <div style="margin-bottom:1.25rem;">
+    <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Tickets</h1>
+    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Support ticket system configuration</p>
+  </div>
+
+  <div class="md-row">
+
+    <!-- Enable -->
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <div>
+            <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">Ticket System</div>
+            <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-top:2px;">Enable or disable the ticket system for this server</div>
+          </div>
+          <label class="md-toggle"><input type="checkbox" data-key="enabled" /><span class="md-toggle-slider"></span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category -->
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Ticket Category</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Category where ticket channels are created</div>
+              <div class="md-custom-select" data-category-select>
+                <button class="md-custom-select-btn">No category</button>
+                <div class="md-custom-select-drop"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Support Role -->
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Support Role</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Role that can view and reply to tickets</div>
+              <div class="md-custom-select" data-role-select="support_role_id">
+                <button class="md-custom-select-btn">No role</button>
+                <div class="md-custom-select-drop"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log Channel -->
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Log Channel</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Channel where ticket transcripts are posted</div>
+              <div class="md-custom-select" data-channel-select="log_channel_id">
+                <button class="md-custom-select-btn">No channel</button>
+                <div class="md-custom-select-drop"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Welcome Message -->
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Welcome Message</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Message shown when a ticket is opened</div>
+              <input type="text" class="md-input" data-key="welcome_message" placeholder="Support will be with you shortly." />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ticket Limit -->
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Ticket Limit</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Max open tickets a user can have at once</div>
+              <input type="number" class="md-input" data-key="ticket_limit" min="1" placeholder="3" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Auto-Close -->
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Auto-Close</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Auto-close idle tickets after hours (0 = never)</div>
+              <input type="number" class="md-input" data-key="auto_close_hours" min="0" placeholder="0" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const GID = window.__GUILD_ID;
+const api = (path, opts) => fetch(`/api/v1/tickets/${GID}${path}`, opts||{}).then(r=>r.json());
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+
+const pending = {};
+const original = {};
+let SETTINGS_SNAPSHOT = {};
+const saveBar = document.getElementById('save-bar');
+const saveBtn = document.getElementById('save-btn');
+let saveTimer = null;
+
+function markChanged(key, value) {
+  if (!(key in original)) original[key] = (key in SETTINGS_SNAPSHOT) ? SETTINGS_SNAPSHOT[key] : !value;
+  pending[key] = value;
+  saveBar.classList.remove('is-closed');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
+}
+
+async function saveChanges() {
+  const keys = Object.keys(pending);
+  if (!keys.length) return;
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving...';
+  for (const key of keys) {
+    try {
+      const r = await fetch(`/api/v1/tickets/${GID}/settings`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]}) });
+      if (!r.ok) {
+        const j = await r.json().catch(()=>({}));
+        if (typeof showToast === 'function') showToast(j.error || 'Server rejected a setting.', 'error');
+      }
+    } catch {}
+  }
+  for (const key of keys) delete pending[key];
+  saveBar.classList.add('is-closed');
+  saveBtn.disabled = false;
+  saveBtn.textContent = 'Save';
+  if (typeof showToast === 'function') showToast('Settings saved.', 'success');
+}
+
+function resetDropdowns() {
+  document.querySelectorAll('[data-role-select], [data-channel-select], [data-category-select]').forEach(wrap => {
+    const key = wrap.dataset.roleSelect || wrap.dataset.channelSelect || 'category_id';
+    const btn = wrap.querySelector('.md-custom-select-btn');
+    if (!btn) return;
+    const saved = SETTINGS_SNAPSHOT[key];
+    if (saved) {
+      const opt = wrap.querySelector(`.md-custom-opt[data-id="${saved}"]`);
+      btn.textContent = opt ? opt.textContent : 'None';
+    } else {
+      btn.textContent = key === 'category_id' ? 'No category' : (key.includes('channel') ? 'No channel' : 'No role');
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+
+  // ── Categories ──
+  api('/categories').then(d => {
+    const cats = d.categories || [];
+    const wrap = document.querySelector('[data-category-select]');
+    if (!wrap) return;
+    const btn = wrap.querySelector('.md-custom-select-btn');
+    const drop = wrap.querySelector('.md-custom-select-drop');
+    drop.innerHTML = `<button class="md-custom-opt" data-id="">No category</button>` + cats.map(c => `<button class="md-custom-opt" data-id="${c.id}">${esc(c.name)}</button>`).join('');
+    drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+      btn.textContent = b.dataset.id ? b.textContent : 'No category';
+      markChanged('category_id', b.dataset.id || null);
+      drop.classList.remove('is-open');
+    }));
+    btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+    document.addEventListener('click', (e) => { if(!e.target.closest('[data-category-select]')) drop.classList.remove('is-open'); });
+  });
+
+  // ── Channels ──
+  api('/channels').then(d => {
+    const channels = d.channels || [];
+    const wrap = document.querySelector('[data-channel-select="log_channel_id"]');
+    if (!wrap) return;
+    const btn = wrap.querySelector('.md-custom-select-btn');
+    const drop = wrap.querySelector('.md-custom-select-drop');
+    drop.innerHTML = `<button class="md-custom-opt" data-id="">No channel</button>` + channels.map(c => `<button class="md-custom-opt" data-id="${c.id}">#${esc(c.name)}</button>`).join('');
+    drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+      btn.textContent = b.dataset.id ? b.textContent : 'No channel';
+      markChanged('log_channel_id', b.dataset.id || null);
+      drop.classList.remove('is-open');
+    }));
+    btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+    document.addEventListener('click', (e) => { if(!e.target.closest('[data-channel-select]')) drop.classList.remove('is-open'); });
+  });
+
+  // ── Roles ──
+  api('/roles').then(d => {
+    const roles = d.roles || [];
+    const wrap = document.querySelector('[data-role-select="support_role_id"]');
+    if (!wrap) return;
+    const btn = wrap.querySelector('.md-custom-select-btn');
+    const drop = wrap.querySelector('.md-custom-select-drop');
+    drop.innerHTML = `<button class="md-custom-opt" data-id="">No role</button>` + roles.map(r => `<button class="md-custom-opt" data-id="${r.id}">${esc(r.name)}</button>`).join('');
+    drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+      btn.textContent = b.dataset.id ? b.textContent : 'No role';
+      markChanged('support_role_id', b.dataset.id || null);
+      drop.classList.remove('is-open');
+    }));
+    btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+    document.addEventListener('click', (e) => { if(!e.target.closest('[data-role-select]')) drop.classList.remove('is-open'); });
+  });
+
+  // ── Settings load + bind ──
+  api('/settings').then(d => {
+    const s = d.settings || {};
+    SETTINGS_SNAPSHOT = { ...s };
+    document.querySelectorAll('[data-key]').forEach(el => {
+      const key = el.dataset.key;
+      if (!(key in s)) return;
+      if (el.type === 'checkbox') el.checked = !!s[key];
+      else el.value = s[key] ?? '';
+    });
+    document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); }));
+    document.querySelectorAll('input[type="text"][data-key], input[type="number"][data-key]').forEach(inp => inp.addEventListener('change', function(){
+      const v = inp.type === 'number' ? (parseInt(inp.value) || 0) : inp.value;
+      markChanged(this.dataset.key, v);
+    }));
+    resetDropdowns();
+  }).catch(() => {});
+
+  saveBtn.addEventListener('click', saveChanges);
+  document.getElementById('discard-btn').addEventListener('click', () => {
+    for (const key of Object.keys(pending)) {
+      const el = document.querySelector(`[data-key="${key}"]`);
+      if (el) {
+        if (el.type === 'checkbox') el.checked = original[key];
+        else el.value = original[key] ?? '';
+      }
+      delete original[key];
+    }
+    for (const key of Object.keys(pending)) delete pending[key];
+    saveBar.classList.add('is-closed');
+    resetDropdowns();
+  });
+});
+</script>
+{% endblock %}

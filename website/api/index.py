@@ -1187,6 +1187,88 @@ async def social_channels(guild_id: str, request: Request):
     return {"channels": []}
 
 
+# ---------------------------------------------------------------------------
+#  Tickets API v1
+# ---------------------------------------------------------------------------
+
+TICKET_SETTINGS_DEFAULTS = {
+    "enabled": False,
+    "category_id": None,
+    "support_role_id": None,
+    "log_channel_id": None,
+    "welcome_message": "Support will be with you shortly. Please describe your issue.",
+    "ticket_limit": 3,
+    "auto_close_hours": 0,
+}
+
+
+async def _get_ticket_settings(guild_id: str):
+    row = await fetchrow("SELECT settings FROM ticket_settings WHERE guild_id = $1", str(guild_id))
+    if row:
+        settings = row["settings"]
+        if isinstance(settings, str):
+            try:
+                settings = json.loads(settings)
+            except (json.JSONDecodeError, TypeError):
+                return dict(TICKET_SETTINGS_DEFAULTS)
+        if isinstance(settings, dict):
+            return {**TICKET_SETTINGS_DEFAULTS, **settings}
+    return dict(TICKET_SETTINGS_DEFAULTS)
+
+
+@app.get("/api/v1/tickets/{guild_id}/settings")
+async def ticket_settings(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    return {"settings": await _get_ticket_settings(guild_id)}
+
+
+@app.post("/api/v1/tickets/{guild_id}/settings")
+async def ticket_settings_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    key = body.get("key")
+    value = body.get("value")
+    if not key:
+        return JSONResponse({"error": "missing key"}, status_code=400)
+    err = await _save_settings("ticket_settings", str(guild_id), key, value, TICKET_SETTINGS_DEFAULTS)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    return {"ok": True}
+
+
+@app.get("/api/v1/tickets/{guild_id}/categories")
+async def ticket_categories(guild_id: str, request: Request):
+    """Categories for the ticket category dropdown."""
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "channels" in d:
+        return {"categories": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 4]}
+    return {"categories": []}
+
+
+@app.get("/api/v1/tickets/{guild_id}/channels")
+async def ticket_channels(guild_id: str, request: Request):
+    """Text channels for the log-channel dropdown."""
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "channels" in d:
+        return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
+    return {"channels": []}
+
+
+@app.get("/api/v1/tickets/{guild_id}/roles")
+async def ticket_roles(guild_id: str, request: Request):
+    """All roles for the support-role dropdown."""
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "roles" in d:
+        return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
+    return {"roles": []}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("api.index:app", host="127.0.0.1", port=8000, reload=True)

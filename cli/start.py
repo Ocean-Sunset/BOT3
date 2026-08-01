@@ -100,7 +100,7 @@ class ProwlBot(commands.Bot):
                 await self._push_to_neon()
             except Exception as e:
                 logger.error(f"Neon sync failed: {e}")
-            await asyncio.sleep(300)
+            await asyncio.sleep(120)
 
     async def _mod_settings_poller(self):
         """Watch mod_settings for changes and log them (e.g. role promoted to admin)."""

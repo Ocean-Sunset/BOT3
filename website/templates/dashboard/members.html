@@ -5,14 +5,17 @@
   .mem-avatar { position: relative; }
   .mem-avatar.recent { outline: 2px solid #60a5fa; outline-offset: -1px; }
   .mem-avatar.raider { outline: 2px solid #f87171; outline-offset: -1px; }
-  .mem-name { position: relative; display: inline-flex; align-items: center; }
-  .mem-edit { position:absolute; right:-18px; top:50%; transform:translateY(-50%); cursor:pointer; color:rgba(255,255,255,0.4); width:13px; height:13px; display:none; }
+  .mem-name { position: relative; display: inline-flex; align-items: center; padding-right: 18px; }
+  .mem-edit { position:absolute; right:2px; top:50%; transform:translateY(-50%); cursor:pointer; color:rgba(255,255,255,0.4); width:13px; height:13px; display:none; }
   .mem-edit:hover { color:#fff; }
   .mem-name:hover .mem-edit { display:block; }
   .role-tag { display:inline-flex; align-items:center; gap:0.25rem; font-size:0.68rem; padding:0.12rem 0.45rem; border-radius:4px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); color:rgba(255,255,255,0.6); white-space:nowrap; }
   .role-tag .role-x { display:none; cursor:pointer; color:rgba(255,255,255,0.35); }
   .role-tag .role-x:hover { color:#f87171; }
   .role-tag:hover .role-x { display:inline; }
+  #add-role-list::-webkit-scrollbar { width:4px; }
+  #add-role-list::-webkit-scrollbar-track { background:transparent; }
+  #add-role-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.08); border-radius:999px; }
 </style>
 <div style="padding:2rem 0;">
 
@@ -222,8 +225,18 @@ function sendAction(action, duration) {
 }
 
 function refreshMembers() {
-  api('/members').then(d => { MEMBERS = d.members || []; renderMembers(); }).catch(() => {});
+  api('/members').then(d => {
+    const next = d.members || [];
+    const sig = JSON.stringify(next.map(m => [m.id, m.display_name, m.roles].join('|')));
+    if (sig === lastSig) return;
+    lastSig = sig;
+    MEMBERS = next;
+    renderMembers();
+  }).catch(() => {});
 }
+let lastSig = '';
+
+setInterval(refreshMembers, 30000);
 
 document.addEventListener('DOMContentLoaded', () => {
   Promise.all([api('/members'), memApi('/roles'), memApi('/bot')]).then(([md, rd, bd]) => {

@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import json
 import re
+import datetime
 from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
@@ -13,24 +14,25 @@ class Autoresponder(commands.Cog, name="Autoresponder"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.triggers = {}
+        self.cooldowns = {}
 
     async def load_triggers(self, guild_id: int):
         pool = await neon_db.get_pool()
         if not pool:
             return []
         rows = await pool.fetch(
-            "SELECT trigger, response, match_type FROM autoresponder WHERE guild_id = $1 ORDER BY created_at ASC",
+            "SELECT id, trigger, response, match_type, channel_id, cooldown FROM autoresponder WHERE guild_id = $1 ORDER BY created_at ASC",
             str(guild_id),
         )
-        return [{"trigger": r["trigger"], "response": r["response"], "match_type": r["match_type"]} for r in rows]
+        return [dict(r) for r in rows]
 
-    async def save_trigger(self, guild_id: int, trigger: str, response: str, match_type: str):
+    async def save_trigger(self, guild_id: int, trigger: str, response: str, match_type: str, channel_id: str = None, cooldown: int = 0):
         pool = await neon_db.get_pool()
         if not pool:
             return
         await pool.execute(
-            "INSERT INTO autoresponder (guild_id, trigger, response, match_type) VALUES ($1, $2, $3, $4)",
-            str(guild_id), trigger, response, match_type,
+            "INSERT INTO autoresponder (guild_id, trigger, response, match_type, channel_id, cooldown) VALUES ($1, $2, $3, $4, $5, $6)",
+            str(guild_id), trigger, response, match_type, channel_id, cooldown,
         )
 
     async def remove_trigger(self, guild_id: int, trigger: str):
@@ -47,43 +49,119 @@ class Autoresponder(commands.Cog, name="Autoresponder"):
             return
         triggers = await self.load_triggers(message.guild.id)
         for t in triggers:
+            channel_id = t.get("channel_id")
+            if channel_id and str(message.channel.id) != str(channel_id):
+                continue
+
+            cooldown = t.get("cooldown", 0)
+            if cooldown > 0:
+                key = (message.guild.id, t["trigger"])
+                last = self.cooldowns.get(key, 0)
+                now = datetime.datetime.utcnow().timestamp()
+                if now - last < cooldown:
+                    continue
+                self.cooldowns[key] = now
+
+            matched = False
             if t["match_type"] == "exact" and message.content.lower() == t["trigger"].lower():
-                await message.channel.send(t["response"])
+                matched = True
             elif t["match_type"] == "contains" and t["trigger"].lower() in message.content.lower():
-                await message.channel.send(t["response"])
+                matched = True
             elif t["match_type"] == "regex":
                 try:
                     if re.search(t["trigger"], message.content, re.IGNORECASE):
-                        await message.channel.send(t["response"])
-                except:
+                        matched = True
+                except re.error:
                     pass
+
+            if matched:
+                try:
+                    await message.channel.send(t["response"])
+                except Exception as e:
+                    logger.warning(f"Autoresponder failed to send: {e}")
 
     autoresponder_group = app_commands.Group(name="autoresponder", description="Auto-response commands")
 
     @autoresponder_group.command(name="add", description="Add an auto-response trigger")
-    @app_commands.describe(trigger="The word or phrase to trigger on", response="The bot's response", match_type="How to match (exact, contains, regex)")
-    @app_commands.choices(match_type=[app_commands.Choice(name="Exact match", value="exact"), app_commands.Choice(name="Contains", value="contains"), app_commands.Choice(name="Regex", value="regex")])
-    async def add(self, interaction: discord.Interaction, trigger: str, response: str, match_type: str = "contains"):
+    @app_commands.describe(
+        trigger="The word or phrase to trigger on",
+        response="The bot's response",
+        match_type="How to match",
+        channel="Restrict to a specific channel (optional)",
+        cooldown="Cooldown in seconds (0 for none)"
+    )
+    @app_commands.choices(match_type=[
+        app_commands.Choice(name="Exact match", value="exact"),
+        app_commands.Choice(name="Contains", value="contains"),
+        app_commands.Choice(name="Regex", value="regex")
+    ])
+    async def add(self, interaction: discord.Interaction, trigger: str, response: str, match_type: str = "contains", channel: discord.TextChannel = None, cooldown: int = 0):
         if not interaction.user.guild_permissions.manage_guild:
-            return await interaction.response.send_message("You need Manage Server permission.", ephemeral=True)
-        await self.save_trigger(interaction.guild_id, trigger, response, match_type)
-        await interaction.response.send_message(f"Auto-response added: `{trigger}` → {response}", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        if len(response) > 2000:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Too Long").description("Response too long (max 2000 characters).").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        await self.save_trigger(interaction.guild_id, trigger, response, match_type, str(channel.id) if channel else None, cooldown)
+        embed = (
+            EmbedBuilder()
+            .title("Auto-Response Added")
+            .color("green")
+            .field("Trigger", f"`{trigger}`")
+            .field("Response", response[:1024])
+            .field("Match Type", match_type.title())
+            .field("Channel", channel.mention if channel else "All channels")
+            .field("Cooldown", f"{cooldown}s" if cooldown else "None")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @autoresponder_group.command(name="remove", description="Remove an auto-response trigger")
     @app_commands.describe(trigger="The trigger to remove")
     async def remove(self, interaction: discord.Interaction, trigger: str):
         if not interaction.user.guild_permissions.manage_guild:
-            return await interaction.response.send_message("You need Manage Server permission.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         await self.remove_trigger(interaction.guild_id, trigger)
-        await interaction.response.send_message(f"Removed trigger: `{trigger}`", ephemeral=True)
+        await interaction.response.send_message(
+            embed=EmbedBuilder().title("Auto-Response Removed").description(f"Removed trigger: `{trigger}`").color("green").timestamp(datetime.datetime.utcnow()).build(),
+            ephemeral=True
+        )
 
     @autoresponder_group.command(name="list", description="List all auto-responses")
     async def list_triggers(self, interaction: discord.Interaction):
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         triggers = await self.load_triggers(interaction.guild_id)
         if not triggers:
-            return await interaction.response.send_message("No auto-responses configured.", ephemeral=True)
-        lines = [f"`{t['trigger']}` → {t['response'][:50]} ({t['match_type']})" for t in triggers]
-        embed = EmbedBuilder().title("Auto-Responses").description("\n".join(lines[:25])).color("blue").build()
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("📋 Auto-Responses").description("No auto-responses configured.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        lines = []
+        for t in triggers[:25]:
+            channel = interaction.guild.get_channel(int(t["channel_id"])) if t.get("channel_id") else None
+            channel_str = channel.mention if channel else "All"
+            lines.append(f"`{t['trigger']}` → {t['response'][:50]} ({t['match_type']}) | {channel_str}")
+        embed = (
+            EmbedBuilder()
+            .title("📋 Auto-Responses")
+            .description("\n".join(lines))
+            .color("blue")
+            .footer(f"Total: {len(triggers)} triggers")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 

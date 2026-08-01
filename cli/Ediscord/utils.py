@@ -653,7 +653,7 @@ async def change_status(bot):
     """Rotate statuses dynamically or use a custom status."""
     statuses = itertools.cycle(
         [
-            discord.Game("with commands"),
+            discord.Game("playing with commands"),
             discord.Activity(
                 type=discord.ActivityType.watching,
                 name="the server",

@@ -4,13 +4,23 @@ from discord import app_commands
 import json
 import math
 import random
+import datetime
 from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
 
 
-LEVELING_DEFAULTS = {"enabled": True, "announce_channel_id": None, "xp_rate": 1.0, "xp_cooldown": 60, "level_roles": {}}
+LEVELING_DEFAULTS = {
+    "enabled": True,
+    "announce_channel_id": None,
+    "xp_rate": 1.0,
+    "xp_cooldown": 60,
+    "level_roles": {},
+    "level_up_message": "🎉 {user} reached **level {level}**!",
+    "xp_per_message_min": 15,
+    "xp_per_message_max": 25,
+}
 XP_PER_MESSAGE = (15, 25)
 XP_COOLDOWN = 60
 
@@ -24,6 +34,14 @@ def level_from_xp(xp: int) -> int:
     while xp_for_level(lvl + 1) <= xp:
         lvl += 1
     return lvl
+
+
+def create_progress_bar(current: int, maximum: int, length: int = 10) -> str:
+    if maximum <= 0:
+        return "░" * length
+    filled = int((current / maximum) * length)
+    filled = min(filled, length)
+    return "▓" * filled + "░" * (length - filled)
 
 
 async def get_leveling_settings(guild_id: int):
@@ -87,7 +105,9 @@ class Leveling(commands.Cog, name="Leveling"):
         self.cooldowns[(message.guild.id, user_id)] = now
 
         rate = settings.get("xp_rate", 1.0)
-        earned = random.randint(XP_PER_MESSAGE[0], XP_PER_MESSAGE[1])
+        xp_min = settings.get("xp_per_message_min", 15)
+        xp_max = settings.get("xp_per_message_max", 25)
+        earned = random.randint(xp_min, xp_max)
         earned = int(earned * rate)
 
         data = await get_user_xp(message.guild.id, user_id)
@@ -104,16 +124,29 @@ class Leveling(commands.Cog, name="Leveling"):
                 if role:
                     try:
                         await message.author.add_roles(role, reason=f"Level {new_level} reward")
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"Failed to add level role: {e}")
 
             channel_id = settings.get("announce_channel_id")
-            channel = message.guild.get_channel(channel_id) if channel_id else message.channel
+            channel = message.guild.get_channel(int(channel_id)) if channel_id else message.channel
             if channel:
                 try:
-                    await channel.send(f"🎉 {message.author.mention} reached **level {new_level}**!")
-                except:
-                    pass
+                    level_up_msg = settings.get("level_up_message", "🎉 {user} reached **level {level}**!")
+                    msg = level_up_msg.replace("{user}", message.author.mention).replace("{level}", str(new_level))
+                    embed = (
+                        EmbedBuilder()
+                        .title("🎉 Level Up!")
+                        .description(msg)
+                        .color("green")
+                        .field("New Level", str(new_level))
+                        .field("Total XP", str(new_xp))
+                        .thumbnail(message.author.display_avatar.url)
+                        .timestamp(datetime.datetime.utcnow())
+                        .build()
+                    )
+                    await channel.send(embed=embed)
+                except Exception as e:
+                    logger.warning(f"Failed to send level up message: {e}")
 
     level_group = app_commands.Group(name="level", description="Leveling system commands")
 
@@ -122,42 +155,195 @@ class Leveling(commands.Cog, name="Leveling"):
     async def rank(self, interaction: discord.Interaction, member: Optional[discord.Member] = None):
         target = member or interaction.user
         data = await get_user_xp(interaction.guild_id, target.id)
-        embed = EmbedBuilder().title(f"{target.display_name}'s Rank").color("blue") \
-            .field("Level", str(data["level"])) \
-            .field("XP", f"{data['xp']} / {xp_for_level(data['level'] + 1)}") \
-            .thumbnail(target.display_avatar.url) \
+        current_xp = data["xp"]
+        current_level = data["level"]
+        next_level_xp = xp_for_level(current_level + 1)
+        current_level_xp = xp_for_level(current_level)
+        xp_in_level = current_xp - current_level_xp
+        xp_needed = next_level_xp - current_level_xp
+        progress_bar = create_progress_bar(xp_in_level, xp_needed, 15)
+        embed = (
+            EmbedBuilder()
+            .title(f"📊 {target.display_name}'s Rank")
+            .color("blue")
+            .thumbnail(target.display_avatar.url)
+            .field("Level", str(current_level))
+            .field("Total XP", f"{current_xp:,}")
+            .field("Progress", f"{progress_bar}\n{xp_in_level:,} / {xp_needed:,} XP to next level")
+            .field("Next Level", f"Level {current_level + 1} at {next_level_xp:,} XP")
+            .footer(f"User ID: {str(target.id)}")
+            .timestamp(datetime.datetime.utcnow())
             .build()
+        )
         await interaction.response.send_message(embed=embed)
 
     @level_group.command(name="leaderboard", description="Show the server XP leaderboard")
-    async def leaderboard(self, interaction: discord.Interaction):
+    @app_commands.describe(page="Page number (10 per page)")
+    async def leaderboard(self, interaction: discord.Interaction, page: int = 1):
         pool = await neon_db.get_pool()
         if not pool:
-            return await interaction.response.send_message("Database unavailable.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Error").description("Database unavailable.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        offset = (page - 1) * 10
         rows = await pool.fetch(
-            "SELECT user_id, xp FROM leveling_data WHERE guild_id = $1 ORDER BY xp DESC LIMIT 10",
+            "SELECT user_id, xp FROM leveling_data WHERE guild_id = $1 ORDER BY xp DESC LIMIT 10 OFFSET $2",
+            str(interaction.guild_id), offset,
+        )
+        total_rows = await pool.fetchrow(
+            "SELECT COUNT(*) as count FROM leveling_data WHERE guild_id = $1",
             str(interaction.guild_id),
         )
+        total_users = total_rows["count"] if total_rows else 0
+        total_pages = math.ceil(total_users / 10) if total_users > 0 else 1
         if not rows:
-            return await interaction.response.send_message("No leveling data yet.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("📊 Leaderboard").description("No leveling data yet.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         lines = []
-        for i, row in enumerate(rows, 1):
+        for i, row in enumerate(rows, offset + 1):
             user = interaction.guild.get_member(int(row["user_id"]))
-            name = user.display_name if user else row["user_id"][:8]
+            name = user.display_name if user else f"User {row['user_id'][:8]}"
             lvl = level_from_xp(row["xp"])
-            lines.append(f"**{i}.** {name} - Level {lvl} ({row['xp']} XP)")
-        embed = EmbedBuilder().title("Leaderboard").description("\n".join(lines)).color("blue").build()
+            medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"**{i}.**"
+            lines.append(f"{medal} {name} - Level {lvl} ({row['xp']:,} XP)")
+        embed = (
+            EmbedBuilder()
+            .title("📊 XP Leaderboard")
+            .description("\n".join(lines))
+            .color("gold")
+            .footer(f"Page {page}/{total_pages} | Total: {total_users} users")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
         await interaction.response.send_message(embed=embed)
 
     @level_group.command(name="toggle", description="Enable or disable XP gain")
     async def toggle(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
-            return await interaction.response.send_message("You need Manage Server permission.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         settings = await get_leveling_settings(interaction.guild_id)
         settings["enabled"] = not settings.get("enabled", True)
         await save_leveling_settings(interaction.guild_id, settings)
         status = "enabled" if settings["enabled"] else "disabled"
-        await interaction.response.send_message(f"XP system **{status}**.", ephemeral=True)
+        color = "green" if settings["enabled"] else "red"
+        embed = (
+            EmbedBuilder()
+            .title("⚙️ XP System Toggled")
+            .description(f"XP system is now **{status}**.")
+            .color(color)
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @level_group.command(name="setxp", description="Set a user's XP (admin only)")
+    @app_commands.describe(member="The member", xp="The XP amount")
+    async def setxp(self, interaction: discord.Interaction, member: discord.Member, xp: int):
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        if xp < 0:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Invalid XP").description("XP cannot be negative.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        await set_user_xp(interaction.guild_id, member.id, xp)
+        new_level = level_from_xp(xp)
+        embed = (
+            EmbedBuilder()
+            .title("XP Updated")
+            .description(f"Set {member.mention}'s XP to **{xp:,}**")
+            .color("green")
+            .field("New Level", str(new_level))
+            .field("Moderator", interaction.user.mention)
+            .footer(f"User ID: {str(member.id)}")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        await interaction.response.send_message(embed=embed)
+
+    @level_group.command(name="reset", description="Reset a user's XP (admin only)")
+    @app_commands.describe(member="The member to reset")
+    async def reset(self, interaction: discord.Interaction, member: discord.Member):
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        await set_user_xp(interaction.guild_id, member.id, 0)
+        embed = (
+            EmbedBuilder()
+            .title("🔄 XP Reset")
+            .description(f"Reset {member.mention}'s XP to 0")
+            .color("orange")
+            .field("Moderator", interaction.user.mention)
+            .footer(f"User ID: {str(member.id)}")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        await interaction.response.send_message(embed=embed)
+
+    @level_group.command(name="config", description="View leveling configuration")
+    async def config(self, interaction: discord.Interaction):
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        settings = await get_leveling_settings(interaction.guild_id)
+        channel_id = settings.get("announce_channel_id")
+        channel = interaction.guild.get_channel(int(channel_id)) if channel_id else None
+        level_roles = settings.get("level_roles", {})
+        roles_str = "\n".join([f"Level {lvl}: <@&{rid}>" for lvl, rid in level_roles.items()]) if level_roles else "None configured"
+        embed = (
+            EmbedBuilder()
+            .title("⚙️ Leveling Configuration")
+            .color("blue")
+            .field("Enabled", "Yes" if settings.get("enabled") else "No")
+            .field("XP Rate", f"{settings.get('xp_rate', 1.0)}x")
+            .field("XP Cooldown", f"{settings.get('xp_cooldown', 60)}s")
+            .field("XP per Message", f"{settings.get('xp_per_message_min', 15)}-{settings.get('xp_per_message_max', 25)}")
+            .field("Announce Channel", channel.mention if channel else "Current channel")
+            .field("Level Roles", roles_str[:1024])
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @level_group.command(name="setrole", description="Set a role reward for a specific level")
+    @app_commands.describe(level="The level to reward", role="The role to give")
+    async def setrole(self, interaction: discord.Interaction, level: int, role: discord.Role):
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        if level < 1:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Invalid Level").description("Level must be at least 1.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        settings = await get_leveling_settings(interaction.guild_id)
+        settings["level_roles"][str(level)] = str(role.id)
+        await save_leveling_settings(interaction.guild_id, settings)
+        embed = (
+            EmbedBuilder()
+            .title("Level Role Set")
+            .description(f"Users who reach **level {level}** will receive {role.mention}")
+            .color("green")
+            .field("XP Required", f"{xp_for_level(level):,} XP")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        await interaction.response.send_message(embed=embed)
 
 
 async def setup(bot: commands.Bot):

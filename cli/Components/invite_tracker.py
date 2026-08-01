@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import json
+import datetime
 from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
@@ -29,6 +30,17 @@ async def save_invite_settings(guild_id: int, settings: dict):
     )
 
 
+async def record_invite(guild_id: int, inviter_id: str, code: str):
+    pool = await neon_db.get_pool()
+    if not pool:
+        return
+    await pool.execute(
+        "INSERT INTO invite_stats (guild_id, inviter_id, code, uses) VALUES ($1, $2, $3, 1) "
+        "ON CONFLICT (guild_id, inviter_id, code) DO UPDATE SET uses = invite_stats.uses + 1",
+        str(guild_id), inviter_id, code,
+    )
+
+
 class InviteTracker(commands.Cog, name="InviteTracker"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -39,7 +51,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
         for guild in self.bot.guilds:
             try:
                 self.invites[guild.id] = await guild.invites()
-            except:
+            except Exception:
                 self.invites[guild.id] = []
 
     @commands.Cog.listener()
@@ -48,7 +60,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
             return
         try:
             self.invites[guild.id] = await guild.invites()
-        except:
+        except Exception:
             self.invites[guild.id] = []
 
     @commands.Cog.listener()
@@ -58,7 +70,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
         before = self.invites.get(member.guild.id, [])
         try:
             after = await member.guild.invites()
-        except:
+        except Exception:
             return
 
         used = None
@@ -76,16 +88,40 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
         channel_id = settings.get("announce_channel_id")
         if not channel_id:
             return
-        channel = member.guild.get_channel(channel_id)
+        channel = member.guild.get_channel(int(channel_id))
         if not channel:
             return
 
         if used:
             inviter = used.inviter
             inviter_name = inviter.mention if inviter else "Unknown"
-            embed = EmbedBuilder().title("Member Joined").description(f"{member.mention} was invited by {inviter_name}").field("Code", used.code).field("Uses", used.uses).color("green").build()
+            if inviter:
+                await record_invite(member.guild.id, str(inviter.id), used.code)
+            embed = (
+                EmbedBuilder()
+                .title("👋 Member Joined")
+                .description(f"{member.mention} was invited by {inviter_name}")
+                .color("green")
+                .field("Invite Code", used.code)
+                .field("Uses", str(used.uses))
+                .field("Account Age", discord.utils.format_dt(member.created_at, style="R"))
+                .thumbnail(member.display_avatar.url)
+                .footer(f"User ID: {str(member.id)}")
+                .timestamp(datetime.datetime.utcnow())
+                .build()
+            )
         else:
-            embed = EmbedBuilder().title("Member Joined").description(f"{member.mention} joined (no invite tracked)").color("green").build()
+            embed = (
+                EmbedBuilder()
+                .title("👋 Member Joined")
+                .description(f"{member.mention} joined (no invite tracked)")
+                .color("green")
+                .field("Account Age", discord.utils.format_dt(member.created_at, style="R"))
+                .thumbnail(member.display_avatar.url)
+                .footer(f"User ID: {str(member.id)}")
+                .timestamp(datetime.datetime.utcnow())
+                .build()
+            )
         await channel.send(embed=embed)
 
     invite_group = app_commands.Group(name="invites", description="Invite tracking commands")
@@ -93,26 +129,101 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
     @invite_group.command(name="toggle", description="Enable or disable invite tracking")
     async def toggle(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
-            return await interaction.response.send_message("You need Manage Server permission.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         settings = await get_invite_settings(interaction.guild_id)
         settings["enabled"] = not settings.get("enabled", False)
         await save_invite_settings(interaction.guild_id, settings)
         status = "enabled" if settings["enabled"] else "disabled"
-        await interaction.response.send_message(f"Invite tracking **{status}**.", ephemeral=True)
+        color = "green" if settings["enabled"] else "red"
+        await interaction.response.send_message(
+            embed=EmbedBuilder().title("📊 Invite Tracking").description(f"Invite tracking **{status}**.").color(color).timestamp(datetime.datetime.utcnow()).build(),
+            ephemeral=True
+        )
 
     @invite_group.command(name="channel", description="Set channel for invite announcements")
     @app_commands.describe(channel="The announcement channel")
     async def set_channel(self, interaction: discord.Interaction, channel: discord.TextChannel):
         if not interaction.user.guild_permissions.manage_guild:
-            return await interaction.response.send_message("You need Manage Server permission.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         settings = await get_invite_settings(interaction.guild_id)
-        settings["announce_channel_id"] = channel.id
+        settings["announce_channel_id"] = str(channel.id)
         await save_invite_settings(interaction.guild_id, settings)
-        await interaction.response.send_message(f"Invite announcement channel set to {channel.mention}.", ephemeral=True)
+        await interaction.response.send_message(
+            embed=EmbedBuilder().title("Channel Set").description(f"Invite announcements will be sent to {channel.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
+            ephemeral=True
+        )
 
     @invite_group.command(name="stats", description="Show invite leaderboard")
     async def stats(self, interaction: discord.Interaction):
-        await interaction.response.send_message("Invite stats tracking coming soon.", ephemeral=True)
+        pool = await neon_db.get_pool()
+        if not pool:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Error").description("Database unavailable.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        rows = await pool.fetch(
+            "SELECT inviter_id, SUM(uses) as total_uses FROM invite_stats WHERE guild_id = $1 GROUP BY inviter_id ORDER BY total_uses DESC LIMIT 10",
+            str(interaction.guild_id),
+        )
+        if not rows:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("📊 Invite Stats").description("No invite data yet.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        lines = []
+        for i, row in enumerate(rows, 1):
+            user = interaction.guild.get_member(int(row["inviter_id"]))
+            name = user.mention if user else f"User {row['inviter_id'][:8]}"
+            medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"**{i}.**"
+            lines.append(f"{medal} {name} - {row['total_uses']} invites")
+        embed = (
+            EmbedBuilder()
+            .title("📊 Invite Leaderboard")
+            .description("\n".join(lines))
+            .color("gold")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        await interaction.response.send_message(embed=embed)
+
+    @invite_group.command(name="user", description="Show invite stats for a specific user")
+    @app_commands.describe(user="The user to check")
+    async def user_stats(self, interaction: discord.Interaction, user: discord.Member):
+        pool = await neon_db.get_pool()
+        if not pool:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Error").description("Database unavailable.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        rows = await pool.fetch(
+            "SELECT code, uses FROM invite_stats WHERE guild_id = $1 AND inviter_id = $2 ORDER BY uses DESC",
+            str(interaction.guild_id), str(user.id),
+        )
+        if not rows:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("📊 Invite Stats").description(f"{user.mention} has no recorded invites.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        total = sum(r["uses"] for r in rows)
+        lines = [f"`{r['code']}` - {r['uses']} uses" for r in rows[:10]]
+        embed = (
+            EmbedBuilder()
+            .title(f"📊 {user.display_name}'s Invites")
+            .description("\n".join(lines))
+            .color("blue")
+            .field("Total Invites", str(total))
+            .field("Unique Codes", str(len(rows)))
+            .footer(f"User ID: {str(user.id)}")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        await interaction.response.send_message(embed=embed)
 
 
 async def setup(bot: commands.Bot):

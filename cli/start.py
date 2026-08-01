@@ -79,7 +79,7 @@ class ProwlBot(commands.Bot):
         utils.write_bot_data(self)
         await self.change_presence(
             status=discord.Status.online,
-            activity=discord.Game("with commands"),
+            activity=discord.Game("playing with commands"),
         )
 
     async def _dashboard_writer(self):
@@ -146,7 +146,15 @@ class ProwlBot(commands.Bot):
                     duration = a.get("duration")
                     moderator = a.get("moderator") or "Dashboard"
                     try:
-                        if act == "kick":
+                        if act in ("emergency_lock", "emergency_unlock"):
+                            from components.moderation import get_mod_settings, save_mod_settings, perform_lockdown
+                            lock = act == "emergency_lock"
+                            settings = await get_mod_settings(int(a["guild_id"]))
+                            ok, detail = await perform_lockdown(guild, lock, settings, save_mod_settings)
+                            if not ok:
+                                raise Exception(detail)
+                            reason = detail
+                        elif act == "kick":
                             if member:
                                 await member.kick(reason=reason)
                             else:

@@ -675,8 +675,15 @@ async def mod_feed(guild_id: str, request: Request):
         str(guild_id),
     )
     if rows:
+        # Build channel-name lookup for purge events that stored raw IDs
+        ch_map = {}
+        gd = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+        parsed = _parse_guild_data({"data": gd["data"]}) if gd else None
+        if parsed and isinstance(parsed.get("channels"), list):
+            for c in parsed["channels"]:
+                ch_map[str(c.get("id"))] = c.get("name", "")
         return {"events": [{
-            "user": r["user_name"],
+            "user": (f"#{ch_map.get(r['user_name'], r['user_name'])}" if r["action"] == "purge" and r["user_name"].isdigit() else r["user_name"]),
             "action": r["action"],
             "reason": r.get("reason", ""),
             "moderator": r.get("moderator") or "",
@@ -926,11 +933,17 @@ async def mod_roles_batch(guild_id: str, request: Request):
 async def mod_emergency(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
+    locked = body.get("locked", False)
     await execute(
         "INSERT INTO mod_settings (guild_id, settings) VALUES ($1, $2::jsonb) "
         "ON CONFLICT (guild_id) DO UPDATE SET settings = mod_settings.settings || $2::jsonb",
-        str(guild_id), json.dumps({"emergency_lock": body.get("locked", False)}),
+        str(guild_id), json.dumps({"emergency_lock": locked}),
     )
+    # Queue the actual lockdown/restore for the bot to execute
+    session_user = request.session.get("user") or {}
+    moderator = session_user.get("username", "Unknown")
+    action = "emergency_lock" if locked else "emergency_unlock"
+    await _queue_action(guild_id, action, "", "", "Emergency lockdown" if locked else "Emergency unlock", None, moderator)
     return {"ok": True}
 
 

@@ -188,18 +188,28 @@ api('/roles').then(d => {
   document.getElementById('stat-roles').textContent = count != null ? count : '-';
 }).catch(() => {});
 
-api('/feed').then(d => {
-  const el = document.getElementById('activity-feed');
-  if (!d.events?.length) { el.textContent = 'No recent activity.'; return; }
-  el.innerHTML = d.events.slice(0, 8).map(e =>
-    `<div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.04);">
-      <span style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${e.color === 'green' ? '#34d399' : e.color === 'red' ? '#f87171' : e.color === 'yellow' ? '#fbbf24' : '#666'}"></span>
-      <span style="font-size:14px;font-weight:600;color:rgba(255,255,255,0.7);">${esc(e.user)}</span>
-      <span style="font-size:14px;color:rgba(255,255,255,0.5);">${esc(e.action)}</span>
-      <span style="font-size:12px;color:rgba(255,255,255,0.3);margin-left:auto;">${esc(e.time)}</span>
-    </div>`
-  ).join('');
-}).catch(() => document.getElementById('activity-feed').textContent = 'Failed to load.');
+// ── Activity feed (live) ──
+const ACTIONS = { kick:'was kicked', ban:'was banned', unban:'was unbanned', tempban:'was temp-banned', mute:'was muted', unmute:'was unmuted', warn:'was warned', purge:'purged messages in', lockdown:'locked down the server' };
+function feedLabel(e) {
+  const verb = ACTIONS[e.action] || ('was ' + e.action);
+  if (e.action === 'purge') return `${esc(e.moderator||'Someone')} ${verb} ${esc(e.user)}`;
+  return `${esc(e.user)} ${verb}${e.moderator ? ' by ' + esc(e.moderator) : ''}`;
+}
+function loadFeed() {
+  api('/feed').then(d => {
+    const el = document.getElementById('activity-feed');
+    if (!d.events?.length) { el.textContent = 'No recent activity.'; return; }
+    el.innerHTML = d.events.slice(0, 8).map(e =>
+      `<div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+        <span style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${e.color === 'green' ? '#34d399' : e.color === 'red' ? '#f87171' : e.color === 'yellow' ? '#fbbf24' : '#666'}"></span>
+        <span style="font-size:14px;font-weight:600;color:rgba(255,255,255,0.7);min-width:0;">${feedLabel(e)}</span>
+        <span style="font-size:12px;color:rgba(255,255,255,0.3);margin-left:auto;flex-shrink:0;">${esc(e.time)}</span>
+      </div>`
+    ).join('');
+  }).catch(() => {});
+}
+loadFeed();
+setInterval(loadFeed, 5000);
 
 api('/settings').then(d => {
   const s = d.settings || {};

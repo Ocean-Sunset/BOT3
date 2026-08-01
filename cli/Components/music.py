@@ -5,6 +5,8 @@ import asyncio
 import math
 import re
 import json
+import random
+import datetime
 from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
@@ -18,12 +20,17 @@ class MusicQueue:
         self.queue = []
         self.current = None
         self.loop = False
+        self.loop_all = False
         self.volume = 0.5
 
     def add(self, item: dict):
         self.queue.append(item)
 
     def next(self):
+        if self.loop and self.current:
+            return self.current
+        if self.loop_all and self.current:
+            self.queue.append(self.current)
         if self.queue:
             self.current = self.queue.pop(0)
             return self.current
@@ -40,7 +47,6 @@ class MusicQueue:
         return None
 
     def shuffle(self):
-        import random
         random.shuffle(self.queue)
 
     def total_length(self):
@@ -51,15 +57,18 @@ class MusicQueue:
 
 
 class MusicPlayer(discord.ui.View):
-    def __init__(self, cog, ctx):
+    def __init__(self, cog, interaction):
         super().__init__(timeout=None)
         self.cog = cog
-        self.ctx = ctx
+        self.original_interaction = interaction
 
-    @discord.ui.button(label="⏸", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="⏸", style=discord.ButtonStyle.secondary, custom_id="music:pause")
     async def pause_resume(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not interaction.guild.voice_client:
-            return await interaction.response.send_message("Not connected.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Not Connected").description("Not connected to a voice channel.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         if interaction.guild.voice_client.is_paused():
             interaction.guild.voice_client.resume()
             button.label = "⏸"
@@ -68,35 +77,76 @@ class MusicPlayer(discord.ui.View):
             button.label = "▶"
         await interaction.response.edit_message(view=self)
 
-    @discord.ui.button(label="⏹", style=discord.ButtonStyle.danger)
-    async def stop(self, interaction: discord.Interaction, voice_client: discord.VoiceProtocol):
+    @discord.ui.button(label="⏹", style=discord.ButtonStyle.danger, custom_id="music:stop")
+    async def stop(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not interaction.guild.voice_client:
-            return await interaction.response.send_message("Not connected.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Not Connected").description("Not connected to a voice channel.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         q = self.cog.queues.get(interaction.guild_id)
         if q:
             q.clear()
         interaction.guild.voice_client.stop()
-        await interaction.guild.voice_client.disconnect()
-        embed = EmbedBuilder().description("Stopped and disconnected.").color("red").build()
+        try:
+            await interaction.guild.voice_client.disconnect()
+        except Exception:
+            pass
+        embed = (
+            EmbedBuilder()
+            .title("⏹ Stopped")
+            .description("Playback stopped and disconnected.")
+            .color("red")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
         await interaction.response.send_message(embed=embed)
         self.stop()
 
-    @discord.ui.button(label="⏭", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="⏭", style=discord.ButtonStyle.secondary, custom_id="music:skip")
     async def skip(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not interaction.guild.voice_client:
-            return await interaction.response.send_message("Not connected.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Not Connected").description("Not connected to a voice channel.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         interaction.guild.voice_client.stop()
         await self.cog.play_next(interaction.guild)
-        await interaction.response.defer()
+        await interaction.response.send_message(
+            embed=EmbedBuilder().title("⏭ Skipped").description("Skipped to next track.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+            ephemeral=True
+        )
 
-    @discord.ui.button(label="🔀", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="🔀", style=discord.ButtonStyle.secondary, custom_id="music:shuffle")
     async def shuffle(self, interaction: discord.Interaction, button: discord.ui.Button):
         q = self.cog.queues.get(interaction.guild_id)
-        if q:
+        if q and len(q) > 0:
             q.shuffle()
-            await interaction.response.send_message("Queue shuffled!", ephemeral=True)
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title("🔀 Shuffled").description(f"Queue shuffled ({len(q)} tracks).").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         else:
-            await interaction.response.send_message("Queue is empty.", ephemeral=True)
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title("Empty Queue").description("Queue is empty.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+
+    @discord.ui.button(label="🔁", style=discord.ButtonStyle.secondary, custom_id="music:loop")
+    async def loop(self, interaction: discord.Interaction, button: discord.ui.Button):
+        q = self.cog.queues.get(interaction.guild_id)
+        if q:
+            q.loop = not q.loop
+            status = "enabled" if q.loop else "disabled"
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title("🔁 Loop").description(f"Loop **{status}**.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        else:
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title("Empty Queue").description("Queue is empty.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
 
 
 class Music(commands.Cog, name="Music"):
@@ -122,25 +172,45 @@ class Music(commands.Cog, name="Music"):
         if not voice:
             return
 
-        source = await discord.FFmpegOpusAudio.from_probe(item["url"], **{'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'})
+        try:
+            source = await discord.FFmpegOpusAudio.from_probe(
+                item["url"],
+                before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+                options='-vn'
+            )
+        except Exception as e:
+            logger.error(f"Failed to create audio source: {e}")
+            await self.play_next(guild)
+            return
+
         def after(error):
+            if error:
+                logger.error(f"Playback error: {error}")
             coro = self.play_next(guild)
             fut = asyncio.run_coroutine_threadsafe(coro, self.bot.loop)
             try:
                 fut.result()
-            except:
+            except Exception:
                 pass
+
         voice.play(source, after=after)
-        voice.source = discord.PCMVolumeTransformer(voice.source)
-        voice.source.volume = q.volume
+        if voice.source:
+            voice.source = discord.PCMVolumeTransformer(voice.source)
+            voice.source.volume = q.volume
 
     async def ensure_voice(self, interaction: discord.Interaction) -> bool:
         if not interaction.user.voice or not interaction.user.voice.channel:
-            await interaction.response.send_message("You must be in a voice channel.", ephemeral=True)
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title("Not in Voice").description("You must be in a voice channel.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
             return False
         voice = interaction.guild.voice_client
         if voice and voice.channel.id != interaction.user.voice.channel.id:
-            await interaction.response.send_message("I'm already in another voice channel.", ephemeral=True)
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title("Already Connected").description("I'm already in another voice channel.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
             return False
         return True
 
@@ -155,18 +225,43 @@ class Music(commands.Cog, name="Music"):
 
         voice = interaction.guild.voice_client
         if not voice:
-            voice = await interaction.user.voice.channel.connect()
+            try:
+                voice = await interaction.user.voice.channel.connect()
+            except Exception as e:
+                return await interaction.followup.send(
+                    embed=EmbedBuilder().title("Connection Failed").description(f"Could not connect: {str(e)[:100]}").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                    ephemeral=True
+                )
 
         q = self.get_queue(interaction.guild_id)
-        item = {"url": query, "title": query[:100], "duration": 0, "requester": interaction.user.name}
+        item = {"url": query, "title": query[:100], "duration": 0, "requester": interaction.user.name, "requester_id": str(interaction.user.id)}
 
         if not voice.is_playing():
             q.add(item)
             await self.play_next(interaction.guild)
-            embed = EmbedBuilder().title("Now Playing").description(query[:200]).color("green").field("Requested by", interaction.user.mention).build()
+            embed = (
+                EmbedBuilder()
+                .title("🎵 Now Playing")
+                .description(query[:200])
+                .color("green")
+                .field("Requested by", interaction.user.mention)
+                .footer(f"User ID: {str(interaction.user.id)}")
+                .timestamp(datetime.datetime.utcnow())
+                .build()
+            )
         else:
             q.add(item)
-            embed = EmbedBuilder().title("Added to Queue").description(query[:200]).color("blue").field("Position", len(q)).build()
+            embed = (
+                EmbedBuilder()
+                .title("➕ Added to Queue")
+                .description(query[:200])
+                .color("blue")
+                .field("Position", str(len(q)))
+                .field("Requested by", interaction.user.mention)
+                .footer(f"User ID: {str(interaction.user.id)}")
+                .timestamp(datetime.datetime.utcnow())
+                .build()
+            )
 
         view = MusicPlayer(self, interaction)
         await interaction.followup.send(embed=embed, view=view)
@@ -175,58 +270,198 @@ class Music(commands.Cog, name="Music"):
     async def skip(self, interaction: discord.Interaction):
         voice = interaction.guild.voice_client
         if not voice or not voice.is_playing():
-            return await interaction.response.send_message("Nothing is playing.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Nothing Playing").description("Nothing is currently playing.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         voice.stop()
-        embed = EmbedBuilder().description("Skipped.").color("blue").build()
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(
+            embed=EmbedBuilder().title("⏭ Skipped").description("Skipped to next track.").color("blue").timestamp(datetime.datetime.utcnow()).build()
+        )
 
     @music_group.command(name="stop", description="Stop playback and clear the queue")
     async def stop_music(self, interaction: discord.Interaction):
         voice = interaction.guild.voice_client
         if not voice:
-            return await interaction.response.send_message("Not connected.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Not Connected").description("Not connected to a voice channel.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         q = self.queues.get(interaction.guild_id)
         if q:
             q.clear()
         voice.stop()
-        await voice.disconnect()
-        embed = EmbedBuilder().description("Stopped and disconnected.").color("red").build()
-        await interaction.response.send_message(embed=embed)
+        try:
+            await voice.disconnect()
+        except Exception:
+            pass
+        await interaction.response.send_message(
+            embed=EmbedBuilder().title("⏹ Stopped").description("Playback stopped and disconnected.").color("red").timestamp(datetime.datetime.utcnow()).build()
+        )
 
     @music_group.command(name="queue", description="Show the current music queue")
     async def show_queue(self, interaction: discord.Interaction):
         q = self.queues.get(interaction.guild_id)
-        if not q or not q.queue:
-            return await interaction.response.send_message("Queue is empty.", ephemeral=True)
-        lines = [f"**Now Playing:** {q.current.get('title', 'Unknown') if q.current else 'Nothing'}" if q.current else "", "**Up Next:**"]
+        if not q or (not q.queue and not q.current):
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("🎵 Queue").description("Queue is empty.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        lines = []
+        if q.current:
+            lines.append(f"**Now Playing:** {q.current.get('title', 'Unknown')}")
+        lines.append("**Up Next:**")
         for i, item in enumerate(q.queue[:10], 1):
             duration = item.get("duration", 0)
             dur_str = f"{duration // 60}:{duration % 60:02d}" if duration else ""
             lines.append(f"`{i}.` {item.get('title', 'Unknown')} [{dur_str}]")
-        embed = EmbedBuilder().title("Music Queue").description("\n".join(lines)).color("blue").field("Total Songs", len(q)).build()
+        if len(q) > 10:
+            lines.append(f"... and {len(q) - 10} more")
+        total_dur = q.total_length()
+        total_str = f"{total_dur // 60}:{total_dur % 60:02d}" if total_dur else "Unknown"
+        embed = (
+            EmbedBuilder()
+            .title("🎵 Music Queue")
+            .description("\n".join(lines))
+            .color("blue")
+            .field("Total Tracks", str(len(q)))
+            .field("Total Duration", total_str)
+            .field("Loop", "✅" if q.loop else "❌")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
         await interaction.response.send_message(embed=embed)
 
     @music_group.command(name="volume", description="Set the player volume")
     @app_commands.describe(level="Volume level (0-100)")
     async def volume(self, interaction: discord.Interaction, level: int):
         if level < 0 or level > 100:
-            return await interaction.response.send_message("Volume must be between 0 and 100.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Invalid Volume").description("Volume must be between 0 and 100.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         voice = interaction.guild.voice_client
-        if not voice or not voice.source:
-            return await interaction.response.send_message("Nothing is playing.", ephemeral=True)
-        voice.source.volume = level / 100
+        if not voice:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Not Connected").description("Not connected to a voice channel.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        if voice.source:
+            voice.source.volume = level / 100
         q = self.queues.get(interaction.guild_id)
         if q:
             q.volume = level / 100
-        await interaction.response.send_message(f"Volume set to {level}%.")
+        vol_bar = "▓" * (level // 10) + "░" * (10 - level // 10)
+        await interaction.response.send_message(
+            embed=EmbedBuilder().title("🔊 Volume").description(f"{vol_bar} **{level}%**").color("blue").timestamp(datetime.datetime.utcnow()).build()
+        )
 
     @music_group.command(name="nowplaying", description="Show what's currently playing")
     async def nowplaying(self, interaction: discord.Interaction):
         q = self.queues.get(interaction.guild_id)
         if not q or not q.current:
-            return await interaction.response.send_message("Nothing is playing.", ephemeral=True)
-        embed = EmbedBuilder().title("Now Playing").description(q.current.get("title", "Unknown")).color("green").build()
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Nothing Playing").description("Nothing is currently playing.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        embed = (
+            EmbedBuilder()
+            .title("🎵 Now Playing")
+            .description(q.current.get("title", "Unknown"))
+            .color("green")
+            .field("Requested by", q.current.get("requester", "Unknown"))
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
         await interaction.response.send_message(embed=embed)
+
+    @music_group.command(name="pause", description="Pause the current song")
+    async def pause(self, interaction: discord.Interaction):
+        voice = interaction.guild.voice_client
+        if not voice or not voice.is_playing():
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Nothing Playing").description("Nothing is currently playing.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        voice.pause()
+        await interaction.response.send_message(
+            embed=EmbedBuilder().title("⏸ Paused").description("Playback paused.").color("orange").timestamp(datetime.datetime.utcnow()).build()
+        )
+
+    @music_group.command(name="resume", description="Resume playback")
+    async def resume(self, interaction: discord.Interaction):
+        voice = interaction.guild.voice_client
+        if not voice or not voice.is_paused():
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Not Paused").description("Playback is not paused.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        voice.resume()
+        await interaction.response.send_message(
+            embed=EmbedBuilder().title("▶ Resumed").description("Playback resumed.").color("green").timestamp(datetime.datetime.utcnow()).build()
+        )
+
+    @music_group.command(name="loop", description="Toggle loop for the current track")
+    async def loop(self, interaction: discord.Interaction):
+        q = self.queues.get(interaction.guild_id)
+        if not q:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Empty Queue").description("Queue is empty.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        q.loop = not q.loop
+        status = "enabled" if q.loop else "disabled"
+        color = "green" if q.loop else "red"
+        await interaction.response.send_message(
+            embed=EmbedBuilder().title("🔁 Loop").description(f"Loop **{status}**.").color(color).timestamp(datetime.datetime.utcnow()).build()
+        )
+
+    @music_group.command(name="shuffle", description="Shuffle the queue")
+    async def shuffle(self, interaction: discord.Interaction):
+        q = self.queues.get(interaction.guild_id)
+        if not q or len(q) == 0:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Empty Queue").description("Queue is empty.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        q.shuffle()
+        await interaction.response.send_message(
+            embed=EmbedBuilder().title("🔀 Shuffled").description(f"Queue shuffled ({len(q)} tracks).").color("blue").timestamp(datetime.datetime.utcnow()).build()
+        )
+
+    @music_group.command(name="remove", description="Remove a song from the queue")
+    @app_commands.describe(position="Position in queue (1-based)")
+    async def remove(self, interaction: discord.Interaction, position: int):
+        q = self.queues.get(interaction.guild_id)
+        if not q or len(q) == 0:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Empty Queue").description("Queue is empty.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        removed = q.remove(position - 1)
+        if removed:
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title("🗑️ Removed").description(f"Removed: {removed.get('title', 'Unknown')}").color("orange").timestamp(datetime.datetime.utcnow()).build()
+            )
+        else:
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title("Invalid Position").description(f"Position must be between 1 and {len(q)}.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+
+    @music_group.command(name="clear", description="Clear the entire queue")
+    async def clear(self, interaction: discord.Interaction):
+        q = self.queues.get(interaction.guild_id)
+        if not q or len(q) == 0:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Empty Queue").description("Queue is already empty.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        count = len(q)
+        q.clear()
+        await interaction.response.send_message(
+            embed=EmbedBuilder().title("🗑️ Queue Cleared").description(f"Removed {count} tracks from the queue.").color("orange").timestamp(datetime.datetime.utcnow()).build()
+        )
 
 
 async def setup(bot: commands.Bot):

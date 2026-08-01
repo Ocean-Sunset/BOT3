@@ -76,7 +76,7 @@ def _info_embed(title: str, description: str, color: str = "blue", ephemeral_vie
 
 
 def _error_embed(description: str) -> discord.Embed:
-    return EmbedBuilder().title("⚠️ Error").description(description).color("red").timestamp(datetime.datetime.utcnow()).build()
+    return EmbedBuilder().title("Error").description(description).color("red").timestamp(datetime.datetime.utcnow()).build()
 
 
 def _confirmation_embed(description: str) -> discord.Embed:
@@ -107,6 +107,53 @@ async def safe_dm(member, embed: discord.Embed = None, content: str = None):
         pass
     except Exception as e:
         logger.debug(f"DM to {getattr(member, 'id', '?')} failed: {e}")
+
+
+async def perform_lockdown(guild, lock: bool, settings: dict, save_fn) -> tuple:
+    """Actually lock/unlock a server: snapshot perms, deny @everyone, delete invites."""
+    try:
+        if lock:
+            snapshot = {}
+            for channel in guild.channels:
+                if isinstance(channel, (discord.TextChannel, discord.VoiceChannel, discord.CategoryChannel)):
+                    ow = channel.overwrites_for(guild.default_role)
+                    snapshot[str(channel.id)] = {"allow": ow.allow.value, "deny": ow.deny.value}
+                    ow.send_messages = False
+                    ow.create_instant_invite = False
+                    if isinstance(channel, discord.VoiceChannel):
+                        ow.connect = False
+                        ow.speak = False
+                    await channel.set_permissions(guild.default_role, overwrite=ow)
+            # Delete all active invites
+            try:
+                invites = await guild.invites()
+                for inv in invites:
+                    try:
+                        await inv.delete()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            settings["emergency_lock"] = True
+            settings["emergency_snapshot"] = snapshot
+            await save_fn(guild.id, settings)
+            return True, f"Locked down {len(snapshot)} channels and removed invites."
+        else:
+            snapshot = settings.get("emergency_snapshot", {})
+            for cid, data in snapshot.items():
+                channel = guild.get_channel(int(cid))
+                if channel:
+                    ow = discord.PermissionOverwrite()
+                    ow.allow = discord.Permissions(int(data.get("allow", 0)))
+                    ow.deny = discord.Permissions(int(data.get("deny", 0)))
+                    await channel.set_permissions(guild.default_role, overwrite=ow)
+            settings["emergency_lock"] = False
+            settings.pop("emergency_snapshot", None)
+            await save_fn(guild.id, settings)
+            return True, f"Restored permissions on {len(snapshot)} channels."
+    except Exception as e:
+        logger.error(f"Lockdown failed: {e}")
+        return False, f"Failed: {e}"
 
 
 async def get_mod_settings(guild_id: int):
@@ -587,7 +634,7 @@ class Moderation(commands.Cog, name="Moderation"):
             return await interaction.followup.send(embed=_error_embed("An unexpected error occurred while unbanning."), ephemeral=True)
 
         embed = (
-            EmbedBuilder().title("✅ User Unbanned")
+            EmbedBuilder().title("User Unbanned")
             .description(f"{user.mention} has been unbanned.")
             .color("green")
             .field("Reason", reason)
@@ -598,7 +645,7 @@ class Moderation(commands.Cog, name="Moderation"):
         await interaction.followup.send(embed=embed)
 
         log_embed = (
-            EmbedBuilder().title("✅ User Unbanned")
+            EmbedBuilder().title("User Unbanned")
             .description(f"{user.mention} (`{user.id}`)")
             .color("green")
             .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
@@ -776,7 +823,7 @@ class Moderation(commands.Cog, name="Moderation"):
             await safe_dm(member, embed=dm_embed)
 
         log_embed = (
-            EmbedBuilder().title("⚠️ Member Warned")
+            EmbedBuilder().title("Member Warned")
             .description(f"{member.mention} (`{member.id}`)")
             .color("yellow")
             .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
@@ -820,9 +867,9 @@ class Moderation(commands.Cog, name="Moderation"):
 
         log_embed = (
             EmbedBuilder().title("🧹 Messages Purged")
-            .description(f"Deleted **{len(deleted)}** messages in {interaction.channel.mention} (`{interaction.channel.id}`)")
+            .description(f"Deleted **{len(deleted)}** messages in {interaction.channel.mention} (`{str(interaction.channel.id)}`)")
             .color("blue")
-            .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
+            .field("Moderator", f"{interaction.user.mention} (`{str(interaction.user.id)}`)")
             .field("Requested", str(count))
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -841,7 +888,7 @@ class Moderation(commands.Cog, name="Moderation"):
     @is_mod()
     async def view_settings(self, interaction: discord.Interaction):
         settings = await get_mod_settings(interaction.guild_id)
-        def b(v): return "✅ Enabled" if v else "❌ Disabled"
+        def b(v): return "Enabled" if v else "Disabled"
         modlog_id = settings.get("modlog_channel_id")
         modlog_channel = interaction.guild.get_channel(int(modlog_id)) if modlog_id else None
         mod_roles = settings.get("mod_roles", []) or []
@@ -854,7 +901,7 @@ class Moderation(commands.Cog, name="Moderation"):
             .field("Require Reason", b(settings.get("require_reason")))
             .field("Silent Mod", b(settings.get("silent_mod")))
             .field("Track Stats", b(settings.get("track_stats")))
-            .field("Emergency Lock", "⚠️ LOCKED" if settings.get("emergency_lock") else "✅ Normal")
+            .field("Emergency Lock", "LOCKED" if settings.get("emergency_lock") else "Normal")
             .field("Modlog Channel", modlog_channel.mention if modlog_channel else "Not set")
             .field("Mod Roles", ", ".join(f"<@&{r}>" for r in mod_roles) if mod_roles else "None")
             .field("Commands", "\u200b", inline=False)
@@ -882,32 +929,35 @@ class Moderation(commands.Cog, name="Moderation"):
     async def lockdown(self, interaction: discord.Interaction):
         settings = await get_mod_settings(interaction.guild_id)
         current = settings.get("emergency_lock", False)
-        settings["emergency_lock"] = not current
-        await save_mod_settings(interaction.guild_id, settings)
+        await interaction.response.defer(ephemeral=True)
+        success, detail = await perform_lockdown(interaction.guild, not current, settings, save_mod_settings)
         new_state = not current
         status = "LOCKED DOWN" if new_state else "normal"
         color = "red" if new_state else "green"
         title = "🔒 Emergency Lockdown Enabled" if new_state else "🔓 Emergency Lockdown Lifted"
+        if not success:
+            title = "⚠️ Lockdown Failed"
+            color = "grey"
         embed = (
             EmbedBuilder().title(title)
-            .description(f"Server is now in **{status}** mode.")
+            .description(detail or f"Server is now in **{status}** mode.")
             .color(color)
             .field("Moderator", interaction.user.mention)
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
         await log_mod_action(
             interaction.guild_id,
             str(interaction.user.id),
             interaction.user.name,
             "lockdown",
-            f"Set to {status}",
+            f"Set to {status} — {detail or ''}",
             interaction.user.name,
         )
         log_embed = (
             EmbedBuilder().title(title)
-            .description(f"Server is now in **{status}** mode.")
+            .description(detail or f"Server is now in **{status}** mode.")
             .color(color)
             .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
             .timestamp(datetime.datetime.utcnow())

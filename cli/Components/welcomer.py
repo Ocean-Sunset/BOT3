@@ -2,13 +2,24 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import json
+import datetime
 from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
 
 
-WELCOME_DEFAULTS = {"enabled": False, "channel_id": None, "welcome_message": "Welcome {member} to {server}!", "goodbye_message": "{member} has left {server}.", "welcome_dm": False, "auto_role_id": None}
+WELCOME_DEFAULTS = {
+    "enabled": False,
+    "channel_id": None,
+    "welcome_message": "Welcome {member} to {server}!",
+    "goodbye_message": "{member} has left {server}.",
+    "welcome_dm": False,
+    "welcome_dm_message": "Welcome to **{server}**! Make sure to read the rules.",
+    "auto_role_id": None,
+    "welcome_embed": True,
+    "goodbye_embed": True,
+}
 
 
 async def get_welcome_settings(guild_id: int):
@@ -30,6 +41,16 @@ async def save_welcome_settings(guild_id: int, settings: dict):
     )
 
 
+def render_welcome(template: str, member: discord.Member) -> str:
+    return (template
+            .replace("{member}", member.mention)
+            .replace("{member.name}", member.name)
+            .replace("{member.tag}", member.discriminator if member.discriminator != "0" else "")
+            .replace("{server}", member.guild.name)
+            .replace("{count}", str(member.guild.member_count))
+            .replace("{server.membercount}", str(member.guild.member_count)))
+
+
 class Welcomer(commands.Cog, name="Welcomer"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -40,20 +61,45 @@ class Welcomer(commands.Cog, name="Welcomer"):
         if not settings.get("enabled"):
             return
 
-        channel = member.guild.get_channel(settings.get("channel_id") or 0)
+        channel = member.guild.get_channel(int(settings.get("channel_id") or 0))
         if not channel or not isinstance(channel, discord.TextChannel):
             return
 
-        msg = settings.get("welcome_message", "").replace("{member}", member.mention).replace("{server}", member.guild.name).replace("{count}", str(member.guild.member_count))
+        msg = render_welcome(settings.get("welcome_message", ""), member)
         try:
-            await channel.send(msg)
-        except:
-            pass
+            if settings.get("welcome_embed", True):
+                embed = (
+                    EmbedBuilder()
+                    .title("👋 Welcome!")
+                    .description(msg)
+                    .color("green")
+                    .thumbnail(member.display_avatar.url)
+                    .field("Account Created", discord.utils.format_dt(member.created_at, style="R"))
+                    .field("Member Count", f"{member.guild.member_count:,}")
+                    .footer(f"User ID: {str(member.id)}")
+                    .timestamp(datetime.datetime.utcnow())
+                    .build()
+                )
+                await channel.send(embed=embed)
+            else:
+                await channel.send(msg)
+        except Exception as e:
+            logger.warning(f"Failed to send welcome message: {e}")
 
         if settings.get("welcome_dm"):
+            dm_msg = render_welcome(settings.get("welcome_dm_message", "Welcome to **{server}**!"), member)
             try:
-                await member.send(f"Welcome to **{member.guild.name}**!")
-            except:
+                dm_embed = (
+                    EmbedBuilder()
+                    .title(f"Welcome to {member.guild.name}!")
+                    .description(dm_msg)
+                    .color("green")
+                    .thumbnail(member.guild.icon.url if member.guild.icon else None)
+                    .timestamp(datetime.datetime.utcnow())
+                    .build()
+                )
+                await member.send(embed=dm_embed)
+            except (discord.Forbidden, discord.HTTPException):
                 pass
 
         auto_role_id = settings.get("auto_role_id")
@@ -62,83 +108,231 @@ class Welcomer(commands.Cog, name="Welcomer"):
             if role:
                 try:
                     await member.add_roles(role, reason="Auto-role on join")
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to add auto-role: {e}")
 
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):
         settings = await get_welcome_settings(member.guild.id)
         if not settings.get("enabled"):
             return
-        channel = member.guild.get_channel(settings.get("channel_id") or 0)
+        channel = member.guild.get_channel(int(settings.get("channel_id") or 0))
         if not channel or not isinstance(channel, discord.TextChannel):
             return
         if not settings.get("goodbye_message"):
             return
-        msg = settings.get("goodbye_message", "").replace("{member}", member.name).replace("{server}", member.guild.name)
+        msg = render_welcome(settings.get("goodbye_message", ""), member)
         try:
-            await channel.send(msg)
-        except:
-            pass
+            if settings.get("goodbye_embed", True):
+                embed = (
+                    EmbedBuilder()
+                    .title("👋 Goodbye")
+                    .description(msg)
+                    .color("red")
+                    .thumbnail(member.display_avatar.url)
+                    .field("Member Count", f"{member.guild.member_count:,}")
+                    .footer(f"User ID: {str(member.id)}")
+                    .timestamp(datetime.datetime.utcnow())
+                    .build()
+                )
+                await channel.send(embed=embed)
+            else:
+                await channel.send(msg)
+        except Exception as e:
+            logger.warning(f"Failed to send goodbye message: {e}")
 
     welcomer_group = app_commands.Group(name="welcomer", description="Welcome message settings")
 
     @welcomer_group.command(name="toggle", description="Enable or disable welcome messages")
     async def toggle(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
-            return await interaction.response.send_message("You need Manage Server permission.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         settings = await get_welcome_settings(interaction.guild_id)
         settings["enabled"] = not settings.get("enabled")
         await save_welcome_settings(interaction.guild_id, settings)
         status = "enabled" if settings["enabled"] else "disabled"
-        await interaction.response.send_message(f"Welcome messages **{status}**.", ephemeral=True)
+        color = "green" if settings["enabled"] else "red"
+        await interaction.response.send_message(
+            embed=EmbedBuilder().title("⚙️ Welcomer Toggled").description(f"Welcome messages **{status}**.").color(color).timestamp(datetime.datetime.utcnow()).build(),
+            ephemeral=True
+        )
 
     @welcomer_group.command(name="channel", description="Set the welcome message channel")
     @app_commands.describe(channel="The channel for welcome messages")
     async def set_channel(self, interaction: discord.Interaction, channel: discord.TextChannel):
         if not interaction.user.guild_permissions.manage_guild:
-            return await interaction.response.send_message("You need Manage Server permission.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         settings = await get_welcome_settings(interaction.guild_id)
-        settings["channel_id"] = channel.id
+        settings["channel_id"] = str(channel.id)
         await save_welcome_settings(interaction.guild_id, settings)
-        await interaction.response.send_message(f"Welcome channel set to {channel.mention}.", ephemeral=True)
+        await interaction.response.send_message(
+            embed=EmbedBuilder().title("Channel Set").description(f"Welcome channel set to {channel.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
+            ephemeral=True
+        )
 
     @welcomer_group.command(name="message", description="Set the welcome message")
     @app_commands.describe(message="Use {member}, {server}, {count} as placeholders")
     async def set_message(self, interaction: discord.Interaction, message: str):
         if not interaction.user.guild_permissions.manage_guild:
-            return await interaction.response.send_message("You need Manage Server permission.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         if len(message) > 500:
-            return await interaction.response.send_message("Message too long (max 500).", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Too Long").description("Message too long (max 500 characters).").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         settings = await get_welcome_settings(interaction.guild_id)
         settings["welcome_message"] = message
         await save_welcome_settings(interaction.guild_id, settings)
-        embed = EmbedBuilder().title("Welcome Message Updated").description(f"New message:\n{message.replace('{member}', '@user').replace('{server}', interaction.guild.name).replace('{count}', str(interaction.guild.member_count))}").color("green").build()
+        preview = render_welcome(message, interaction.user)
+        embed = (
+            EmbedBuilder()
+            .title("Welcome Message Updated")
+            .description(f"**Preview:**\n{preview}")
+            .color("green")
+            .field("Placeholders", "`{member}` `{member.name}` `{server}` `{count}`")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @welcomer_group.command(name="goodbye", description="Set the goodbye message")
     @app_commands.describe(message="Use {member}, {server} as placeholders. Set to 'off' to disable.")
     async def set_goodbye(self, interaction: discord.Interaction, message: str):
         if not interaction.user.guild_permissions.manage_guild:
-            return await interaction.response.send_message("You need Manage Server permission.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         settings = await get_welcome_settings(interaction.guild_id)
         settings["goodbye_message"] = None if message.lower() == "off" else message
         await save_welcome_settings(interaction.guild_id, settings)
-        status = "disabled" if message.lower() == "off" else "updated"
-        await interaction.response.send_message(f"Goodbye message {status}.", ephemeral=True)
+        if message.lower() == "off":
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title("Goodbye Disabled").description("Goodbye messages have been disabled.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        else:
+            preview = render_welcome(message, interaction.user)
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title("Goodbye Message Updated").description(f"**Preview:**\n{preview}").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
 
     @welcomer_group.command(name="autorole", description="Set a role to give to new members on join")
     @app_commands.describe(role="The role to assign automatically. Leave empty to remove.")
     async def autorole(self, interaction: discord.Interaction, role: Optional[discord.Role] = None):
         if not interaction.user.guild_permissions.manage_guild:
-            return await interaction.response.send_message("You need Manage Server permission.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         settings = await get_welcome_settings(interaction.guild_id)
         settings["auto_role_id"] = str(role.id) if role else None
         await save_welcome_settings(interaction.guild_id, settings)
         if role:
-            await interaction.response.send_message(f"Auto-role set to {role.mention}.", ephemeral=True)
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title("Auto-Role Set").description(f"New members will receive {role.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         else:
-            await interaction.response.send_message("Auto-role removed.", ephemeral=True)
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title("Auto-Role Removed").description("Auto-role has been removed.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+
+    @welcomer_group.command(name="test", description="Test the welcome message")
+    async def test(self, interaction: discord.Interaction):
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        settings = await get_welcome_settings(interaction.guild_id)
+        msg = render_welcome(settings.get("welcome_message", "Welcome {member}!"), interaction.user)
+        if settings.get("welcome_embed", True):
+            embed = (
+                EmbedBuilder()
+                .title("👋 Welcome! (Test)")
+                .description(msg)
+                .color("green")
+                .thumbnail(interaction.user.display_avatar.url)
+                .field("Account Created", discord.utils.format_dt(interaction.user.created_at, style="R"))
+                .field("Member Count", f"{interaction.guild.member_count:,}")
+                .footer(f"User ID: {str(interaction.user.id)}")
+                .timestamp(datetime.datetime.utcnow())
+                .build()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        else:
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title("👋 Welcome! (Test)").description(msg).color("green").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+
+    @welcomer_group.command(name="config", description="View current welcomer configuration")
+    async def config(self, interaction: discord.Interaction):
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        settings = await get_welcome_settings(interaction.guild_id)
+        channel_id = settings.get("channel_id")
+        channel = interaction.guild.get_channel(int(channel_id)) if channel_id else None
+        auto_role_id = settings.get("auto_role_id")
+        auto_role = interaction.guild.get_role(int(auto_role_id)) if auto_role_id else None
+        embed = (
+            EmbedBuilder()
+            .title("⚙️ Welcomer Configuration")
+            .color("blue")
+            .field("Enabled", "Yes" if settings.get("enabled") else "No")
+            .field("Channel", channel.mention if channel else "Not set")
+            .field("Welcome Embed", "Yes" if settings.get("welcome_embed", True) else "No")
+            .field("Goodbye Embed", "Yes" if settings.get("goodbye_embed", True) else "No")
+            .field("Welcome DM", "Yes" if settings.get("welcome_dm") else "No")
+            .field("Auto-Role", auto_role.mention if auto_role else "None")
+            .field("Welcome Message", settings.get("welcome_message", "Not set")[:1024])
+            .field("Goodbye Message", settings.get("goodbye_message") or "Disabled")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @welcomer_group.command(name="dm", description="Configure welcome DM messages")
+    @app_commands.describe(enabled="Enable or disable welcome DMs", message="The DM message (optional)")
+    async def dm(self, interaction: discord.Interaction, enabled: bool, message: str = None):
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        settings = await get_welcome_settings(interaction.guild_id)
+        settings["welcome_dm"] = enabled
+        if message:
+            settings["welcome_dm_message"] = message
+        await save_welcome_settings(interaction.guild_id, settings)
+        status = "enabled" if enabled else "disabled"
+        color = "green" if enabled else "red"
+        embed = (
+            EmbedBuilder()
+            .title("Welcome DM Updated")
+            .description(f"Welcome DMs are now **{status}**.")
+            .color(color)
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        if enabled and message:
+            embed.add_field(name="DM Message", value=message[:1024])
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 async def setup(bot: commands.Bot):

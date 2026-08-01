@@ -5,6 +5,7 @@ import json
 import random
 import string
 import asyncio
+import datetime
 from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
@@ -41,11 +42,20 @@ class VerifyView(discord.ui.View):
     async def verify(self, interaction: discord.Interaction, button: discord.ui.Button):
         role = interaction.guild.get_role(self.role_id)
         if not role:
-            return await interaction.response.send_message("Verification role not found.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Error").description("Verification role not found.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         if role in interaction.user.roles:
-            return await interaction.response.send_message("You are already verified.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("ℹ️ Already Verified").description("You are already verified.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         await interaction.user.add_roles(role, reason="Verified via button")
-        await interaction.response.send_message("You have been verified!", ephemeral=True)
+        await interaction.response.send_message(
+            embed=EmbedBuilder().title("Verified").description("You have been verified!").color("green").timestamp(datetime.datetime.utcnow()).build(),
+            ephemeral=True
+        )
 
 
 class CaptchaView(discord.ui.Modal, title="Verification"):
@@ -61,11 +71,20 @@ class CaptchaView(discord.ui.Modal, title="Verification"):
             role = interaction.guild.get_role(self.role_id)
             if role:
                 await interaction.user.add_roles(role, reason="Verified via captcha")
-                await interaction.response.send_message("Verification successful!", ephemeral=True)
+                await interaction.response.send_message(
+                    embed=EmbedBuilder().title("Verified").description("Verification successful!").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                    ephemeral=True
+                )
             else:
-                await interaction.response.send_message("Verification role not found.", ephemeral=True)
+                await interaction.response.send_message(
+                    embed=EmbedBuilder().title("Error").description("Verification role not found.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                    ephemeral=True
+                )
         else:
-            await interaction.response.send_message("Incorrect code. Try again.", ephemeral=True)
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title("Failed").description("Incorrect code. Try again.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
 
 
 class Verification(commands.Cog, name="Verification"):
@@ -78,7 +97,10 @@ class Verification(commands.Cog, name="Verification"):
     @app_commands.describe(channel="Channel for the verification panel", role="Role to assign on verification", captcha="Require captcha entry")
     async def setup(self, interaction: discord.Interaction, channel: discord.TextChannel, role: discord.Role, captcha: bool = False):
         if not interaction.user.guild_permissions.administrator:
-            return await interaction.response.send_message("You need Administrator permission.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Administrator permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         settings = {"enabled": True, "channel_id": channel.id, "verified_role_id": role.id, "type": "captcha" if captcha else "button", "captcha": captcha}
         await save_verify_settings(interaction.guild_id, settings)
         if captcha:
@@ -92,29 +114,42 @@ class Verification(commands.Cog, name="Verification"):
             view = VerifyView(role.id)
         embed = EmbedBuilder().title("Verification").description("Click the button below to verify yourself.").color("green").build()
         await channel.send(embed=embed, view=view)
-        await interaction.response.send_message(f"Verification panel set up in {channel.mention}.", ephemeral=True)
+        await interaction.response.send_message(
+            embed=EmbedBuilder().title("Setup Complete").description(f"Verification panel set up in {channel.mention}.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+            ephemeral=True
+        )
 
     @verify_group.command(name="config", description="View current verification settings")
     async def config(self, interaction: discord.Interaction):
         settings = await get_verify_settings(interaction.guild_id)
         if not settings.get("enabled"):
-            return await interaction.response.send_message("Verification is not set up.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("ℹ️ Not Configured").description("Verification is not set up.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         channel = interaction.guild.get_channel(settings.get("channel_id") or 0)
         role = interaction.guild.get_role(settings.get("verified_role_id") or 0)
         embed = EmbedBuilder().title("Verification Settings").color("blue") \
-            .field("Status", "✅ Active") \
+            .field("Status", "Active") \
             .field("Channel", channel.mention if channel else "Not set") \
             .field("Verified Role", role.mention if role else "Not set") \
             .field("Type", "Captcha" if settings.get("captcha") else "Button") \
+            .timestamp(datetime.datetime.utcnow()) \
             .build()
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @verify_group.command(name="remove", description="Remove the verification system")
     async def remove(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.administrator:
-            return await interaction.response.send_message("You need Administrator permission.", ephemeral=True)
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Administrator permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         await save_verify_settings(interaction.guild_id, {"enabled": False})
-        await interaction.response.send_message("Verification system removed.", ephemeral=True)
+        await interaction.response.send_message(
+            embed=EmbedBuilder().title("Removed").description("Verification system removed.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+            ephemeral=True
+        )
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):

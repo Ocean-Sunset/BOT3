@@ -3,8 +3,9 @@ import random
 import discord
 from discord import app_commands
 from discord.ext import commands
+import datetime
 
-from Ediscord import variables, utils
+from Ediscord import variables, utils, EmbedBuilder
 
 
 class General(commands.Cog):
@@ -16,42 +17,200 @@ class General(commands.Cog):
     @app_commands.command(name="ping", description="Check Prowl's latency.")
     async def ping(self, interaction: discord.Interaction):
         latency = round(self.bot.latency * 1000)
-        embed = discord.Embed(
-            title="Pong!",
-            description=f"Latency: **{latency}ms**",
-            color=discord.Color.green(),
+        embed = (
+            EmbedBuilder()
+            .title("🏓 Pong!")
+            .description(f"**Latency:** {latency}ms\n**API Latency:** {round(self.bot.latency * 1000)}ms")
+            .color("green")
+            .footer(f"Prowl v{variables.__version__}")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
         )
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="info", description="Show Prowl's info.")
     async def info(self, interaction: discord.Interaction):
-        embed = discord.Embed(
-            title="Prowl",
-            description="A silly little cat bot with a ton of abilities.",
-            color=discord.Color.blurple(),
+        uptime = utils.get_uptime()
+        embed = (
+            EmbedBuilder()
+            .title("🐾 Prowl")
+            .description("A silly little cat bot with a ton of abilities.")
+            .color("blurple")
+            .field("Servers", str(len(self.bot.guilds)))
+            .field("Users", str(len(self.bot.users)))
+            .field("Uptime", uptime)
+            .field("Cogs Loaded", str(len(self.bot.cogs)))
+            .field("Commands", str(len(self.bot.tree.get_commands())))
+            .field("Python Version", f"{__import__('sys').version_info.major}.{__import__('sys').version_info.minor}.{__import__('sys').version_info.micro}")
+            .field("discord.py Version", discord.__version__)
+            .footer(f"Prowl v{variables.__version__} | Made with ❤️")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
         )
-        embed.add_field(name="Servers", value=len(self.bot.guilds))
-        embed.add_field(name="Users", value=len(self.bot.users))
-        embed.add_field(name="Uptime", value=utils.get_uptime())
-        embed.add_field(name="Cogs Loaded", value=len(self.bot.cogs))
-        embed.set_footer(text=f"Prowl v{variables.__version__}")
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="say", description="Echo back your message.")
-    @app_commands.describe(text="The text to echo back.")
-    async def say(self, interaction: discord.Interaction, text: str):
-        await interaction.response.send_message(text)
+    @app_commands.describe(text="The text to echo back.", channel="Channel to send to (optional)")
+    async def say(self, interaction: discord.Interaction, text: str, channel: discord.TextChannel = None):
+        if not interaction.user.guild_permissions.manage_messages:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Messages permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        target = channel or interaction.channel
+        embed = (
+            EmbedBuilder()
+            .description(text)
+            .color("blurple")
+            .footer(f"Requested by {interaction.user.display_name}")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        await target.send(embed=embed)
+        if target != interaction.channel:
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title("Message Sent").description(f"Sent to {target.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        else:
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title("Message Sent").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
 
     @app_commands.command(name="serverinfo", description="Show server information.")
     async def serverinfo(self, interaction: discord.Interaction):
         guild = interaction.guild
-        embed = discord.Embed(title=guild.name, color=discord.Color.gold())
-        if guild.icon:
-            embed.set_thumbnail(url=guild.icon.url)
-        embed.add_field(name="Members", value=guild.member_count)
-        embed.add_field(name="Channels", value=len(guild.channels))
-        embed.add_field(name="Roles", value=len(guild.roles))
-        embed.add_field(name="Created", value=guild.created_at.strftime("%Y-%m-%d"))
+        owner = await guild.fetch_member(guild.owner_id) if guild.owner_id else None
+        text_channels = len(guild.text_channels)
+        voice_channels = len(guild.voice_channels)
+        categories = len(guild.categories)
+        online = sum(1 for m in guild.members if m.status == discord.Status.online)
+        idle = sum(1 for m in guild.members if m.status == discord.Status.idle)
+        dnd = sum(1 for m in guild.members if m.status == discord.Status.dnd)
+        offline = sum(1 for m in guild.members if m.status == discord.Status.offline)
+        boost_level = guild.premium_tier
+        boost_count = guild.premium_subscription_count or 0
+        embed = (
+            EmbedBuilder()
+            .title(f"📊 {guild.name}")
+            .color("gold")
+            .thumbnail(guild.icon.url if guild.icon else None)
+            .field("Owner", owner.mention if owner else "Unknown")
+            .field("Members", str(guild.member_count), inline=True)
+            .field("Humans", str(sum(1 for m in guild.members if not m.bot)), inline=True)
+            .field("Bots", str(sum(1 for m in guild.members if m.bot)), inline=True)
+            .field("Online", f"🟢 {online}", inline=True)
+            .field("Idle", f"🟡 {idle}", inline=True)
+            .field("DND", f"🔴 {dnd}", inline=True)
+            .field("Text Channels", str(text_channels), inline=True)
+            .field("Voice Channels", str(voice_channels), inline=True)
+            .field("Categories", str(categories), inline=True)
+            .field("Roles", str(len(guild.roles)))
+            .field("Emojis", str(len(guild.emojis)))
+            .field("Boost Level", f"Level {boost_level} ({boost_count} boosts)")
+            .field("Created", discord.utils.format_dt(guild.created_at, style="F"))
+            .field("Server ID", str(guild.id))
+            .footer(f"Requested by {interaction.user.display_name}")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="userinfo", description="Show information about a user.")
+    @app_commands.describe(user="The user to look up")
+    async def userinfo(self, interaction: discord.Interaction, user: discord.Member = None):
+        target = user or interaction.user
+        roles = [r.mention for r in target.roles if r != target.guild.default_role]
+        roles_str = ", ".join(roles[:20]) if roles else "None"
+        if len(roles) > 20:
+            roles_str += f" and {len(roles) - 20} more..."
+        permissions = [p for p, v in target.guild_permissions if v]
+        key_perms = [p.replace("_", " ").title() for p in permissions if p in ["administrator", "manage_guild", "manage_roles", "manage_channels", "manage_messages", "ban_members", "kick_members"]]
+        perms_str = ", ".join(key_perms[:5]) if key_perms else "None"
+        embed = (
+            EmbedBuilder()
+            .title(f"👤 {target.display_name}")
+            .color(target.color if target.color != discord.Color.default() else "blurple")
+            .thumbnail(target.display_avatar.url)
+            .field("Username", target.name)
+            .field("Nickname", target.nick or "None")
+            .field("User ID", str(target.id))
+            .field("Account Created", discord.utils.format_dt(target.created_at, style="F"))
+            .field("Joined Server", discord.utils.format_dt(target.joined_at, style="F") if target.joined_at else "Unknown")
+            .field("Roles", roles_str[:1024])
+            .field("Key Permissions", perms_str)
+            .field("Status", str(target.status).title())
+            .field("Bot", "Yes" if target.bot else "No")
+            .footer(f"Requested by {interaction.user.display_name}")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="avatar", description="Show a user's avatar.")
+    @app_commands.describe(user="The user whose avatar to show")
+    async def avatar(self, interaction: discord.Interaction, user: discord.Member = None):
+        target = user or interaction.user
+        avatar_url = target.display_avatar.url
+        embed = (
+            EmbedBuilder()
+            .title(f"🖼️ {target.display_name}'s Avatar")
+            .color("blurple")
+            .image(avatar_url)
+            .description(f"[Open in Browser]({avatar_url})")
+            .footer(f"Requested by {interaction.user.display_name}")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="roleinfo", description="Show information about a role.")
+    @app_commands.describe(role="The role to look up")
+    async def roleinfo(self, interaction: discord.Interaction, role: discord.Role):
+        members_with_role = [m for m in role.guild.members if role in m.roles]
+        embed = (
+            EmbedBuilder()
+            .title(f"🎭 {role.name}")
+            .color(role.color if role.color != discord.Color.default() else "blurple")
+            .field("Role ID", str(role.id))
+            .field("Color", f"#{role.color.value:06x}" if role.color != discord.Color.default() else "Default")
+            .field("Position", str(role.position))
+            .field("Members", str(len(members_with_role)))
+            .field("Mentionable", "Yes" if role.mentionable else "No")
+            .field("Hoisted", "Yes" if role.hoist else "No")
+            .field("Managed", "Yes" if role.managed else "No")
+            .field("Created", discord.utils.format_dt(role.created_at, style="F"))
+            .field("Permissions", ", ".join([p.replace("_", " ").title() for p, v in role.permissions if v][:10]) or "None")
+            .footer(f"Requested by {interaction.user.display_name}")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="channelinfo", description="Show information about a channel.")
+    @app_commands.describe(channel="The channel to look up")
+    async def channelinfo(self, interaction: discord.Interaction, channel: discord.TextChannel = None):
+        target = channel or interaction.channel
+        topic = target.topic or "No topic set"
+        slowmode = target.slowmode_delay
+        slowmode_str = f"{slowmode}s" if slowmode else "Disabled"
+        embed = (
+            EmbedBuilder()
+            .title(f"💬 {target.name}")
+            .color("blue")
+            .field("Channel ID", str(target.id))
+            .field("Type", str(target.type).title())
+            .field("Category", target.category.name if target.category else "None")
+            .field("Topic", topic[:1024])
+            .field("Slowmode", slowmode_str)
+            .field("NSFW", "Yes" if target.nsfw else "No")
+            .field("Position", str(target.position))
+            .field("Created", discord.utils.format_dt(target.created_at, style="F"))
+            .footer(f"Requested by {interaction.user.display_name}")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
         await interaction.response.send_message(embed=embed)
 
 

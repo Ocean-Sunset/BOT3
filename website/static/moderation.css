@@ -690,6 +690,12 @@
 }
 .md-block-warn[style*="flex"] { display: flex !important; }
 
+/* ── Disabled platform block ── */
+[data-platform].is-disabled { opacity: 0.45; }
+[data-platform].is-disabled .md-behavior-list { pointer-events: none; }
+[data-platform].is-disabled .md-behavior-list input,
+[data-platform].is-disabled .md-behavior-list .md-custom-select-btn { opacity: 0.35; }
+
 /* ── Behavior toggles list ── */
 .md-behavior-list {
   display: flex;

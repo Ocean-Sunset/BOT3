@@ -12,7 +12,7 @@
 
     <!-- YouTube -->
     <div class="md-section">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+      <div data-platform="youtube" style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
           <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">YouTube</div>
           <label class="md-toggle"><input type="checkbox" data-key="youtube_enabled" /><span class="md-toggle-slider"></span></label>
@@ -45,13 +45,20 @@
               </div>
             </div>
           </div>
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Custom Message</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{channel}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code></div>
+              <input type="text" class="md-input" data-key="youtube_message" placeholder="New video from {channel}!" />
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Twitch -->
     <div class="md-section">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+      <div data-platform="twitch" style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
           <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">Twitch</div>
           <label class="md-toggle"><input type="checkbox" data-key="twitch_enabled" /><span class="md-toggle-slider"></span></label>
@@ -84,13 +91,20 @@
               </div>
             </div>
           </div>
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Custom Message</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{channel}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code></div>
+              <input type="text" class="md-input" data-key="twitch_message" placeholder="{channel} is now live!" />
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Twitter/X -->
     <div class="md-section">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+      <div data-platform="twitter" style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
           <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">Twitter / X</div>
           <label class="md-toggle"><input type="checkbox" data-key="twitter_enabled" /><span class="md-toggle-slider"></span></label>
@@ -123,6 +137,41 @@
               </div>
             </div>
           </div>
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Custom Message</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{channel}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code></div>
+              <input type="text" class="md-input" data-key="twitter_message" placeholder="New post from @{channel}!" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- More Social Alerts -->
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <div>
+            <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">More Social Alerts</div>
+            <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-top:2px;">Add extra alerts per platform — up to 5 each.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:0.4rem;margin-bottom:0.75rem;">
+          <button class="md-action-btn extra-tab is-active" data-tab="youtube">YouTube</button>
+          <button class="md-action-btn extra-tab" data-tab="twitch">Twitch</button>
+          <button class="md-action-btn extra-tab" data-tab="twitter">Twitter/X</button>
+        </div>
+        <div id="extra-list" style="display:flex;flex-direction:column;gap:0.35rem;margin-bottom:0.75rem;"></div>
+        <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:0.75rem;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Add Alert</div>
+          <input type="text" class="md-input" id="extra-target" placeholder="Channel ID / handle" style="margin-bottom:0.4rem;" />
+          <div class="md-custom-select" style="margin-bottom:0.4rem;" data-extra-role>
+            <button class="md-custom-select-btn">Ping role (optional)</button>
+            <div class="md-custom-select-drop"></div>
+          </div>
+          <input type="text" class="md-input" id="extra-message" placeholder="Custom message (optional)" style="margin-bottom:0.4rem;" />
+          <button class="md-sweep-btn" id="extra-add" style="width:100%;justify-content:center;"><i data-lucide="plus"></i> Add Alert</button>
         </div>
       </div>
     </div>
@@ -188,21 +237,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // ── Roles for ping-role dropdowns ──
+  // ── Roles for ping-role dropdowns + extra alert role ──
   api('/roles').then(d => {
     const roles = d.roles || [];
-    document.querySelectorAll('[data-role-select]').forEach(wrap => {
-      const key = wrap.dataset.roleSelect;
+    document.querySelectorAll('[data-role-select], [data-extra-role]').forEach(wrap => {
       const btn = wrap.querySelector('.md-custom-select-btn');
       const drop = wrap.querySelector('.md-custom-select-drop');
       drop.innerHTML = `<button class="md-custom-opt" data-id="">No role</button>` + roles.map(r => `<button class="md-custom-opt" data-id="${r.id}">${esc(r.name)}</button>`).join('');
       drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
         btn.textContent = b.dataset.id ? b.textContent : 'No role';
-        markChanged(key, b.dataset.id || null);
+        if (wrap.hasAttribute('data-role-select')) {
+          markChanged(wrap.dataset.roleSelect, b.dataset.id || null);
+        } else {
+          window._extraRole = b.dataset.id || null;
+        }
         drop.classList.remove('is-open');
       }));
       btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
-      document.addEventListener('click', (e) => { if(!e.target.closest(`[data-role-select="${key}"]`)) drop.classList.remove('is-open'); });
+      document.addEventListener('click', (e) => { if(!e.target.closest('[data-role-select], [data-extra-role]')) drop.classList.remove('is-open'); });
     });
   });
 
@@ -216,7 +268,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (el.type === 'checkbox') el.checked = !!s[key];
       else el.value = s[key] || '';
     });
-    document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); }));
+    document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); updateGrayOut(); }));
     document.querySelectorAll('input[type="text"][data-key]').forEach(inp => inp.addEventListener('change', function(){ markChanged(this.dataset.key, this.value); }));
 
     // Set dropdown button labels from saved values
@@ -227,7 +279,61 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (opt) wrap.querySelector('.md-custom-select-btn').textContent = opt.textContent;
       }
     });
+
+    // ── Extra alerts state ──
+    let extraAlerts = s.extra_alerts || {};
+    let extraTab = 'youtube';
+    function renderExtra() {
+      const list = document.getElementById('extra-list');
+      const items = extraAlerts[extraTab] || [];
+      if (!items.length) { list.innerHTML = '<div style="text-align:center;padding:0.75rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No extra alerts for this platform.</div>'; return; }
+      list.innerHTML = items.map((a, i) => `<div class="md-behavior-item">
+        <div style="flex:1;min-width:0;">
+          <div class="md-behavior-label" style="font-size:0.78rem;">${esc(a.target)}</div>
+          <div class="md-behavior-desc">${a.ping_role ? 'Role pinged' : 'No ping'}${a.message ? ' · custom message' : ''}</div>
+        </div>
+        <button class="md-action-btn danger" data-remove="${i}" style="flex-shrink:0;"><i data-lucide="trash-2"></i></button>
+      </div>`).join('');
+      list.querySelectorAll('[data-remove]').forEach(b => b.addEventListener('click', () => {
+        extraAlerts[extraTab].splice(parseInt(b.dataset.remove), 1);
+        markChanged('extra_alerts', JSON.parse(JSON.stringify(extraAlerts)));
+        renderExtra();
+        lucide.createIcons();
+      }));
+      lucide.createIcons();
+    }
+    document.querySelectorAll('.extra-tab').forEach(t => t.addEventListener('click', () => {
+      extraTab = t.dataset.tab;
+      document.querySelectorAll('.extra-tab').forEach(x => x.classList.toggle('is-active', x === t));
+      renderExtra();
+    }));
+    document.getElementById('extra-add').addEventListener('click', () => {
+      const target = document.getElementById('extra-target').value.trim();
+      if (!target) { showToast('Enter a channel ID / handle.', 'error'); return; }
+      const items = extraAlerts[extraTab] || [];
+      if (items.length >= 5) { showToast('Max 5 alerts per platform.', 'error'); return; }
+      items.push({ target, ping_role: window._extraRole || null, message: document.getElementById('extra-message').value.trim() || null });
+      extraAlerts[extraTab] = items;
+      markChanged('extra_alerts', JSON.parse(JSON.stringify(extraAlerts)));
+      document.getElementById('extra-target').value = '';
+      document.getElementById('extra-message').value = '';
+      window._extraRole = null;
+      const roleBtn = document.querySelector('[data-extra-role] .md-custom-select-btn');
+      if (roleBtn) roleBtn.textContent = 'Ping role (optional)';
+      renderExtra();
+    });
+    renderExtra();
   }).catch(() => {});
+
+  // ── Gray out platform blocks when disabled ──
+  function updateGrayOut() {
+    ['youtube','twitch','twitter'].forEach(p => {
+      const enabled = document.querySelector(`[data-key="${p}_enabled"]`)?.checked ?? false;
+      const block = document.querySelector(`[data-platform="${p}"]`);
+      if (block) block.classList.toggle('is-disabled', !enabled);
+    });
+  }
+  updateGrayOut();
 
   saveBtn.addEventListener('click', saveChanges);
   document.getElementById('discard-btn').addEventListener('click', () => {

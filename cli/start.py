@@ -45,6 +45,7 @@ class ProwlBot(commands.Bot):
         self.loop.create_task(self._dashboard_writer())
         self.loop.create_task(self._initial_neon_push())
         self.loop.create_task(self._neon_syncer())
+        self.loop.create_task(self._member_sync())
         self.loop.create_task(self._mod_settings_poller())
         self.loop.create_task(self._mod_action_processor())
         logger.info("Setup hook complete.")
@@ -101,6 +102,30 @@ class ProwlBot(commands.Bot):
             except Exception as e:
                 logger.error(f"Neon sync failed: {e}")
             await asyncio.sleep(120)
+
+    async def _member_sync(self):
+        """Lightweight sync: update only member names/roles/joins in guild_data every 30s."""
+        await self.wait_until_ready()
+        while not self.is_closed():
+            try:
+                pool = await neon_db.get_pool()
+                if pool:
+                    async with pool.acquire() as conn:
+                        for guild in self.guilds:
+                            members = [{
+                                "id": str(m.id), "name": m.name, "display_name": m.display_name,
+                                "avatar_url": str(m.display_avatar.url),
+                                "joined_at": m.joined_at.isoformat() if m.joined_at else None,
+                                "roles": [str(r.id) for r in m.roles[1:]],
+                                "is_raider": False,
+                            } for m in guild.members]
+                            await conn.execute(
+                                "UPDATE guild_data SET data = jsonb_set(data, '{members}', $2::jsonb), updated_at = $3 WHERE guild_id = $1",
+                                str(guild.id), json.dumps(members), time.time(),
+                            )
+            except Exception as e:
+                logger.debug(f"Member sync failed: {e}")
+            await asyncio.sleep(30)
 
     async def _mod_settings_poller(self):
         """Watch mod_settings for changes and log them (e.g. role promoted to admin)."""

@@ -361,6 +361,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
+    // Re-evaluate gray-out + required warnings after settings are applied
+    updateGrayOut();
+    updateRequiredWarnings();
+    lucide.createIcons();
+
     // ── Extra alerts state ──
     extraAlerts = s.extra_alerts || {};
     let extraTab = 'youtube';

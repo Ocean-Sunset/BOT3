@@ -64,9 +64,13 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         self.bot = bot
         self._last_videos = {}
         self.check_youtube.start()
+        self.check_twitch.start()
+        self.check_twitter.start()
 
     def cog_unload(self):
         self.check_youtube.cancel()
+        self.check_twitch.cancel()
+        self.check_twitter.cancel()
 
     def _resolve_channel(self, guild: discord.Guild, channel_id, fallback_id=None) -> Optional[discord.TextChannel]:
         for cid in (channel_id, fallback_id):
@@ -157,6 +161,112 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
     @check_youtube.before_loop
     async def before_check(self):
         await asyncio.sleep(30)
+
+    # ── Twitch (uses Helix API; no-op without TWITCH_CLIENT_ID/SECRET) ──
+    @tasks.loop(minutes=5)
+    async def check_twitch(self):
+        await self.bot.wait_until_ready()
+        from Ediscord.variables import TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET
+        if not (TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET):
+            return
+        token = await self._twitch_token()
+        if not token:
+            return
+        for guild in self.bot.guilds:
+            try:
+                settings = await get_social_settings(guild.id)
+                if not settings.get("twitch_enabled"):
+                    continue
+                channel = settings.get("twitch_channel")
+                if channel:
+                    await self._check_twitch_channel(guild, settings, channel, token,
+                                                     settings.get("twitch_message"), settings.get("twitch_ping_role"))
+                for ea in settings.get("extra_alerts", {}).get("twitch", []):
+                    if ea.get("target"):
+                        await self._check_twitch_channel(guild, settings, ea["target"], token,
+                                                         ea.get("message"), ea.get("ping_role"))
+            except Exception as e:
+                logger.debug(f"Twitch check failed for {guild.id}: {e}")
+
+    async def _twitch_token(self):
+        from Ediscord.variables import TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET
+        try:
+            async with aiohttp.ClientSession() as s:
+                async with s.post("https://id.twitch.tv/oauth2/token",
+                                  params={"client_id": TWITCH_CLIENT_ID, "client_secret": TWITCH_CLIENT_SECRET,
+                                          "grant_type": "client_credentials"},
+                                  headers={"Client-ID": TWITCH_CLIENT_ID}) as resp:
+                    data = await resp.json()
+                    return data.get("access_token")
+        except Exception:
+            return None
+
+    async def _check_twitch_channel(self, guild, settings, channel, token, custom_msg=None, ping_role_id=None):
+        from Ediscord.variables import TWITCH_CLIENT_ID
+        try:
+            async with aiohttp.ClientSession() as s:
+                async with s.get("https://api.twitch.tv/helix/streams",
+                                 params={"user_login": channel},
+                                 headers={"Client-ID": TWITCH_CLIENT_ID, "Authorization": f"Bearer {token}"}) as resp:
+                    data = await resp.json()
+            if data.get("data"):
+                title = data["data"][0].get("title") or channel
+                url = f"https://www.twitch.tv/{channel}"
+                if self._last_videos.get(f"{guild.id}:twitch:{channel}") == url:
+                    return
+                self._last_videos[f"{guild.id}:twitch:{channel}"] = url
+                await self._send_alert(guild, settings, "twitch", title, custom_msg, ping_role_id, settings.get("twitch_announce_channel_id"), url)
+        except Exception as e:
+            logger.debug(f"Twitch channel check failed: {e}")
+
+    # ── Twitter/X (uses API v2; no-op without TWITTER_BEARER_TOKEN) ──
+    @tasks.loop(minutes=10)
+    async def check_twitter(self):
+        await self.bot.wait_until_ready()
+        from Ediscord.variables import TWITTER_BEARER_TOKEN
+        if not TWITTER_BEARER_TOKEN:
+            return
+        for guild in self.bot.guilds:
+            try:
+                settings = await get_social_settings(guild.id)
+                if not settings.get("twitter_enabled"):
+                    continue
+                handle = settings.get("twitter_handle")
+                if handle:
+                    await self._check_twitter_handle(guild, settings, handle,
+                                                     settings.get("twitter_message"), settings.get("twitter_ping_role"))
+                for ea in settings.get("extra_alerts", {}).get("twitter", []):
+                    if ea.get("target"):
+                        await self._check_twitter_handle(guild, settings, ea["target"],
+                                                         ea.get("message"), ea.get("ping_role"))
+            except Exception as e:
+                logger.debug(f"Twitter check failed for {guild.id}: {e}")
+
+    async def _check_twitter_handle(self, guild, settings, handle, custom_msg=None, ping_role_id=None):
+        from Ediscord.variables import TWITTER_BEARER_TOKEN
+        try:
+            async with aiohttp.ClientSession() as s:
+                async with s.get(f"https://api.twitter.com/2/users/by/username/{handle}",
+                                 params={"user.fields": "id"},
+                                 headers={"Authorization": f"Bearer {TWITTER_BEARER_TOKEN}"}) as resp:
+                    data = await resp.json()
+            user_id = data.get("data", {}).get("id")
+            if not user_id:
+                return
+            async with aiohttp.ClientSession() as s:
+                async with s.get(f"https://api.twitter.com/2/users/{user_id}/tweets",
+                                 params={"max_results": 1, "tweet.fields": "id"},
+                                 headers={"Authorization": f"Bearer {TWITTER_BEARER_TOKEN}"}) as resp:
+                    tweets = await resp.json()
+            if tweets.get("data"):
+                tweet = tweets["data"][0]
+                url = f"https://twitter.com/{handle}/status/{tweet['id']}"
+                if self._last_videos.get(f"{guild.id}:twitter:{handle}") == url:
+                    return
+                self._last_videos[f"{guild.id}:twitter:{handle}"] = url
+                await self._send_alert(guild, settings, "twitter", f"@{handle}", custom_msg, ping_role_id, settings.get("twitter_announce_channel_id"), url)
+        except Exception as e:
+            logger.debug(f"Twitter handle check failed: {e}")
 
     social_group = app_commands.Group(name="social", description="Social media alert settings")
 

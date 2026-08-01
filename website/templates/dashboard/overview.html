@@ -201,7 +201,7 @@ function loadFeed() {
   api('/feed').then(d => {
     const el = document.getElementById('activity-feed');
     if (!d.events?.length) { el.textContent = 'No recent activity.'; return; }
-    el.innerHTML = d.events.slice(0, 8).map(e =>
+    el.innerHTML = d.events.slice(0, 20).map(e =>
       `<div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.04);">
         <span style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${e.color === 'green' ? '#34d399' : e.color === 'red' ? '#f87171' : e.color === 'yellow' ? '#fbbf24' : '#666'}"></span>
         <span style="font-size:14px;font-weight:600;color:rgba(255,255,255,0.7);min-width:0;">${feedLabel(e)}</span>

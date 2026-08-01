@@ -83,6 +83,14 @@ class ProwlBot(commands.Bot):
             activity=discord.Game("playing with commands"),
         )
 
+    async def on_guild_remove(self, guild: discord.Guild):
+        """Clean up a guild's data when the bot is removed/kicked."""
+        logger.info(f"Left/Kicked from guild: {guild.name} ({guild.id}) — deleting data.")
+        try:
+            await neon_db.delete_guild_data(guild.id)
+        except Exception as e:
+            logger.error(f"Failed to delete data for {guild.id}: {e}")
+
     async def _dashboard_writer(self):
         """Periodically write bot data for the dashboard."""
         await self.wait_until_ready()
@@ -104,28 +112,35 @@ class ProwlBot(commands.Bot):
             await asyncio.sleep(120)
 
     async def _member_sync(self):
-        """Lightweight sync: update only member names/roles/joins in guild_data every 30s."""
+        """Lightweight sync: update only member names/roles/joins in guild_data."""
         await self.wait_until_ready()
         while not self.is_closed():
             try:
-                pool = await neon_db.get_pool()
-                if pool:
-                    async with pool.acquire() as conn:
-                        for guild in self.guilds:
-                            members = [{
-                                "id": str(m.id), "name": m.name, "display_name": m.display_name,
-                                "avatar_url": str(m.display_avatar.url),
-                                "joined_at": m.joined_at.isoformat() if m.joined_at else None,
-                                "roles": [str(r.id) for r in m.roles[1:]],
-                                "is_raider": False,
-                            } for m in guild.members]
-                            await conn.execute(
-                                "UPDATE guild_data SET data = jsonb_set(data, '{members}', $2::jsonb), updated_at = $3 WHERE guild_id = $1",
-                                str(guild.id), json.dumps(members), time.time(),
-                            )
+                for guild in self.guilds:
+                    await self._sync_guild_members(guild)
             except Exception as e:
                 logger.debug(f"Member sync failed: {e}")
-            await asyncio.sleep(30)
+            await asyncio.sleep(15)
+
+    async def _sync_guild_members(self, guild):
+        pool = await neon_db.get_pool()
+        if pool is None:
+            return
+        members = [{
+            "id": str(m.id), "name": m.name, "display_name": m.display_name,
+            "avatar_url": str(m.display_avatar.url),
+            "joined_at": m.joined_at.isoformat() if m.joined_at else None,
+            "roles": [str(r.id) for r in m.roles[1:]],
+            "is_raider": False,
+        } for m in guild.members]
+        try:
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    "UPDATE guild_data SET data = jsonb_set(data, '{members}', $2::jsonb), updated_at = $3 WHERE guild_id = $1",
+                    str(guild.id), json.dumps(members), time.time(),
+                )
+        except Exception as e:
+            logger.debug(f"Sync members for {guild.id} failed: {e}")
 
     async def _mod_settings_poller(self):
         """Watch mod_settings for changes and log them (e.g. role promoted to admin)."""
@@ -192,12 +207,15 @@ class ProwlBot(commands.Bot):
                         elif act == "mute":
                             if not member:
                                 raise Exception("member not in guild")
-                            until = discord.utils.utcnow() + datetime.timedelta(minutes=int(duration or 60))
+                            minutes = int(duration or 60)
+                            until = discord.utils.utcnow() + datetime.timedelta(minutes=minutes)
                             await member.timeout(until, reason=reason)
+                            await neon_db.set_muted_user(a["guild_id"], a["target_id"], member.name, reason, until.timestamp())
                         elif act == "unmute":
                             if not member:
                                 raise Exception("member not in guild")
                             await member.timeout(None, reason=reason)
+                            await neon_db.remove_muted_user(a["guild_id"], a["target_id"])
                         elif act == "purge":
                             channel = guild.get_channel(int(a["target_id"]))
                             if not isinstance(channel, discord.TextChannel):
@@ -212,6 +230,16 @@ class ProwlBot(commands.Bot):
                             if not await cog._send_panel(guild, a["target_id"]):
                                 raise Exception("panel send failed")
                             reason = "Ticket panel sent"
+                        elif act == "verify_panel":
+                            from components.verification import Verification
+                            cog = self.get_cog("Verification")
+                            if not cog:
+                                raise Exception("Verification cog not loaded")
+                            from components.verification import get_verify_settings
+                            settings = await get_verify_settings(guild.id)
+                            if not await cog._send_panel(guild, settings):
+                                raise Exception("verify panel send failed")
+                            reason = "Verification panel deployed"
                         elif act in ("add_role", "remove_role"):
                             role = guild.get_role(int(a["target_name"]))
                             if not role:
@@ -243,6 +271,9 @@ class ProwlBot(commands.Bot):
                         elif act == "nickname":
                             log_reason = f"Changed nickname to '{a['target_name']}'"
                         await neon_db.push_mod_event(a["guild_id"], a["target_id"], log_user, act, log_reason, moderator)
+                        # Push member data immediately so the dashboard reflects the change fast
+                        if act in ("add_role", "remove_role", "nickname"):
+                            self.bot.loop.create_task(self._sync_guild_members(guild))
                     except Exception as e:
                         logger.error(f"Action {a['id']} ({act} on {a['target_id']}) failed: {e}")
                         await neon_db.complete_action(a["id"], "failed", str(e)[:500])

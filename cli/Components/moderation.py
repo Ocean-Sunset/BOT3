@@ -725,6 +725,9 @@ class Moderation(commands.Cog, name="Moderation"):
         )
         await send_modlog(interaction.guild, settings, log_embed)
         await log_mod_action(interaction.guild_id, str(member.id), member.name, "mute", f"{duration}min - {reason}", interaction.user.name)
+        await neon_db.set_muted_user(
+            interaction.guild_id, member.id, member.name, reason, until.timestamp()
+        )
 
     @app_commands.command(name="unmute", description="Remove a timeout from a member")
     @app_commands.describe(member="The member to unmute", reason="Reason for the unmute")
@@ -782,6 +785,7 @@ class Moderation(commands.Cog, name="Moderation"):
         )
         await send_modlog(interaction.guild, settings, log_embed)
         await log_mod_action(interaction.guild_id, str(member.id), member.name, "unmute", reason, interaction.user.name)
+        await neon_db.remove_muted_user(interaction.guild_id, member.id)
 
     @app_commands.command(name="warn", description="Warn a member")
     @app_commands.describe(member="The member to warn", reason="Warning reason (optional)")

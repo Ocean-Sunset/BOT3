@@ -480,9 +480,9 @@ button, .save-btn, .discard-btn {
 }
 
 .toast-info {
-  background: #0d141f;
-  border-color: rgba(96, 165, 250, 0.2);
-  color: #60a5fa;
+  background: #161616;
+  border-color: rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.75);
 }
 
 @keyframes shimmer {

@@ -63,6 +63,17 @@ CREATE TABLE IF NOT EXISTS mod_actions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_mod_actions_guild ON mod_actions (guild_id, status);
+
+CREATE TABLE IF NOT EXISTS muted_users (
+    guild_id    TEXT NOT NULL,
+    user_id     TEXT NOT NULL,
+    user_name   TEXT DEFAULT '',
+    reason      TEXT DEFAULT '',
+    end_ts      DOUBLE PRECISION NOT NULL DEFAULT 0,
+    PRIMARY KEY (guild_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_muted_users_guild ON muted_users (guild_id, end_ts);
 CREATE INDEX IF NOT EXISTS idx_mod_actions_pending ON mod_actions (guild_id, status) WHERE status = 'pending';
 
 CREATE TABLE IF NOT EXISTS member_history (
@@ -136,6 +147,9 @@ CREATE TABLE IF NOT EXISTS autoresponder (
     match_type  TEXT NOT NULL DEFAULT 'contains',
     created_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
 );
+
+ALTER TABLE autoresponder ADD COLUMN IF NOT EXISTS channel_id TEXT;
+ALTER TABLE autoresponder ADD COLUMN IF NOT EXISTS cooldown INTEGER DEFAULT 0;
 
 CREATE INDEX IF NOT EXISTS idx_autoresponder_guild ON autoresponder (guild_id);
 

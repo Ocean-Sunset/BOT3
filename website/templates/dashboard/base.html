@@ -26,7 +26,7 @@
   </script>
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="preload" href="https://unpkg.com/lucide@latest" as="script" />
-  <link rel="stylesheet" href="/static/dashboard.css" />
+  <link rel="stylesheet" href="/static/dashboard.css?v=2" />
   <script>
     (function(){
       var s = JSON.parse(localStorage.getItem('prowl_sidebar') || '{}');
@@ -198,6 +198,45 @@
       }, duration);
     }
     window.showToast = showToast;
+  </script>
+
+  <script>
+    // ── Global action watcher (runs on every dashboard page) ──
+    (function() {
+      const GID = window.__GUILD_ID;
+      if (!GID) return;
+      const WATCH_KEY = 'prowl_actions_watch_' + GID;
+      // Map of action id -> status we've already notified about
+      let seen = {};
+      try { seen = JSON.parse(localStorage.getItem(WATCH_KEY) || '{}'); } catch {}
+      function notifyActions() {
+        fetch('/api/v1/mod/' + GID + '/actions').then(r => r.json()).then(d => {
+          const now = Date.now();
+          (d.actions || []).forEach(a => {
+            const ts = a.created_at ? a.created_at * 1000 : 0;
+            if (!ts || now - ts > 300000) return; // only recent (5 min)
+            const prev = seen[a.id];
+            const status = a.status || '';
+            if (status !== prev) {
+              seen[a.id] = status;
+              try { localStorage.setItem(WATCH_KEY, JSON.stringify(seen)); } catch {}
+              if (status === 'failed' && a.error && typeof showToast === 'function') {
+                showToast('Action #' + a.id + ' failed: ' + a.error, 'error');
+              } else if (status === 'completed' && typeof showToast === 'function') {
+                const act = a.action || '';
+                showToast('Action #' + a.id + ' ' + act + ' completed.', 'success');
+                // If a mute/unmute finished, refresh the muted list if visible
+                if ((act === 'mute' || act === 'unmute' || act === 'purge') && typeof window.loadMutedList === 'function') {
+                  setTimeout(() => window.loadMutedList(), 800);
+                }
+              }
+            }
+          });
+        }).catch(() => {});
+      }
+      setInterval(() => { if (!document.hidden) notifyActions(); }, 5000);
+      setTimeout(notifyActions, 3000);
+    })();
   </script>
 
   <div id="save-bar" class="save-bar is-closed">

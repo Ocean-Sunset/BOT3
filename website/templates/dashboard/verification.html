@@ -1,12 +1,12 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
-<link rel="stylesheet" href="/static/moderation.css?v=7" />
+<link rel="stylesheet" href="/static/moderation.css?v=8" />
 <div style="padding:2rem 0;">
 
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;">
     <div>
       <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Verification</h1>
-      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Member verification and gatekeeping</p>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Gate your server and keep raiders out</p>
     </div>
     <label class="md-toggle md-toggle-xl"><input type="checkbox" data-key="enabled" /><span class="md-toggle-slider"></span></label>
   </div>
@@ -16,17 +16,25 @@
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Verification Method</div>
+        <div class="md-behavior-desc" style="margin-bottom:0.5rem;">How users prove they're human</div>
+        <div class="md-segmented" style="flex-wrap:wrap;row-gap:0.3rem;">
+          <button class="extra-tab vfy-type-tab is-active" data-type="button">Button</button>
+          <button class="extra-tab vfy-type-tab" data-type="reaction">Reaction Role</button>
+          <button class="extra-tab vfy-type-tab" data-type="captcha">Captcha Code</button>
+          <button class="extra-tab vfy-type-tab" data-type="recaptcha">reCAPTCHA</button>
+          <button class="extra-tab vfy-type-tab" data-type="turnstile">Turnstile</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Verification Channel</div>
-        <div class="md-behavior-list">
-          <div class="md-behavior-item" style="align-items:flex-start">
-            <div style="flex:1">
-              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Channel where the verification panel is posted</div>
-              <div class="md-custom-select" data-channel-select="channel_id">
-                <button class="md-custom-select-btn">No channel</button>
-                <div class="md-custom-select-drop"></div>
-              </div>
-            </div>
-          </div>
+        <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Channel where the verification panel is posted</div>
+        <div class="md-custom-select" data-channel-select="channel_id">
+          <button class="md-custom-select-btn">No channel</button>
+          <div class="md-custom-select-drop"></div>
         </div>
       </div>
     </div>
@@ -34,16 +42,10 @@
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Verified Role</div>
-        <div class="md-behavior-list">
-          <div class="md-behavior-item" style="align-items:flex-start">
-            <div style="flex:1">
-              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Role given to users after they verify</div>
-              <div class="md-custom-select" data-role-select="verified_role_id">
-                <button class="md-custom-select-btn">No role</button>
-                <div class="md-custom-select-drop"></div>
-              </div>
-            </div>
-          </div>
+        <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Role given to users after they verify</div>
+        <div class="md-custom-select" data-role-select="verified_role_id">
+          <button class="md-custom-select-btn">No role</button>
+          <div class="md-custom-select-drop"></div>
         </div>
       </div>
     </div>
@@ -51,15 +53,71 @@
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Log Channel</div>
+        <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Where verification events are logged</div>
+        <div class="md-custom-select" data-channel-select="log_channel_id">
+          <button class="md-custom-select-btn">No channel</button>
+          <div class="md-custom-select-drop"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section" id="method-message-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Panel Message</div>
+        <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Text shown on the verification panel</div>
+        <input type="text" class="md-input" data-key="message" placeholder="Click the button below to verify yourself." />
+      </div>
+    </div>
+
+    <div class="md-section" id="method-reaction-section" style="display:none;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Reaction Emoji</div>
+        <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Emoji users react with to verify</div>
+        <input type="text" class="md-input" data-key="reaction_emoji" placeholder="✅" style="max-width:140px;" />
+      </div>
+    </div>
+
+    <div class="md-section" id="method-recaptcha-section" style="display:none;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Google reCAPTCHA</div>
         <div class="md-behavior-list">
-          <div class="md-behavior-item" style="align-items:flex-start">
+          <div class="md-behavior-item">
             <div style="flex:1">
-              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Where verification events are logged</div>
-              <div class="md-custom-select" data-channel-select="log_channel_id">
-                <button class="md-custom-select-btn">No channel</button>
-                <div class="md-custom-select-drop"></div>
-              </div>
+              <div class="md-behavior-label">Site Key</div>
+              <input type="text" class="md-input" data-key="recaptcha_site_key" placeholder="6Lc..." />
             </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Secret Key</div>
+              <input type="password" class="md-input" data-key="recaptcha_secret" placeholder="6Lc..." />
+            </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.5;">Users click Verify, solve the captcha on the provided page, and paste the token to gain the role.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section" id="method-turnstile-section" style="display:none;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Cloudflare Turnstile</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Site Key</div>
+              <input type="text" class="md-input" data-key="turnstile_site_key" placeholder="0x4AA..." />
+            </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Secret Key</div>
+              <input type="password" class="md-input" data-key="turnstile_secret" placeholder="0x4AA..." />
+            </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.5;">Users click Verify, solve the Turnstile on the provided page, and paste the token to gain the role.</div>
           </div>
         </div>
       </div>
@@ -67,22 +125,9 @@
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Verification Type</div>
-        <div class="md-behavior-list">
-          <div class="md-behavior-item" style="align-items:flex-start">
-            <div style="flex:1">
-              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">How users verify themselves</div>
-              <div class="md-segmented">
-                <button class="extra-tab vfy-type-tab is-active" data-type="button">Button</button>
-                <button class="extra-tab vfy-type-tab" data-type="captcha">Captcha</button>
-              </div>
-            </div>
-          </div>
-          <div class="md-behavior-item">
-            <label class="md-toggle"><input type="checkbox" data-key="captcha" /><span class="md-toggle-slider"></span></label>
-            <div><div class="md-behavior-label">Require Captcha</div><div class="md-behavior-desc">Show a captcha code to solve</div></div>
-          </div>
-        </div>
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Deploy Panel</div>
+        <div class="md-behavior-desc" style="margin-bottom:0.6rem;">Post the verification panel to the configured channel</div>
+        <button id="vfy-deploy" class="md-action-btn" style="padding:0.5rem 1rem;font-size:0.8rem;background:rgba(255,255,255,0.06);color:#e9edf5;"><i data-lucide="send"></i> Deploy Panel</button>
       </div>
     </div>
 
@@ -121,33 +166,46 @@ async function saveChanges() {
   if (typeof showToast==='function') showToast('Settings saved.','success');
 }
 
+const METHOD_SECTIONS = {
+  button: null,
+  reaction: 'method-reaction-section',
+  captcha: null,
+  recaptcha: 'method-recaptcha-section',
+  turnstile: 'method-turnstile-section',
+};
+
+function updateTypeUI(type) {
+  document.querySelectorAll('.vfy-type-tab').forEach(t => t.classList.toggle('is-active', t.dataset.type === type));
+  Object.keys(METHOD_SECTIONS).forEach(k => {
+    const el = document.getElementById(METHOD_SECTIONS[k]);
+    if (el) el.style.display = (k === type) ? '' : 'none';
+  });
+}
+
 function updateGrayOut() {
   const enabled = $('[data-key="enabled"]')?.checked ?? false;
   const config = document.getElementById('vfy-config');
   if (config) config.classList.toggle('is-disabled', !enabled);
 }
 
-function resetDropdowns() {
-  document.querySelectorAll('[data-role-select], [data-channel-select]').forEach(wrap => {
-    const key = wrap.dataset.roleSelect || wrap.dataset.channelSelect;
-    const btn = wrap.querySelector('.md-custom-select-btn'); if (!btn) return;
-    const saved = SETTINGS_SNAPSHOT[key];
-    btn.textContent = saved ? (wrap.querySelector(`.md-custom-opt[data-id="${saved}"]`)?.textContent || '—') : (key.includes('channel') ? 'No channel' : 'No role');
-  });
-}
-
-function populateDropdown(sel, items, noneLabel) {
-  items.forEach(wrap => {
+function populateDropdown(wrappers, items, noneLabel) {
+  wrappers.forEach(wrap => {
     const btn = wrap.querySelector('.md-custom-select-btn');
     const drop = wrap.querySelector('.md-custom-select-drop');
+    const key = wrap.dataset.roleSelect || wrap.dataset.channelSelect;
     drop.innerHTML = `<button class="md-custom-opt" data-id="">${noneLabel}</button>` + items.map(i => `<button class="md-custom-opt" data-id="${i.id}">${esc(i.name)}</button>`).join('');
     drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
       btn.textContent = b.dataset.id ? b.textContent : noneLabel;
-      markChanged(wrap.dataset.roleSelect || wrap.dataset.channelSelect, b.dataset.id || null);
+      markChanged(key, b.dataset.id || null);
       drop.classList.remove('is-open');
     }));
     btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
     document.addEventListener('click', e => { if(!e.target.closest('[data-role-select], [data-channel-select]')) drop.classList.remove('is-open'); });
+    const saved = SETTINGS_SNAPSHOT[key];
+    if (saved) {
+      const match = items.find(i => String(i.id) === String(saved));
+      if (match) btn.textContent = match.name;
+    }
   });
 }
 
@@ -162,18 +220,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (el.type==='checkbox') el.checked = !!s[key]; else el.value = s[key] ?? '';
     });
     document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); updateGrayOut(); }));
-    resetDropdowns();
-    // Verification type
-    const vt = s.type || 'button';
-    document.querySelectorAll('.vfy-type-tab').forEach(t => t.classList.toggle('is-active', t.dataset.type === vt));
+    document.querySelectorAll('input[type="text"][data-key], input[type="password"][data-key]').forEach(inp => inp.addEventListener('input', function(){ markChanged(this.dataset.key, this.value); }));
+    updateTypeUI(s.type || 'button');
     updateGrayOut();
   });
 
   document.querySelectorAll('.vfy-type-tab').forEach(t => t.addEventListener('click', () => {
-    document.querySelectorAll('.vfy-type-tab').forEach(x => x.classList.remove('is-active'));
-    t.classList.add('is-active');
+    updateTypeUI(t.dataset.type);
     markChanged('type', t.dataset.type);
   }));
+
+  document.getElementById('vfy-deploy')?.addEventListener('click', async () => {
+    const btn = document.getElementById('vfy-deploy');
+    btn.disabled = true; btn.innerHTML = '<i data-lucide="loader" class="spin"></i> Deploying...';
+    lucide.createIcons();
+    try {
+      const res = await fetch(`/api/v1/verify/${GID}/deploy`, { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'} });
+      if (!res.ok) throw new Error('bad status');
+      if (typeof showToast==='function') showToast('Panel deploy queued for the bot.', 'info');
+    } catch (e) {
+      if (typeof showToast==='function') showToast('Failed to queue deploy.', 'error');
+    }
+    btn.disabled = false; btn.innerHTML = '<i data-lucide="send"></i> Deploy Panel';
+    lucide.createIcons();
+  });
 
   saveBtn.addEventListener('click', saveChanges);
   document.getElementById('discard-btn').addEventListener('click', () => {
@@ -184,6 +254,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       delete original[key];
     }
     for (const key of Object.keys(pending)) delete pending[key];
+    updateTypeUI(SETTINGS_SNAPSHOT.type || 'button');
     saveBar.classList.add('is-closed');
     updateGrayOut();
   });

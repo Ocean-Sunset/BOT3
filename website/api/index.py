@@ -876,11 +876,20 @@ async def mod_members(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
     d = _parse_guild_data(row)
+
+    def avatar_url(m):
+        av = m.get("avatar_url") or m.get("avatar")
+        if not av:
+            return None
+        if str(av).startswith("http"):
+            return str(av)
+        return f"https://cdn.discordapp.com/avatars/{m.get('id')}/{av}.png?size=64"
+
     if d and "members" in d:
         # Filter out the bot (bot user ID is in config); coerce IDs to strings
         return {"members": [{
             "id": str(m.get("id")), "name": m.get("name", ""), "display_name": m.get("display_name", ""),
-            "avatar_url": m.get("avatar_url"), "joined_at": m.get("joined_at"), "roles": m.get("roles") or [],
+            "avatar_url": avatar_url(m), "joined_at": m.get("joined_at"), "roles": m.get("roles") or [],
         } for m in d["members"] if str(m.get("id", "")) != _cfg().get("CLIENT_ID")]}
     return {"members": [
         {"id":"1001","name":"Alice","avatar_url":"https://cdn.discordapp.com/embed/avatars/0.png"},
@@ -912,13 +921,20 @@ async def mod_channels(guild_id: str, request: Request):
 @app.get("/api/v1/mod/{guild_id}/muted")
 async def mod_muted(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    rows = await query(
-        "SELECT user_id, user_name, reason, created_at FROM mod_log "
-        "WHERE guild_id = $1 AND action = 'mute' ORDER BY created_at DESC LIMIT 100",
-        str(guild_id),
-    )
-    if not rows:
-        return {"muted": []}
+    now = time.time()
+    try:
+        rows = await query(
+            "SELECT user_id, user_name, reason, end_ts FROM muted_users WHERE guild_id = $1 AND end_ts > $2 ORDER BY end_ts ASC",
+            str(guild_id), now,
+        )
+    except Exception:
+        await execute(
+            "CREATE TABLE IF NOT EXISTS muted_users (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, user_name TEXT DEFAULT '', reason TEXT DEFAULT '', end_ts DOUBLE PRECISION NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, user_id))"
+        )
+        rows = await query(
+            "SELECT user_id, user_name, reason, end_ts FROM muted_users WHERE guild_id = $1 AND end_ts > $2 ORDER BY end_ts ASC",
+            str(guild_id), now,
+        )
 
     # Avatar lookup from guild_data members
     avatar_map = {}
@@ -926,24 +942,23 @@ async def mod_muted(guild_id: str, request: Request):
     parsed = _parse_guild_data({"data": gd["data"]}) if gd else None
     if parsed and isinstance(parsed.get("members"), list):
         for m in parsed["members"]:
-            avatar_map[str(m.get("id"))] = m.get("avatar")
+            av = m.get("avatar_url") or m.get("avatar")
+            if av:
+                if not str(av).startswith("http"):
+                    av = f"https://cdn.discordapp.com/avatars/{m.get('id')}/{av}.png?size=64"
+                avatar_map[str(m.get("id"))] = av
 
-    # Dedupe by user, keep the most recent mute per user
-    seen = set()
     muted = []
     for r in rows:
         uid = str(r["user_id"])
-        if uid in seen:
-            continue
-        seen.add(uid)
         avatar = avatar_map.get(uid)
         muted.append({
             "id": uid,
             "name": r["user_name"],
             "reason": r.get("reason", ""),
-            "end_ts": 0,
+            "end_ts": r.get("end_ts") or 0,
             "avatar": avatar,
-            "avatar_url": f"https://cdn.discordapp.com/avatars/{uid}/{avatar}.png?size=64" if avatar else None,
+            "avatar_url": avatar,
         })
     return {"muted": muted}
 
@@ -1382,6 +1397,10 @@ async def ticket_roles(guild_id: str, request: Request):
 VERIFY_SETTINGS_DEFAULTS = {
     "enabled": False, "channel_id": None, "verified_role_id": None,
     "log_channel_id": None, "type": "button", "captcha": False,
+    "message": "Click the button below to verify yourself.",
+    "reaction_emoji": "✅",
+    "recaptcha_site_key": "", "recaptcha_secret": "",
+    "turnstile_site_key": "", "turnstile_secret": "",
 }
 
 
@@ -1412,6 +1431,13 @@ async def verify_settings_set(guild_id: str, request: Request):
     err = await _save_settings("verify_settings", str(guild_id), key, value, VERIFY_SETTINGS_DEFAULTS)
     if err: return JSONResponse({"error": err}, 400)
     return {"ok": True}
+
+
+@app.post("/api/v1/verify/{guild_id}/deploy")
+async def verify_deploy(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    await _queue_action(guild_id, "verify_panel", "0", "", "Deploy verification panel", None)
+    return {"ok": True, "queued": True}
 
 
 @app.get("/api/v1/verify/{guild_id}/channels")

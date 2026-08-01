@@ -70,7 +70,7 @@
       <h3>Change Nickname</h3>
       <div class="md-member-name" id="nickname-user" style="margin-bottom:0.75rem;"></div>
       <input type="text" class="md-input" id="nickname-input" placeholder="New nickname" style="margin-bottom:0.75rem;" />
-      <div class="md-popover-row">
+      <div class="md-popover-row" style="margin-top:0.75rem;">
         <button class="md-action-btn" id="nickname-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save</button>
         <button class="md-action-btn" id="nickname-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button>
       </div>
@@ -92,6 +92,8 @@ let ROLE_POS = {};       // id -> position
 let ROLE_MANAGED = {};   // id -> bool (bot/integration roles that can't be removed)
 let BOT = { bot_top_role_position: 0, can_manage_nicknames: false, can_manage_roles: false };
 let currentFilter = '';
+let page = 0;
+const PAGE_SIZE = 20;
 const RECENT_DAYS = 7;
 
 function memberById(id) { return MEMBERS.find(m => String(m.id) === String(id)); }
@@ -123,6 +125,10 @@ function renderMembers() {
     wrap.innerHTML = '<div style="text-align:center;padding:2.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">' + (q ? 'No members match your search.' : 'No members loaded.') + '</div>';
     return;
   }
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  if (page >= totalPages) page = totalPages - 1;
+  const start = page * PAGE_SIZE;
+  const pageRows = rows.slice(start, start + PAGE_SIZE);
   wrap.innerHTML = `<table class="md-member-table" style="width:100%;border-collapse:separate;border-spacing:0 0.4rem;">
     <thead><tr>
       <th style="text-align:left;padding:0.3rem 0.5rem;font-size:0.68rem;color:rgba(255,255,255,0.3);">Member</th>
@@ -130,14 +136,14 @@ function renderMembers() {
       <th style="text-align:left;padding:0.3rem 0.5rem;font-size:0.68rem;color:rgba(255,255,255,0.3);">Roles</th>
       <th style="text-align:left;padding:0.3rem 0.5rem;font-size:0.68rem;color:rgba(255,255,255,0.3);">Actions</th>
     </tr></thead><tbody>` +
-    rows.map(m => {
+    pageRows.map(m => {
       const avatarCls = (m.is_raider ? ' raider' : '') + (isRecent(m.joined_at) ? ' recent' : '');
       const manage = canManageMember(m);
       const mid = m.id;
       return `<tr>
       <td style="padding:0.6rem 0.5rem;background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);border-left:1px solid rgba(255,255,255,0.06);border-radius:4px 0 0 4px;">
         <div class="md-member-info">
-          <div class="md-member-avatar mem-avatar${avatarCls}"><img src="${esc(m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png'))}" style="width:100%;height:100%;object-fit:cover;" /></div>
+          <div class="md-member-avatar mem-avatar${avatarCls}"><img loading="lazy" decoding="async" src="${esc(m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png'))}" style="width:100%;height:100%;object-fit:cover;" /></div>
           <div>
             <div class="mem-name" style="font-weight:700;font-size:0.82rem;color:#e9edf5;padding-right:16px;">${esc(m.display_name || m.name)}${manage && BOT.can_manage_nicknames ? '<svg class="mem-edit" data-edit-nick="'+mid+'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.4-9.4a2.1 2.1 0 113 3L11 17l-4 1 1-4 9.6-9.6z"/></svg>' : ''}</div>
             <div style="font-size:0.68rem;color:rgba(255,255,255,0.3);">@${esc(m.name)}</div>
@@ -156,6 +162,29 @@ function renderMembers() {
       </td>
     </tr>`;
     }).join('') + '</tbody></table>';
+
+  // Pagination controls
+  if (totalPages > 1) {
+    const pag = document.createElement('div');
+    pag.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:0.5rem;margin-top:0.75rem;';
+    const btn = (label, disabled, cb) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.disabled = disabled;
+      b.style.cssText = `padding:0.35rem 0.8rem;font-size:0.75rem;font-weight:700;font-family:'Lexend',system-ui,sans-serif;border-radius:4px;border:1px solid rgba(255,255,255,0.1);cursor:${disabled?'default':'pointer'};background:${disabled?'rgba(255,255,255,0.02)':'rgba(255,255,255,0.05)'};color:${disabled?'rgba(255,255,255,0.25)':'rgba(255,255,255,0.7)'};`;
+      b.addEventListener('click', cb);
+      pag.appendChild(b);
+      return b;
+    };
+    btn('← Prev', page === 0, () => { page--; renderMembers(); });
+    const info = document.createElement('span');
+    info.textContent = (start + 1) + '–' + Math.min(start + PAGE_SIZE, rows.length) + ' of ' + rows.length;
+    info.style.cssText = 'font-size:0.72rem;color:rgba(255,255,255,0.4);';
+    pag.appendChild(info);
+    btn('Next →', page >= totalPages - 1, () => { page++; renderMembers(); });
+    wrap.appendChild(pag);
+  }
+
   lucide.createIcons();
   bindEvents();
 }
@@ -211,7 +240,7 @@ function queueAction(payload) {
   fetch(`/api/v1/mod/${GID}/action`, { method:'POST', headers:{'Content-Type':'application/json'},
     body:JSON.stringify({ action: payload.action, user_id: payload.user_id, user_name: payload.user_name, reason: payload.reason||'', duration: payload.duration||null, target: payload.target||null }) })
     .then(r => r.json()).then(() => {
-      if (typeof showToast==='function') showToast('Queued for the bot.','success');
+      if (typeof showToast==='function') showToast('Queued for the bot.','info');
       setTimeout(refreshMembers, 8000);
     })
     .catch(() => { if (typeof showToast==='function') showToast('Failed to queue.','error'); });
@@ -236,21 +265,9 @@ function refreshMembers() {
   }).catch(() => {});
 }
 let lastSig = '';
-const failedSeen = new Set();
 
-function checkFailedActions() {
-  fetch(`/api/v1/mod/${GID}/actions`).then(r=>r.json()).then(d => {
-    (d.actions||[]).forEach(a => {
-      if (a.status === 'failed' && a.error && !failedSeen.has(a.id)) {
-        failedSeen.add(a.id);
-        if (typeof showToast==='function') showToast(`Action failed: ${a.error}`, 'error');
-      }
-    });
-  }).catch(() => {});
-}
-
-setInterval(refreshMembers, 15000);
-setInterval(checkFailedActions, 5000);
+// Refresh every 30s, but pause when the tab is hidden
+setInterval(() => { if (!document.hidden) refreshMembers(); }, 30000);
 
 document.addEventListener('DOMContentLoaded', () => {
   Promise.all([api('/members'), memApi('/roles'), memApi('/bot')]).then(([md, rd, bd]) => {
@@ -258,7 +275,13 @@ document.addEventListener('DOMContentLoaded', () => {
     (rd.roles||[]).forEach(r => { ROLE_MAP[r.id] = r.name; ROLE_POS[r.id] = r.position||0; ROLE_MANAGED[r.id] = !!r.managed; });
     BOT = { bot_top_role_position: bd.bot_top_role_position||0, can_manage_nicknames: !!bd.can_manage_nicknames, can_manage_roles: !!bd.can_manage_roles };
     renderMembers();
-    document.getElementById('member-search').addEventListener('input', e => { currentFilter = e.target.value; renderMembers(); });
+    // Debounced search
+    let debounce;
+    document.getElementById('member-search').addEventListener('input', e => {
+      currentFilter = e.target.value;
+      clearTimeout(debounce);
+      debounce = setTimeout(() => { page = 0; renderMembers(); }, 200);
+    });
   }).catch(() => document.getElementById('members-table-wrap').innerHTML = '<div style="text-align:center;padding:2.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load members.</div>');
 
   const overlay = document.getElementById('member-action-modal');

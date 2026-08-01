@@ -461,7 +461,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       this.textContent = 'Sending...'; this.disabled = true;
       try {
         await fetch(`/api/v1/tickets/${GID}/send_panel`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({channel_id: selected}) });
-        showToast('Panel queued - check the channel.', 'success');
+        showToast('Panel queued - check the channel.', 'info');
       } catch { showToast('Failed to queue panel.', 'error'); }
       this.innerHTML = '<i data-lucide="send"></i> Send Panel'; this.disabled = false;
       lucide.createIcons();

@@ -1,6 +1,6 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
-<link rel="stylesheet" href="/static/moderation.css?v=5" />
+<link rel="stylesheet" href="/static/moderation.css?v=6" />
 <div >
 
   <div style="margin-bottom:1rem;animation-delay:.05s;" >
@@ -311,15 +311,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     }).catch(() => {});
   }
   loadFeed();
-  setInterval(loadFeed, 5000);
+  setInterval(() => { if (!document.hidden) loadFeed(); }, 10000);
 
   api('/members').then(d => {
     const w = document.querySelector('.md-member-table-wrap');
     if (!d.members?.length) { w.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No members loaded.</div>'; return; }
     const members = d.members;
+    const shown = members.slice(0, 30);
+    const overflow = members.length - shown.length;
     w.innerHTML = '<table class="md-member-table"><thead><tr><th>Member</th><th style="width:95px;">Actions</th></tr></thead><tbody>' +
-      members.map((m,i) => `<tr><td><div class="md-member-info"><div class="md-member-avatar"><img src="${m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png')}" style="width:100%;height:100%;object-fit:cover;" /></div><span class="md-member-name">${esc(m.name)}</span></div></td><td><div class="md-actions-wrap"><button class="md-actions-btn" data-idx="${i}"><i data-lucide="chevron-down"></i>Actions</button></div></td></tr>`).join('') +
-      '</tbody></table>';
+      shown.map((m,i) => `<tr><td><div class="md-member-info"><div class="md-member-avatar"><img loading="lazy" decoding="async" src="${m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png')}" style="width:100%;height:100%;object-fit:cover;" /></div><span class="md-member-name">${esc(m.name)}</span></div></td><td><div class="md-actions-wrap"><button class="md-actions-btn" data-idx="${i}"><i data-lucide="chevron-down"></i>Actions</button></div></td></tr>`).join('') +
+      '</tbody></table>' + (overflow > 0 ? `<div style="text-align:center;padding:0.5rem;font-size:0.72rem;color:rgba(255,255,255,0.3);">Showing first 30 of ${members.length} — use the Users page for full access.</div>` : '');
     lucide.createIcons();
     const overlay = document.createElement('div');
     overlay.className = 'md-modal-overlay';
@@ -359,7 +361,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (typeof showToast === 'function') showToast(detail.slice(0, 120), 'error', 6000);
           return;
         }
-        if (typeof showToast === 'function') showToast('Action queued for the bot.', 'success');
+        if (typeof showToast === 'function') showToast('Action queued for the bot.', 'info');
       } catch (e) {
         if (typeof showToast === 'function') showToast('Network error: ' + String(e).slice(0, 120), 'error', 6000);
       }
@@ -388,38 +390,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     window._purgeChannel = () => selectedChannel;
   }).catch(()=>{});
 
-  api('/muted').then(d => {
-    const el = document.getElementById('muted-list');
-    if (!d.muted?.length) { el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No muted users</div>'; return; }
-    el.innerHTML = d.muted.map(m => `<div class="md-muted-item"><div class="md-muted-avatar"><img src="${m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png')}" style="width:100%;height:100%;object-fit:cover;" /></div><div class="md-muted-info"><div class="md-muted-name">${esc(m.name)}</div><div class="md-muted-reason">${esc(m.reason)}</div></div><span class="md-muted-timer" data-end="${m.end_ts}">--:--:--</span><button class="md-action-btn" data-action="unmute" data-user="${m.id}" data-name="${esc(m.name)}"><i data-lucide="unlock"></i> Release</button></div>`).join('');
-    lucide.createIcons();
-    // Release button -> queue unmute action for the bot
-    el.querySelectorAll('button[data-action="unmute"]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const uid = btn.dataset.user;
-        const name = btn.dataset.name;
-        btn.disabled = true;
-        btn.innerHTML = '<i data-lucide="loader" class="spin"></i>...';
-        lucide.createIcons();
-        try {
-          const res = await fetch(`/api/v1/mod/${GID}/action`, { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'unmute', user_id: uid, user_name: name, reason:'Unmuted from dashboard'}) });
-          if (!res.ok) throw new Error('bad status');
-          if (typeof showToast === 'function') showToast('Unmute queued for the bot.', 'success');
-          btn.closest('.md-muted-item').style.opacity = '0.4';
-        } catch (e) {
-          if (typeof showToast === 'function') showToast('Failed to queue unmute.', 'error');
-          btn.disabled = false;
-          btn.innerHTML = '<i data-lucide="unlock"></i> Release';
+  window.loadMutedList = function() {
+    api('/muted').then(d => {
+      const el = document.getElementById('muted-list');
+      if (!d.muted?.length) { el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No muted users</div>'; return; }
+      el.innerHTML = d.muted.map(m => `<div class="md-muted-item"><div class="md-muted-avatar"><img src="${m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png')}" style="width:100%;height:100%;object-fit:cover;" /></div><div class="md-muted-info"><div class="md-muted-name">${esc(m.name)}</div><div class="md-muted-reason">${esc(m.reason)}</div></div><span class="md-muted-timer" data-end="${m.end_ts}">--:--:--</span><button class="md-action-btn" data-action="unmute" data-user="${m.id}" data-name="${esc(m.name)}"><i data-lucide="unlock"></i> Release</button></div>`).join('');
+      lucide.createIcons();
+      // Release button -> queue unmute action for the bot
+      el.querySelectorAll('button[data-action="unmute"]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const uid = btn.dataset.user;
+          const name = btn.dataset.name;
+          btn.disabled = true;
+          btn.innerHTML = '<i data-lucide="loader" class="spin"></i>...';
           lucide.createIcons();
-        }
+          try {
+            const res = await fetch(`/api/v1/mod/${GID}/action`, { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'unmute', user_id: uid, user_name: name, reason:'Unmuted from dashboard'}) });
+            if (!res.ok) throw new Error('bad status');
+            if (typeof showToast === 'function') showToast('Unmute queued for the bot.', 'info');
+            // List refresh + success toast happen when the bot marks the action completed.
+          } catch (e) {
+            if (typeof showToast === 'function') showToast('Failed to queue unmute.', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="unlock"></i> Release';
+            lucide.createIcons();
+          }
+        });
       });
-    });
-    document.querySelectorAll('.md-muted-timer').forEach(el => {
-      const end = parseInt(el.dataset.end); if(!end) return;
-      (function t(){ const d=Math.max(0,end-Math.floor(Date.now()/1000)); if(d<=0){el.textContent='Expired';return;} el.textContent=[Math.floor(d/3600),Math.floor((d%3600)/60),d%60].map(v=>v.toString().padStart(2,'0')).join(':'); })();
-      setInterval(() => { const d=Math.max(0,end-Math.floor(Date.now()/1000)); if(d<=0){el.textContent='Expired';return;} el.textContent=[Math.floor(d/3600),Math.floor((d%3600)/60),d%60].map(v=>v.toString().padStart(2,'0')).join(':'); }, 1000);
-    });
-  }).catch(() => document.getElementById('muted-list').innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load.</div>');
+      document.querySelectorAll('.md-muted-timer').forEach(el => {
+        const end = parseInt(el.dataset.end); if(!end) return;
+        (function t(){ const d=Math.max(0,end-Math.floor(Date.now()/1000)); if(d<=0){el.textContent='Expired';return;} el.textContent=[Math.floor(d/3600),Math.floor((d%3600)/60),d%60].map(v=>v.toString().padStart(2,'0')).join(':'); })();
+        setInterval(() => { const d=Math.max(0,end-Math.floor(Date.now()/1000)); if(d<=0){el.textContent='Expired';return;} el.textContent=[Math.floor(d/3600),Math.floor((d%3600)/60),d%60].map(v=>v.toString().padStart(2,'0')).join(':'); }, 1000);
+      });
+    }).catch(() => document.getElementById('muted-list').innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load.</div>');
+  };
+  window.loadMutedList();
 
   const behaviorItems = [
     {key:'require_reason',label:'Require Reason',desc:'Force moderators to provide a reason for every action'},
@@ -499,7 +504,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await api('/purge', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({channel_id:ch, count:parseInt(document.getElementById('purge-count').value)}) });
     this.innerHTML = '<i data-lucide="trash-2"></i> Sweep'; this.disabled = false;
     lucide.createIcons();
-    if (typeof showToast === 'function') showToast('Purge queued for the bot.', 'success');
+    if (typeof showToast === 'function') showToast('Purge queued for the bot.', 'info');
   });
 
   document.getElementById('panic-btn')?.addEventListener('click', async function() {

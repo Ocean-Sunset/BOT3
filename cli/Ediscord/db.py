@@ -56,6 +56,7 @@ async def _ensure_tables():
         "CREATE TABLE IF NOT EXISTS mod_settings (guild_id TEXT PRIMARY KEY, settings JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
         "CREATE TABLE IF NOT EXISTS mod_log (id SERIAL PRIMARY KEY, guild_id TEXT, user_id TEXT, user_name TEXT, action TEXT, reason TEXT DEFAULT '', moderator TEXT DEFAULT '', created_at DOUBLE PRECISION)",
         "CREATE TABLE IF NOT EXISTS mod_actions (id SERIAL PRIMARY KEY, guild_id TEXT, action TEXT, target_id TEXT, target_name TEXT DEFAULT '', reason TEXT DEFAULT '', moderator TEXT DEFAULT '', duration INTEGER, status TEXT DEFAULT 'pending', created_at DOUBLE PRECISION)",
+        "CREATE TABLE IF NOT EXISTS muted_users (guild_id TEXT, user_id TEXT, user_name TEXT DEFAULT '', reason TEXT DEFAULT '', end_ts DOUBLE PRECISION, PRIMARY KEY (guild_id, user_id))",
         "CREATE TABLE IF NOT EXISTS ai_settings (guild_id TEXT PRIMARY KEY, settings JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
         "CREATE TABLE IF NOT EXISTS welcome_settings (guild_id TEXT PRIMARY KEY, settings JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
         "CREATE TABLE IF NOT EXISTS verify_settings (guild_id TEXT PRIMARY KEY, settings JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
@@ -63,6 +64,8 @@ async def _ensure_tables():
         "CREATE TABLE IF NOT EXISTS leveling_data (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, xp INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, user_id))",
         "CREATE TABLE IF NOT EXISTS automation_settings (guild_id TEXT PRIMARY KEY, settings JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
         "CREATE TABLE IF NOT EXISTS autoresponder (id SERIAL PRIMARY KEY, guild_id TEXT NOT NULL, trigger TEXT NOT NULL, response TEXT NOT NULL, match_type TEXT NOT NULL DEFAULT 'contains', created_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
+        "ALTER TABLE autoresponder ADD COLUMN IF NOT EXISTS channel_id TEXT",
+        "ALTER TABLE autoresponder ADD COLUMN IF NOT EXISTS cooldown INTEGER DEFAULT 0",
         "CREATE TABLE IF NOT EXISTS social_settings (guild_id TEXT PRIMARY KEY, settings JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
         "CREATE TABLE IF NOT EXISTS invite_settings (guild_id TEXT PRIMARY KEY, settings JSONB NOT NULL DEFAULT '{}', updated_at DOUBLE PRECISION DEFAULT (extract(epoch from now())))",
         "CREATE TABLE IF NOT EXISTS invite_stats (guild_id TEXT NOT NULL, inviter_id TEXT NOT NULL, code TEXT NOT NULL, uses INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, inviter_id, code))",
@@ -180,3 +183,76 @@ async def complete_action(action_id: int, status: str = "completed", error: str 
             )
     except Exception as e:
         logger.error(f"complete_action failed: {e}")
+
+
+async def set_muted_user(guild_id, user_id, user_name="", reason="", end_ts=0):
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO muted_users (guild_id, user_id, user_name, reason, end_ts) "
+                "VALUES ($1, $2, $3, $4, $5) "
+                "ON CONFLICT (guild_id, user_id) DO UPDATE SET user_name = $3, reason = $4, end_ts = $5",
+                str(guild_id), str(user_id), user_name, reason, end_ts,
+            )
+    except Exception as e:
+        logger.error(f"set_muted_user failed: {e}")
+
+
+async def remove_muted_user(guild_id, user_id):
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "DELETE FROM muted_users WHERE guild_id = $1 AND user_id = $2",
+                str(guild_id), str(user_id),
+            )
+    except Exception as e:
+        logger.error(f"remove_muted_user failed: {e}")
+
+
+async def fetch_muted_users(guild_id) -> list:
+    pool = await get_pool()
+    if pool is None:
+        return []
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT guild_id, user_id, user_name, reason, end_ts FROM muted_users "
+                "WHERE guild_id = $1 ORDER BY end_ts ASC",
+                str(guild_id),
+            )
+            return [dict(r) for r in rows]
+    except Exception as e:
+        logger.error(f"fetch_muted_users failed: {e}")
+        return []
+
+
+GUILD_TABLES = [
+    "guild_data", "mod_settings", "mod_log", "mod_actions", "muted_users",
+    "ai_settings", "welcome_settings", "verify_settings", "leveling_settings", "leveling_data",
+    "automation_settings", "autoresponder", "social_settings", "invite_settings", "invite_stats",
+    "ticket_settings", "ticket_logs", "member_history", "message_history", "verify_logs",
+]
+
+
+async def delete_guild_data(guild_id):
+    """Delete all rows for a guild across guild-scoped tables (called when the bot leaves/kicked)."""
+    pool = await get_pool()
+    if pool is None:
+        return
+    gid = str(guild_id)
+    try:
+        async with pool.acquire() as conn:
+            for table in GUILD_TABLES:
+                try:
+                    await conn.execute(f"DELETE FROM {table} WHERE guild_id = $1", gid)
+                except Exception:
+                    pass  # table may not exist yet
+        logger.info(f"Deleted all data for guild {gid}.")
+    except Exception as e:
+        logger.error(f"delete_guild_data failed for {gid}: {e}")

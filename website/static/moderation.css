@@ -198,7 +198,8 @@
   letter-spacing: 0.05em;
   margin-bottom: 0.35rem;
 }
-.md-modal .md-popover-row { display: flex; gap: 0.35rem; margin-bottom: 0.75rem; }
+.md-modal .md-popover-row { display: flex; gap: 0.35rem; margin-top: 0.5rem; margin-bottom: 0.75rem; }
+.md-modal .md-popover-row:first-of-type { margin-top: 0.75rem; }
 .md-modal .md-popover-row .md-action-btn { flex: 1; justify-content: center; }
 
 .md-action-btn {
@@ -736,8 +737,10 @@
 [data-platform].is-disabled .md-behavior-list input,
 [data-platform].is-disabled .md-behavior-list .md-custom-select-btn { opacity: 0.35; }
 
-/* ── Disabled ticket config ── */
-#ticket-config.is-disabled {
+/* ── Disabled config sections ── */
+#ticket-config.is-disabled,
+#vfy-config.is-disabled,
+#gc-config.is-disabled {
   opacity: 0.4;
   pointer-events: none;
 }

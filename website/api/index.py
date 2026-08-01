@@ -886,7 +886,7 @@ async def mod_channels(guild_id: str, request: Request):
     row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
     d = _parse_guild_data(row)
     if d and "channels" in d:
-        # Coerce IDs to strings (JS-safe) — categories reported separately
+        # Coerce IDs to strings (JS-safe) - categories reported separately
         return {
             "channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0],
             "categories": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 4],

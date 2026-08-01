@@ -17,7 +17,7 @@
           <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">YouTube</div>
           <label class="md-toggle"><input type="checkbox" data-key="youtube_enabled" /><span class="md-toggle-slider"></span></label>
         </div>
-        <div class="md-required-warn" data-required="youtube"><i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>This field is required — fill it in or disable the platform before saving.</div>
+        <div class="md-required-warn" data-required="youtube"><i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>This field is required - fill it in or disable the platform before saving.</div>
         <div class="md-behavior-list">
           <div class="md-behavior-item" style="align-items:flex-start">
             <div style="flex:1">
@@ -64,7 +64,7 @@
           <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">Twitch</div>
           <label class="md-toggle"><input type="checkbox" data-key="twitch_enabled" /><span class="md-toggle-slider"></span></label>
         </div>
-        <div class="md-required-warn" data-required="twitch"><i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>This field is required — fill it in or disable the platform before saving.</div>
+        <div class="md-required-warn" data-required="twitch"><i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>This field is required - fill it in or disable the platform before saving.</div>
         <div class="md-behavior-list">
           <div class="md-behavior-item" style="align-items:flex-start">
             <div style="flex:1">
@@ -111,7 +111,7 @@
           <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">Twitter / X</div>
           <label class="md-toggle"><input type="checkbox" data-key="twitter_enabled" /><span class="md-toggle-slider"></span></label>
         </div>
-        <div class="md-required-warn" data-required="twitter"><i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>This field is required — fill it in or disable the platform before saving.</div>
+        <div class="md-required-warn" data-required="twitter"><i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>This field is required - fill it in or disable the platform before saving.</div>
         <div class="md-behavior-list">
           <div class="md-behavior-item" style="align-items:flex-start">
             <div style="flex:1">
@@ -156,7 +156,7 @@
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div style="margin-bottom:0.75rem;">
           <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">More Social Alerts</div>
-          <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-top:2px;">Add extra alerts per platform — up to 5 each.</div>
+          <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-top:2px;">Add extra alerts per platform - up to 5 each.</div>
         </div>
         <div id="extra-list" style="display:flex;flex-direction:column;gap:0.35rem;margin-bottom:0.9rem;"></div>
         <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:0.9rem;">
@@ -252,7 +252,7 @@ function markChanged(key, value) {
 
 const REQUIRED_FIELD = { youtube: 'youtube_channel_id', twitch: 'twitch_channel', twitter: 'twitter_handle' };
 
-function validateRequired() {
+function updateRequiredWarnings() {
   let ok = true;
   Object.entries(REQUIRED_FIELD).forEach(([platform, key]) => {
     const enabled = document.querySelector(`[data-key="${platform}_enabled"]`)?.checked ?? false;
@@ -270,7 +270,7 @@ function validateRequired() {
 }
 
 async function saveChanges() {
-  if (!validateRequired()) {
+  if (!updateRequiredWarnings()) {
     if (typeof showToast === 'function') showToast('Fill in required fields before saving.', 'error');
     return;
   }
@@ -345,8 +345,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (el.type === 'checkbox') el.checked = !!s[key];
       else el.value = s[key] || '';
     });
-    document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); updateGrayOut(); }));
-    document.querySelectorAll('input[type="text"][data-key]').forEach(inp => inp.addEventListener('change', function(){ markChanged(this.dataset.key, this.value); }));
+    document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); updateGrayOut(); updateRequiredWarnings(); }));
+    document.querySelectorAll('input[type="text"][data-key]').forEach(inp => inp.addEventListener('change', function(){ markChanged(this.dataset.key, this.value); updateRequiredWarnings(); }));
 
     // Set dropdown button labels from saved values
     document.querySelectorAll('[data-role-select], [data-channel-select]').forEach(wrap => {
@@ -433,6 +433,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
   updateGrayOut();
+  updateRequiredWarnings();
 
   saveBtn.addEventListener('click', saveChanges);
   document.getElementById('discard-btn').addEventListener('click', () => {
@@ -453,6 +454,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     for (const key of Object.keys(pending)) delete pending[key];
     saveBar.classList.add('is-closed');
     updateGrayOut();
+    updateRequiredWarnings();
     resetDropdowns();
   });
 });

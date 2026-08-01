@@ -952,7 +952,7 @@ class Moderation(commands.Cog, name="Moderation"):
             str(interaction.user.id),
             interaction.user.name,
             "lockdown",
-            f"Set to {status} — {detail or ''}",
+            f"Set to {status} - {detail or ''}",
             interaction.user.name,
         )
         log_embed = (

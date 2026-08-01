@@ -54,20 +54,19 @@ async def save_social_settings(guild_id: int, settings: dict):
 
 
 class SocialAlerts(commands.Cog, name="SocialAlerts"):
+    DEFAULT_MESSAGES = {
+        "youtube": "🎬 New video from {channel}!",
+        "twitch": "🔴 {channel} is now live!",
+        "twitter": "🐦 New post from @{channel}!",
+    }
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self._last_videos = {}
         self.check_youtube.start()
 
     def cog_unload(self):
         self.check_youtube.cancel()
-
-    @tasks.loop(minutes=15)
-    async def check_youtube(self):
-        await self.bot.wait_until_ready()
-
-    @check_youtube.before_loop
-    async def before_check(self):
-        await asyncio.sleep(30)
 
     def _resolve_channel(self, guild: discord.Guild, channel_id, fallback_id=None) -> Optional[discord.TextChannel]:
         for cid in (channel_id, fallback_id):
@@ -77,6 +76,82 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
             if channel and isinstance(channel, discord.TextChannel):
                 return channel
         return None
+
+    def _resolve_role(self, guild: discord.Guild, role_id, fallback_id=None) -> Optional[discord.Role]:
+        for rid in (role_id, fallback_id):
+            if not rid:
+                continue
+            role = guild.get_role(int(rid))
+            if role:
+                return role
+        return None
+
+    async def _send_alert(self, guild: discord.Guild, settings: dict, platform: str, channel_name: str,
+                          custom_msg=None, ping_role_id=None, announce_channel_id=None):
+        """Post an alert with the fallback chain: custom msg → default, role → default role, channel → default channel."""
+        channel = self._resolve_channel(guild, announce_channel_id, settings.get("default_announce_channel_id"))
+        if not channel:
+            return
+        role = self._resolve_role(guild, ping_role_id, settings.get("default_ping_role"))
+        text = (custom_msg or self.DEFAULT_MESSAGES.get(platform, "")).replace("{channel}", channel_name).replace("{name}", channel_name)
+        if role:
+            text = f"{role.mention} {text}"
+        try:
+            await channel.send(text)
+            logger.info(f"Posted {platform} alert for {channel_name} in {guild.id}")
+        except Exception as e:
+            logger.error(f"Social alert send failed for {guild.id}: {e}")
+
+    async def _check_youtube_channel(self, guild, settings, cid, channel_name, custom_msg=None, ping_role_id=None):
+        import xml.etree.ElementTree as ET
+        url = f"https://www.youtube.com/feeds/videos.xml?channel_id={cid}"
+        try:
+            async with aiohttp.ClientSession() as s:
+                async with s.get(url, timeout=10) as resp:
+                    if resp.status != 200:
+                        return
+                    data = await resp.text()
+        except Exception:
+            return
+        try:
+            root = ET.fromstring(data)
+        except Exception:
+            return
+        entry = root.find("entry")
+        if entry is None:
+            return
+        vid = entry.findtext("{http://www.youtube.com/xml/schemas/2015}videoId")
+        title = entry.findtext("title") or channel_name
+        if not vid:
+            return
+        key = f"{guild.id}:{cid}"
+        if self._last_videos.get(key) == vid:
+            return
+        self._last_videos[key] = vid
+        await self._send_alert(guild, settings, "youtube", title, custom_msg, ping_role_id, settings.get("youtube_announce_channel_id"))
+
+    @tasks.loop(minutes=10)
+    async def check_youtube(self):
+        await self.bot.wait_until_ready()
+        for guild in self.bot.guilds:
+            try:
+                settings = await get_social_settings(guild.id)
+                if not settings.get("youtube_enabled"):
+                    continue
+                cid = settings.get("youtube_channel_id")
+                if cid:
+                    await self._check_youtube_channel(guild, settings, cid, cid,
+                                                      settings.get("youtube_message"), settings.get("youtube_ping_role"))
+                for ea in settings.get("extra_alerts", {}).get("youtube", []):
+                    if ea.get("target"):
+                        await self._check_youtube_channel(guild, settings, ea["target"], ea["target"],
+                                                          ea.get("message"), ea.get("ping_role"))
+            except Exception as e:
+                logger.debug(f"YouTube check failed for {guild.id}: {e}")
+
+    @check_youtube.before_loop
+    async def before_check(self):
+        await asyncio.sleep(30)
 
     social_group = app_commands.Group(name="social", description="Social media alert settings")
 

@@ -210,11 +210,13 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
                                  headers={"Client-ID": TWITCH_CLIENT_ID, "Authorization": f"Bearer {token}"}) as resp:
                     data = await resp.json()
             if data.get("data"):
-                title = data["data"][0].get("title") or channel
+                stream = data["data"][0]
+                title = stream.get("title") or channel
+                stream_id = stream.get("id") or channel
                 url = f"https://www.twitch.tv/{channel}"
-                if self._last_videos.get(f"{guild.id}:twitch:{channel}") == url:
+                if self._last_videos.get(f"{guild.id}:twitch:{channel}") == stream_id:
                     return
-                self._last_videos[f"{guild.id}:twitch:{channel}"] = url
+                self._last_videos[f"{guild.id}:twitch:{channel}"] = stream_id
                 await self._send_alert(guild, settings, "twitch", title, custom_msg, ping_role_id, settings.get("twitch_announce_channel_id"), url)
         except Exception as e:
             logger.debug(f"Twitch channel check failed: {e}")

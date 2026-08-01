@@ -198,6 +198,8 @@ const esc = s => { const d=document.createElement('div'); d.textContent=s||''; r
 const pending = {};
 const original = {};
 let SETTINGS_SNAPSHOT = {};
+let extraAlerts = {};
+let renderExtra = null;
 const saveBar = document.getElementById('save-bar');
 const saveBtn = document.getElementById('save-btn');
 let saveTimer = null;
@@ -291,9 +293,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // ── Extra alerts state ──
-    let extraAlerts = s.extra_alerts || {};
+    extraAlerts = s.extra_alerts || {};
     let extraTab = 'youtube';
-    function renderExtra() {
+    renderExtra = function() {
       const list = document.getElementById('extra-list');
       const items = extraAlerts[extraTab] || [];
       if (!items.length) { list.innerHTML = '<div style="text-align:center;padding:0.75rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No extra alerts for this platform.</div>'; return; }
@@ -348,6 +350,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   saveBtn.addEventListener('click', saveChanges);
   document.getElementById('discard-btn').addEventListener('click', () => {
     for (const key of Object.keys(pending)) {
+      if (key === 'extra_alerts') {
+        extraAlerts = JSON.parse(JSON.stringify(SETTINGS_SNAPSHOT.extra_alerts || {}));
+        if (renderExtra) renderExtra();
+        delete original[key];
+        continue;
+      }
       const el = document.querySelector(`[data-key="${key}"]`);
       if (el) {
         if (el.type === 'checkbox') el.checked = original[key];

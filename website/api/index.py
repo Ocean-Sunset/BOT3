@@ -326,6 +326,7 @@ async def captcha_page(request: Request, provider: str):
     return templates.TemplateResponse(request, "captcha.html", {
         "provider": provider,
         "site_key": site_key,
+        "recaptcha_version": os.environ.get("RECAPTCHA_VERSION", "v2"),
         "config": _cfg(),
     })
 

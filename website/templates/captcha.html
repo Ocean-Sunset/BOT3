@@ -45,6 +45,12 @@
     .captcha-hint { margin-top: 0.75rem; font-size: 0.72rem; color: rgba(255,255,255,0.25); font-weight: 500; }
     .captcha-back { display: inline-block; margin-top: 1.25rem; font-size: 0.8rem; color: #555; text-decoration: none; font-weight: 600; transition: color 0.2s; }
     .captcha-back:hover { color: #888; }
+    .captcha-spinner {
+      width: 14px; height: 14px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.15); border-top-color: #fff;
+      animation: cap-spin 0.8s linear infinite; display: inline-block;
+    }
+    @keyframes cap-spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -61,7 +67,11 @@
       <h1 class="captcha-title">{{ "Google reCAPTCHA" if provider == "recaptcha" else "Cloudflare Turnstile" }}</h1>
       <p class="captcha-sub">Complete the puzzle below, then copy the token and paste it into the verification modal in Discord.</p>
       <div class="captcha-widget">
-        {% if provider == "recaptcha" %}
+        {% if provider == "recaptcha" and recaptcha_version == "v3" %}
+          <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:rgba(255,255,255,0.5);">
+            <span class="captcha-spinner"></span> Checking you're human…
+          </div>
+        {% elif provider == "recaptcha" %}
           <div class="g-recaptcha" data-sitekey="{{ site_key }}" data-theme="dark"></div>
         {% else %}
           <div class="cf-turnstile" data-sitekey="{{ site_key }}" data-theme="dark"></div>
@@ -105,17 +115,32 @@
       const hint = document.getElementById('empty-hint');
       if (t) { el.value = t; hint.style.display = 'none'; } else { hint.style.display = 'block'; }
     }
-    {% if provider == "recaptcha" %}
+    {% if provider == "recaptcha" and recaptcha_version == "v3" %}
+      // reCAPTCHA v3 (score-based, no checkbox): run invisibly and grab the token
+      window.onload = function() {
+        if (window.grecaptcha) {
+          grecaptcha.ready(function() {
+            grecaptcha.execute({{ site_key | tojson }}, { action: 'verify' }).then(function(token) {
+              setToken(token);
+            }).catch(function() { setToken(''); });
+          });
+        }
+      };
+    {% elif provider == "recaptcha" %}
       window.__tokenCallback = function(token) { setToken(token); };
       window.onload = function() {
         if (window.grecaptcha) {
-          grecaptcha.render(document.querySelector('.g-recaptcha'), {
-            sitekey: {{ site_key | tojson }},
-            theme: 'dark',
-            callback: window.__tokenCallback,
-            'expired-callback': function() { setToken(''); },
-            'error-callback': function() { setToken(''); }
-          });
+          try {
+            grecaptcha.render(document.querySelector('.g-recaptcha'), {
+              sitekey: {{ site_key | tojson }},
+              theme: 'dark',
+              callback: window.__tokenCallback,
+              'expired-callback': function() { setToken(''); },
+              'error-callback': function() { setToken(''); }
+            });
+          } catch (e) {
+            document.getElementById('empty-hint').textContent = 'Captcha setup issue — the site key type does not match. Use a v2 checkbox key or set RECAPTCHA_VERSION=v3.';
+          }
         }
       };
     {% else %}

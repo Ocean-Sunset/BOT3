@@ -189,20 +189,25 @@ function populateDropdown(wrappers, items, noneLabel) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  api('/channels').then(d => populateDropdown(Array.from(document.querySelectorAll('[data-channel-select]')), d.channels||[], 'No channel'));
-  api('/roles').then(d => populateDropdown(Array.from(document.querySelectorAll('[data-role-select]')), d.roles||[], 'No role'));
-
-  api('/settings').then(d => {
-    const s = d.settings || {}; SETTINGS_SNAPSHOT = { ...s };
+  // Load settings + options together so the dropdowns always know the saved values.
+  Promise.all([
+    api('/settings'),
+    api('/channels'),
+    api('/roles'),
+  ]).then(([sd, cd, rd]) => {
+    const s = sd.settings || {};
+    SETTINGS_SNAPSHOT = { ...s };
     document.querySelectorAll('[data-key]').forEach(el => {
       const key = el.dataset.key; if (!(key in s)) return;
       if (el.type==='checkbox') el.checked = !!s[key]; else el.value = s[key] ?? '';
     });
     document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); updateGrayOut(); }));
     document.querySelectorAll('input[type="text"][data-key], input[type="password"][data-key]').forEach(inp => inp.addEventListener('input', function(){ markChanged(this.dataset.key, this.value); }));
+    populateDropdown(Array.from(document.querySelectorAll('[data-channel-select]')), cd.channels||[], 'No channel');
+    populateDropdown(Array.from(document.querySelectorAll('[data-role-select]')), rd.roles||[], 'No role');
     updateTypeUI(s.type || 'button');
     updateGrayOut();
-  });
+  }).catch(()=>{});
 
   document.querySelectorAll('.vfy-type-tab').forEach(t => t.addEventListener('click', () => {
     updateTypeUI(t.dataset.type);

@@ -298,6 +298,20 @@ async def invite(request: Request):
     return templates.TemplateResponse(request, "invite.html", {"config": _cfg()})
 
 
+@app.get("/captcha/{provider}", response_class=HTMLResponse)
+async def captcha_page(request: Request, provider: str):
+    """Hosted captcha solve page: renders the widget and shows the token to copy."""
+    if provider not in ("recaptcha", "turnstile"):
+        return templates.TemplateResponse(request, "error.html",
+            {"code": 404, "title": "Not Found", "message": "Unknown captcha provider."}, status_code=404)
+    site_key = os.environ.get(f"{provider.upper()}_SITE_KEY", "")
+    return templates.TemplateResponse(request, "captcha.html", {
+        "provider": provider,
+        "site_key": site_key,
+        "config": _cfg(),
+    })
+
+
 @app.get("/auth/discord")
 async def auth_discord():
     if not CLIENT_ID:
@@ -1418,8 +1432,11 @@ VERIFY_SETTINGS_DEFAULTS = {
     "log_channel_id": None, "type": "button", "captcha": False,
     "message": "Click the button below to verify yourself.",
     "reaction_emoji": "✅",
-    "recaptcha_site_key": "", "recaptcha_secret": "",
-    "turnstile_site_key": "", "turnstile_secret": "",
+    # Bot-owner defaults from .env — server owners don't need their own keys.
+    "recaptcha_site_key": os.environ.get("RECAPTCHA_SITE_KEY", ""),
+    "recaptcha_secret": "",
+    "turnstile_site_key": os.environ.get("TURNSTILE_SITE_KEY", ""),
+    "turnstile_secret": "",
 }
 
 

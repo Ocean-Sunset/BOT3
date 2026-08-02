@@ -6,10 +6,25 @@ import random
 import string
 import aiohttp
 import datetime
+import os
 from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
+
+
+def provider_key(settings: dict, provider: str, kind: str) -> str:
+    """Resolve a reCAPTCHA/Turnstile key: guild override first, then bot-owner .env default."""
+    from_env = os.environ.get(f"{provider.upper()}_{kind.upper()}", "")
+    if isinstance(settings, dict) and settings.get(f"{provider}_{kind}"):
+        return settings[f"{provider}_{kind}"]
+    return from_env
+
+
+def captcha_solve_url(provider: str) -> str:
+    """Public URL where a user solves the captcha and copies a token."""
+    base = os.environ.get("DASHBOARD_URL", "").rstrip("/")
+    return f"{base}/captcha/{provider}"
 
 
 VERIFY_DEFAULTS = {
@@ -105,12 +120,15 @@ class ExternalCaptchaModal(discord.ui.Modal, title="Verification"):
         super().__init__()
         self.role_id = role_id
         self.provider = provider
-        self.add_item(discord.ui.TextInput(label=f"Token from {provider}", placeholder="Paste the verification token here", required=True, max_length=2000, style=discord.TextStyle.paragraph))
+        placeholder = f"Open {url} , solve the captcha, then paste the token here"
+        if len(placeholder) > 100:
+            placeholder = "Solve the captcha, then paste the token here"
+        self.add_item(discord.ui.TextInput(label=f"Token from {provider}", placeholder=placeholder, required=True, max_length=2000, style=discord.TextStyle.paragraph))
 
     async def on_submit(self, interaction: discord.Interaction):
         token = self.children[0].value.strip()
         settings = await get_verify_settings(interaction.guild_id)
-        secret = settings.get(f"{self.provider}_secret", "")
+        secret = provider_key(settings, self.provider, "secret")
         verify_url = (
             "https://www.google.com/recaptcha/api/siteverify" if self.provider == "recaptcha"
             else "https://challenges.cloudflare.com/turnstile/v0/siteverify"
@@ -159,9 +177,9 @@ class Verification(commands.Cog, name="Verification"):
         if vtype == "captcha":
             return CaptchaButtonView(role_id)
         if vtype == "recaptcha":
-            return ExternalCaptchaButtonView(role_id, "", "recaptcha")
+            return ExternalCaptchaButtonView(role_id, captcha_solve_url("recaptcha"), "recaptcha")
         if vtype == "turnstile":
-            return ExternalCaptchaButtonView(role_id, "", "turnstile")
+            return ExternalCaptchaButtonView(role_id, captcha_solve_url("turnstile"), "turnstile")
         return VerifyButtonView(role_id)
 
     async def _send_panel(self, guild: discord.Guild, settings) -> bool:

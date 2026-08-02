@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Verification Captcha</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #0d0e12; color: #e9edf5;
+    font-family: 'Lexend', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+  .card {
+    width: min(420px, 92vw); background: #151515; border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; padding: 2rem; text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  h1 { font-size: 1.1rem; margin: 0 0 0.4rem; font-weight: 800; }
+  p { color: rgba(255,255,255,0.5); font-size: 0.8rem; margin: 0 0 1.2rem; line-height: 1.5; }
+  .widget-wrap { display: flex; justify-content: center; margin-bottom: 1.2rem; min-height: 80px; }
+  textarea {
+    width: 100%; min-height: 90px; resize: vertical; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.12); background: #0d0e12; color: #e9edf5;
+    padding: 0.7rem; font-size: 0.75rem; font-family: 'Consolas', monospace;
+  }
+  .copy-btn {
+    margin-top: 0.7rem; width: 100%; padding: 0.65rem; border-radius: 8px; cursor: pointer;
+    background: rgba(255,255,255,0.1); color: #e9edf5; border: 1px solid rgba(255,255,255,0.12);
+    font-family: inherit; font-weight: 700; font-size: 0.8rem; transition: all 0.15s;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,0.16); }
+  .empty { color: rgba(255,255,255,0.35); font-size: 0.75rem; margin-top: 0.7rem; }
+  .note { color: rgba(255,255,255,0.3); font-size: 0.7rem; margin-top: 1rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>{{ "Google reCAPTCHA" if provider == "recaptcha" else "Cloudflare Turnstile" }}</h1>
+  <p>Complete the puzzle below, then copy the token and paste it into the verification modal in Discord.</p>
+  <div class="widget-wrap">
+    {% if provider == "recaptcha" %}
+      <div class="g-recaptcha" data-sitekey="{{ site_key }}"></div>
+    {% else %}
+      <div class="cf-turnstile" data-sitekey="{{ site_key }}"></div>
+    {% endif %}
+  </div>
+  <textarea id="token" readonly placeholder="Your verification token will appear here after you complete the puzzle."></textarea>
+  <button class="copy-btn" id="copy-btn">Copy Token</button>
+  <div class="empty" id="empty-hint">Token not ready yet — complete the puzzle first.</div>
+  <div class="note">This page is managed by the bot owner. If it looks broken, the captcha keys are not configured.</div>
+</div>
+
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<script>
+  function setToken(t) {
+    const el = document.getElementById('token');
+    const hint = document.getElementById('empty-hint');
+    if (t) { el.value = t; hint.style.display = 'none'; } else { hint.style.display = 'block'; }
+  }
+  function pollTurnstile() {
+    try {
+      if (typeof turnstile !== 'undefined' && document.querySelector('.cf-turnstile')) {
+        const resp = turnstile.getResponse();
+        setToken(resp || '');
+      }
+    } catch (e) {}
+  }
+  {% if provider == "recaptcha" %}
+    window.__tokenCallback = function(token) { setToken(token); };
+    window.onload = function() {
+      if (window.grecaptcha) {
+        grecaptcha.render(document.querySelector('.g-recaptcha'), {
+          sitekey: {{ site_key | tojson }},
+          callback: window.__tokenCallback,
+          expired_callback: function() { setToken(''); }
+        });
+      }
+    };
+  {% else %}
+    setInterval(pollTurnstile, 600);
+    setInterval(function() {
+      if (typeof turnstile !== 'undefined') {
+        try {
+          const resp = turnstile.getResponse();
+          if (resp) setToken(resp);
+        } catch (e) {}
+      }
+    }, 300);
+  {% endif %}
+
+  document.getElementById('copy-btn').addEventListener('click', function() {
+    const el = document.getElementById('token');
+    if (!el.value) return;
+    el.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    if (navigator.clipboard) navigator.clipboard.writeText(el.value);
+    this.textContent = 'Copied!';
+    const self = this;
+    setTimeout(function() { self.textContent = 'Copy Token'; }, 1500);
+  });
+</script>
+</body>
+</html>

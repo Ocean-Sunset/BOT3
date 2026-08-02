@@ -166,20 +166,23 @@ class ProwlBot(commands.Bot):
         """Process queued actions instantly via LISTEN/NOTIFY, polling as fallback."""
         await self.wait_until_ready()
         self._processing_actions = False
-        # Subscribe to instant wakeups
-        try:
-            pool = await neon_db.get_pool()
-            if pool:
-                await pool.add_listener("prowl_actions", self._on_action_notify)
-                logger.info("Action processor subscribed to LISTEN/NOTIFY.")
-        except Exception as e:
-            logger.warning(f"LISTEN/NOTIFY unavailable ({e}) — using polling.")
+        self._listen_conn = None
+        # Subscribe to instant wakeups via a dedicated listening connection
+        self._listen_conn = await neon_db.setup_action_listener(self._on_action_notify)
+        if self._listen_conn:
+            logger.info("Action processor subscribed to LISTEN/NOTIFY.")
         while not self.is_closed():
             try:
                 await self._process_pending()
             except Exception as e:
                 logger.error(f"Mod action processor failed: {e}")
             await asyncio.sleep(3)  # fallback poll
+        # Clean up the listener connection on shutdown
+        if self._listen_conn:
+            try:
+                await self._listen_conn.close()
+            except Exception:
+                pass
 
     def _on_action_notify(self, connection, pid, channel, payload):
         # Called on a DB thread; schedule processing on the event loop

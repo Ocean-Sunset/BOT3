@@ -45,6 +45,25 @@ async def get_pool():
         return None
 
 
+async def setup_action_listener(callback):
+    """Open a dedicated connection LISTENing on 'prowl_actions' for instant wakeups."""
+    dsn = os.environ.get("DATABASE_URL")
+    if not dsn:
+        return None
+    try:
+        import asyncpg
+        conn = await asyncpg.connect(dsn)
+        await conn.add_listener("prowl_actions", callback)
+        return conn
+    except Exception as e:
+        logger.error(f"setup_action_listener failed: {e}")
+        try:
+            await conn.close()
+        except Exception:
+            pass
+        return None
+
+
 async def _ensure_tables():
     """Create required tables if they don't exist (self-healing)."""
     pool = _pool

@@ -709,6 +709,35 @@
   border-color: rgba(255,255,255,0.04) !important;
 }
 
+/* ── Embed editor (custom embed) ── */
+.md-action-btn.is-disabled {
+  opacity: 0.4 !important;
+  pointer-events: none !important;
+}
+#ee-color {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 36px;
+  height: 32px;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 4px;
+  background: #1a1a1a;
+  cursor: pointer;
+  padding: 0;
+}
+#ee-color::-webkit-color-swatch-wrapper { padding: 0; }
+#ee-color::-webkit-color-swatch { border: none; border-radius: 3px; }
+#ee-color::-moz-color-swatch { border: none; border-radius: 3px; }
+.ee-field-inline {
+  accent-color: #5865f2;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin: 0;
+}
+
 /* ── Variables hint ── */
 .md-vars-hint {
   margin-top: 0.35rem;

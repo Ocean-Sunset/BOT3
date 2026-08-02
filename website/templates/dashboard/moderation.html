@@ -294,6 +294,7 @@
         <div style="flex:1;">
           <div class="md-behavior-label" style="margin-bottom:0.3rem;">URL</div>
           <input type="text" class="md-input" id="ee-url" placeholder="https://..." />
+          <div style="font-size:0.65rem;color:rgba(255,255,255,0.3);margin-top:0.25rem;line-height:1.4;">Makes the embed title clickable — opens this link when the title is clicked.</div>
         </div>
       </div>
       <div style="display:flex;gap:0.6rem;">
@@ -375,6 +376,11 @@ function updateActionUI() {
     const enabled = document.querySelector(`[data-key="${p}_message_enabled"]`)?.checked ?? true;
     const input = document.querySelector(`[data-key="${p}_message"]`);
     if (input) input.classList.toggle('is-disabled', !enabled);
+    const editBtn = document.querySelector(`[data-edit-embed="${p}"]`);
+    if (editBtn) {
+      editBtn.disabled = !enabled;
+      editBtn.classList.toggle('is-disabled', !enabled);
+    }
   });
 }
 
@@ -450,10 +456,19 @@ function loadEmbedEditor(embed) {
   (e.fields || []).forEach(fld => addFieldRow(fld));
 }
 
+const EMBED_DEFAULTS = {
+  ban:     { title:'🔨 Member Banned', description:'{username} has been banned.', color:'#ed4245' },
+  tempban: { title:'⏳ Member Temp-Banned', description:'{username} has been temporarily banned for {time}.', color:'#ed4245' },
+  mute:    { title:'🔇 Member Muted', description:'{username} has been muted for {time}.', color:'#faa61a' },
+  kick:    { title:'👢 Member Kicked', description:'{username} has been kicked.', color:'#ed4245' },
+  warn:    { title:'Member Warned', description:'{username} has been warned.', color:'#fee75c' },
+};
+
 document.querySelectorAll('[data-edit-embed]').forEach(b => b.addEventListener('click', () => {
   currentEmbedAction = b.dataset.editEmbed;
   document.getElementById('embed-editor-title').textContent = `${ACTION_NAMES[currentEmbedAction] || currentEmbedAction} — Custom Embed`;
-  loadEmbedEditor(SETTINGS_SNAPSHOT[`${currentEmbedAction}_embed`] || {});
+  const saved = SETTINGS_SNAPSHOT[`${currentEmbedAction}_embed`] || {};
+  loadEmbedEditor(Object.keys(saved).length ? saved : (EMBED_DEFAULTS[currentEmbedAction] || {}));
   document.getElementById('embed-editor-modal').classList.add('is-open');
 }));
 document.getElementById('ee-save').addEventListener('click', () => {

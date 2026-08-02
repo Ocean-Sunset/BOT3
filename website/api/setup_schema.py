@@ -179,6 +179,14 @@ CREATE TABLE IF NOT EXISTS ticket_logs (
     transcript  TEXT NOT NULL,
     closed_at   TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS captcha_codes (
+    code        TEXT PRIMARY KEY,
+    provider    TEXT NOT NULL,
+    created_at  DOUBLE PRECISION NOT NULL,
+    expires_at  DOUBLE PRECISION NOT NULL,
+    used        BOOLEAN NOT NULL DEFAULT FALSE
+);
 """
 
 

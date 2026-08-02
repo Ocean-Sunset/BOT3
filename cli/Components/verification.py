@@ -21,10 +21,13 @@ def provider_key(settings: dict, provider: str, kind: str) -> str:
     return from_env
 
 
-def captcha_solve_url(provider: str) -> str:
+def captcha_solve_url(provider: str, code: str = "") -> str:
     """Public URL where a user solves the captcha and copies a token."""
     base = os.environ.get("DASHBOARD_URL", "").rstrip("/")
-    return f"{base}/captcha/{provider}"
+    url = f"{base}/captcha/{provider}"
+    if code:
+        url += f"?code={code}"
+    return url
 
 
 VERIFY_DEFAULTS = {
@@ -157,8 +160,12 @@ class ExternalCaptchaButtonView(discord.ui.View):
         super().__init__(timeout=None)
         self.role_id = role_id
         self.provider = provider
+        self.url = url
         verify = discord.ui.Button(label="Verify", style=discord.ButtonStyle.success, emoji="🛡️", custom_id=f"verify:{provider}")
         async def cb(i: discord.Interaction):
+            # Generate a fresh one-time code so the captcha page can only be used right now.
+            code = await neon_db.create_captcha_code(self.provider)
+            url = captcha_solve_url(self.provider, code) if code else self.url
             await i.response.send_modal(ExternalCaptchaModal(self.role_id, url, self.provider))
         verify.callback = cb
         self.add_item(verify)

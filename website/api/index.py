@@ -304,6 +304,12 @@ async def captcha_page(request: Request, provider: str):
     if provider not in ("recaptcha", "turnstile"):
         return templates.TemplateResponse(request, "error.html",
             {"code": 404, "title": "Not Found", "message": "Unknown captcha provider."}, status_code=404)
+    # Require a fresh one-time code issued by the bot when the Verify modal opened
+    code = request.query_params.get("code", "")
+    if not await _consume_captcha_code(code, provider):
+        return templates.TemplateResponse(request, "error.html",
+            {"code": 403, "title": "Link Expired", "message": "This verification link is invalid or has already been used. Click Verify again in Discord to get a fresh link."},
+            status_code=403)
     site_key = os.environ.get(f"{provider.upper()}_SITE_KEY", "")
     return templates.TemplateResponse(request, "captcha.html", {
         "provider": provider,
@@ -864,6 +870,39 @@ CREATE INDEX IF NOT EXISTS idx_mod_actions_pending ON mod_actions (status, creat
 
 async def _ensure_mod_actions_table():
     await execute(_MOD_ACTIONS_TABLE_SQL)
+
+
+_CAPTCHA_CODES_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS captcha_codes (
+    code TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    created_at DOUBLE PRECISION NOT NULL,
+    expires_at DOUBLE PRECISION NOT NULL,
+    used BOOLEAN NOT NULL DEFAULT FALSE
+);
+"""
+
+
+async def _consume_captcha_code(code: str, provider: str) -> bool:
+    """Validate a bot-issued one-time code: exists, matches provider, unused, <1h old. Marks it used."""
+    if not code:
+        return False
+    try:
+        await execute(_CAPTCHA_CODES_TABLE_SQL)
+        row = await fetchrow(
+            "SELECT used, expires_at FROM captcha_codes WHERE code = $1 AND provider = $2",
+            code, provider,
+        )
+        if not row:
+            return False
+        if row["used"]:
+            return False
+        if time.time() > row["expires_at"]:
+            return False
+        await execute("UPDATE captcha_codes SET used = TRUE WHERE code = $1", code)
+        return True
+    except Exception:
+        return False
 
 
 async def _queue_action(guild_id, action, target_id, target_name="", reason="", duration=None, moderator=""):

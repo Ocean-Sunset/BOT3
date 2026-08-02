@@ -170,6 +170,10 @@
   max-width: 360px;
   box-shadow: 0 20px 60px rgba(0,0,0,0.6);
 }
+.md-modal::-webkit-scrollbar { width: 6px; }
+.md-modal::-webkit-scrollbar-track { background: transparent; }
+.md-modal::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 999px; }
+.md-modal::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
 .md-modal h3 {
   font-size: 1rem;
   font-weight: 800;

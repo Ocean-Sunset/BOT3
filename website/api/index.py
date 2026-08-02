@@ -858,6 +858,11 @@ async def _queue_action(guild_id, action, target_id, target_name="", reason="", 
             str(guild_id), action, str(target_id), target_name, reason, moderator,
             duration_int, time.time(),
         )
+    # Wake the bot instantly via Postgres NOTIFY
+    try:
+        await execute("SELECT pg_notify('prowl_actions', $1)", str(guild_id))
+    except Exception:
+        pass
 
 
 @app.get("/api/v1/mod/{guild_id}/debug")

@@ -290,6 +290,8 @@ async def index(request: Request):
 
 @app.get("/login", response_class=HTMLResponse)
 async def login(request: Request):
+    if get_user(request):
+        return RedirectResponse("/dashboard")
     return templates.TemplateResponse(request, "login.html", {"config": _cfg()})
 
 

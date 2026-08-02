@@ -85,7 +85,7 @@ class ProwlBot(commands.Bot):
 
     async def on_guild_remove(self, guild: discord.Guild):
         """Clean up a guild's data when the bot is removed/kicked."""
-        logger.info(f"Left/Kicked from guild: {guild.name} ({guild.id}) — deleting data.")
+        logger.info(f"Left/Kicked from guild: {guild.name} ({guild.id}) - deleting data.")
         try:
             await neon_db.delete_guild_data(guild.id)
         except Exception as e:

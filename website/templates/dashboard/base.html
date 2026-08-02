@@ -201,6 +201,26 @@
   </script>
 
   <script>
+    // ── Rate-limit popup: warn when any API call gets 429'd ──
+    (function() {
+      const orig = window.fetch;
+      let lastWarn = 0;
+      window.fetch = function(input, init) {
+        return orig.apply(this, arguments).then(res => {
+          if (res.status === 429) {
+            const now = Date.now();
+            if (now - lastWarn > 8000 && typeof window.showToast === 'function') {
+              lastWarn = now;
+              window.showToast('Rate limited (429) — slow down, retrying shortly.', 'warning', 6000);
+            }
+          }
+          return res;
+        });
+      };
+    })();
+  </script>
+
+  <script>
     // ── Global action watcher (runs on every dashboard page) ──
     (function() {
       const GID = window.__GUILD_ID;

@@ -111,7 +111,7 @@ async def _ensure_tables():
                 await conn.execute("SELECT pg_advisory_unlock(hashtext('prowl_schema'))")
         logger.info("Ensured database tables exist.")
     except Exception as e:
-        # A concurrent connection may have created the table/type first — that's fine
+        # A concurrent connection may have created the table/type first - that's fine
         if "pg_type_typname_nsp_index" in str(e) or "already exists" in str(e).lower():
             logger.info("Schema was already created concurrently.")
         else:

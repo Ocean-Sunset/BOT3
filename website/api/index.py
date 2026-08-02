@@ -188,9 +188,19 @@ async def forbidden(request, exc):
 
 @app.exception_handler(429)
 async def too_many(request, exc):
+    detail = getattr(exc, "detail", None)
+    retry = 30
+    headers = getattr(exc, "headers", None)
+    if headers:
+        ra = headers.get("Retry-After")
+        if ra:
+            try:
+                retry = int(ra)
+            except (ValueError, TypeError):
+                pass
     return templates.TemplateResponse(
         request, "error.html",
-        {"code": 429, "title": ERROR_PAGES[429][0], "message": ERROR_PAGES[429][1]},
+        {"code": 429, "title": "Rate Limited", "message": detail or ERROR_PAGES[429][1], "retry_in": retry},
         status_code=429,
     )
 
@@ -785,7 +795,7 @@ async def mod_settings_set(guild_id: str, request: Request):
     value = body.get("value")
     if not key:
         return JSONResponse({"error": "missing key"}, status_code=400)
-    # Custom action embeds are dicts — validate via _sanitize_panel_embed
+    # Custom action embeds are dicts - validate via _sanitize_panel_embed
     if key.endswith("_embed"):
         clean, err = _sanitize_panel_embed(value)
         if err:
@@ -893,7 +903,7 @@ async def _consume_captcha_code(code: str, provider: str) -> bool:
         try:
             await execute(_CAPTCHA_CODES_TABLE_SQL)
         except Exception:
-            pass  # concurrent schema creation race — the table likely exists now
+            pass  # concurrent schema creation race - the table likely exists now
         row = await fetchrow(
             "SELECT used, expires_at FROM captcha_codes WHERE code = $1 AND provider = $2",
             code, provider,
@@ -1476,7 +1486,7 @@ VERIFY_SETTINGS_DEFAULTS = {
     "log_channel_id": None, "type": "button", "captcha": False,
     "message": "Click the button below to verify yourself.",
     "reaction_emoji": "✅",
-    # Bot-owner defaults from .env — server owners don't need their own keys.
+    # Bot-owner defaults from .env - server owners don't need their own keys.
     "recaptcha_site_key": os.environ.get("RECAPTCHA_SITE_KEY", ""),
     "recaptcha_secret": "",
     "turnstile_site_key": os.environ.get("TURNSTILE_SITE_KEY", ""),

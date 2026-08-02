@@ -310,7 +310,7 @@ class Moderation(commands.Cog, name="Moderation"):
         """Post the action confirmation: custom embed if configured, else the basic embed."""
         if settings.get("silent_mod") or not settings.get(f"{action}_message_enabled", True):
             try:
-                await interaction.followup.send(f"{title} — done.", ephemeral=True)
+                await interaction.followup.send(f"{title} - done.", ephemeral=True)
             except Exception:
                 pass
             return

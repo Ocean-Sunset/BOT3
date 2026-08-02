@@ -294,7 +294,7 @@
         <div style="flex:1;">
           <div class="md-behavior-label" style="margin-bottom:0.3rem;">URL</div>
           <input type="text" class="md-input" id="ee-url" placeholder="https://..." />
-          <div style="font-size:0.65rem;color:rgba(255,255,255,0.3);margin-top:0.25rem;line-height:1.4;">Makes the embed title clickable — opens this link when the title is clicked.</div>
+          <div style="font-size:0.65rem;color:rgba(255,255,255,0.3);margin-top:0.25rem;line-height:1.4;">Makes the embed title clickable - opens this link when the title is clicked.</div>
         </div>
       </div>
       <div style="display:flex;gap:0.6rem;">
@@ -466,7 +466,7 @@ const EMBED_DEFAULTS = {
 
 document.querySelectorAll('[data-edit-embed]').forEach(b => b.addEventListener('click', () => {
   currentEmbedAction = b.dataset.editEmbed;
-  document.getElementById('embed-editor-title').textContent = `${ACTION_NAMES[currentEmbedAction] || currentEmbedAction} — Custom Embed`;
+  document.getElementById('embed-editor-title').textContent = `${ACTION_NAMES[currentEmbedAction] || currentEmbedAction} - Custom Embed`;
   const saved = SETTINGS_SNAPSHOT[`${currentEmbedAction}_embed`] || {};
   loadEmbedEditor(Object.keys(saved).length ? saved : (EMBED_DEFAULTS[currentEmbedAction] || {}));
   document.getElementById('embed-editor-modal').classList.add('is-open');
@@ -475,7 +475,7 @@ document.getElementById('ee-save').addEventListener('click', () => {
   if (currentEmbedAction) {
     const e = collectEmbed();
     if (Object.keys(e).length === 0) {
-      if (typeof showToast === 'function') showToast('The embed is empty — add a title, description, footer or a field first.', 'warning', 5000);
+      if (typeof showToast === 'function') showToast('The embed is empty - add a title, description, footer or a field first.', 'warning', 5000);
       return;
     }
     markChanged(`${currentEmbedAction}_embed`, e);
@@ -559,7 +559,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const overflow = members.length - shown.length;
     w.innerHTML = '<table class="md-member-table"><thead><tr><th>Member</th><th style="width:95px;">Actions</th></tr></thead><tbody>' +
       shown.map((m,i) => `<tr><td><div class="md-member-info"><div class="md-member-avatar"><img loading="lazy" decoding="async" src="${m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png')}" style="width:100%;height:100%;object-fit:cover;" /></div><span class="md-member-name">${esc(m.name)}</span></div></td><td><div class="md-actions-wrap"><button class="md-actions-btn" data-idx="${i}"><i data-lucide="chevron-down"></i>Actions</button></div></td></tr>`).join('') +
-      '</tbody></table>' + (overflow > 0 ? `<div style="text-align:center;padding:0.5rem;font-size:0.72rem;color:rgba(255,255,255,0.3);">Showing first 30 of ${members.length} — use the Users page for full access.</div>` : '');
+      '</tbody></table>' + (overflow > 0 ? `<div style="text-align:center;padding:0.5rem;font-size:0.72rem;color:rgba(255,255,255,0.3);">Showing first 30 of ${members.length} - use the Users page for full access.</div>` : '');
     lucide.createIcons();
     const overlay = document.createElement('div');
     overlay.className = 'md-modal-overlay';

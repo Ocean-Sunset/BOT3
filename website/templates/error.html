@@ -82,6 +82,8 @@
       transition: opacity 0.2s;
     }
     .btn:hover { opacity: 0.85; }
+    .retry-hint { color: #888; }
+    .retry-hint strong { color: #fff; font-weight: 700; }
     .wave-field {
       position: fixed;
       inset: 0;
@@ -115,6 +117,9 @@
     </a>
     <h1>{{ title }}</h1>
     <p>{{ message }}</p>
+    {% if retry_in is defined %}
+      <p class="retry-hint">You're being rate limited. Retrying in <strong id="retry-count">{{ retry_in }}</strong>s…</p>
+    {% endif %}
     <a href="/" class="btn">Go Home</a>
   </div>
   <script>
@@ -128,6 +133,16 @@
       el.style.fontSize = (1 + Math.random() * 1.8) + 'rem';
       el.style.opacity = 0.03 + Math.random() * 0.08;
       waveField.appendChild(el);
+    }
+    // ── 429 countdown + auto retry ──
+    const retryCount = document.getElementById('retry-count');
+    if (retryCount) {
+      let secs = parseInt(retryCount.textContent) || 30;
+      const tick = setInterval(() => {
+        secs -= 1;
+        if (secs <= 0) { clearInterval(tick); location.reload(); return; }
+        retryCount.textContent = secs;
+      }, 1000);
     }
   </script>
 </body>

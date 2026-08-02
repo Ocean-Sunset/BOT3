@@ -209,12 +209,15 @@
       // Map of action id -> status we've already notified about
       let seen = {};
       try { seen = JSON.parse(localStorage.getItem(WATCH_KEY) || '{}'); } catch {}
+      let pendingNow = false;
       function notifyActions() {
         fetch('/api/v1/mod/' + GID + '/actions').then(r => r.json()).then(d => {
           const now = Date.now();
+          let hasPending = false;
           (d.actions || []).forEach(a => {
             const ts = a.created_at ? a.created_at * 1000 : 0;
             if (!ts || now - ts > 300000) return; // only recent (5 min)
+            if ((a.status || '') === 'pending') hasPending = true;
             const prev = seen[a.id];
             const status = a.status || '';
             if (status !== prev) {
@@ -232,10 +235,20 @@
               }
             }
           });
+          pendingNow = hasPending;
         }).catch(() => {});
       }
-      setInterval(() => { if (!document.hidden) notifyActions(); }, 5000);
-      setTimeout(notifyActions, 3000);
+      window.notifyActions = notifyActions;
+      // When a page queues an action, check right away so toasts pop fast
+      window.addEventListener('prowl:action-queued', notifyActions);
+      // Poll fast while actions are pending, slow otherwise (toasts show near-instantly)
+      (function schedule() {
+        setTimeout(() => {
+          if (!document.hidden) notifyActions();
+          schedule();
+        }, pendingNow ? 1500 : 5000);
+      })();
+      setTimeout(notifyActions, 1200);
     })();
   </script>
 

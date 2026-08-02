@@ -187,13 +187,13 @@ class ProwlBot(commands.Bot):
     def _on_action_notify(self, connection, pid, channel, payload):
         # Called on a DB thread; schedule processing on the event loop
         try:
-            self.bot.loop.call_soon_threadsafe(self._schedule_process)
+            self.loop.call_soon_threadsafe(self._schedule_process)
         except Exception:
             pass
 
     def _schedule_process(self):
         if not self._processing_actions:
-            self.bot.loop.create_task(self._process_pending())
+            self.loop.create_task(self._process_pending())
 
     async def _process_pending(self):
         if self._processing_actions:
@@ -305,7 +305,7 @@ class ProwlBot(commands.Bot):
                     await neon_db.push_mod_event(a["guild_id"], a["target_id"], log_user, act, log_reason, moderator)
                     # Push member data immediately so the dashboard reflects the change fast
                     if act in ("add_role", "remove_role", "nickname"):
-                        self.bot.loop.create_task(self._sync_guild_members(guild))
+                        self.loop.create_task(self._sync_guild_members(guild))
                 except Exception as e:
                     logger.error(f"Action {a['id']} ({act} on {a['target_id']}) failed: {e}")
                     await neon_db.complete_action(a["id"], "failed", str(e)[:500])

@@ -241,6 +241,7 @@ function queueAction(payload) {
     body:JSON.stringify({ action: payload.action, user_id: payload.user_id, user_name: payload.user_name, reason: payload.reason||'', duration: payload.duration||null, target: payload.target||null }) })
     .then(r => r.json()).then(() => {
       if (typeof showToast==='function') showToast('Queued for the bot.','info');
+      window.dispatchEvent(new CustomEvent('prowl:action-queued'));
       setTimeout(refreshMembers, 8000);
     })
     .catch(() => { if (typeof showToast==='function') showToast('Failed to queue.','error'); });

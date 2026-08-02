@@ -562,6 +562,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           return;
         }
         if (typeof showToast === 'function') showToast('Action queued for the bot.', 'info');
+        window.dispatchEvent(new CustomEvent('prowl:action-queued'));
       } catch (e) {
         if (typeof showToast === 'function') showToast('Network error: ' + String(e).slice(0, 120), 'error', 6000);
       }
@@ -608,6 +609,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const res = await fetch(`/api/v1/mod/${GID}/action`, { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'unmute', user_id: uid, user_name: name, reason:'Unmuted from dashboard'}) });
             if (!res.ok) throw new Error('bad status');
             if (typeof showToast === 'function') showToast('Unmute queued for the bot.', 'info');
+            window.dispatchEvent(new CustomEvent('prowl:action-queued'));
             // List refresh + success toast happen when the bot marks the action completed.
           } catch (e) {
             if (typeof showToast === 'function') showToast('Failed to queue unmute.', 'error');

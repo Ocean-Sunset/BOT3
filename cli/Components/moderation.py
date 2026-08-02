@@ -24,21 +24,26 @@ MOD_DEFAULTS = {
     # ── Ban ──
     "ban_dm": True, "ban_purge": True,
     "ban_message": "{username} has been banned.", "ban_message_enabled": True,
+    "ban_message_mode": "basic", "ban_embed": {},
     # ── Temp ban ──
     "tempban_dm": True, "tempban_purge": True,
     "tempban_message": "{username} has been temporarily banned for {time}.",
     "tempban_message_enabled": True,
+    "tempban_message_mode": "basic", "tempban_embed": {},
     "tempban_duration": 1440,  # minutes
     # ── Mute ──
     "mute_dm": True, "mute_duration": 60,
     "mute_message": "{username} has been muted for {time}.",
     "mute_message_enabled": True,
+    "mute_message_mode": "basic", "mute_embed": {},
     # ── Kick ──
     "kick_dm": True,
     "kick_message": "{username} has been kicked.", "kick_message_enabled": True,
+    "kick_message_mode": "basic", "kick_embed": {},
     # ── Warn ──
     "warn_dm": True,
     "warn_message": "{username} has been warned.", "warn_message_enabled": True,
+    "warn_message_mode": "basic", "warn_embed": {},
 }
 
 
@@ -68,6 +73,45 @@ def format_duration(minutes: int) -> str:
     if rem == 0:
         return f"{hours} hour{'s' if hours != 1 else ''}"
     return f"{hours} hour{'s' if hours != 1 else ''} {rem} minute{'s' if rem != 1 else ''}"
+
+
+def build_embed(data: dict) -> discord.Embed:
+    """Build a discord.Embed from a dashboard-configured dict."""
+    if not isinstance(data, dict):
+        data = {}
+    color = data.get("color")
+    try:
+        color = int(str(color).lstrip("#"), 16) if color else 0x5865F2
+    except (ValueError, TypeError):
+        color = 0x5865F2
+    embed = discord.Embed(
+        title=data.get("title") or None,
+        description=data.get("description") or None,
+        color=color,
+    )
+    if data.get("url"):
+        embed.url = data["url"]
+    if data.get("author_name"):
+        embed.set_author(name=data["author_name"], url=data.get("author_url") or None, icon_url=data.get("author_icon") or None)
+    if data.get("image_url"):
+        embed.set_image(url=data["image_url"])
+    if data.get("thumbnail_url"):
+        embed.set_thumbnail(url=data["thumbnail_url"])
+    if data.get("footer_text") or data.get("footer_icon"):
+        embed.set_footer(text=data.get("footer_text") or "", icon_url=data.get("footer_icon") or None)
+    for f in (data.get("fields") or []):
+        if isinstance(f, dict) and f.get("name"):
+            embed.add_field(name=f["name"][:256], value=(f.get("value") or "\u200b")[:1024], inline=bool(f.get("inline")))
+    return embed
+
+
+def render_embed_data(data: dict, member: discord.Member, reason: str = "", msg_count: int = 0, time_str: str = "") -> dict:
+    """Render template variables inside an embed dict's text fields."""
+    out = dict(data)
+    for key in ("title", "description", "footer_text", "author_name", "url"):
+        if out.get(key):
+            out[key] = render_template(str(out[key]), member, reason, msg_count, time_str)
+    return out
 
 
 def _info_embed(title: str, description: str, color: str = "blue", ephemeral_view: bool = True) -> discord.Embed:
@@ -261,6 +305,37 @@ class Moderation(commands.Cog, name="Moderation"):
         self.hour_started = int(time.time())
         self.flush_history.start()
 
+    async def send_confirm(self, interaction, settings, action: str, title: str, color: str,
+                           member: discord.Member, reason: str, time_str: str = ""):
+        """Post the action confirmation: custom embed if configured, else the basic embed."""
+        if settings.get("silent_mod") or not settings.get(f"{action}_message_enabled", True):
+            try:
+                await interaction.followup.send(f"{title} — done.", ephemeral=True)
+            except Exception:
+                pass
+            return
+        msg_count = self.get_msg_count(interaction.guild_id, member.id)
+        mode = settings.get(f"{action}_message_mode", "basic")
+        try:
+            if mode == "custom":
+                data = render_embed_data(settings.get(f"{action}_embed") or {}, member, reason, msg_count, time_str)
+                embed = build_embed(data)
+                await interaction.channel.send(embed=embed)
+            else:
+                msg = render_template(settings.get(f"{action}_message", ""), member, reason, msg_count, time_str)
+                if not msg:
+                    msg = f"{member.mention} has been {action}ed."
+                embed = (
+                    EmbedBuilder().title(title).description(msg).color(color)
+                    .field("Reason", reason)
+                    .field("Moderator", interaction.user.mention)
+                    .timestamp(datetime.datetime.utcnow())
+                    .build()
+                )
+                await interaction.followup.send(embed=embed)
+        except Exception as e:
+            logger.error(f"send_confirm failed for {action}: {e}")
+
     def cog_unload(self):
         self.flush_history.cancel()
 
@@ -411,22 +486,7 @@ class Moderation(commands.Cog, name="Moderation"):
                 await safe_dm(member, embed=dm_embed)
             await member.kick(reason=reason)
 
-            if not settings.get("silent_mod"):
-                msg = render_template(settings.get("kick_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id))
-                if not msg:
-                    msg = f"{member.mention} has been kicked."
-                embed = (
-                    EmbedBuilder().title("👢 Member Kicked")
-                    .description(msg)
-                    .color("red")
-                    .field("Reason", reason)
-                    .field("Moderator", interaction.user.mention)
-                    .timestamp(datetime.datetime.utcnow())
-                    .build()
-                )
-                await interaction.followup.send(embed=embed)
-            else:
-                await interaction.followup.send(embed=EmbedBuilder().title("👢 Member Kicked").description("Done.").color("red").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await self.send_confirm(interaction, settings, "kick", "👢 Member Kicked", "red", member, reason)
 
             log_embed = (
                 EmbedBuilder().title("👢 Member Kicked")
@@ -476,23 +536,7 @@ class Moderation(commands.Cog, name="Moderation"):
                 await safe_dm(member, embed=dm_embed)
             await member.ban(reason=reason, delete_message_days=delete_days)
 
-            if not settings.get("silent_mod"):
-                msg = render_template(settings.get("ban_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id))
-                if not msg:
-                    msg = f"{member.mention} has been banned."
-                embed = (
-                    EmbedBuilder().title("🔨 Member Banned")
-                    .description(msg)
-                    .color("red")
-                    .field("Reason", reason)
-                    .field("Moderator", interaction.user.mention)
-                    .field("Delete Days", str(delete_days))
-                    .timestamp(datetime.datetime.utcnow())
-                    .build()
-                )
-                await interaction.followup.send(embed=embed)
-            else:
-                await interaction.followup.send(embed=EmbedBuilder().title("🔨 Member Banned").description("Done.").color("red").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await self.send_confirm(interaction, settings, "ban", "🔨 Member Banned", "red", member, reason)
 
             log_embed = (
                 EmbedBuilder().title("🔨 Member Banned")
@@ -545,23 +589,7 @@ class Moderation(commands.Cog, name="Moderation"):
                 await safe_dm(member, embed=dm_embed)
             await member.ban(reason=f"Temp ban ({duration}m): {reason}", delete_message_days=delete_days)
 
-            if not settings.get("silent_mod"):
-                msg = render_template(settings.get("tempban_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id), format_duration(duration))
-                if not msg:
-                    msg = f"{member.mention} has been banned for **{format_duration(duration)}**."
-                embed = (
-                    EmbedBuilder().title("⏳ Member Temp-Banned")
-                    .description(msg)
-                    .color("red")
-                    .field("Duration", format_duration(duration))
-                    .field("Reason", reason)
-                    .field("Moderator", interaction.user.mention)
-                    .timestamp(datetime.datetime.utcnow())
-                    .build()
-                )
-                await interaction.followup.send(embed=embed)
-            else:
-                await interaction.followup.send(embed=EmbedBuilder().title("⏳ Member Temp-Banned").description("Done.").color("red").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await self.send_confirm(interaction, settings, "tempban", "⏳ Member Temp-Banned", "red", member, reason, format_duration(duration))
 
             log_embed = (
                 EmbedBuilder().title("⏳ Member Temp-Banned")
@@ -687,21 +715,27 @@ class Moderation(commands.Cog, name="Moderation"):
             logger.error(f"Mute failed for {member.id} in {interaction.guild_id}: {e}")
             return await interaction.response.send_message(embed=_error_embed(f"Failed to mute: {e}"), ephemeral=True)
 
-        if not settings.get("silent_mod"):
-            msg = render_template(settings.get("mute_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id), format_duration(duration))
-            if not msg:
-                msg = f"{member.mention} has been timed out."
-            embed = (
-                EmbedBuilder().title("🔇 Member Muted")
-                .description(msg)
-                .color("orange")
-                .field("Duration", format_duration(duration))
-                .field("Reason", reason)
-                .field("Moderator", interaction.user.mention)
-                .timestamp(datetime.datetime.utcnow())
-                .build()
-            )
-            await interaction.response.send_message(embed=embed)
+        if not settings.get("silent_mod") and settings.get("mute_message_enabled", True):
+            msg_count = self.get_msg_count(interaction.guild_id, member.id)
+            if settings.get("mute_message_mode", "basic") == "custom":
+                data = render_embed_data(settings.get("mute_embed") or {}, member, reason, msg_count, format_duration(duration))
+                embed = build_embed(data)
+                await interaction.response.send_message(embed=embed)
+            else:
+                msg = render_template(settings.get("mute_message", ""), member, reason, msg_count, format_duration(duration))
+                if not msg:
+                    msg = f"{member.mention} has been timed out."
+                embed = (
+                    EmbedBuilder().title("🔇 Member Muted")
+                    .description(msg)
+                    .color("orange")
+                    .field("Duration", format_duration(duration))
+                    .field("Reason", reason)
+                    .field("Moderator", interaction.user.mention)
+                    .timestamp(datetime.datetime.utcnow())
+                    .build()
+                )
+                await interaction.response.send_message(embed=embed)
         else:
             await interaction.response.send_message(embed=EmbedBuilder().title("🔇 Member Muted").description("Done.").color("orange").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
@@ -801,20 +835,26 @@ class Moderation(commands.Cog, name="Moderation"):
         if not reason:
             reason = "No reason provided"
 
-        if not settings.get("silent_mod"):
-            msg = render_template(settings.get("warn_message", ""), member, reason, self.get_msg_count(interaction.guild_id, member.id))
-            if not msg:
-                msg = f"{member.mention} has been warned."
-            embed = (
-                EmbedBuilder().title("Member Warned")
-                .description(msg)
-                .color("yellow")
-                .field("Reason", reason)
-                .field("Moderator", interaction.user.mention)
-                .timestamp(datetime.datetime.utcnow())
-                .build()
-            )
-            await interaction.response.send_message(embed=embed)
+        if not settings.get("silent_mod") and settings.get("warn_message_enabled", True):
+            msg_count = self.get_msg_count(interaction.guild_id, member.id)
+            if settings.get("warn_message_mode", "basic") == "custom":
+                data = render_embed_data(settings.get("warn_embed") or {}, member, reason, msg_count)
+                embed = build_embed(data)
+                await interaction.response.send_message(embed=embed)
+            else:
+                msg = render_template(settings.get("warn_message", ""), member, reason, msg_count)
+                if not msg:
+                    msg = f"{member.mention} has been warned."
+                embed = (
+                    EmbedBuilder().title("Member Warned")
+                    .description(msg)
+                    .color("yellow")
+                    .field("Reason", reason)
+                    .field("Moderator", interaction.user.mention)
+                    .timestamp(datetime.datetime.utcnow())
+                    .build()
+                )
+                await interaction.response.send_message(embed=embed)
         else:
             await interaction.response.send_message(embed=EmbedBuilder().title("Member Warned").description("Done.").color("yellow").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 

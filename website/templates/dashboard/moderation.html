@@ -12,7 +12,7 @@
 
     <div class="md-section" style="animation-delay:.08s">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Activity Feed</div>
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Moderation Activity Feed</div>
         <div class="md-feed" id="activity-feed">
           <div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
         </div>
@@ -86,7 +86,7 @@
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;position:relative;">
-        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Ban Settings</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;"><div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">Ban Settings</div><div class="md-segmented"><button class="extra-tab msg-mode-tab is-active" data-action="ban" data-mode="basic">Basic</button><button class="extra-tab msg-mode-tab" data-action="ban" data-mode="custom">Custom</button></div></div>
         <div class="md-block-warn" data-warn="ban">
           <i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>
           DM and server message are both disabled - command will be silent.
@@ -106,8 +106,13 @@
                 <div class="md-behavior-label">Server Message</div>
                 <label class="md-toggle"><input type="checkbox" data-key="ban_message_enabled" checked /><span class="md-toggle-slider"></span></label>
               </div>
-              <input type="text" class="md-input" data-key="ban_message" placeholder="{username} has been banned." />
-              <div class="md-vars-hint">Variables: {username} {name} {servername} {servermembercount} {datejoined} {messagessent} {reason}</div>
+              <div data-basic-view="ban">
+                <input type="text" class="md-input" data-key="ban_message" placeholder="{username} has been banned." />
+                <div class="md-vars-hint">Variables: {username} {name} {servername} {servermembercount} {datejoined} {messagessent} {reason}</div>
+              </div>
+              <div data-custom-view="ban" style="display:none;">
+                <button class="md-action-btn" data-edit-embed="ban" style="width:100%;justify-content:center;padding:0.5rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
+              </div>
             </div>
           </div>
         </div>
@@ -116,7 +121,7 @@
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;position:relative;">
-        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Temp Ban Settings</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;"><div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">Temp Ban Settings</div><div class="md-segmented"><button class="extra-tab msg-mode-tab is-active" data-action="tempban" data-mode="basic">Basic</button><button class="extra-tab msg-mode-tab" data-action="tempban" data-mode="custom">Custom</button></div></div>
         <div class="md-block-warn" data-warn="tempban">
           <i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>
           DM and server message are both disabled - command will be silent.
@@ -142,8 +147,13 @@
                 <div class="md-behavior-label">Server Message</div>
                 <label class="md-toggle"><input type="checkbox" data-key="tempban_message_enabled" checked /><span class="md-toggle-slider"></span></label>
               </div>
-              <input type="text" class="md-input" data-key="tempban_message" placeholder="{username} has been temporarily banned." />
-              <div class="md-vars-hint">Variables: {username} {name} {servername} {servermembercount} {datejoined} {messagessent} {reason}</div>
+              <div data-basic-view="tempban">
+                <input type="text" class="md-input" data-key="tempban_message" placeholder="{username} has been temporarily banned." />
+                <div class="md-vars-hint">Variables: {username} {name} {servername} {servermembercount} {datejoined} {messagessent} {reason}</div>
+              </div>
+              <div data-custom-view="tempban" style="display:none;">
+                <button class="md-action-btn" data-edit-embed="tempban" style="width:100%;justify-content:center;padding:0.5rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
+              </div>
             </div>
           </div>
         </div>
@@ -152,7 +162,7 @@
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Mute Settings</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;"><div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">Mute Settings</div><div class="md-segmented"><button class="extra-tab msg-mode-tab is-active" data-action="mute" data-mode="basic">Basic</button><button class="extra-tab msg-mode-tab" data-action="mute" data-mode="custom">Custom</button></div></div>
         <div class="md-behavior-list">
           <div class="md-behavior-item">
             <label class="md-toggle"><input type="checkbox" data-key="mute_dm" /><span class="md-toggle-slider"></span></label>
@@ -164,13 +174,29 @@
               <input type="number" class="md-input" data-key="mute_duration" min="1" placeholder="60" />
             </div>
           </div>
+          <div class="md-behavior-item" style="align-items:flex-start" data-msg-block="mute">
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3rem;">
+                <div class="md-behavior-label">Server Message</div>
+                <label class="md-toggle"><input type="checkbox" data-key="mute_message_enabled" checked /><span class="md-toggle-slider"></span></label>
+              </div>
+              <div data-basic-view="mute">
+                <input type="text" class="md-input" data-key="mute_message" placeholder="{username} has been muted." />
+                <div class="md-vars-hint">Variables: {username} {name} {servername} {servermembercount} {datejoined} {messagessent} {reason}</div>
+              </div>
+              <div data-custom-view="mute" style="display:none;">
+                <button class="md-action-btn" data-edit-embed="mute" style="width:100%;justify-content:center;padding:0.5rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;position:relative;">
-        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Kick Settings</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;"><div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">Kick Settings</div><div class="md-segmented"><button class="extra-tab msg-mode-tab is-active" data-action="kick" data-mode="basic">Basic</button><button class="extra-tab msg-mode-tab" data-action="kick" data-mode="custom">Custom</button></div></div>
         <div class="md-block-warn" data-warn="kick">
           <i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>
           DM and server message are both disabled - command will be silent.
@@ -186,8 +212,13 @@
                 <div class="md-behavior-label">Server Message</div>
                 <label class="md-toggle"><input type="checkbox" data-key="kick_message_enabled" checked /><span class="md-toggle-slider"></span></label>
               </div>
-              <input type="text" class="md-input" data-key="kick_message" placeholder="{username} has been kicked." />
-              <div class="md-vars-hint">Variables: {username} {name} {servername} {servermembercount} {datejoined} {messagessent} {reason}</div>
+              <div data-basic-view="kick">
+                <input type="text" class="md-input" data-key="kick_message" placeholder="{username} has been kicked." />
+                <div class="md-vars-hint">Variables: {username} {name} {servername} {servermembercount} {datejoined} {messagessent} {reason}</div>
+              </div>
+              <div data-custom-view="kick" style="display:none;">
+                <button class="md-action-btn" data-edit-embed="kick" style="width:100%;justify-content:center;padding:0.5rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
+              </div>
             </div>
           </div>
         </div>
@@ -196,7 +227,7 @@
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;position:relative;">
-        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Warn Settings</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;"><div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">Warn Settings</div><div class="md-segmented"><button class="extra-tab msg-mode-tab is-active" data-action="warn" data-mode="basic">Basic</button><button class="extra-tab msg-mode-tab" data-action="warn" data-mode="custom">Custom</button></div></div>
         <div class="md-block-warn" data-warn="warn">
           <i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>
           DM and server message are both disabled - command will be silent.
@@ -212,8 +243,13 @@
                 <div class="md-behavior-label">Server Message</div>
                 <label class="md-toggle"><input type="checkbox" data-key="warn_message_enabled" checked /><span class="md-toggle-slider"></span></label>
               </div>
-              <input type="text" class="md-input" data-key="warn_message" placeholder="{username} has been warned." />
-              <div class="md-vars-hint">Variables: {username} {name} {servername} {servermembercount} {datejoined} {messagessent} {reason}</div>
+              <div data-basic-view="warn">
+                <input type="text" class="md-input" data-key="warn_message" placeholder="{username} has been warned." />
+                <div class="md-vars-hint">Variables: {username} {name} {servername} {servermembercount} {datejoined} {messagessent} {reason}</div>
+              </div>
+              <div data-custom-view="warn" style="display:none;">
+                <button class="md-action-btn" data-edit-embed="warn" style="width:100%;justify-content:center;padding:0.5rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
+              </div>
             </div>
           </div>
         </div>
@@ -231,6 +267,75 @@
 
   </div>
 </div>
+
+<!-- Custom embed editor modal -->
+<div class="md-modal-overlay" id="embed-editor-modal">
+  <div class="md-modal" style="min-width:520px;max-width:560px;max-height:80vh;overflow-y:auto;">
+    <h3 id="embed-editor-title">Custom Embed</h3>
+    <div style="display:flex;flex-direction:column;gap:0.6rem;margin:0.75rem 0;">
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Title</div>
+        <input type="text" class="md-input" id="ee-title" placeholder="Embed title" />
+      </div>
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Description</div>
+        <textarea class="md-input md-textarea" id="ee-desc" rows="3" placeholder="Embed description"></textarea>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Color</div>
+          <div style="display:flex;align-items:center;gap:0.4rem;">
+            <input type="color" id="ee-color" value="#5865f2" style="width:36px;height:32px;border:none;background:none;cursor:pointer;" />
+            <input type="text" class="md-input" id="ee-color-hex" value="#5865f2" style="max-width:90px;" />
+          </div>
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">URL</div>
+          <input type="text" class="md-input" id="ee-url" placeholder="https://..." />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Author Name</div>
+          <input type="text" class="md-input" id="ee-author" placeholder="Author" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Author Icon URL</div>
+          <input type="text" class="md-input" id="ee-author-icon" placeholder="https://...png" />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Footer Text</div>
+          <input type="text" class="md-input" id="ee-footer" placeholder="Footer" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Footer Icon URL</div>
+          <input type="text" class="md-input" id="ee-footer-icon" placeholder="https://...png" />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Image URL</div>
+          <input type="text" class="md-input" id="ee-image" placeholder="https://...png" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Thumbnail URL</div>
+          <input type="text" class="md-input" id="ee-thumbnail" placeholder="https://...png" />
+        </div>
+      </div>
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Fields</div>
+        <div id="ee-fields" style="display:flex;flex-direction:column;gap:0.4rem;"></div>
+        <button class="md-action-btn" id="ee-add-field" style="margin-top:0.4rem;"><i data-lucide="plus"></i> Add Field</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="md-action-btn" id="ee-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save Embed</button>
+      <button class="md-action-btn" id="ee-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 {% block scripts %}
 <script>
@@ -240,6 +345,7 @@ const esc = s => { const d=document.createElement('div'); d.textContent=s||''; r
 
 const pending = {};
 const original = {};
+const LOADED = {};
 let SETTINGS_SNAPSHOT = {};
 const saveBar = document.getElementById('save-bar');
 const saveBtn = document.getElementById('save-btn');
@@ -262,11 +368,105 @@ function updateActionUI() {
     const msgOn = document.querySelector(`[data-key="${prefix}_message_enabled"]`)?.checked ?? true;
     warn.style.display = (!dmOn && !msgOn) ? 'flex' : 'none';
   });
-  ['ban','tempban','kick','warn'].forEach(p => {
+  ['ban','tempban','kick','warn','mute'].forEach(p => {
     const enabled = document.querySelector(`[data-key="${p}_message_enabled"]`)?.checked ?? true;
     const input = document.querySelector(`[data-key="${p}_message"]`);
     if (input) input.classList.toggle('is-disabled', !enabled);
   });
+}
+
+// ── Basic/Custom embed mode + embed editor ──
+const ACTIONS = ['ban','tempban','mute','kick','warn'];
+const ACTION_NAMES = { ban:'Ban', tempban:'Temp Ban', mute:'Mute', kick:'Kick', warn:'Warn' };
+
+function setModeView(action, mode, dirty) {
+  document.querySelectorAll(`.msg-mode-tab[data-action="${action}"]`).forEach(t => t.classList.toggle('is-active', t.dataset.mode === mode));
+  const basic = document.querySelector(`[data-basic-view="${action}"]`);
+  const custom = document.querySelector(`[data-custom-view="${action}"]`);
+  if (basic) basic.style.display = mode === 'basic' ? '' : 'none';
+  if (custom) custom.style.display = mode === 'custom' ? '' : 'none';
+  if (dirty) markChanged(`${action}_message_mode`, mode);
+}
+
+document.querySelectorAll('.msg-mode-tab').forEach(t => t.addEventListener('click', () => {
+  setModeView(t.dataset.action, t.dataset.mode, true);
+}));
+
+let currentEmbedAction = null;
+const eeVal = id => document.getElementById(id)?.value ?? '';
+
+function collectEmbed() {
+  const e = {
+    title: eeVal('ee-title'), description: eeVal('ee-desc'), url: eeVal('ee-url'),
+    color: eeVal('ee-color-hex'),
+    author_name: eeVal('ee-author'), author_icon: eeVal('ee-author-icon'),
+    footer_text: eeVal('ee-footer'), footer_icon: eeVal('ee-footer-icon'),
+    image_url: eeVal('ee-image'), thumbnail_url: eeVal('ee-thumbnail'),
+  };
+  const fields = [];
+  document.querySelectorAll('#ee-fields .ee-field-row').forEach(row => {
+    const name = row.querySelector('.ee-field-name').value.trim();
+    const value = row.querySelector('.ee-field-value').value;
+    const inline = row.querySelector('.ee-field-inline').checked;
+    if (name) fields.push({ name, value, inline });
+  });
+  if (fields.length) e.fields = fields;
+  for (const k of ['title','description','url','author_name','author_icon','footer_text','footer_icon','image_url','thumbnail_url']) {
+    if (!e[k]) delete e[k];
+  }
+  if (!e.color || e.color.toLowerCase() === '#5865f2') delete e.color;
+  return e;
+}
+
+function addFieldRow(f) {
+  const row = document.createElement('div');
+  row.className = 'ee-field-row';
+  row.style.cssText = 'display:flex;gap:0.4rem;align-items:center;';
+  row.innerHTML = `<input type="text" class="md-input ee-field-name" placeholder="Name" style="flex:1.2" value="${esc(f?.name||'')}"/>
+    <input type="text" class="md-input ee-field-value" placeholder="Value" style="flex:2" value="${esc(f?.value||'')}"/>
+    <label style="display:flex;align-items:center;gap:0.3rem;color:rgba(255,255,255,0.4);font-size:0.7rem;white-space:nowrap;"><input type="checkbox" class="ee-field-inline" ${f?.inline?'checked':''} /> Inline</label>
+    <button type="button" class="md-action-btn ee-field-del" style="padding:0.25rem;"><i data-lucide="x"></i></button>`;
+  row.querySelector('.ee-field-del').addEventListener('click', () => row.remove());
+  document.getElementById('ee-fields').appendChild(row);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function loadEmbedEditor(embed) {
+  const e = embed || {};
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+  set('ee-title', e.title); set('ee-desc', e.description); set('ee-url', e.url);
+  set('ee-author', e.author_name); set('ee-author-icon', e.author_icon);
+  set('ee-footer', e.footer_text); set('ee-footer-icon', e.footer_icon);
+  set('ee-image', e.image_url); set('ee-thumbnail', e.thumbnail_url);
+  const hex = (e.color && !/^#/.test(String(e.color))) ? '#' + e.color : (e.color || '#5865f2');
+  set('ee-color-hex', hex);
+  const colorInput = document.getElementById('ee-color');
+  if (colorInput) colorInput.value = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#5865f2';
+  const fw = document.getElementById('ee-fields');
+  fw.innerHTML = '';
+  (e.fields || []).forEach(fld => addFieldRow(fld));
+}
+
+document.querySelectorAll('[data-edit-embed]').forEach(b => b.addEventListener('click', () => {
+  currentEmbedAction = b.dataset.editEmbed;
+  document.getElementById('embed-editor-title').textContent = `${ACTION_NAMES[currentEmbedAction] || currentEmbedAction} — Custom Embed`;
+  loadEmbedEditor(SETTINGS_SNAPSHOT[`${currentEmbedAction}_embed`] || {});
+  document.getElementById('embed-editor-modal').classList.add('is-open');
+}));
+document.getElementById('ee-save').addEventListener('click', () => {
+  if (currentEmbedAction) {
+    markChanged(`${currentEmbedAction}_embed`, collectEmbed());
+    if (typeof showToast === 'function') showToast(`${ACTION_NAMES[currentEmbedAction] || currentEmbedAction} custom embed updated.`, 'success');
+  }
+  document.getElementById('embed-editor-modal').classList.remove('is-open');
+});
+document.getElementById('ee-cancel').addEventListener('click', () => document.getElementById('embed-editor-modal').classList.remove('is-open'));
+document.getElementById('ee-add-field').addEventListener('click', () => addFieldRow({}));
+const eeHex = document.getElementById('ee-color-hex');
+const eeColor = document.getElementById('ee-color');
+if (eeHex && eeColor) {
+  eeHex.addEventListener('input', () => { if (/^#[0-9a-fA-F]{6}$/.test(eeHex.value)) eeColor.value = eeHex.value; });
+  eeColor.addEventListener('input', () => { eeHex.value = eeColor.value; });
 }
 
 async function saveChanges() {
@@ -452,6 +652,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   api('/settings').then(d => {
     const s = d.settings || {};
     SETTINGS_SNAPSHOT = { ...s };
+    Object.assign(LOADED, s);
     // Set all data-key controls (checkboxes, text, number)
     document.querySelectorAll('[data-key]').forEach(el => {
       const key = el.dataset.key;
@@ -464,6 +665,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         el.value = s[key] || '';
       }
     });
+    ACTIONS.forEach(a => setModeView(a, s[`${a}_message_mode`] || 'basic', false));
     // Bind change events
     document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); updateActionUI(); }));
     document.querySelectorAll('input[type="text"][data-key], input[type="number"][data-key]').forEach(inp => inp.addEventListener('input', function(){
@@ -528,6 +730,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       delete original[key];
     }
     for (const key of Object.keys(pending)) delete pending[key];
+    // Revert basic/custom mode selectors to their loaded state
+    ACTIONS.forEach(a => {
+      const k = `${a}_message_mode`;
+      const mode = (k in original) ? original[k] : (LOADED[k] || 'basic');
+      setModeView(a, mode, false);
+    });
     saveBar.classList.add('is-closed');
     updateActionUI();
   });

@@ -616,16 +616,21 @@ MOD_SETTINGS_DEFAULTS = {
     "modlog_channel_id": None,
     # ── Ban ──
     "ban_dm": True, "ban_purge": True, "ban_message": "{username} has been banned.", "ban_message_enabled": True,
+    "ban_message_mode": "basic", "ban_embed": {},
     # ── Temp ban ──
     "tempban_dm": True, "tempban_purge": True,
     "tempban_message": "{username} has been temporarily banned.", "tempban_message_enabled": True,
+    "tempban_message_mode": "basic", "tempban_embed": {},
     "tempban_duration": 1440,
     # ── Mute ──
-    "mute_dm": True, "mute_duration": 60,
+    "mute_dm": True, "mute_duration": 60, "mute_message": "{username} has been muted.", "mute_message_enabled": True,
+    "mute_message_mode": "basic", "mute_embed": {},
     # ── Kick ──
     "kick_dm": True, "kick_message": "{username} has been kicked.", "kick_message_enabled": True,
+    "kick_message_mode": "basic", "kick_embed": {},
     # ── Warn ──
     "warn_dm": True, "warn_message": "{username} has been warned.", "warn_message_enabled": True,
+    "warn_message_mode": "basic", "warn_embed": {},
 }
 
 
@@ -758,6 +763,15 @@ async def mod_settings_set(guild_id: str, request: Request):
     value = body.get("value")
     if not key:
         return JSONResponse({"error": "missing key"}, status_code=400)
+    # Custom action embeds are dicts — validate via _sanitize_panel_embed
+    if key.endswith("_embed"):
+        clean, err = _sanitize_panel_embed(value)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        err = await _save_settings("mod_settings", str(guild_id), key, clean, MOD_SETTINGS_DEFAULTS)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        return {"ok": True}
     err = await _save_settings("mod_settings", str(guild_id), key, value, MOD_SETTINGS_DEFAULTS)
     if err:
         return JSONResponse({"error": err}, status_code=400)

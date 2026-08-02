@@ -78,22 +78,22 @@
     </div>
 
     <div class="md-section" id="method-recaptcha-section" style="display:none;">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Google reCAPTCHA</div>
+      <div style="border:1px solid rgba(255,255,255,0.12);border-radius:4px;background:#1b1b1f;padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.85);margin-bottom:0.75rem;letter-spacing:-0.01em;">Google reCAPTCHA</div>
         <div class="md-behavior-list">
           <div class="md-behavior-item">
-            <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.5;">No setup needed — this bot uses its own default reCAPTCHA keys (managed by the bot owner). Users click Verify, solve the captcha on the provided page, and paste the token to gain the role.</div>
+            <div style="font-size:0.72rem;color:rgba(255,255,255,0.55);line-height:1.6;">No setup needed — this bot uses its own default reCAPTCHA keys (managed by the bot owner). Users click Verify, solve the captcha on the provided page, and paste the token to gain the role.</div>
           </div>
         </div>
       </div>
     </div>
 
     <div class="md-section" id="method-turnstile-section" style="display:none;">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Cloudflare Turnstile</div>
+      <div style="border:1px solid rgba(255,255,255,0.12);border-radius:4px;background:#1b1b1f;padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.85);margin-bottom:0.75rem;letter-spacing:-0.01em;">Cloudflare Turnstile</div>
         <div class="md-behavior-list">
           <div class="md-behavior-item">
-            <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.5;">No setup needed — this bot uses its own default Turnstile keys (managed by the bot owner). Users click Verify, solve the captcha on the provided page, and paste the token to gain the role.</div>
+            <div style="font-size:0.72rem;color:rgba(255,255,255,0.55);line-height:1.6;">No setup needed — this bot uses its own default Turnstile keys (managed by the bot owner). Users click Verify, solve the captcha on the provided page, and paste the token to gain the role.</div>
           </div>
         </div>
       </div>
@@ -125,7 +125,9 @@ let saveTimer = null;
 
 function markChanged(k, v) {
   if (!(k in original)) original[k] = (k in SETTINGS_SNAPSHOT) ? SETTINGS_SNAPSHOT[k] : !v;
-  pending[k] = v; saveBar.classList.remove('is-closed');
+  pending[k] = v;
+  SETTINGS_SNAPSHOT[k] = v; // keep the live snapshot in sync so discard reverts to the last saved value
+  saveBar.classList.remove('is-closed');
   clearTimeout(saveTimer); saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
 }
 
@@ -136,8 +138,9 @@ async function saveChanges() {
     try {
       await api('/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]})});
     } catch {}
+    delete pending[key];
+    delete original[key]; // reset baseline so the next change/discard reverts to the just-saved value
   }
-  for (const key of keys) delete pending[key];
   saveBar.classList.add('is-closed'); saveBtn.disabled = false; saveBtn.textContent = 'Save';
   if (typeof showToast==='function') showToast('Settings saved.','success');
 }
@@ -223,6 +226,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   saveBtn.addEventListener('click', saveChanges);
   document.getElementById('discard-btn').addEventListener('click', () => {
+    // Revert the method selector to the last saved value (original) or loaded value
+    const revertType = ('type' in original) ? original['type'] : (SETTINGS_SNAPSHOT.type || 'button');
     for (const key of Object.keys(pending)) {
       const el = document.querySelector(`[data-key="${key}"]`); if (el) {
         if (el.type==='checkbox') el.checked = original[key]; else el.value = original[key] ?? '';
@@ -230,7 +235,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       delete original[key];
     }
     for (const key of Object.keys(pending)) delete pending[key];
-    updateTypeUI(SETTINGS_SNAPSHOT.type || 'button');
+    updateTypeUI(revertType);
     saveBar.classList.add('is-closed');
     updateGrayOut();
   });

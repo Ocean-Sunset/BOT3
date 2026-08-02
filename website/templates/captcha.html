@@ -21,8 +21,8 @@
     .captcha-brand img { width: 32px; height: 32px; object-fit: contain; }
     .captcha-brand span { font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; }
     .captcha-card {
-      width: 100%; max-width: 420px; border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.02); border-radius: 6px; padding: 1.75rem;
+      width: 100%; max-width: 420px; border: 1px solid rgba(255,255,255,0.12);
+      background: #151515; border-radius: 6px; padding: 1.75rem;
     }
     .captcha-title { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; }
     .captcha-sub { margin-top: 0.6rem; font-size: 0.85rem; color: #666; font-weight: 500; line-height: 1.6; }
@@ -62,9 +62,9 @@
       <p class="captcha-sub">Complete the puzzle below, then copy the token and paste it into the verification modal in Discord.</p>
       <div class="captcha-widget">
         {% if provider == "recaptcha" %}
-          <div class="g-recaptcha" data-sitekey="{{ site_key }}"></div>
+          <div class="g-recaptcha" data-sitekey="{{ site_key }}" data-theme="dark"></div>
         {% else %}
-          <div class="cf-turnstile" data-sitekey="{{ site_key }}"></div>
+          <div class="cf-turnstile" data-sitekey="{{ site_key }}" data-theme="dark"></div>
         {% endif %}
       </div>
       <textarea class="captcha-token" id="token" readonly placeholder="Your verification token will appear here after you complete the puzzle."></textarea>
@@ -111,6 +111,7 @@
         if (window.grecaptcha) {
           grecaptcha.render(document.querySelector('.g-recaptcha'), {
             sitekey: {{ site_key | tojson }},
+            theme: 'dark',
             callback: window.__tokenCallback,
             'expired-callback': function() { setToken(''); },
             'error-callback': function() { setToken(''); }

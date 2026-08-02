@@ -86,7 +86,10 @@ class VerifyButtonView(discord.ui.View):
 
     @discord.ui.button(label="Verify", style=discord.ButtonStyle.success, emoji="✅", custom_id="verify:click")
     async def verify(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await _verify_done(interaction, self.role_id, "button")
+        # Resolve the role fresh so persistent views keep working after restarts
+        settings = await get_verify_settings(interaction.guild_id)
+        role_id = int(settings.get("verified_role_id") or self.role_id or 0)
+        await _verify_done(interaction, role_id, "button")
 
 
 class CaptchaModal(discord.ui.Modal, title="Verification"):
@@ -113,7 +116,9 @@ class CaptchaButtonView(discord.ui.View):
 
     @discord.ui.button(label="Verify", style=discord.ButtonStyle.success, emoji="🔐", custom_id="verify:captcha")
     async def verify(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(CaptchaModal(self.role_id))
+        settings = await get_verify_settings(interaction.guild_id)
+        role_id = int(settings.get("verified_role_id") or self.role_id or 0)
+        await interaction.response.send_modal(CaptchaModal(role_id))
 
 
 class ExternalCaptchaModal(discord.ui.Modal, title="Verification"):
@@ -174,10 +179,12 @@ class ExternalCaptchaButtonView(discord.ui.View):
         self.url = url
         verify = discord.ui.Button(label="Verify", style=discord.ButtonStyle.success, custom_id=f"verify:{provider}")
         async def cb(i: discord.Interaction):
+            settings = await get_verify_settings(i.guild_id)
+            role_id = int(settings.get("verified_role_id") or self.role_id or 0)
             # Generate a fresh one-time code so the captcha page can only be used right now.
             code = await neon_db.create_captcha_code(self.provider)
             url = captcha_solve_url(self.provider, code) if code else self.url
-            await i.response.send_modal(ExternalCaptchaModal(self.role_id, url, self.provider))
+            await i.response.send_modal(ExternalCaptchaModal(role_id, url, self.provider))
         verify.callback = cb
         self.add_item(verify)
 
@@ -186,6 +193,21 @@ class Verification(commands.Cog, name="Verification"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.panel_messages = {}  # message_id -> guild_id (for reaction tracking)
+
+    async def cog_load(self):
+        self.bot.loop.create_task(self._register_persistent_views())
+
+    async def _register_persistent_views(self):
+        """Re-register panel buttons so they keep working after a bot restart."""
+        await self.bot.wait_until_ready()
+        try:
+            self.bot.add_view(VerifyButtonView(0))
+            self.bot.add_view(CaptchaButtonView(0))
+            self.bot.add_view(ExternalCaptchaButtonView(0, "", "recaptcha"))
+            self.bot.add_view(ExternalCaptchaButtonView(0, "", "turnstile"))
+            logger.info("Registered persistent verification views.")
+        except Exception as e:
+            logger.error(f"Failed to register persistent verification views: {e}")
 
     async def _build_view(self, settings) -> discord.ui.View:
         vtype = settings.get("type", "button")

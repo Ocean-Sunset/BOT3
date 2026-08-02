@@ -34,7 +34,7 @@ VERIFY_DEFAULTS = {
     "enabled": False, "channel_id": None, "verified_role_id": None,
     "log_channel_id": None, "type": "button", "captcha": False,
     "message": "Click the button below to verify yourself.",
-    "reaction_emoji": "✅",
+    "reaction_emoji": "",
     "recaptcha_site_key": "", "recaptcha_secret": "",
     "turnstile_site_key": "", "turnstile_secret": "",
 }
@@ -68,13 +68,13 @@ async def _verify_done(interaction: discord.Interaction, role_id, role_label="ve
         return
     if role in interaction.user.roles:
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("ℹ️ Already Verified").description("You are already verified.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title("ℹAlready Verified").description("You are already verified.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
         return
     await interaction.user.add_roles(role, reason=f"Verified via {role_label}")
     await interaction.response.send_message(
-        embed=EmbedBuilder().title("✅ Verified").description("You have been verified!").color("green").timestamp(datetime.datetime.utcnow()).build(),
+        embed=EmbedBuilder().title("Verified").description("You have been verified!").color("green").timestamp(datetime.datetime.utcnow()).build(),
         ephemeral=True
     )
 
@@ -123,13 +123,24 @@ class ExternalCaptchaModal(discord.ui.Modal, title="Verification"):
         super().__init__()
         self.role_id = role_id
         self.provider = provider
-        placeholder = f"Open {url} , solve the captcha, then paste the token here"
-        if len(placeholder) > 100:
-            placeholder = "Solve the captcha, then paste the token here"
-        self.add_item(discord.ui.TextInput(label=f"Token from {provider}", placeholder=placeholder, required=True, max_length=2000, style=discord.TextStyle.paragraph))
+        # Discord modals can't render clickable links, so show the URL as a copyable value.
+        self.add_item(discord.ui.TextInput(
+            label="Step 1 — Open this link",
+            default=url or "Open this link to solve the captcha",
+            required=False,
+            max_length=4000,
+            style=discord.TextStyle.long,
+        ))
+        self.add_item(discord.ui.TextInput(
+            label=f"Step 2 — Paste the {provider} token here",
+            placeholder="Paste the token you copied from the page",
+            required=True,
+            max_length=2000,
+            style=discord.TextStyle.paragraph,
+        ))
 
     async def on_submit(self, interaction: discord.Interaction):
-        token = self.children[0].value.strip()
+        token = self.children[1].value.strip()
         settings = await get_verify_settings(interaction.guild_id)
         secret = provider_key(settings, self.provider, "secret")
         verify_url = (
@@ -161,7 +172,7 @@ class ExternalCaptchaButtonView(discord.ui.View):
         self.role_id = role_id
         self.provider = provider
         self.url = url
-        verify = discord.ui.Button(label="Verify", style=discord.ButtonStyle.success, emoji="🛡️", custom_id=f"verify:{provider}")
+        verify = discord.ui.Button(label="Verify", style=discord.ButtonStyle.success, custom_id=f"verify:{provider}")
         async def cb(i: discord.Interaction):
             # Generate a fresh one-time code so the captcha page can only be used right now.
             code = await neon_db.create_captcha_code(self.provider)
@@ -196,7 +207,7 @@ class Verification(commands.Cog, name="Verification"):
         role = guild.get_role(int(settings.get("verified_role_id") or 0))
         role_text = role.mention if role else "Verified"
         msg_text = settings.get("message") or "Click the button below to verify yourself."
-        embed = EmbedBuilder().title("🔐 Verification").description(msg_text).color("green").field("After verifying", f"You'll receive the **{role_text}** role.").timestamp(datetime.datetime.utcnow()).build()
+        embed = EmbedBuilder().title("Verification").description(msg_text).color("green").field("After verifying", f"You'll receive the **{role_text}** role.").timestamp(datetime.datetime.utcnow()).build()
 
         vtype = settings.get("type", "button")
         if vtype == "reaction":

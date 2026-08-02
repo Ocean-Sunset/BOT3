@@ -96,17 +96,26 @@ async def _ensure_tables():
     ]
     try:
         async with pool.acquire() as conn:
-            for stmt in statements:
-                await conn.execute(stmt)
-            # Add columns to existing tables (safe no-op if already present)
-            await conn.execute("ALTER TABLE mod_log ADD COLUMN IF NOT EXISTS moderator TEXT DEFAULT ''")
-            await conn.execute("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS moderator TEXT DEFAULT ''")
-            await conn.execute("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS error TEXT DEFAULT ''")
-            await conn.execute("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS processed_at DOUBLE PRECISION")
-            await conn.execute("CREATE INDEX IF NOT EXISTS idx_autoresponder_guild ON autoresponder (guild_id)")
+            # Serialize concurrent schema creation across processes (avoids pg_type races)
+            await conn.execute("SELECT pg_advisory_lock(hashtext('prowl_schema'))")
+            try:
+                for stmt in statements:
+                    await conn.execute(stmt)
+                # Add columns to existing tables (safe no-op if already present)
+                await conn.execute("ALTER TABLE mod_log ADD COLUMN IF NOT EXISTS moderator TEXT DEFAULT ''")
+                await conn.execute("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS moderator TEXT DEFAULT ''")
+                await conn.execute("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS error TEXT DEFAULT ''")
+                await conn.execute("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS processed_at DOUBLE PRECISION")
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_autoresponder_guild ON autoresponder (guild_id)")
+            finally:
+                await conn.execute("SELECT pg_advisory_unlock(hashtext('prowl_schema'))")
         logger.info("Ensured database tables exist.")
     except Exception as e:
-        logger.error(f"ensure_tables failed: {e}")
+        # A concurrent connection may have created the table/type first — that's fine
+        if "pg_type_typname_nsp_index" in str(e) or "already exists" in str(e).lower():
+            logger.info("Schema was already created concurrently.")
+        else:
+            logger.error(f"ensure_tables failed: {e}")
 
 
 async def push_bot_stats(data: dict):

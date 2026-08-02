@@ -888,7 +888,10 @@ async def _consume_captcha_code(code: str, provider: str) -> bool:
     if not code:
         return False
     try:
-        await execute(_CAPTCHA_CODES_TABLE_SQL)
+        try:
+            await execute(_CAPTCHA_CODES_TABLE_SQL)
+        except Exception:
+            pass  # concurrent schema creation race — the table likely exists now
         row = await fetchrow(
             "SELECT used, expires_at FROM captcha_codes WHERE code = $1 AND provider = $2",
             code, provider,

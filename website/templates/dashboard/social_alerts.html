@@ -1,13 +1,17 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
-<link rel="stylesheet" href="/static/moderation.css?v=10" />
+<link rel="stylesheet" href="/static/moderation.css?v=11" />
 <div style="padding:2rem 0;">
 
-  <div style="margin-bottom:1.25rem;">
-    <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Social Alerts</h1>
-    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Post stream, upload, and tweet alerts to your server</p>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem;">
+    <div>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Social Alerts</h1>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Post stream, upload, and tweet alerts to your server</p>
+    </div>
+    <label class="md-toggle md-toggle-xl"><input type="checkbox" data-key="enabled" /><span class="md-toggle-slider"></span></label>
   </div>
 
+  <div id="social-config">
   <div class="md-row">
 
     <!-- YouTube -->
@@ -185,6 +189,14 @@
               <div class="md-custom-select-drop"></div>
             </div>
           </div>
+          <div style="margin-bottom:0.7rem;">
+            <div class="md-behavior-label" style="margin-bottom:0.3rem;">Announce Channel</div>
+            <div class="md-behavior-desc" style="margin-bottom:0.35rem;">Where this alert is posted (optional)</div>
+            <div class="md-custom-select" data-extra-channel>
+              <button class="md-custom-select-btn">No channel</button>
+              <div class="md-custom-select-drop"></div>
+            </div>
+          </div>
           <div style="margin-bottom:0.9rem;">
             <div class="md-behavior-label" style="margin-bottom:0.3rem;">Custom Message</div>
             <div class="md-behavior-desc" style="margin-bottom:0.35rem;">Optional message template</div>
@@ -228,6 +240,7 @@
       </div>
     </div>
 
+  </div>
   </div>
 </div>
 {% endblock %}
@@ -301,20 +314,27 @@ async function saveChanges() {
 document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Channels for announce dropdowns (per platform) ──
+  const CHANNEL_MAP = {};
   api('/channels').then(d => {
     const channels = d.channels || [];
-    document.querySelectorAll('[data-channel-select]').forEach(wrap => {
+    channels.forEach(c => CHANNEL_MAP[String(c.id)] = c.name);
+    window.chName = id => CHANNEL_MAP[String(id)] || id;
+    document.querySelectorAll('[data-channel-select], [data-extra-channel]').forEach(wrap => {
       const key = wrap.dataset.channelSelect;
       const btn = wrap.querySelector('.md-custom-select-btn');
       const drop = wrap.querySelector('.md-custom-select-drop');
       drop.innerHTML = `<button class="md-custom-opt" data-id="">No channel</button>` + channels.map(c => `<button class="md-custom-opt" data-id="${c.id}">#${esc(c.name)}</button>`).join('');
       drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
         btn.textContent = b.dataset.id ? b.textContent : 'No channel';
-        markChanged(key, b.dataset.id || null);
+        if (wrap.hasAttribute('data-extra-channel')) {
+          window._extraChannel = b.dataset.id || null;
+        } else {
+          markChanged(key, b.dataset.id || null);
+        }
         drop.classList.remove('is-open');
       }));
       btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
-      document.addEventListener('click', (e) => { if(!e.target.closest(`[data-channel-select="${key}"]`)) drop.classList.remove('is-open'); });
+      document.addEventListener('click', (e) => { if(!e.target.closest('[data-channel-select], [data-extra-channel]')) drop.classList.remove('is-open'); });
     });
   });
 
@@ -376,7 +396,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       list.innerHTML = items.map((a, i) => `<div class="md-behavior-item">
         <div style="flex:1;min-width:0;">
           <div class="md-behavior-label" style="font-size:0.78rem;">${esc(a.target)}</div>
-          <div class="md-behavior-desc">${a.ping_role ? 'Role pinged' : 'No ping'}${a.message ? ' · custom message' : ''}</div>
+          <div class="md-behavior-desc">${a.ping_role ? 'Role pinged' : 'No ping'}${a.announce_channel_id ? ' · #' + esc(chName(a.announce_channel_id)) : ''}${a.message ? ' · custom message' : ''}</div>
         </div>
         <button class="md-action-btn danger" data-remove="${i}" style="flex-shrink:0;"><i data-lucide="trash-2"></i></button>
       </div>`).join('');
@@ -406,14 +426,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!target) { showToast('Enter a channel ID / handle.', 'error'); return; }
       const items = extraAlerts[extraTab] || [];
       if (items.length >= 5) { showToast('Max 5 alerts per platform.', 'error'); return; }
-      items.push({ target, ping_role: window._extraRole || null, message: document.getElementById('extra-message').value.trim() || null });
+      items.push({ target, ping_role: window._extraRole || null, announce_channel_id: window._extraChannel || null, message: document.getElementById('extra-message').value.trim() || null });
       extraAlerts[extraTab] = items;
       markChanged('extra_alerts', JSON.parse(JSON.stringify(extraAlerts)));
       document.getElementById('extra-target').value = '';
       document.getElementById('extra-message').value = '';
       window._extraRole = null;
+      window._extraChannel = null;
       const roleBtn = document.querySelector('[data-extra-role] .md-custom-select-btn');
-      if (roleBtn) roleBtn.textContent = 'Ping role (optional)';
+      if (roleBtn) roleBtn.textContent = 'No role';
+      const chanBtn = document.querySelector('[data-extra-channel] .md-custom-select-btn');
+      if (chanBtn) chanBtn.textContent = 'No channel';
       renderExtra();
     });
     renderExtra();
@@ -421,10 +444,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Gray out platform blocks when disabled ──
   function updateGrayOut() {
+    const socialOn = document.querySelector('[data-key="enabled"]')?.checked ?? true;
+    const config = document.getElementById('social-config');
+    if (config) config.classList.toggle('is-disabled', !socialOn);
     ['youtube','twitch','twitter'].forEach(p => {
       const enabled = document.querySelector(`[data-key="${p}_enabled"]`)?.checked ?? false;
       const block = document.querySelector(`[data-platform="${p}"]`);
-      if (block) block.classList.toggle('is-disabled', !enabled);
+      if (block) block.classList.toggle('is-disabled', !enabled || !socialOn);
     });
   }
   function resetDropdowns() {

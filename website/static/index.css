@@ -408,6 +408,12 @@ section {
   font-family: monospace;
   user-select: none;
   line-height: 1;
+  will-change: transform;
+}
+
+@keyframes tildeFloat {
+  from { transform: translate(0, 0); }
+  to   { transform: translate(var(--dx, 10px), var(--dy, 20px)); }
 }
 
 .vignette {
@@ -429,27 +435,27 @@ section {
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  padding: 0.5rem 1rem;
-  background: rgba(251, 191, 36, 0.12);
-  border-bottom: 1px solid rgba(251, 191, 36, 0.2);
-  backdrop-filter: blur(8px);
-  font-size: 0.75rem;
-  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  background: #1a1503;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.35);
+  font-size: 0.85rem;
+  font-weight: 700;
   color: #fbbf24;
+  letter-spacing: 0.01em;
   transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .wbanner.is-hidden { transform: translateY(-100%); }
 #wbanner-close {
   background: none;
   border: none;
-  color: rgba(251, 191, 36, 0.4);
-  font-size: 1rem;
+  color: rgba(251, 191, 36, 0.5);
+  font-size: 1.1rem;
   cursor: pointer;
   padding: 0.1rem 0.3rem;
   line-height: 1;
   transition: color 0.2s;
 }
-#wbanner-close:hover { color: rgba(251, 191, 36, 0.8); }
+#wbanner-close:hover { color: rgba(251, 191, 36, 0.9); }
 
 @media (max-width: 768px) {
   nav { width: 92%; padding: 0.8rem 1.2rem; }

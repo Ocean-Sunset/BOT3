@@ -12,6 +12,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+load_dotenv(Path(__file__).parent / ".env.local")
 load_dotenv(Path(__file__).parent / ".env")
 
 import discord
@@ -165,6 +166,7 @@ class ProwlBot(commands.Bot):
     async def _mod_action_processor(self):
         """Process queued actions instantly via LISTEN/NOTIFY, polling as fallback."""
         await self.wait_until_ready()
+        from components.verification import get_verify_settings  # noqa: F811
         self._processing_actions = False
         self._listen_conn = None
         # Subscribe to instant wakeups via a dedicated listening connection
@@ -264,7 +266,7 @@ class ProwlBot(commands.Bot):
                             raise Exception("panel send failed")
                         reason = "Ticket panel sent"
                     elif act == "verify_panel":
-                        from components.verification import Verification, get_verify_settings
+                        from components.verification import Verification
                         cog = self.get_cog("Verification")
                         if not cog:
                             raise Exception("Verification cog not loaded")
@@ -272,6 +274,20 @@ class ProwlBot(commands.Bot):
                         if not await cog._send_panel(guild, settings):
                             raise Exception("verify panel send failed")
                         reason = "Verification panel deployed"
+                    elif act == "verify_user":
+                        target = guild.get_member(int(a["target_id"]))
+                        if not target:
+                            raise Exception("member not in guild")
+                        settings = await get_verify_settings(guild.id)
+                        role_id = settings.get("verified_role_id")
+                        if not role_id:
+                            raise Exception("verified role not configured")
+                        role = guild.get_role(int(role_id))
+                        if not role:
+                            raise Exception("verified role not found")
+                        if role not in target.roles:
+                            await target.add_roles(role, reason="Verified via captcha")
+                        reason = f"Verified {target.name}"
                     elif act in ("add_role", "remove_role"):
                         role = guild.get_role(int(a["target_name"]))
                         if not role:
@@ -302,6 +318,11 @@ class ProwlBot(commands.Bot):
                         log_reason = f"{'Added' if act=='add_role' else 'Removed'} role {role.name if role else a['target_name']} on @{member_name}"
                     elif act == "nickname":
                         log_reason = f"Changed nickname to '{a['target_name']}'"
+                    elif act == "verify_panel":
+                        log_user = "Verification"
+                        log_reason = "Verification panel deployed"
+                    elif act == "verify_user":
+                        log_reason = "Verified via captcha"
                     await neon_db.push_mod_event(a["guild_id"], a["target_id"], log_user, act, log_reason, moderator)
                     # Push member data immediately so the dashboard reflects the change fast
                     if act in ("add_role", "remove_role", "nickname"):

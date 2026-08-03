@@ -304,6 +304,7 @@ class Moderation(commands.Cog, name="Moderation"):
         self.member_counts = {}
         self.hour_started = int(time.time())
         self.flush_history.start()
+        self.flush_messages.start()
 
     async def send_confirm(self, interaction, settings, action: str, title: str, color: str,
                            member: discord.Member, reason: str, time_str: str = ""):
@@ -338,6 +339,7 @@ class Moderation(commands.Cog, name="Moderation"):
 
     def cog_unload(self):
         self.flush_history.cancel()
+        self.flush_messages.cancel()
 
     async def _ensure_tables(self):
         """Create the mod_actions / history tables if they don't exist."""
@@ -394,6 +396,26 @@ class Moderation(commands.Cog, name="Moderation"):
     async def flush_history(self):
         await self.bot.wait_until_ready()
         await self._flush_history()
+
+    @tasks.loop(minutes=10)
+    async def flush_messages(self):
+        """Flush message counts more often so the message graph fills quickly."""
+        await self.bot.wait_until_ready()
+        pool = await neon_db.get_pool()
+        if not pool or not self.message_accum:
+            return
+        try:
+            now = time.time()
+            for guild_id, msg_count in self.message_accum.items():
+                if msg_count > 0:
+                    await pool.execute(
+                        "INSERT INTO message_history (guild_id, timestamp, message_count) VALUES ($1, $2, $3) "
+                        "ON CONFLICT (guild_id, timestamp) DO UPDATE SET message_count = $3",
+                        str(guild_id), now, msg_count,
+                    )
+            self.message_accum = {}
+        except Exception as e:
+            logger.error(f"flush_messages failed: {e}")
 
     async def _flush_history(self):
         pool = await neon_db.get_pool()

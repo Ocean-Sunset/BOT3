@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Prowl - Verification</title>
-  <meta name="description" content="Solve the verification captcha and copy your token to finish verifying on the Prowl bot." />
+  <meta name="description" content="Solve the verification captcha to get verified automatically." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="icon" href="/static/favicon.png" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-  <link rel="stylesheet" href="/static/landing.css" />
+  <link rel="stylesheet" href="/static/landing.css?v=2" />
   <style>
     .captcha-page {
       min-height: 100vh; width: 100%; display: flex; flex-direction: column;
@@ -27,30 +27,18 @@
     .captcha-title { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; }
     .captcha-sub { margin-top: 0.6rem; font-size: 0.85rem; color: #666; font-weight: 500; line-height: 1.6; }
     .captcha-widget { display: flex; justify-content: center; margin: 1.4rem 0 1.1rem; min-height: 82px; }
-    .captcha-token {
-      width: 100%; min-height: 96px; resize: none; border-radius: 6px;
-      border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.25); color: #fff;
-      padding: 0.75rem; font-size: 0.78rem; font-family: 'Lexend', system-ui, sans-serif;
-      line-height: 1.6; letter-spacing: 0.01em; word-break: break-all;
-    }
-    .captcha-token:focus { outline: none; border-color: rgba(255,255,255,0.22); }
-    .captcha-copy {
-      display: inline-flex; align-items: center; justify-content: center; width: 100%;
-      margin-top: 0.8rem; padding: 0.85rem 1.4rem; background: rgba(255,255,255,0.06);
-      color: #fff; font-weight: 700; font-size: 0.9rem; font-family: 'Lexend', system-ui, sans-serif;
-      border-radius: 6px; border: 1px solid rgba(255,255,255,0.12); cursor: pointer;
-      transition: all 0.2s;
-    }
-    .captcha-copy:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); transform: translateY(-1px); }
-    .captcha-hint { margin-top: 0.75rem; font-size: 0.72rem; color: rgba(255,255,255,0.25); font-weight: 500; }
-    .captcha-back { display: inline-block; margin-top: 1.25rem; font-size: 0.8rem; color: #555; text-decoration: none; font-weight: 600; transition: color 0.2s; }
-    .captcha-back:hover { color: #888; }
+    .captcha-status { font-size: 0.85rem; font-weight: 600; min-height: 1.4em; margin-top: 0.4rem; }
+    .captcha-status.ok { color: #34d399; }
+    .captcha-status.err { color: #f87171; }
     .captcha-spinner {
       width: 14px; height: 14px; border-radius: 50%;
       border: 2px solid rgba(255,255,255,0.15); border-top-color: #fff;
       animation: cap-spin 0.8s linear infinite; display: inline-block;
+      vertical-align: middle; margin-right: 0.4rem;
     }
     @keyframes cap-spin { to { transform: rotate(360deg); } }
+    .captcha-back { display: inline-block; margin-top: 1.25rem; font-size: 0.8rem; color: #555; text-decoration: none; font-weight: 600; transition: color 0.2s; }
+    .captcha-back:hover { color: #888; }
   </style>
 </head>
 <body>
@@ -64,33 +52,69 @@
       <span>Prowl</span>
     </a>
     <div class="captcha-card gsap-hero">
-      <h1 class="captcha-title">{{ "Google reCAPTCHA" if provider == "recaptcha" else "Cloudflare Turnstile" }}</h1>
-      <p class="captcha-sub">Complete the puzzle below, then copy the token and paste it into the verification modal in Discord.</p>
+      <h1 class="captcha-title">Google reCAPTCHA</h1>
+      <p class="captcha-sub">Complete the puzzle below. You'll be verified automatically — no need to copy anything.</p>
       <div class="captcha-widget">
-        {% if provider == "recaptcha" and recaptcha_version == "v3" %}
+        {% if recaptcha_version == "v3" %}
           <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:rgba(255,255,255,0.5);">
             <span class="captcha-spinner"></span> Checking you're human…
           </div>
-        {% elif provider == "recaptcha" %}
-          <div class="g-recaptcha" data-sitekey="{{ site_key }}" data-theme="dark"></div>
         {% else %}
-          <div class="cf-turnstile" data-sitekey="{{ site_key }}" data-theme="dark"></div>
+          <div class="g-recaptcha" data-sitekey="{{ site_key }}" data-theme="dark"></div>
         {% endif %}
       </div>
-      <textarea class="captcha-token" id="token" readonly placeholder="Your verification token will appear here after you complete the puzzle."></textarea>
-      <button class="captcha-copy" id="copy-btn">Copy Token</button>
-      <div class="captcha-hint" id="empty-hint">Token not ready yet - complete the puzzle first.</div>
+      <div class="captcha-status" id="status"></div>
     </div>
     <a href="/" class="captcha-back gsap-btns">Back to home</a>
   </div>
 
+  {% if recaptcha_version == "v3" %}
+  <script src="https://www.google.com/recaptcha/api.js?render={{ site_key }}" async defer></script>
+  {% else %}
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  {% endif %}
   <script>
+    const CODE = {{ code | tojson }};
+    const PROVIDER = {{ provider | tojson }};
+    const statusEl = document.getElementById('status');
+    let done = false;
+
+    function setStatus(text, ok) {
+      if (!text) { statusEl.textContent = ''; statusEl.className = 'captcha-status'; return; }
+      statusEl.textContent = text;
+      statusEl.className = 'captcha-status ' + (ok ? 'ok' : 'err');
+    }
+
+    async function complete(token) {
+      if (done) return;
+      done = true;
+      setStatus('Verifying…');
+      try {
+        const res = await fetch('/api/v1/captcha/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, code: CODE, provider: PROVIDER })
+        });
+        if (res.status === 500) {
+          setStatus('Internal server error — please try again later.', false);
+          return;
+        }
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          setStatus('✅ Verified! You can close this page.', true);
+        } else {
+          const msg = (data && data.error) ? data.error : 'Verification failed. Please try again.';
+          setStatus(msg, false);
+        }
+      } catch (e) {
+        setStatus('Network error — please try again later.', false);
+      }
+    }
+
     // ── Tildes ──
     const waveField = document.getElementById('wave-field');
     const isMobile = window.innerWidth < 768;
-    const tildeCount = isMobile ? 35 : 70;
+    const tildeCount = isMobile ? 20 : 36;
     for (let i = 0; i < tildeCount; i++) {
       const el = document.createElement('span');
       el.textContent = '~';
@@ -98,8 +122,10 @@
       el.style.top = Math.random() * 100 + '%';
       el.style.fontSize = (1 + Math.random() * 1.8) + 'rem';
       el.style.opacity = 0.04 + Math.random() * 0.1;
+      el.style.setProperty('--dx', (-12 + Math.random() * 24) + 'px');
+      el.style.setProperty('--dy', (-20 + Math.random() * 40) + 'px');
+      el.style.animation = `tildeFloat ${4 + Math.random() * 6}s ease-in-out ${Math.random() * 4}s infinite alternate`;
       waveField.appendChild(el);
-      gsap.to(el, { y: -20 + Math.random() * 40, x: -12 + Math.random() * 24, duration: 4 + Math.random() * 6, ease: 'sine.inOut', yoyo: true, repeat: -1, delay: Math.random() * 4 });
     }
 
     // ── Load animation ──
@@ -109,61 +135,38 @@
     tl.to('.gsap-hero', { opacity: 1, y: 0, duration: 0.7 })
       .to('.gsap-btns', { opacity: 1, y: 0, duration: 0.6 }, '-=0.35');
 
-    // ── Captcha token ──
-    function setToken(t) {
-      const el = document.getElementById('token');
-      const hint = document.getElementById('empty-hint');
-      if (t) { el.value = t; hint.style.display = 'none'; } else { hint.style.display = 'block'; }
-    }
-    {% if provider == "recaptcha" and recaptcha_version == "v3" %}
-      // reCAPTCHA v3 (score-based, no checkbox): run invisibly and grab the token
+    {% if recaptcha_version == "v3" %}
       window.onload = function() {
         if (window.grecaptcha) {
           grecaptcha.ready(function() {
             grecaptcha.execute({{ site_key | tojson }}, { action: 'verify' }).then(function(token) {
-              setToken(token);
-            }).catch(function() { setToken(''); });
+              if (token) complete(token);
+              else setStatus('Could not obtain a token — the site key may be wrong.', false);
+            }).catch(function() {
+              setStatus('Invalid reCAPTCHA key — the site key does not match the version. Try a v2 checkbox key or set RECAPTCHA_VERSION=v2.', false);
+            });
           });
+        } else {
+          setStatus('reCAPTCHA did not load. Check your site key.', false);
         }
       };
     {% elif provider == "recaptcha" %}
-      window.__tokenCallback = function(token) { setToken(token); };
       window.onload = function() {
         if (window.grecaptcha) {
           try {
             grecaptcha.render(document.querySelector('.g-recaptcha'), {
               sitekey: {{ site_key | tojson }},
               theme: 'dark',
-              callback: window.__tokenCallback,
-              'expired-callback': function() { setToken(''); },
-              'error-callback': function() { setToken(''); }
+              callback: complete,
+              'expired-callback': function() { done = false; setStatus('Captcha expired — solve it again.', false); },
+              'error-callback': function() { done = false; setStatus('Captcha error — try again.', false); }
             });
           } catch (e) {
-            document.getElementById('empty-hint').textContent = 'Captcha setup issue — the site key type does not match. Use a v2 checkbox key or set RECAPTCHA_VERSION=v3.';
+            setStatus('Captcha setup issue — site key type mismatch.', false);
           }
         }
       };
-    {% else %}
-      setInterval(function() {
-        if (typeof turnstile !== 'undefined') {
-          try {
-            const resp = turnstile.getResponse();
-            if (resp) setToken(resp);
-          } catch (e) {}
-        }
-      }, 300);
     {% endif %}
-
-    document.getElementById('copy-btn').addEventListener('click', function() {
-      const el = document.getElementById('token');
-      if (!el.value) return;
-      el.select();
-      try { document.execCommand('copy'); } catch (e) {}
-      if (navigator.clipboard) navigator.clipboard.writeText(el.value);
-      this.textContent = 'Copied!';
-      const self = this;
-      setTimeout(function() { self.textContent = 'Copy Token'; }, 1500);
-    });
   </script>
 </body>
 </html>

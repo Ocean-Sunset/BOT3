@@ -28,6 +28,25 @@
   <link rel="preload" href="https://unpkg.com/lucide@latest" as="script" />
   <link rel="stylesheet" href="/static/dashboard.css?v=2" />
   <script>
+    // API subdomain routing: production calls go to api.prowlbot.xyz with cookies,
+    // localhost keeps same-origin relative paths.
+    (function(){
+      var host = location.hostname.toLowerCase();
+      window.__API = host.indexOf('prowlbot.xyz') !== -1 ? 'https://api.prowlbot.xyz' : '';
+      if (window.__API) {
+        var origFetch = window.fetch.bind(window);
+        window.fetch = function(url, opts) {
+          if (typeof url === 'string' && url.indexOf('/api/') === 0) {
+            url = window.__API + url;
+            opts = opts || {};
+            if (!opts.credentials) opts.credentials = 'include';
+          }
+          return origFetch(url, opts);
+        };
+      }
+    })();
+  </script>
+  <script>
     (function(){
       var s = JSON.parse(localStorage.getItem('prowl_sidebar') || '{}');
       if (s.collapsed) {
@@ -126,6 +145,7 @@
           <div class="nav-group-label nav-label">Monitoring</div>
           {{ nav_item('logs', 'scroll-text', 'Logs') }}
           {{ nav_item('automod', 'bot', 'AutoMod') }}
+          {{ nav_item('raid_protection', 'shield-alert', 'Raid Protection') }}
         </div>
 
         <div class="nav-section">
@@ -154,7 +174,7 @@
             <div class="popover-label">Signed in as</div>
             <div class="popover-user">{{ user.username if user else 'User' }}</div>
           </div>
-          <a href="#" class="popover-item"><i data-lucide="user"></i> Profile</a>
+          <a href="/guild/{{ guild_id }}/profile" class="popover-item"><i data-lucide="user"></i> Profile</a>
           <a href="/logout" class="popover-item danger"><i data-lucide="log-out"></i> Log out</a>
         </div>
       </div>

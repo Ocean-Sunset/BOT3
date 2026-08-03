@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
+load_dotenv(Path(__file__).parent.parent / ".env.local")
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 import asyncpg
@@ -187,6 +188,9 @@ CREATE TABLE IF NOT EXISTS captcha_codes (
     expires_at  DOUBLE PRECISION NOT NULL,
     used        BOOLEAN NOT NULL DEFAULT FALSE
 );
+
+ALTER TABLE captcha_codes ADD COLUMN IF NOT EXISTS guild_id TEXT DEFAULT '';
+ALTER TABLE captcha_codes ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT '';
 """
 
 

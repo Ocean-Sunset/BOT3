@@ -327,12 +327,6 @@
           <input type="text" class="md-input" id="ee-thumbnail" placeholder="https://...png" />
         </div>
       </div>
-      <div>
-        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Fields</div>
-        <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-bottom:0.4rem;line-height:1.5;">Fields are the small labelled rows inside an embed (like a key-value pair). Each one has a Name and a Value; "Inline" places it side-by-side with others on the same line.</div>
-        <div id="ee-fields" style="display:flex;flex-direction:column;gap:0.4rem;"></div>
-        <button class="md-action-btn" id="ee-add-field" style="margin-top:0.4rem;"><i data-lucide="plus"></i> Add Field</button>
-      </div>
     </div>
     <div style="display:flex;gap:0.5rem;">
       <button class="md-action-btn" id="ee-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save Embed</button>
@@ -412,32 +406,11 @@ function collectEmbed() {
     footer_text: eeVal('ee-footer'), footer_icon: eeVal('ee-footer-icon'),
     image_url: eeVal('ee-image'), thumbnail_url: eeVal('ee-thumbnail'),
   };
-  const fields = [];
-  document.querySelectorAll('#ee-fields .ee-field-row').forEach(row => {
-    const name = row.querySelector('.ee-field-name').value.trim();
-    const value = row.querySelector('.ee-field-value').value;
-    const inline = row.querySelector('.ee-field-inline').checked;
-    if (name) fields.push({ name, value, inline });
-  });
-  if (fields.length) e.fields = fields;
   for (const k of ['title','description','url','author_name','author_icon','footer_text','footer_icon','image_url','thumbnail_url']) {
     if (!e[k]) delete e[k];
   }
   if (!e.color || e.color.toLowerCase() === '#5865f2') delete e.color;
   return e;
-}
-
-function addFieldRow(f) {
-  const row = document.createElement('div');
-  row.className = 'ee-field-row';
-  row.style.cssText = 'display:flex;gap:0.4rem;align-items:center;';
-  row.innerHTML = `<input type="text" class="md-input ee-field-name" placeholder="Name" style="flex:1.2" value="${esc(f?.name||'')}"/>
-    <input type="text" class="md-input ee-field-value" placeholder="Value" style="flex:2" value="${esc(f?.value||'')}"/>
-    <label style="display:flex;align-items:center;gap:0.3rem;color:rgba(255,255,255,0.4);font-size:0.7rem;white-space:nowrap;"><input type="checkbox" class="ee-field-inline" ${f?.inline?'checked':''} /> Inline</label>
-    <button type="button" class="md-action-btn ee-field-del" style="padding:0.25rem;"><i data-lucide="x"></i></button>`;
-  row.querySelector('.ee-field-del').addEventListener('click', () => row.remove());
-  document.getElementById('ee-fields').appendChild(row);
-  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function loadEmbedEditor(embed) {
@@ -451,9 +424,6 @@ function loadEmbedEditor(embed) {
   set('ee-color-hex', hex);
   const colorInput = document.getElementById('ee-color');
   if (colorInput) colorInput.value = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#5865f2';
-  const fw = document.getElementById('ee-fields');
-  fw.innerHTML = '';
-  (e.fields || []).forEach(fld => addFieldRow(fld));
 }
 
 const EMBED_DEFAULTS = {
@@ -475,7 +445,7 @@ document.getElementById('ee-save').addEventListener('click', () => {
   if (currentEmbedAction) {
     const e = collectEmbed();
     if (Object.keys(e).length === 0) {
-      if (typeof showToast === 'function') showToast('The embed is empty - add a title, description, footer or a field first.', 'warning', 5000);
+      if (typeof showToast === 'function') showToast('The embed is empty - add a title, description or footer first.', 'warning', 5000);
       return;
     }
     markChanged(`${currentEmbedAction}_embed`, e);
@@ -484,7 +454,6 @@ document.getElementById('ee-save').addEventListener('click', () => {
   document.getElementById('embed-editor-modal').classList.remove('is-open');
 });
 document.getElementById('ee-cancel').addEventListener('click', () => document.getElementById('embed-editor-modal').classList.remove('is-open'));
-document.getElementById('ee-add-field').addEventListener('click', () => addFieldRow({}));
 const eeHex = document.getElementById('ee-color-hex');
 const eeColor = document.getElementById('ee-color');
 if (eeHex && eeColor) {

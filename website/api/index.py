@@ -8,6 +8,7 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
+load_dotenv(Path(__file__).parent.parent / ".env.local")
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 from fastapi import FastAPI, Request, Form, HTTPException
@@ -81,6 +82,24 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Prowl", version="1.0.0", lifespan=lifespan)
 
+# CORS for api.prowlbot.xyz (cross-origin API calls from the main site)
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://prowlbot.xyz",
+        "https://www.prowlbot.xyz",
+        "https://api.prowlbot.xyz",
+        "http://localhost:5000",
+        "http://localhost:8000",
+        "http://127.0.0.1:5000",
+        "http://127.0.0.1:8000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 class RotatingSessionMiddleware:
     """
@@ -126,11 +145,19 @@ class RotatingSessionMiddleware:
                 # Save session data back
                 if scope.get("session") is not None:
                     rotating_session.save_session(sid, scope["session"])
-                # Set cookie on new sessions or re-set on each response to refresh expiry
+                # Set cookie on new sessions or re-set on each response to refresh expiry.
+                # Production uses a shared .prowlbot.xyz cookie (cross-subdomain for api.),
+                # localhost keeps a same-origin lax cookie.
+                host = (conn.headers.get("host") or "").lower()
                 signed = rotating_session.sign_session_id(sid)
-                headers["Set-Cookie"] = (
-                    f"session={signed}; Path=/; HttpOnly; SameSite=lax; Max-Age={86400}"
-                )
+                if "prowlbot.xyz" in host:
+                    headers["Set-Cookie"] = (
+                        f"session={signed}; Path=/; HttpOnly; SameSite=None; Secure; Domain=.prowlbot.xyz; Max-Age={86400}"
+                    )
+                else:
+                    headers["Set-Cookie"] = (
+                        f"session={signed}; Path=/; HttpOnly; SameSite=lax; Max-Age={86400}"
+                    )
             await send(message)
 
         await self.app(scope, receive, send_wrapper)
@@ -312,13 +339,13 @@ async def invite(request: Request):
 
 @app.get("/captcha/{provider}", response_class=HTMLResponse)
 async def captcha_page(request: Request, provider: str):
-    """Hosted captcha solve page: renders the widget and shows the token to copy."""
-    if provider not in ("recaptcha", "turnstile"):
+    """Hosted captcha solve page: renders the widget and auto-verifies on solve."""
+    if provider not in ("recaptcha",):
         return templates.TemplateResponse(request, "error.html",
             {"code": 404, "title": "Not Found", "message": "Unknown captcha provider."}, status_code=404)
-    # Require a fresh one-time code issued by the bot when the Verify modal opened
     code = request.query_params.get("code", "")
-    if not await _consume_captcha_code(code, provider):
+    info = await _validate_captcha_code(code, provider)
+    if not info:
         return templates.TemplateResponse(request, "error.html",
             {"code": 403, "title": "Link Expired", "message": "This verification link is invalid or has already been used. Click Verify again in Discord to get a fresh link."},
             status_code=403)
@@ -326,6 +353,7 @@ async def captcha_page(request: Request, provider: str):
     return templates.TemplateResponse(request, "captcha.html", {
         "provider": provider,
         "site_key": site_key,
+        "code": code,
         "recaptcha_version": os.environ.get("RECAPTCHA_VERSION", "v2"),
         "config": _cfg(),
     })
@@ -473,7 +501,7 @@ async def dashboard(request: Request, guild_id: str, panel: str = "overview"):
         "overview", "welcomer", "ai", "moderation", "members", "logs", "automod",
         "oauth2", "music", "leveling", "verification", "automation",
         "social_alerts", "invite_tracker", "tickets", "global_chat",
-        "autoresponder", "settings",
+        "autoresponder", "settings", "raid_protection", "profile",
     ]
     if panel not in valid_panels:
         panel = "overview"
@@ -831,13 +859,23 @@ async def mod_feed(guild_id: str, request: Request):
         if parsed and isinstance(parsed.get("channels"), list):
             for c in parsed["channels"]:
                 ch_map[str(c.get("id"))] = c.get("name", "")
+        ACTION_LABELS = {
+            "ban": "Banned", "tempban": "Temp-Banned", "unban": "Unbanned",
+            "kick": "Kicked", "mute": "Muted", "unmute": "Unmuted", "warn": "Warned",
+            "purge": "Purged messages", "lockdown": "Lockdown",
+            "verify_panel": "Deployed verification panel",
+            "verify_user": "Verified member", "add_role": "Added role",
+            "remove_role": "Removed role", "nickname": "Changed nickname",
+            "emergency_lock": "Locked down server", "emergency_unlock": "Unlocked server",
+            "panel_send": "Deployed ticket panel",
+        }
         return {"events": [{
-            "user": (f"#{ch_map.get(r['user_name'], r['user_name'])}" if r["action"] == "purge" and r["user_name"].isdigit() else r["user_name"]),
-            "action": r["action"],
+            "user": (f"#{ch_map.get(r['user_name'], r['user_name'])}" if r["action"] == "purge" and r["user_name"].isdigit() else (r["user_name"] if r["user_name"] and r["user_name"] != "0" else r.get("moderator") or "Dashboard")),
+            "action": ACTION_LABELS.get(r["action"], r["action"]),
             "reason": r.get("reason", ""),
             "moderator": r.get("moderator") or "",
             "time": _relative_time(r["created_at"]),
-            "color": {"ban": "red", "kick": "red", "tempban": "red", "mute": "blue", "unmute": "green", "warn": "yellow", "unban": "green", "purge": "blue", "lockdown": "gray"}.get(r["action"], "gray"),
+            "color": {"ban": "red", "kick": "red", "tempban": "red", "mute": "blue", "unmute": "green", "warn": "yellow", "unban": "green", "purge": "blue", "lockdown": "gray", "verify_panel": "gray", "verify_user": "green", "add_role": "blue", "remove_role": "blue", "nickname": "gray"}.get(r["action"], "gray"),
         } for r in rows]}
     return {"events": []}
 
@@ -889,6 +927,8 @@ _CAPTCHA_CODES_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS captcha_codes (
     code TEXT PRIMARY KEY,
     provider TEXT NOT NULL,
+    guild_id TEXT DEFAULT '',
+    user_id TEXT DEFAULT '',
     created_at DOUBLE PRECISION NOT NULL,
     expires_at DOUBLE PRECISION NOT NULL,
     used BOOLEAN NOT NULL DEFAULT FALSE
@@ -896,29 +936,37 @@ CREATE TABLE IF NOT EXISTS captcha_codes (
 """
 
 
-async def _consume_captcha_code(code: str, provider: str) -> bool:
-    """Validate a bot-issued one-time code: exists, matches provider, unused, <1h old. Marks it used."""
+async def _validate_captcha_code(code: str, provider: str):
+    """Check a code is valid (exists, right provider, unused, unexpired) WITHOUT consuming it.
+    Returns the guild_id/user_id or None."""
     if not code:
-        return False
+        return None
     try:
         try:
             await execute(_CAPTCHA_CODES_TABLE_SQL)
         except Exception:
-            pass  # concurrent schema creation race - the table likely exists now
+            pass
         row = await fetchrow(
-            "SELECT used, expires_at FROM captcha_codes WHERE code = $1 AND provider = $2",
+            "SELECT used, expires_at, guild_id, user_id FROM captcha_codes WHERE code = $1 AND provider = $2",
             code, provider,
         )
-        if not row:
-            return False
-        if row["used"]:
-            return False
-        if time.time() > row["expires_at"]:
-            return False
-        await execute("UPDATE captcha_codes SET used = TRUE WHERE code = $1", code)
-        return True
+        if not row or row["used"] or time.time() > row["expires_at"]:
+            return None
+        return {"guild_id": row["guild_id"], "user_id": row["user_id"]}
     except Exception:
-        return False
+        return None
+
+
+async def _consume_captcha_code(code: str, provider: str):
+    """Validate AND mark a code used. Returns guild_id/user_id dict or None."""
+    info = await _validate_captcha_code(code, provider)
+    if not info:
+        return None
+    try:
+        await execute("UPDATE captcha_codes SET used = TRUE WHERE code = $1", code)
+    except Exception:
+        return None
+    return info
 
 
 async def _queue_action(guild_id, action, target_id, target_name="", reason="", duration=None, moderator=""):
@@ -1228,6 +1276,7 @@ async def mod_action(guild_id: str, request: Request):
 # ---------------------------------------------------------------------------
 
 SOCIAL_SETTINGS_DEFAULTS = {
+    "enabled": True,
     "youtube_enabled": False, "youtube_channel_id": None, "youtube_ping_role": None, "youtube_announce_channel_id": None, "youtube_message": None,
     "twitch_enabled": False, "twitch_channel": None, "twitch_ping_role": None, "twitch_announce_channel_id": None, "twitch_message": None,
     "twitter_enabled": False, "twitter_handle": None, "twitter_ping_role": None, "twitter_announce_channel_id": None, "twitter_message": None,
@@ -1490,8 +1539,7 @@ VERIFY_SETTINGS_DEFAULTS = {
     # Bot-owner defaults from .env - server owners don't need their own keys.
     "recaptcha_site_key": os.environ.get("RECAPTCHA_SITE_KEY", ""),
     "recaptcha_secret": "",
-    "turnstile_site_key": os.environ.get("TURNSTILE_SITE_KEY", ""),
-    "turnstile_secret": "",
+    "panel_embed": {}, "panel_message_id": None,
 }
 
 
@@ -1549,6 +1597,94 @@ async def verify_roles(guild_id: str, request: Request):
     if d and "roles" in d:
         return {"roles": [{"id": str(r.get("id")), "name": r.get("name")} for r in d["roles"]]}
     return {"roles": []}
+
+
+@app.get("/verify/{guild_id}", response_class=HTMLResponse)
+async def verify_page(guild_id: str, request: Request):
+    """Public verification page that renders the reCAPTCHA / Turnstile widget."""
+    settings = await _get_verify_settings(guild_id)
+    provider = settings.get("type", "")
+    if not settings.get("enabled") or provider != "recaptcha":
+        return HTMLResponse("This server doesn't use link-based verification.", status_code=400)
+    site_key = settings.get(f"{provider}_site_key", "")
+    user_id = request.query_params.get("u", "")
+    return templates.TemplateResponse(request, "verify.html", {
+        "guild_id": guild_id,
+        "provider": provider,
+        "site_key": site_key,
+        "user_id": user_id,
+    })
+
+
+@app.post("/api/v1/verify/{guild_id}/complete")
+async def verify_complete(guild_id: str, request: Request):
+    """Verify a captcha token and queue the bot to assign the verified role."""
+    body = await request.json()
+    token = body.get("token", "")
+    user_id = body.get("user_id", "")
+    provider = body.get("provider", "")
+    if not token or not user_id or provider != "recaptcha":
+        return JSONResponse({"error": "invalid request"}, status_code=400)
+    settings = await _get_verify_settings(guild_id)
+    if not settings.get("enabled") or settings.get("type") != provider:
+        return JSONResponse({"error": "verification not configured for this method"}, status_code=400)
+    secret = os.environ.get(f"{provider.upper()}_SECRET", "") or settings.get(f"{provider}_secret", "")
+    if not secret:
+        return JSONResponse({"error": "captcha secret not configured"}, status_code=400)
+
+    verify_url = "https://www.google.com/recaptcha/api/siteverify"
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post(verify_url, data={"secret": secret, "response": token})
+            data = r.json()
+    except Exception as e:
+        return JSONResponse({"error": f"verify failed: {e}"}, status_code=500)
+
+    if not data.get("success"):
+        return JSONResponse({"error": "captcha verification failed"}, status_code=400)
+
+    await _queue_action(guild_id, "verify_user", user_id, "", "Verified via " + provider, None)
+    return {"ok": True, "queued": True}
+
+
+@app.post("/api/v1/captcha/complete")
+async def captcha_complete(request: Request):
+    """Auto-verify a user after they solve the captcha on the web page (no token copying)."""
+    raw = await request.body()
+    print(f"[CAPTCHA] hit /complete, raw body bytes={len(raw)}: {raw[:200]!r}")
+    body = await request.json()
+    token = body.get("token", "")
+    code = body.get("code", "")
+    provider = body.get("provider", "")
+    if not token or not code or provider != "recaptcha":
+        print(f"[CAPTCHA] invalid request: token_len={len(token)} code={code!r} provider={provider!r}")
+        return JSONResponse({"error": "invalid request"}, status_code=400)
+    info = await _consume_captcha_code(code, provider)
+    if not info or not info.get("guild_id") or not info.get("user_id"):
+        print(f"[CAPTCHA] code invalid/expired/used: code={code!r}")
+        return JSONResponse({"error": "verification link expired or already used"}, status_code=403)
+
+    settings = await _get_verify_settings(info["guild_id"])
+    secret = os.environ.get(f"{provider.upper()}_SECRET", "") or settings.get(f"{provider}_secret", "")
+    if not secret:
+        print(f"[CAPTCHA] missing {provider.upper()}_SECRET for guild {info['guild_id']}")
+        return JSONResponse({"error": "captcha secret not configured"}, status_code=400)
+
+    verify_url = "https://www.google.com/recaptcha/api/siteverify"
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post(verify_url, data={"secret": secret, "response": token})
+            data = r.json()
+    except Exception as e:
+        return JSONResponse({"error": f"verify failed: {e}"}, status_code=500)
+
+    if not data.get("success"):
+        codes = ", ".join(data.get("error-codes", []))
+        print(f"[CAPTCHA] siteverify failed: {codes}")
+        return JSONResponse({"error": f"captcha verification failed ({codes})"}, status_code=400)
+
+    await _queue_action(info["guild_id"], "verify_user", info["user_id"], "", "Verified via " + provider, None)
+    return {"ok": True, "queued": True}
 
 
 @app.get("/api/v1/members/{guild_id}/roles")

@@ -1,6 +1,6 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
-<link rel="stylesheet" href="/static/moderation.css?v=10" />
+<link rel="stylesheet" href="/static/moderation.css?v=9" />
 <div style="padding:2rem 0;">
 
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;">
@@ -9,6 +9,11 @@
       <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Gate your server and keep raiders out</p>
     </div>
     <label class="md-toggle md-toggle-xl"><input type="checkbox" data-key="enabled" /><span class="md-toggle-slider"></span></label>
+  </div>
+
+  <!-- Disable warning -->
+  <div id="vfy-warning" style="display:none;border:1px solid rgba(251,191,36,0.25);background:rgba(251,191,36,0.08);color:#fbbf24;border-radius:4px;padding:0.85rem 1rem;font-size:0.82rem;font-weight:600;margin-bottom:1rem;line-height:1.5;">
+    ⚠️ Verification is disabled. The current panel embed will be <strong>deleted</strong> and new members will <strong>not be able to join</strong> until you re-enable it and redeploy the panel.
   </div>
 
   <div id="vfy-config">
@@ -21,9 +26,8 @@
         <div class="md-segmented" style="flex-wrap:wrap;row-gap:0.3rem;">
           <button class="extra-tab vfy-type-tab is-active" data-type="button">Button</button>
           <button class="extra-tab vfy-type-tab" data-type="reaction">Reaction Role</button>
-          <button class="extra-tab vfy-type-tab" data-type="captcha">Standard Captcha Code</button>
+          <button class="extra-tab vfy-type-tab" data-type="captcha">Captcha Code</button>
           <button class="extra-tab vfy-type-tab" data-type="recaptcha">reCAPTCHA</button>
-          <button class="extra-tab vfy-type-tab" data-type="turnstile">Turnstile</button>
         </div>
       </div>
     </div>
@@ -61,14 +65,6 @@
       </div>
     </div>
 
-    <div class="md-section" id="method-message-section">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Panel Message</div>
-        <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Text shown on the verification panel</div>
-        <input type="text" class="md-input" data-key="message" placeholder="Click the button below to verify yourself." />
-      </div>
-    </div>
-
     <div class="md-section" id="method-reaction-section" style="display:none;">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Reaction Emoji</div>
@@ -78,22 +74,81 @@
     </div>
 
     <div class="md-section" id="method-recaptcha-section" style="display:none;">
-      <div style="border:1px solid rgba(255,255,255,0.12);border-radius:4px;background:#1b1b1f;padding:1rem;">
-        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.85);margin-bottom:0.75rem;letter-spacing:-0.01em;">Google reCAPTCHA</div>
-        <div class="md-behavior-list">
-          <div class="md-behavior-item">
-            <div style="font-size:0.72rem;color:rgba(255,255,255,0.55);line-height:1.6;">No setup needed - this bot uses its own default reCAPTCHA keys. Users click Verify, solve the captcha on the provided page, and paste the token to gain the role.</div>
-          </div>
-        </div>
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Google reCAPTCHA</div>
+        <div class="md-behavior-desc" style="margin-bottom:0.25rem;">Uses the bot owner's site + secret keys.</div>
+        <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.5;">Users click Verify, solve the captcha in their browser, and are verified automatically.</div>
       </div>
     </div>
 
-    <div class="md-section" id="method-turnstile-section" style="display:none;">
-      <div style="border:1px solid rgba(255,255,255,0.12);border-radius:4px;background:#1b1b1f;padding:1rem;">
-        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.85);margin-bottom:0.75rem;letter-spacing:-0.01em;">Cloudflare Turnstile</div>
-        <div class="md-behavior-list">
-          <div class="md-behavior-item">
-            <div style="font-size:0.72rem;color:rgba(255,255,255,0.55);line-height:1.6;">No setup needed - this bot uses its own default Turnstile keys. Users click Verify, solve the captcha on the provided page, and paste the token to gain the role.</div>
+    <!-- ═══ Verification Panel Embed Builder ═══ -->
+    <div class="md-section" style="margin-top:0;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Verification Panel Embed</div>
+        <div style="display:grid;grid-template-columns:1fr 320px;gap:1rem;">
+          <div style="display:flex;flex-direction:column;gap:0.6rem;">
+
+            <div>
+              <div class="md-behavior-label" style="margin-bottom:0.3rem;">Title</div>
+              <input type="text" class="md-input" id="vb-title" placeholder="Verification" />
+            </div>
+
+            <div>
+              <div class="md-behavior-label" style="margin-bottom:0.3rem;">Description</div>
+              <textarea class="md-input md-textarea" id="vb-desc" rows="3" placeholder="Click the button below to verify yourself."></textarea>
+            </div>
+
+            <div style="display:flex;gap:0.6rem;">
+              <div style="flex:1">
+                <div class="md-behavior-label" style="margin-bottom:0.3rem;">Color</div>
+                <div style="display:flex;align-items:center;gap:0.4rem;">
+                  <input type="color" id="vb-color" value="#22c55e" style="width:36px;height:32px;border:none;background:none;cursor:pointer;" />
+                  <input type="text" class="md-input" id="vb-color-hex" value="#22c55e" style="max-width:90px;" />
+                </div>
+              </div>
+              <div style="flex:1">
+                <div class="md-behavior-label" style="margin-bottom:0.3rem;">URL</div>
+                <input type="text" class="md-input" id="vb-url" placeholder="https://..." />
+              </div>
+            </div>
+
+            <div style="display:flex;gap:0.6rem;">
+              <div style="flex:1">
+                <div class="md-behavior-label" style="margin-bottom:0.3rem;">Author Name</div>
+                <input type="text" class="md-input" id="vb-author" placeholder="Prowl" />
+              </div>
+              <div style="flex:1">
+                <div class="md-behavior-label" style="margin-bottom:0.3rem;">Author Icon URL</div>
+                <input type="text" class="md-input" id="vb-author-icon" placeholder="https://...png" />
+              </div>
+            </div>
+
+            <div style="display:flex;gap:0.6rem;">
+              <div style="flex:1">
+                <div class="md-behavior-label" style="margin-bottom:0.3rem;">Footer Text</div>
+                <input type="text" class="md-input" id="vb-footer" placeholder="Powered by Prowl" />
+              </div>
+              <div style="flex:1">
+                <div class="md-behavior-label" style="margin-bottom:0.3rem;">Footer Icon URL</div>
+                <input type="text" class="md-input" id="vb-footer-icon" placeholder="https://...png" />
+              </div>
+            </div>
+
+            <div style="display:flex;gap:0.6rem;">
+              <div style="flex:1">
+                <div class="md-behavior-label" style="margin-bottom:0.3rem;">Image URL</div>
+                <input type="text" class="md-input" id="vb-image" placeholder="https://...png" />
+              </div>
+              <div style="flex:1">
+                <div class="md-behavior-label" style="margin-bottom:0.3rem;">Thumbnail URL</div>
+                <input type="text" class="md-input" id="vb-thumbnail" placeholder="https://...png" />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="md-behavior-label" style="margin-bottom:0.3rem;">Preview</div>
+            <div id="vb-preview" style="border-left:4px solid #22c55e;background:rgba(255,255,255,0.02);border-radius:4px;padding:0.75rem;"></div>
           </div>
         </div>
       </div>
@@ -102,7 +157,7 @@
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Deploy Panel</div>
-        <div class="md-behavior-desc" style="margin-bottom:0.6rem;">Post the verification panel to the configured channel</div>
+        <div class="md-behavior-desc" style="margin-bottom:0.6rem;">Post (or replace) the verification panel in the channel. The previous panel is deleted.</div>
         <button id="vfy-deploy" class="md-action-btn" style="padding:0.5rem 1rem;font-size:0.8rem;background:rgba(255,255,255,0.06);color:#e9edf5;"><i data-lucide="send"></i> Deploy Panel</button>
       </div>
     </div>
@@ -125,9 +180,7 @@ let saveTimer = null;
 
 function markChanged(k, v) {
   if (!(k in original)) original[k] = (k in SETTINGS_SNAPSHOT) ? SETTINGS_SNAPSHOT[k] : !v;
-  pending[k] = v;
-  SETTINGS_SNAPSHOT[k] = v; // keep the live snapshot in sync so discard reverts to the last saved value
-  saveBar.classList.remove('is-closed');
+  pending[k] = v; saveBar.classList.remove('is-closed');
   clearTimeout(saveTimer); saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
 }
 
@@ -138,11 +191,11 @@ async function saveChanges() {
     try {
       await api('/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]})});
     } catch {}
-    delete pending[key];
-    delete original[key]; // reset baseline so the next change/discard reverts to the just-saved value
   }
+  for (const key of keys) delete pending[key];
   saveBar.classList.add('is-closed'); saveBtn.disabled = false; saveBtn.textContent = 'Save';
   if (typeof showToast==='function') showToast('Settings saved.','success');
+  updateWarning();
 }
 
 const METHOD_SECTIONS = {
@@ -150,7 +203,6 @@ const METHOD_SECTIONS = {
   reaction: 'method-reaction-section',
   captcha: null,
   recaptcha: 'method-recaptcha-section',
-  turnstile: 'method-turnstile-section',
 };
 
 function updateTypeUI(type) {
@@ -165,6 +217,68 @@ function updateGrayOut() {
   const enabled = $('[data-key="enabled"]')?.checked ?? false;
   const config = document.getElementById('vfy-config');
   if (config) config.classList.toggle('is-disabled', !enabled);
+}
+
+// Warning: show when verification is turned off (with unsaved or saved disabled state)
+function updateWarning() {
+  const enabled = $('[data-key="enabled"]')?.checked ?? false;
+  const pendingEnabled = 'enabled' in pending ? pending['enabled'] : enabled;
+  const warn = document.getElementById('vfy-warning');
+  if (warn) warn.style.display = pendingEnabled ? 'none' : 'block';
+}
+
+// ── Embed builder ──
+function collectEmbed() {
+  return {
+    title: $('#vb-title').value.trim() || null,
+    description: $('#vb-desc').value.trim() || null,
+    url: $('#vb-url').value.trim() || null,
+    author_name: $('#vb-author').value.trim() || null,
+    author_icon: $('#vb-author-icon').value.trim() || null,
+    footer_text: $('#vb-footer').value.trim() || null,
+    footer_icon: $('#vb-footer-icon').value.trim() || null,
+    image_url: $('#vb-image').value.trim() || null,
+    thumbnail_url: $('#vb-thumbnail').value.trim() || null,
+    color: $('#vb-color-hex').value.trim() || null,
+  };
+}
+function markEmbedChanged() {
+  renderEmbedPreview();
+  markChanged('panel_embed', JSON.parse(JSON.stringify(collectEmbed())));
+}
+function renderEmbedPreview() {
+  const e = collectEmbed();
+  const c = document.getElementById('vb-preview');
+  let color = '#22c55e';
+  const hex = (e.color||'').replace('#','');
+  if (/^[0-9a-fA-F]{6}$/.test(hex)) color = '#' + hex;
+  c.style.borderLeftColor = color;
+  let html = '';
+  if (e.author_name) html += `<div style="font-size:12px;color:#aaa;display:flex;align-items:center;gap:6px;">${e.author_icon ? '<img src="'+esc(e.author_icon)+'" style="width:20px;height:20px;border-radius:50%;"/>' : ''}${esc(e.author_name)}</div>`;
+  if (e.title) html += `<div style="font-weight:700;font-size:15px;margin-top:4px;">${esc(e.title)}</div>`;
+  if (e.description) html += `<div style="font-size:13px;color:#ddd;margin-top:4px;white-space:pre-wrap;">${esc(e.description)}</div>`;
+  if (e.thumbnail_url) html += `<img src="${esc(e.thumbnail_url)}" style="max-width:80px;border-radius:4px;margin-top:6px;"/>`;
+  if (e.image_url) html += `<img src="${esc(e.image_url)}" style="max-width:100%;border-radius:4px;margin-top:6px;"/>`;
+  if (e.footer_text) html += `<div style="font-size:11px;color:#888;margin-top:8px;">${e.footer_icon ? '<img src="'+esc(e.footer_icon)+'" style="width:16px;height:16px;margin-right:4px;vertical-align:middle;"/>' : ''}${esc(e.footer_text)}</div>`;
+  c.innerHTML = html || '<div style="color:rgba(255,255,255,0.25);font-size:12px;">Embed preview</div>';
+}
+
+function loadEmbedIntoBuilder(pe) {
+  const e = (pe && typeof pe === 'object') ? pe : {};
+  const hasEmbed = !!(e.title || e.description);
+  $('#vb-title').value = e.title || (hasEmbed ? '' : 'Verification');
+  $('#vb-desc').value = e.description || (hasEmbed ? '' : 'Click the button below to verify yourself.');
+  $('#vb-url').value = e.url || '';
+  $('#vb-author').value = e.author_name || '';
+  $('#vb-author-icon').value = e.author_icon || '';
+  $('#vb-footer').value = e.footer_text || '';
+  $('#vb-footer-icon').value = e.footer_icon || '';
+  $('#vb-image').value = e.image_url || '';
+  $('#vb-thumbnail').value = e.thumbnail_url || '';
+  const defColor = e.color || '#22c55e';
+  $('#vb-color').value = '#' + String(defColor).replace('#','').padStart(6,'0');
+  $('#vb-color-hex').value = '#' + String(defColor).replace('#','');
+  renderEmbedPreview();
 }
 
 function populateDropdown(wrappers, items, noneLabel) {
@@ -189,26 +303,36 @@ function populateDropdown(wrappers, items, noneLabel) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Load settings + options together so the dropdowns always know the saved values.
-  Promise.all([
-    api('/settings'),
-    api('/channels'),
-    api('/roles'),
-  ]).then(([sd, cd, rd]) => {
-    const s = sd.settings || {};
-    SETTINGS_SNAPSHOT = { ...s };
+  api('/channels').then(d => populateDropdown(Array.from(document.querySelectorAll('[data-channel-select]')), d.channels||[], 'No channel'));
+  api('/roles').then(d => populateDropdown(Array.from(document.querySelectorAll('[data-role-select]')), d.roles||[], 'No role'));
+
+  api('/settings').then(d => {
+    const s = d.settings || {}; SETTINGS_SNAPSHOT = { ...s };
     document.querySelectorAll('[data-key]').forEach(el => {
       const key = el.dataset.key; if (!(key in s)) return;
       if (el.type==='checkbox') el.checked = !!s[key]; else el.value = s[key] ?? '';
     });
-    document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); updateGrayOut(); }));
+    document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); updateGrayOut(); updateWarning(); }));
     document.querySelectorAll('input[type="text"][data-key], input[type="password"][data-key]').forEach(inp => inp.addEventListener('input', function(){ markChanged(this.dataset.key, this.value); }));
-    populateDropdown(Array.from(document.querySelectorAll('[data-channel-select]')), cd.channels||[], 'No channel');
-    populateDropdown(Array.from(document.querySelectorAll('[data-role-select]')), rd.roles||[], 'No role');
+
+    // Load embed builder (with sensible defaults so it always has a valid embed)
+    loadEmbedIntoBuilder(s.panel_embed || {});
+
     updateTypeUI(s.type || 'button');
     updateGrayOut();
-  }).catch(()=>{});
+    updateWarning();
+  });
 
+  ['vb-title','vb-desc','vb-url','vb-author','vb-author-icon','vb-footer','vb-footer-icon','vb-image','vb-thumbnail'].forEach(id => {
+    document.getElementById(id).addEventListener('input', markEmbedChanged);
+  });
+  ['vb-color','vb-color-hex'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+      if (id === 'vb-color') $('#vb-color-hex').value = $('#vb-color').value;
+      else { const v = $('#vb-color-hex').value.replace('#',''); if (/^[0-9a-fA-F]{6}$/.test(v)) $('#vb-color').value = '#' + v; }
+      markEmbedChanged();
+    });
+  });
   document.querySelectorAll('.vfy-type-tab').forEach(t => t.addEventListener('click', () => {
     updateTypeUI(t.dataset.type);
     markChanged('type', t.dataset.type);
@@ -231,18 +355,43 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   saveBtn.addEventListener('click', saveChanges);
   document.getElementById('discard-btn').addEventListener('click', () => {
-    // Revert the method selector to the last saved value (original) or loaded value
-    const revertType = ('type' in original) ? original['type'] : (SETTINGS_SNAPSHOT.type || 'button');
+    // Reset data-key elements
     for (const key of Object.keys(pending)) {
-      const el = document.querySelector(`[data-key="${key}"]`); if (el) {
-        if (el.type==='checkbox') el.checked = original[key]; else el.value = original[key] ?? '';
+      const el = document.querySelector(`[data-key="${key}"]`);
+      if (el) {
+        if (el.type==='checkbox') el.checked = original[key];
+        else el.value = original[key] ?? '';
       }
-      delete original[key];
     }
+    // Reset embed builder
+    if ('panel_embed' in pending || 'panel_embed' in original) {
+      loadEmbedIntoBuilder(original.panel_embed || SETTINGS_SNAPSHOT.panel_embed || {});
+    }
+    // Reset type tabs
+    if ('type' in pending || 'type' in original) {
+      const t = ('type' in original) ? original['type'] : SETTINGS_SNAPSHOT.type || 'button';
+      updateTypeUI(t);
+    }
+    // Reset dropdown labels
+    ['channel_id','log_channel_id','verified_role_id'].forEach(key => {
+      const wrap = document.querySelector(`[data-channel-select="${key}"], [data-role-select="${key}"]`);
+      const val = ('type' in pending || key in pending) ? original[key] : SETTINGS_SNAPSHOT[key];
+      if (wrap) {
+        const btn = wrap.querySelector('.md-custom-select-btn');
+        const saved = val !== undefined ? val : SETTINGS_SNAPSHOT[key];
+        if (saved) {
+          const match = wrap.querySelector(`.md-custom-opt[data-id="${saved}"]`);
+          if (match) btn.textContent = match.textContent;
+        } else {
+          btn.textContent = key.includes('channel') ? 'No channel' : 'No role';
+        }
+      }
+    });
     for (const key of Object.keys(pending)) delete pending[key];
-    updateTypeUI(revertType);
+    for (const key of Object.keys(original)) delete original[key];
     saveBar.classList.add('is-closed');
     updateGrayOut();
+    updateWarning();
   });
 });
 </script>

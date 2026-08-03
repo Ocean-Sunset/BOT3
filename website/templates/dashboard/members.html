@@ -258,7 +258,9 @@ function sendAction(action, duration) {
 function refreshMembers() {
   api('/members').then(d => {
     const next = d.members || [];
-    const sig = JSON.stringify(next.map(m => [m.id, m.display_name, m.roles].join('|')));
+    // Cheap signature: ids + display names only (avoid stringifying all roles)
+    let sig = '';
+    for (let i = 0; i < next.length; i++) sig += next[i].id + ':' + (next[i].display_name || '') + ';';
     if (sig === lastSig) return;
     lastSig = sig;
     MEMBERS = next;

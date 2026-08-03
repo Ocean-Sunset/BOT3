@@ -15,13 +15,13 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
-  <link rel="stylesheet" href="/static/index.css" />
+  <link rel="stylesheet" href="/static/index.css?v=3" />
 </head>
 <body>
 
   <div class="wbanner">
-    <span>⚠ Prowl is in active development - some features may be incomplete.</span>
-    <button id="wbanner-close">&times;</button>
+    <span>🚧 Prowl is still in development — this is an early preview. Many features are unfinished and bugs are expected.</span>
+    <button id="wbanner-close" aria-label="Dismiss">&times;</button>
   </div>
 
   <div class="wave-field" id="wave-field"></div>
@@ -232,10 +232,10 @@
     gsap.ticker.add((time) => lenis.raf(time * 1000));
     gsap.ticker.lagSmoothing(0);
 
-    // ── Tildes ──
+    // ── Tildes (CSS animations — GPU-composited, cheap) ──
     const waveField = document.getElementById('wave-field');
     const isMobile = window.innerWidth < 768;
-    const tildeCount = isMobile ? 30 : 60;
+    const tildeCount = isMobile ? 20 : 36;
 
     for (let i = 0; i < tildeCount; i++) {
       const el = document.createElement('span');
@@ -244,22 +244,10 @@
       el.style.opacity = 0.03 + Math.random() * 0.08;
       el.style.left = Math.random() * 100 + '%';
       el.style.top = Math.random() * 100 + '%';
+      el.style.setProperty('--dx', (-12 + Math.random() * 24) + 'px');
+      el.style.setProperty('--dy', (-20 + Math.random() * 40) + 'px');
+      el.style.animation = `tildeFloat ${4 + Math.random() * 6}s ease-in-out ${Math.random() * 4}s infinite alternate`;
       waveField.appendChild(el);
-
-      anime({
-        targets: el,
-        translateY: [
-          { value: -20 + Math.random() * 10, duration: 2000 + Math.random() * 3000 },
-          { value: 20 - Math.random() * 10, duration: 2000 + Math.random() * 3000 },
-        ],
-        translateX: [
-          { value: -10 + Math.random() * 5, duration: 2500 + Math.random() * 2500 },
-          { value: 10 - Math.random() * 5, duration: 2500 + Math.random() * 2500 },
-        ],
-        easing: 'easeInOutSine',
-        loop: true,
-        direction: 'alternate',
-      });
     }
 
     // ── Nav float on scroll ──

@@ -12,6 +12,7 @@ from Ediscord import db as neon_db
 
 
 SOCIAL_DEFAULTS = {
+    "enabled": True,
     "youtube_enabled": False,
     "youtube_channel_id": None,
     "youtube_ping_role": None,
@@ -110,7 +111,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         except Exception as e:
             logger.error(f"Social alert send failed for {guild.id}: {e}")
 
-    async def _check_youtube_channel(self, guild, settings, cid, channel_name, custom_msg=None, ping_role_id=None):
+    async def _check_youtube_channel(self, guild, settings, cid, channel_name, custom_msg=None, ping_role_id=None, announce_channel_id=None):
         import xml.etree.ElementTree as ET
         url = f"https://www.youtube.com/feeds/videos.xml?channel_id={cid}"
         try:
@@ -137,7 +138,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
             return
         self._last_videos[key] = vid
         video_url = f"https://www.youtube.com/watch?v={vid}"
-        await self._send_alert(guild, settings, "youtube", title, custom_msg, ping_role_id, settings.get("youtube_announce_channel_id"), video_url)
+        await self._send_alert(guild, settings, "youtube", title, custom_msg, ping_role_id, announce_channel_id, video_url)
 
     @tasks.loop(minutes=10)
     async def check_youtube(self):
@@ -150,11 +151,12 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
                 cid = settings.get("youtube_channel_id")
                 if cid:
                     await self._check_youtube_channel(guild, settings, cid, cid,
-                                                      settings.get("youtube_message"), settings.get("youtube_ping_role"))
+                                                      settings.get("youtube_message"), settings.get("youtube_ping_role"),
+                                                      settings.get("youtube_announce_channel_id"))
                 for ea in settings.get("extra_alerts", {}).get("youtube", []):
                     if ea.get("target"):
                         await self._check_youtube_channel(guild, settings, ea["target"], ea["target"],
-                                                          ea.get("message"), ea.get("ping_role"))
+                                                          ea.get("message"), ea.get("ping_role"), ea.get("announce_channel_id"))
             except Exception as e:
                 logger.debug(f"YouTube check failed for {guild.id}: {e}")
 
@@ -180,11 +182,12 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
                 channel = settings.get("twitch_channel")
                 if channel:
                     await self._check_twitch_channel(guild, settings, channel, token,
-                                                     settings.get("twitch_message"), settings.get("twitch_ping_role"))
+                                                     settings.get("twitch_message"), settings.get("twitch_ping_role"),
+                                                     settings.get("twitch_announce_channel_id"))
                 for ea in settings.get("extra_alerts", {}).get("twitch", []):
                     if ea.get("target"):
                         await self._check_twitch_channel(guild, settings, ea["target"], token,
-                                                         ea.get("message"), ea.get("ping_role"))
+                                                         ea.get("message"), ea.get("ping_role"), ea.get("announce_channel_id"))
             except Exception as e:
                 logger.debug(f"Twitch check failed for {guild.id}: {e}")
 
@@ -201,7 +204,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         except Exception:
             return None
 
-    async def _check_twitch_channel(self, guild, settings, channel, token, custom_msg=None, ping_role_id=None):
+    async def _check_twitch_channel(self, guild, settings, channel, token, custom_msg=None, ping_role_id=None, announce_channel_id=None):
         from Ediscord.variables import TWITCH_CLIENT_ID
         try:
             async with aiohttp.ClientSession() as s:
@@ -217,7 +220,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
                 if self._last_videos.get(f"{guild.id}:twitch:{channel}") == stream_id:
                     return
                 self._last_videos[f"{guild.id}:twitch:{channel}"] = stream_id
-                await self._send_alert(guild, settings, "twitch", title, custom_msg, ping_role_id, settings.get("twitch_announce_channel_id"), url)
+                await self._send_alert(guild, settings, "twitch", title, custom_msg, ping_role_id, announce_channel_id, url)
         except Exception as e:
             logger.debug(f"Twitch channel check failed: {e}")
 
@@ -233,15 +236,16 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
                 handle = settings.get("twitter_handle")
                 if handle:
                     await self._check_twitter_handle(guild, settings, handle,
-                                                     settings.get("twitter_message"), settings.get("twitter_ping_role"))
+                                                     settings.get("twitter_message"), settings.get("twitter_ping_role"),
+                                                     settings.get("twitter_announce_channel_id"))
                 for ea in settings.get("extra_alerts", {}).get("twitter", []):
                     if ea.get("target"):
                         await self._check_twitter_handle(guild, settings, ea["target"],
-                                                         ea.get("message"), ea.get("ping_role"))
+                                                         ea.get("message"), ea.get("ping_role"), ea.get("announce_channel_id"))
             except Exception as e:
                 logger.debug(f"Twitter check failed for {guild.id}: {e}")
 
-    async def _check_twitter_handle(self, guild, settings, handle, custom_msg=None, ping_role_id=None):
+    async def _check_twitter_handle(self, guild, settings, handle, custom_msg=None, ping_role_id=None, announce_channel_id=None):
         import xml.etree.ElementTree as ET
         from Ediscord.variables import NITTER_INSTANCE
         instance = NITTER_INSTANCE.rstrip("/")
@@ -271,7 +275,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
             return
         self._last_videos[key] = status_id
         tweet_url = f"https://twitter.com/{handle}/status/{status_id}"
-        await self._send_alert(guild, settings, "twitter", f"@{handle}", custom_msg, ping_role_id, settings.get("twitter_announce_channel_id"), tweet_url)
+        await self._send_alert(guild, settings, "twitter", f"@{handle}", custom_msg, ping_role_id, announce_channel_id, tweet_url)
 
     social_group = app_commands.Group(name="social", description="Social media alert settings")
 

@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="icon" href="/static/favicon.png" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-  <link rel="stylesheet" href="/static/landing.css" />
+  <link rel="stylesheet" href="/static/landing.css?v=2" />
 </head>
 <body>
 
@@ -44,7 +44,7 @@
     // ── Scatter tildes ──
     const waveField = document.getElementById('wave-field');
     const isMobile = window.innerWidth < 768;
-    const tildeCount = isMobile ? 35 : 70;
+    const tildeCount = isMobile ? 20 : 36;
 
     for (let i = 0; i < tildeCount; i++) {
       const el = document.createElement('span');
@@ -53,17 +53,10 @@
       el.style.top = Math.random() * 100 + '%';
       el.style.fontSize = (1 + Math.random() * 1.8) + 'rem';
       el.style.opacity = 0.04 + Math.random() * 0.1;
+      el.style.setProperty('--dx', (-12 + Math.random() * 24) + 'px');
+      el.style.setProperty('--dy', (-20 + Math.random() * 40) + 'px');
+      el.style.animation = `tildeFloat ${4 + Math.random() * 6}s ease-in-out ${Math.random() * 4}s infinite alternate`;
       waveField.appendChild(el);
-
-      gsap.to(el, {
-        y: -20 + Math.random() * 40,
-        x: -12 + Math.random() * 24,
-        duration: 4 + Math.random() * 6,
-        ease: 'sine.inOut',
-        yoyo: true,
-        repeat: -1,
-        delay: Math.random() * 4,
-      });
     }
 
     // ── Word scramble ──

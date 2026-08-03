@@ -126,45 +126,172 @@ function renderLineChart(canvasId, emptyId, points, color) {
   const vals = points.map(p => p.v);
   const min = Math.min(...vals), max = Math.max(...vals);
   const range = max - min || 1;
-  const pad = 10;
-  const stepX = (w - pad * 2) / (points.length - 1);
+  const leftPad = 38;   // room for y-axis labels
+  const rightPad = 10;
+  const topPad = 14;
+  const bottomPad = 8;
+  const plotW = w - leftPad - rightPad;
+  const plotH = h - topPad - bottomPad;
+  const stepX = plotW / (points.length - 1);
 
-  // Grid + line
-  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-  ctx.lineWidth = 1;
+  // Y-axis labels (5 ticks)
+  ctx.font = '600 10px Lexend, sans-serif';
+  ctx.textAlign = 'right';
   for (let i = 0; i <= 4; i++) {
-    const y = pad + ((h - pad * 2) * i) / 4;
-    ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(w - pad, y); ctx.stroke();
+    const y = topPad + (plotH * i) / 4;
+    const val = Math.round(max - (range * i) / 4);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillText(String(val), leftPad - 6, y + 3);
+    // grid line
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(leftPad, y); ctx.lineTo(w - rightPad, y); ctx.stroke();
   }
 
+  // Compute point positions
+  const coords = points.map((p, i) => {
+    const x = leftPad + i * stepX;
+    const y = h - bottomPad - ((p.v - min) / range) * plotH;
+    return { x, y, v: p.v, t: p.t };
+  });
+
+  // Line
   ctx.beginPath();
   ctx.strokeStyle = color;
   ctx.lineWidth = 2;
   ctx.lineJoin = 'round';
-  points.forEach((p, i) => {
-    const x = pad + i * stepX;
-    const y = h - pad - ((p.v - min) / range) * (h - pad * 2);
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-  });
+  coords.forEach((c, i) => { if (i === 0) ctx.moveTo(c.x, c.y); else ctx.lineTo(c.x, c.y); });
   ctx.stroke();
 
   // Fill under line
-  ctx.lineTo(pad + (points.length - 1) * stepX, h - pad);
-  ctx.lineTo(pad, h - pad);
+  ctx.lineTo(coords[coords.length - 1].x, h - bottomPad);
+  ctx.lineTo(coords[0].x, h - bottomPad);
   ctx.closePath();
-  const grad = ctx.createLinearGradient(0, pad, 0, h - pad);
+  const grad = ctx.createLinearGradient(0, topPad, 0, h - bottomPad);
   grad.addColorStop(0, color.replace(')', ',0.15)').replace('rgb', 'rgba'));
   grad.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // Last value label
-  const lastX = pad + (points.length - 1) * stepX;
-  const lastY = h - pad - ((points[points.length - 1].v - min) / range) * (h - pad * 2);
-  ctx.fillStyle = color;
-  ctx.font = '700 11px Lexend, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(String(points[points.length - 1].v), lastX, lastY - 8);
+  // Hover: find nearest point and draw a tooltip
+  function drawHover(c) {
+    ctx.clearRect(0, 0, w, h);
+    // redraw grid
+    ctx.font = '600 10px Lexend, sans-serif';
+    ctx.textAlign = 'right';
+    for (let i = 0; i <= 4; i++) {
+      const y = topPad + (plotH * i) / 4;
+      const val = Math.round(max - (range * i) / 4);
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillText(String(val), leftPad - 6, y + 3);
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(leftPad, y); ctx.lineTo(w - rightPad, y); ctx.stroke();
+    }
+    // line + fill
+    ctx.beginPath();
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+    coords.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+    ctx.stroke();
+    ctx.lineTo(coords[coords.length - 1].x, h - bottomPad);
+    ctx.lineTo(coords[0].x, h - bottomPad);
+    ctx.closePath();
+    const g2 = ctx.createLinearGradient(0, topPad, 0, h - bottomPad);
+    g2.addColorStop(0, color.replace(')', ',0.15)').replace('rgb', 'rgba'));
+    g2.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g2; ctx.fill();
+    // highlight point
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = color; ctx.fill();
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 7, 0, Math.PI * 2);
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.4; ctx.stroke(); ctx.globalAlpha = 1;
+    // tooltip box
+    const txt = String(c.v);
+    const timeStr = c.t ? new Date(c.t * 1000).toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+    const tw = Math.max(ctx.measureText(txt).width, ctx.measureText(timeStr).width) + 16;
+    const bw = Math.max(tw, 70);
+    let bx = c.x + 12; if (bx + bw > w - rightPad) bx = c.x - bw - 12;
+    let by = c.y - 44; if (by < 4) by = c.y + 14;
+    ctx.fillStyle = '#151515';
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(bx, by, bw, 34, 5);
+    else ctx.rect(bx, by, bw, 34);
+    ctx.fill(); ctx.stroke();
+    ctx.textAlign = 'left';
+    ctx.fillStyle = color;
+    ctx.font = '700 12px Lexend, sans-serif';
+    ctx.fillText(txt, bx + 8, by + 15);
+    if (timeStr) {
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.font = '500 9px Lexend, sans-serif';
+      ctx.fillText(timeStr, bx + 8, by + 28);
+    }
+  }
+
+  function clearHover() {
+    ctx.clearRect(0, 0, w, h);
+    ctx.font = '600 10px Lexend, sans-serif';
+    ctx.textAlign = 'right';
+    for (let i = 0; i <= 4; i++) {
+      const y = topPad + (plotH * i) / 4;
+      const val = Math.round(max - (range * i) / 4);
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillText(String(val), leftPad - 6, y + 3);
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(leftPad, y); ctx.lineTo(w - rightPad, y); ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+    coords.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+    ctx.stroke();
+    ctx.lineTo(coords[coords.length - 1].x, h - bottomPad);
+    ctx.lineTo(coords[0].x, h - bottomPad);
+    ctx.closePath();
+    const g3 = ctx.createLinearGradient(0, topPad, 0, h - bottomPad);
+    g3.addColorStop(0, color.replace(')', ',0.15)').replace('rgb', 'rgba'));
+    g3.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g3; ctx.fill();
+  }
+
+  let hovered = false;
+  let hoverPending = null;
+  canvas.onmousemove = (e) => {
+    // Store the event and redraw at most once per animation frame
+    hoverPending = e;
+    if (hoverRaf) return;
+    hoverRaf = requestAnimationFrame(() => {
+      hoverRaf = 0;
+      const ev = hoverPending; hoverPending = null;
+      if (!ev) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = (ev.clientX - rect.left) * (w / rect.width);
+      const my = (ev.clientY - rect.top) * (h / rect.height);
+      // nearest point by x
+      let best = null, bestDist = Infinity;
+      coords.forEach(c => {
+        const d = Math.abs(c.x - mx);
+        if (d < bestDist) { bestDist = d; best = c; }
+      });
+      const trigger = Math.max(10, stepX * 0.6);
+      if (best && bestDist <= trigger && Math.abs(best.y - my) < plotH * 0.55) {
+        drawHover(best);
+        hovered = true;
+      } else if (hovered) {
+        hovered = false;
+        clearHover();
+      }
+    });
+  };
+  let hoverRaf = 0;
+  canvas.onmouseleave = () => { hovered = false; clearHover(); };
+
+  clearHover();
 }
 
 // ── Server stats ──

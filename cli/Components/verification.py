@@ -4,13 +4,19 @@ from discord import app_commands
 import json
 import random
 import string
-import aiohttp
-import datetime
 import os
+import datetime
 from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
+
+
+SITE_URL = os.environ.get("SITE_URL") or "https://prowlbot.xyz"
+
+
+def verify_link(guild_id, user_id):
+    return f"{SITE_URL}/verify/{guild_id}?u={user_id}"
 
 
 def provider_key(settings: dict, provider: str, kind: str) -> str:
@@ -34,9 +40,9 @@ VERIFY_DEFAULTS = {
     "enabled": False, "channel_id": None, "verified_role_id": None,
     "log_channel_id": None, "type": "button", "captcha": False,
     "message": "Click the button below to verify yourself.",
-    "reaction_emoji": "",
+    "reaction_emoji": "✅",
     "recaptcha_site_key": "", "recaptcha_secret": "",
-    "turnstile_site_key": "", "turnstile_secret": "",
+    "panel_embed": {}, "panel_message_id": None,
 }
 
 
@@ -121,70 +127,31 @@ class CaptchaButtonView(discord.ui.View):
         await interaction.response.send_modal(CaptchaModal(role_id))
 
 
-class ExternalCaptchaModal(discord.ui.Modal, title="Verification"):
-    """Modal for reCAPTCHA / Turnstile: user solves at the given URL, pastes the token."""
-
-    def __init__(self, role_id: int, url: str, provider: str):
-        super().__init__()
-        self.role_id = role_id
-        self.provider = provider
-        # Discord modals can't render clickable links, so show the URL as a copyable value.
-        self.add_item(discord.ui.TextInput(
-            label="Step 1 — Open this link",
-            default=url or "Open this link to solve the captcha",
-            required=False,
-            max_length=4000,
-            style=discord.TextStyle.long,
-        ))
-        self.add_item(discord.ui.TextInput(
-            label=f"Step 2 — Paste the {provider} token here",
-            placeholder="Paste the token you copied from the page",
-            required=True,
-            max_length=2000,
-            style=discord.TextStyle.paragraph,
-        ))
-
-    async def on_submit(self, interaction: discord.Interaction):
-        token = self.children[1].value.strip()
-        settings = await get_verify_settings(interaction.guild_id)
-        secret = provider_key(settings, self.provider, "secret")
-        verify_url = (
-            "https://www.google.com/recaptcha/api/siteverify" if self.provider == "recaptcha"
-            else "https://challenges.cloudflare.com/turnstile/v0/siteverify"
-        )
-        if not secret:
-            await interaction.response.send_message("Verification captcha is not configured.", ephemeral=True)
-            return
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(verify_url, data={"secret": secret, "response": token}) as resp:
-                    data = await resp.json()
-            if data.get("success"):
-                await _verify_done(interaction, self.role_id, self.provider)
-            else:
-                await interaction.response.send_message(
-                    embed=EmbedBuilder().title("Failed").description("Verification failed. Please try again.").color("red").timestamp(datetime.datetime.utcnow()).build(),
-                    ephemeral=True
-                )
-        except Exception as e:
-            logger.error(f"External captcha verify failed: {e}")
-            await interaction.response.send_message("Could not verify captcha. Try again.", ephemeral=True)
-
-
 class ExternalCaptchaButtonView(discord.ui.View):
-    def __init__(self, role_id: int, url: str, provider: str):
+    """Button that sends the user a personal one-time captcha link (no modal, no token pasting)."""
+
+    def __init__(self, role_id: int = 0, provider: str = ""):
         super().__init__(timeout=None)
         self.role_id = role_id
         self.provider = provider
-        self.url = url
-        verify = discord.ui.Button(label="Verify", style=discord.ButtonStyle.success, custom_id=f"verify:{provider}")
+        label = "Google reCAPTCHA" if provider == "recaptcha" else "Cloudflare Turnstile"
+        verify = discord.ui.Button(label=f"Verify with {label}", style=discord.ButtonStyle.success, emoji="🛡️", custom_id=f"verify:{provider}")
         async def cb(i: discord.Interaction):
             settings = await get_verify_settings(i.guild_id)
-            role_id = int(settings.get("verified_role_id") or self.role_id or 0)
-            # Generate a fresh one-time code so the captcha page can only be used right now.
-            code = await neon_db.create_captcha_code(self.provider)
-            url = captcha_solve_url(self.provider, code) if code else self.url
-            await i.response.send_modal(ExternalCaptchaModal(role_id, url, self.provider))
+            if not settings.get("enabled") or settings.get("type") != self.provider:
+                await i.response.send_message("Verification is not active for this method.", ephemeral=True)
+                return
+            code = await neon_db.create_captcha_code(self.provider, i.guild_id, i.user.id)
+            if not code:
+                await i.response.send_message("Could not create a verification link. Try again.", ephemeral=True)
+                return
+            link = captcha_solve_url(self.provider, code)
+            view = discord.ui.View()
+            view.add_item(discord.ui.Button(label="Complete verification", style=discord.ButtonStyle.link, url=link))
+            await i.response.send_message(
+                "Click the button to complete verification in your browser.",
+                view=view, ephemeral=True,
+            )
         verify.callback = cb
         self.add_item(verify)
 
@@ -203,8 +170,7 @@ class Verification(commands.Cog, name="Verification"):
         try:
             self.bot.add_view(VerifyButtonView(0))
             self.bot.add_view(CaptchaButtonView(0))
-            self.bot.add_view(ExternalCaptchaButtonView(0, "", "recaptcha"))
-            self.bot.add_view(ExternalCaptchaButtonView(0, "", "turnstile"))
+            self.bot.add_view(ExternalCaptchaButtonView(0, "recaptcha"))
             logger.info("Registered persistent verification views.")
         except Exception as e:
             logger.error(f"Failed to register persistent verification views: {e}")
@@ -217,25 +183,71 @@ class Verification(commands.Cog, name="Verification"):
         if vtype == "captcha":
             return CaptchaButtonView(role_id)
         if vtype == "recaptcha":
-            return ExternalCaptchaButtonView(role_id, captcha_solve_url("recaptcha"), "recaptcha")
-        if vtype == "turnstile":
-            return ExternalCaptchaButtonView(role_id, captcha_solve_url("turnstile"), "turnstile")
+            return ExternalCaptchaButtonView(role_id, "recaptcha")
         return VerifyButtonView(role_id)
+
+    def _build_panel_embed(self, settings) -> discord.Embed:
+        """Build the verification panel embed from the custom embed builder (or a sensible default)."""
+        pe = settings.get("panel_embed") or {}
+        if not isinstance(pe, dict):
+            pe = {}
+        embed = discord.Embed()
+        if pe.get("title"):
+            embed.title = pe["title"]
+        else:
+            embed.title = "🔐 Verification"
+        if pe.get("description"):
+            embed.description = pe["description"]
+        elif not pe.get("title") and not pe.get("description"):
+            embed.description = settings.get("message") or "Click the button below to verify yourself."
+        color = pe.get("color")
+        if color:
+            try:
+                embed.color = int(str(color).lstrip("#"), 16)
+            except (ValueError, TypeError):
+                embed.color = discord.Color.green()
+        else:
+            embed.color = discord.Color.green()
+        if pe.get("url"):
+            embed.url = pe["url"]
+        if pe.get("author_name"):
+            embed.set_author(name=pe["author_name"], icon_url=pe.get("author_icon") or None)
+        if pe.get("footer_text"):
+            embed.set_footer(text=pe["footer_text"], icon_url=pe.get("footer_icon") or None)
+        if pe.get("image_url"):
+            embed.set_image(url=pe["image_url"])
+        if pe.get("thumbnail_url"):
+            embed.set_thumbnail(url=pe["thumbnail_url"])
+        fields = pe.get("fields") or []
+        has_role_field = any((f.get("name") or "") == "After verifying" for f in fields)
+        for f in fields:
+            if f.get("name"):
+                embed.add_field(name=f["name"], value=f.get("value") or "\u200b", inline=bool(f.get("inline")))
+        if not has_role_field:
+            embed.add_field(name="After verifying", value=f"You'll receive the **{settings.get('verified_role_id') and '<@&' + str(settings.get('verified_role_id')) + '>' or 'Verified'}** role.", inline=False)
+        return embed
 
     async def _send_panel(self, guild: discord.Guild, settings) -> bool:
         channel = guild.get_channel(int(settings.get("channel_id") or 0))
         if not channel or not isinstance(channel, discord.TextChannel):
             return False
-        role = guild.get_role(int(settings.get("verified_role_id") or 0))
-        role_text = role.mention if role else "Verified"
-        msg_text = settings.get("message") or "Click the button below to verify yourself."
-        embed = EmbedBuilder().title("Verification").description(msg_text).color("green").field("After verifying", f"You'll receive the **{role_text}** role.").timestamp(datetime.datetime.utcnow()).build()
+
+        # Delete the previous panel message if one exists
+        old_id = settings.get("panel_message_id")
+        if old_id:
+            try:
+                old = await channel.fetch_message(int(old_id))
+                await old.delete()
+            except Exception:
+                pass
+
+        embed = self._build_panel_embed(settings)
 
         vtype = settings.get("type", "button")
         if vtype == "reaction":
             view = discord.ui.View()
             message = await channel.send(embed=embed, view=view)
-            emoji = settings.get("reaction_emoji", "✅")
+            emoji = settings.get("reaction_emoji") or "✅"
             try:
                 await message.add_reaction(emoji)
             except Exception:
@@ -243,7 +255,11 @@ class Verification(commands.Cog, name="Verification"):
             self.panel_messages[message.id] = guild.id
         else:
             view = await self._build_view(settings)
-            await channel.send(embed=embed, view=view)
+            message = await channel.send(embed=embed, view=view)
+
+        # Track the new panel so the next deploy replaces it
+        settings["panel_message_id"] = message.id
+        await save_verify_settings(guild.id, settings)
         return True
 
     @commands.Cog.listener()
@@ -278,7 +294,6 @@ class Verification(commands.Cog, name="Verification"):
         app_commands.Choice(name="Reaction Role", value="reaction"),
         app_commands.Choice(name="Captcha Code", value="captcha"),
         app_commands.Choice(name="reCAPTCHA", value="recaptcha"),
-        app_commands.Choice(name="Cloudflare Turnstile", value="turnstile"),
     ])
     async def setup(self, interaction: discord.Interaction, channel: discord.TextChannel, role: discord.Role, type: str = "button"):
         if not interaction.user.guild_permissions.administrator:

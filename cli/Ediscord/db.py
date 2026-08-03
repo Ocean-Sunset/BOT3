@@ -92,7 +92,9 @@ async def _ensure_tables():
         "CREATE TABLE IF NOT EXISTS ticket_logs (id SERIAL PRIMARY KEY, guild_id TEXT NOT NULL, channel_id TEXT NOT NULL, user_id TEXT NOT NULL, transcript TEXT NOT NULL, closed_at TEXT NOT NULL)",
         "CREATE TABLE IF NOT EXISTS member_history (guild_id TEXT NOT NULL, timestamp DOUBLE PRECISION NOT NULL, member_count INTEGER NOT NULL, PRIMARY KEY (guild_id, timestamp))",
         "CREATE TABLE IF NOT EXISTS message_history (guild_id TEXT NOT NULL, timestamp DOUBLE PRECISION NOT NULL, message_count INTEGER NOT NULL, PRIMARY KEY (guild_id, timestamp))",
-        "CREATE TABLE IF NOT EXISTS captcha_codes (code TEXT PRIMARY KEY, provider TEXT NOT NULL, created_at DOUBLE PRECISION NOT NULL, expires_at DOUBLE PRECISION NOT NULL, used BOOLEAN NOT NULL DEFAULT FALSE)",
+        "CREATE TABLE IF NOT EXISTS captcha_codes (code TEXT PRIMARY KEY, provider TEXT NOT NULL, guild_id TEXT DEFAULT '', user_id TEXT DEFAULT '', created_at DOUBLE PRECISION NOT NULL, expires_at DOUBLE PRECISION NOT NULL, used BOOLEAN NOT NULL DEFAULT FALSE)",
+        "ALTER TABLE captcha_codes ADD COLUMN IF NOT EXISTS guild_id TEXT DEFAULT ''",
+        "ALTER TABLE captcha_codes ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT ''",
     ]
     try:
         async with pool.acquire() as conn:
@@ -135,7 +137,7 @@ async def push_bot_stats(data: dict):
         logger.error(f"push_bot_stats failed: {e}")
 
 
-async def create_captcha_code(provider: str, ttl_hours: int = 1) -> str:
+async def create_captcha_code(provider: str, guild_id: str = "", user_id: str = "", ttl_hours: int = 1) -> str:
     """Generate a short-lived single-use code that unlocks the captcha solve page."""
     pool = await get_pool()
     if pool is None:
@@ -147,8 +149,8 @@ async def create_captcha_code(provider: str, ttl_hours: int = 1) -> str:
         async with pool.acquire() as conn:
             await conn.execute("DELETE FROM captcha_codes WHERE expires_at < $1", now)
             await conn.execute(
-                "INSERT INTO captcha_codes (code, provider, created_at, expires_at) VALUES ($1, $2, $3, $4)",
-                code, provider, now, now + ttl_hours * 3600,
+                "INSERT INTO captcha_codes (code, provider, guild_id, user_id, created_at, expires_at) VALUES ($1, $2, $3, $4, $5, $6)",
+                code, provider, str(guild_id or ""), str(user_id or ""), now, now + ttl_hours * 3600,
             )
         return code
     except Exception as e:

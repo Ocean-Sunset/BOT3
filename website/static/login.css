@@ -207,6 +207,12 @@ body {
   font-family: monospace;
   user-select: none;
   line-height: 1;
+  will-change: transform;
+}
+
+@keyframes tildeFloat {
+  from { transform: translate(0, 0); }
+  to   { transform: translate(var(--dx, 10px), var(--dy, 20px)); }
 }
 
 .vignette {

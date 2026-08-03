@@ -1,6 +1,7 @@
 """
 Server-side session store with rotating secret keys.
-Cookie holds a random session ID, actual data lives in memory + persisted to disk.
+Cookie holds a random session ID; data lives in memory + Neon DB (shared across
+serverless instances) with a /tmp file fallback for non-DB environments.
 Secret key rotates every 30 seconds; old keys stay valid for 5 minutes.
 """
 
@@ -21,7 +22,13 @@ KEY_ROTATION = 30
 GRACE_PERIOD = 300
 SESSION_TTL = 86400
 
-_SESSION_FILE = Path(__file__).resolve().parent.parent / ".sessions.json"
+# /tmp is the only writable dir on Vercel; fall back to project dir elsewhere.
+try:
+    _SESSION_FILE = Path("/tmp/.sessions.json")
+    if not os.access("/tmp", os.W_OK):
+        raise OSError
+except (OSError, TypeError):
+    _SESSION_FILE = Path(__file__).resolve().parent.parent / ".sessions.json"
 _SAVE_INTERVAL = 10
 
 _session_store = OrderedDict()
@@ -29,37 +36,13 @@ _key_ring = []
 _last_rotation = 0
 _last_save = 0
 
-
-def _load_store():
-    global _session_store
-    try:
-        if _SESSION_FILE.exists():
-            raw = json.loads(_SESSION_FILE.read_text(encoding="utf-8"))
-            now = time.time()
-            store = OrderedDict()
-            for sid, entry in raw.items():
-                if entry.get("expires", 0) > now:
-                    store[sid] = {"data": entry.get("data", {}), "expires": entry["expires"]}
-            _session_store = store
-            if store:
-                logger.info(f"Loaded {len(store)} persisted sessions.")
-    except Exception as e:
-        logger.warning(f"Could not load sessions file: {e}")
-
-
-def _save_store(force=False):
-    global _last_save
-    now = time.time()
-    if not force and now - _last_save < _SAVE_INTERVAL:
-        return
-    _last_save = now
-    try:
-        _SESSION_FILE.write_text(
-            json.dumps({k: v for k, v in _session_store.items()}, default=str),
-            encoding="utf-8",
-        )
-    except Exception as e:
-        logger.warning(f"Could not save sessions file: {e}")
+_SESSIONS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS sessions (
+    sid     TEXT PRIMARY KEY,
+    data    JSONB NOT NULL DEFAULT '{}',
+    expires DOUBLE PRECISION NOT NULL
+);
+"""
 
 
 def _get_current_key() -> str:
@@ -93,14 +76,146 @@ def unsign_session_id(cookie: str) -> Optional[str]:
     return None
 
 
+# ── File fallback (only used when DB is unavailable) ──
+
+def _save_file():
+    global _last_save
+    now = time.time()
+    if now - _last_save < _SAVE_INTERVAL:
+        return
+    _last_save = now
+    try:
+        _SESSION_FILE.write_text(
+            json.dumps({k: v for k, v in _session_store.items()}, default=str),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
+
+
+def _load_file():
+    global _session_store
+    try:
+        if _SESSION_FILE.exists():
+            raw = json.loads(_SESSION_FILE.read_text(encoding="utf-8"))
+            now = time.time()
+            store = OrderedDict()
+            for sid, entry in raw.items():
+                if entry.get("expires", 0) > now:
+                    store[sid] = {"data": entry.get("data", {}), "expires": entry["expires"]}
+            _session_store = store
+    except Exception:
+        pass
+
+
+# ── Neon DB persistence (shared across serverless instances) ──
+
+async def _db_get(sid: str):
+    try:
+        from api import db
+        pool = await db.get_pool()
+        if not pool:
+            return None
+        row = await pool.fetchrow(
+            "SELECT data, expires FROM sessions WHERE sid = $1", sid
+        )
+        if not row:
+            return None
+        return row
+    except Exception:
+        return None
+
+
+async def _db_save(sid: str, data: dict, expires: float):
+    try:
+        from api import db
+        pool = await db.get_pool()
+        if not pool:
+            return
+        try:
+            await pool.execute(_SESSIONS_TABLE_SQL)
+        except Exception:
+            pass
+        await pool.execute(
+            "INSERT INTO sessions (sid, data, expires) VALUES ($1, $2::jsonb, $3) "
+            "ON CONFLICT (sid) DO UPDATE SET data = $2::jsonb, expires = $3",
+            sid, json.dumps(data), expires,
+        )
+    except Exception:
+        pass
+
+
+async def _db_delete(sid: str):
+    try:
+        from api import db
+        pool = await db.get_pool()
+        if not pool:
+            return
+        await pool.execute("DELETE FROM sessions WHERE sid = $1", sid)
+    except Exception:
+        pass
+
+
+# ── Public async API (used by middleware) ──
+
+async def create_session_async() -> str:
+    while True:
+        sid = secrets.token_hex(32)
+        if sid not in _session_store:
+            break
+    expires = time.time() + SESSION_TTL
+    _session_store[sid] = {"data": {}, "expires": expires}
+    _trim_memory()
+    await _db_save(sid, {}, expires)
+    _save_file()
+    return sid
+
+
+async def get_session_async(sid: str) -> Optional[dict]:
+    entry = _session_store.get(sid)
+    if entry:
+        if time.time() < entry["expires"]:
+            return entry["data"]
+        del _session_store[sid]
+    # Not in memory — try DB (shared across instances / cold starts)
+    row = await _db_get(sid)
+    if row:
+        if time.time() < row["expires"]:
+            data = row["data"]
+            if isinstance(data, str):
+                try:
+                    data = json.loads(data)
+                except Exception:
+                    data = {}
+            _session_store[sid] = {"data": data, "expires": row["expires"]}
+            return data
+    return None
+
+
+async def save_session_async(sid: str, data: dict):
+    expires = time.time() + SESSION_TTL
+    _session_store[sid] = {"data": data, "expires": expires}
+    await _db_save(sid, data, expires)
+    _save_file()
+
+
+async def delete_session_async(sid: str):
+    _session_store.pop(sid, None)
+    await _db_delete(sid)
+    _save_file()
+
+
+# ── Sync wrappers (kept for any non-async callers) ──
+
 def create_session() -> str:
     while True:
         sid = secrets.token_hex(32)
         if sid not in _session_store:
             break
-    _session_store[sid] = {"data": {}, "expires": time.time() + SESSION_TTL}
-    _trim_store()
-    _save_store()
+    expires = time.time() + SESSION_TTL
+    _session_store[sid] = {"data": {}, "expires": expires}
+    _trim_memory()
+    _save_file()
     return sid
 
 
@@ -110,21 +225,20 @@ def get_session(sid: str) -> Optional[dict]:
         return entry["data"]
     if entry:
         del _session_store[sid]
-        _save_store()
     return None
 
 
 def save_session(sid: str, data: dict):
     _session_store[sid] = {"data": data, "expires": time.time() + SESSION_TTL}
-    _save_store()
+    _save_file()
 
 
 def delete_session(sid: str):
     _session_store.pop(sid, None)
-    _save_store()
+    _save_file()
 
 
-def _trim_store():
+def _trim_memory():
     now = time.time()
     expired = [k for k, v in _session_store.items() if v["expires"] < now]
     for k in expired:
@@ -133,4 +247,4 @@ def _trim_store():
         _session_store.popitem(last=False)
 
 
-_load_store()
+_load_file()

@@ -129,22 +129,29 @@ class RotatingSessionMiddleware:
 
         is_new = False
         if not sid:
-            sid = rotating_session.create_session()
+            sid = await rotating_session.create_session_async()
             is_new = True
 
-        session_data = rotating_session.get_session(sid)
+        session_data = await rotating_session.get_session_async(sid)
         if session_data is None:
             session_data = {}
-            rotating_session.save_session(sid, session_data)
+            await rotating_session.save_session_async(sid, session_data)
+
+        # Snapshot so we only write back to the DB when the session actually changed
+        import json as _json
+        session_snapshot = _json.dumps(session_data, sort_keys=True, default=str)
 
         scope["session"] = session_data
+        scope["session_sid"] = sid
 
         async def send_wrapper(message):
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
-                # Save session data back
+                # Save session data back only if it changed
                 if scope.get("session") is not None:
-                    rotating_session.save_session(sid, scope["session"])
+                    cur = _json.dumps(scope["session"], sort_keys=True, default=str)
+                    if cur != session_snapshot or is_new:
+                        await rotating_session.save_session_async(sid, scope["session"])
                 # Set cookie on new sessions or re-set on each response to refresh expiry.
                 # Production uses a shared .prowlbot.xyz cookie (cross-subdomain for api.),
                 # localhost keeps a same-origin lax cookie.
@@ -430,6 +437,9 @@ async def callback_google():
 
 @app.get("/logout")
 async def logout(request: Request):
+    sid = request.scope.get("session_sid")
+    if sid:
+        await rotating_session.delete_session_async(sid)
     request.session.clear()
     return RedirectResponse("/")
 

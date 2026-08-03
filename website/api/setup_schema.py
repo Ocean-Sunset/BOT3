@@ -191,6 +191,12 @@ CREATE TABLE IF NOT EXISTS captcha_codes (
 
 ALTER TABLE captcha_codes ADD COLUMN IF NOT EXISTS guild_id TEXT DEFAULT '';
 ALTER TABLE captcha_codes ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS sessions (
+    sid     TEXT PRIMARY KEY,
+    data    JSONB NOT NULL DEFAULT '{}',
+    expires DOUBLE PRECISION NOT NULL
+);
 """
 
 

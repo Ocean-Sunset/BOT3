@@ -16,7 +16,9 @@ LEVELING_DEFAULTS = {
     "announce_channel_id": None,
     "xp_rate": 1.0,
     "xp_cooldown": 60,
+    "random_xp": True,
     "level_roles": {},
+    "role_xp_multipliers": {},
     "level_up_message": "🎉 {user} reached **level {level}**!",
     "xp_per_message_min": 15,
     "xp_per_message_max": 25,
@@ -42,6 +44,36 @@ def create_progress_bar(current: int, maximum: int, length: int = 10) -> str:
     filled = int((current / maximum) * length)
     filled = min(filled, length)
     return "▓" * filled + "░" * (length - filled)
+
+
+def format_level_up_message(
+    template: str,
+    message: discord.Message,
+    level: int,
+    xp: int,
+    xp_needed: int,
+    granted_role=None,
+) -> str:
+    """Replace {vars} in the level-up message with real values."""
+    member = message.author
+    role_str = granted_role.mention if granted_role else "none"
+    replacements = {
+        "{user}": member.mention,
+        "{mention}": member.mention,
+        "{name}": member.display_name,
+        "{level}": str(level),
+        "{next_level}": str(level + 1),
+        "{xp}": str(xp),
+        "{xp_needed}": str(xp_needed),
+        "{role}": role_str,
+        "{servername}": message.guild.name,
+        "{server}": message.guild.name,
+        "{membercount}": str(message.guild.member_count or 0),
+    }
+    out = template
+    for key, value in replacements.items():
+        out = out.replace(key, value)
+    return out
 
 
 async def get_leveling_settings(guild_id: int):
@@ -104,11 +136,28 @@ class Leveling(commands.Cog, name="Leveling"):
             return
         self.cooldowns[(message.guild.id, user_id)] = now
 
-        rate = settings.get("xp_rate", 1.0)
+        base_rate = settings.get("xp_rate", 1.0)
         xp_min = settings.get("xp_per_message_min", 15)
         xp_max = settings.get("xp_per_message_max", 25)
-        earned = random.randint(xp_min, xp_max)
+        if settings.get("random_xp", True):
+            earned = random.randint(xp_min, xp_max)
+        else:
+            earned = xp_min
+        # Role-specific multipliers: apply the highest one the member holds
+        role_mult = 1.0
+        multipliers = settings.get("role_xp_multipliers", {})
+        if isinstance(multipliers, dict) and multipliers:
+            for role in message.author.roles:
+                try:
+                    rmult = multipliers.get(str(role.id))
+                except Exception:
+                    rmult = None
+                if rmult:
+                    role_mult = max(role_mult, float(rmult))
+        rate = base_rate * role_mult
         earned = int(earned * rate)
+        if earned <= 0:
+            return
 
         data = await get_user_xp(message.guild.id, user_id)
         old_level = data["level"]
@@ -118,12 +167,14 @@ class Leveling(commands.Cog, name="Leveling"):
 
         if new_level > old_level:
             level_roles = settings.get("level_roles", {})
+            granted_role = None
             role_id = level_roles.get(str(new_level))
             if role_id:
                 role = message.guild.get_role(int(role_id))
                 if role:
                     try:
                         await message.author.add_roles(role, reason=f"Level {new_level} reward")
+                        granted_role = role
                     except Exception as e:
                         logger.warning(f"Failed to add level role: {e}")
 
@@ -132,7 +183,15 @@ class Leveling(commands.Cog, name="Leveling"):
             if channel:
                 try:
                     level_up_msg = settings.get("level_up_message", "🎉 {user} reached **level {level}**!")
-                    msg = level_up_msg.replace("{user}", message.author.mention).replace("{level}", str(new_level))
+                    xp_needed = xp_for_level(new_level + 1) - new_xp
+                    msg = format_level_up_message(
+                        level_up_msg,
+                        message=message,
+                        level=new_level,
+                        xp=new_xp,
+                        xp_needed=xp_needed,
+                        granted_role=granted_role,
+                    )
                     embed = (
                         EmbedBuilder()
                         .title("🎉 Level Up!")

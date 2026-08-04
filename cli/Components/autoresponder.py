@@ -10,6 +10,26 @@ from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
 
 
+def format_response(template: str, message: discord.Message, trigger: str) -> str:
+    """Replace {vars} in an autoresponder response with real values."""
+    replacements = {
+        "{user}": message.author.mention,
+        "{mention}": message.author.mention,
+        "{name}": message.author.display_name,
+        "{author}": message.author.name,
+        "{message}": message.content or "",
+        "{trigger}": trigger,
+        "{channel}": message.channel.mention,
+        "{servername}": message.guild.name if message.guild else "",
+        "{server}": message.guild.name if message.guild else "",
+        "{membercount}": str(message.guild.member_count or 0) if message.guild else "",
+    }
+    out = template
+    for key, value in replacements.items():
+        out = out.replace(key, value)
+    return out
+
+
 class Autoresponder(commands.Cog, name="Autoresponder"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -63,20 +83,26 @@ class Autoresponder(commands.Cog, name="Autoresponder"):
                 self.cooldowns[key] = now
 
             matched = False
-            if t["match_type"] == "exact" and message.content.lower() == t["trigger"].lower():
+            content = message.content or ""
+            if t["match_type"] == "exact" and content.lower() == t["trigger"].lower():
                 matched = True
-            elif t["match_type"] == "contains" and t["trigger"].lower() in message.content.lower():
+            elif t["match_type"] == "contains" and t["trigger"].lower() in content.lower():
+                matched = True
+            elif t["match_type"] == "starts_with" and content.lower().startswith(t["trigger"].lower()):
+                matched = True
+            elif t["match_type"] == "ends_with" and content.lower().endswith(t["trigger"].lower()):
                 matched = True
             elif t["match_type"] == "regex":
                 try:
-                    if re.search(t["trigger"], message.content, re.IGNORECASE):
+                    if re.search(t["trigger"], content, re.IGNORECASE):
                         matched = True
                 except re.error:
                     pass
 
             if matched:
                 try:
-                    await message.channel.send(t["response"])
+                    response = format_response(t["response"], message, t["trigger"])
+                    await message.channel.send(response)
                 except Exception as e:
                     logger.warning(f"Autoresponder failed to send: {e}")
 
@@ -93,6 +119,8 @@ class Autoresponder(commands.Cog, name="Autoresponder"):
     @app_commands.choices(match_type=[
         app_commands.Choice(name="Exact match", value="exact"),
         app_commands.Choice(name="Contains", value="contains"),
+        app_commands.Choice(name="Starts with", value="starts_with"),
+        app_commands.Choice(name="Ends with", value="ends_with"),
         app_commands.Choice(name="Regex", value="regex")
     ])
     async def add(self, interaction: discord.Interaction, trigger: str, response: str, match_type: str = "contains", channel: discord.TextChannel = None, cooldown: int = 0):

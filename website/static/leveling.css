@@ -132,3 +132,42 @@
   font-size: 0.66rem;
   color: rgba(255,255,255,0.35);
 }
+
+/* ── Disabled state (leveling turned off) ── */
+#leveling-wrap.is-disabled .md-section {
+  opacity: 0.35;
+  pointer-events: none;
+  filter: grayscale(0.4);
+  transition: opacity 0.25s ease, filter 0.25s ease;
+}
+#leveling-wrap .md-section {
+  transition: opacity 0.25s ease, filter 0.25s ease;
+}
+
+/* Multiplier badge (role XP rates) */
+.md-level-role-badge.mult {
+  color: #fbbf24;
+  background: rgba(251,191,36,0.1);
+  border-color: rgba(251,191,36,0.3);
+}
+
+/* Level-up message preview */
+.md-lvl-preview {
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.75);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 4px;
+  padding: 0.6rem 0.75rem;
+  word-break: break-word;
+}
+.lvl-preview-var {
+  color: #7b8cff;
+  font-weight: 700;
+}
+.md-lvl-preview .md-vars-hint {
+  margin-top: 0.4rem;
+}
+

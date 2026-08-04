@@ -86,3 +86,19 @@
   right: 0.55rem;
   padding: 0.3rem 0.45rem;
 }
+.ar-item.is-pending {
+  border-color: rgba(251,191,36,0.35);
+  background: rgba(251,191,36,0.04);
+}
+.ar-item-pending {
+  flex-shrink: 0;
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #1a1a1a;
+  background: #fbbf24;
+  border-radius: 3px;
+  padding: 0.1rem 0.3rem;
+}
+

@@ -1,7 +1,7 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
 <link rel="stylesheet" href="/static/moderation.css?v=10" />
-<link rel="stylesheet" href="/static/autoresponder.css?v=1" />
+<link rel="stylesheet" href="/static/autoresponder.css?v=2" />
 <div>
 
   <div style="margin-bottom:1rem;animation-delay:.05s;">
@@ -24,18 +24,15 @@
             <div class="md-behavior-label">Response</div>
             <div class="md-behavior-desc">What the bot replies with (supports variables below)</div>
             <textarea class="md-input md-textarea" id="ar-response" rows="3" placeholder="e.g. Hello {user}!"></textarea>
-            <div class="md-vars-hint">Variables: {user} {mention} {servername} {channel}</div>
+            <div class="md-vars-hint">Variables: {user} {mention} {name} {author} {message} {trigger} {channel} {servername} {membercount}</div>
           </div>
           <div class="ar-form-row">
             <div style="flex:1;">
               <div class="md-behavior-label">Match Type</div>
-              <select class="md-input" id="ar-match">
-                <option value="contains">Contains</option>
-                <option value="exact">Exact match</option>
-                <option value="starts_with">Starts with</option>
-                <option value="ends_with">Ends with</option>
-                <option value="regex">Regex</option>
-              </select>
+              <div class="md-custom-select" id="ar-match-wrap">
+                <button class="md-custom-select-btn" id="ar-match-btn">Contains</button>
+                <div class="md-custom-select-drop" id="ar-match-drop"></div>
+              </div>
             </div>
             <div style="flex:1;">
               <div class="md-behavior-label">Channel (optional)</div>
@@ -71,31 +68,58 @@
 const GID = window.__GUILD_ID;
 const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
 
-const MATCH_LABELS = { contains:'Contains', exact:'Exact', starts_with:'Starts with', ends_with:'Ends with', regex:'Regex' };
+const MATCH_OPTIONS = [
+  { value:'contains', label:'Contains' },
+  { value:'exact', label:'Exact match' },
+  { value:'starts_with', label:'Starts with' },
+  { value:'ends_with', label:'Ends with' },
+  { value:'regex', label:'Regex' },
+];
 
-async function loadTriggers() {
+// Staged edits: additions are pending until Save, removals are pending until Save.
+let loaded = [];
+let stagedAdds = [];
+let stagedRemoves = new Set();
+let matchType = 'contains';
+let selectedChannel = null;
+const saveBar = document.getElementById('save-bar');
+const saveBtn = document.getElementById('save-btn');
+
+function updateSaveBar() {
+  if (stagedAdds.length || stagedRemoves.size) saveBar.classList.remove('is-closed');
+  else saveBar.classList.add('is-closed');
+}
+
+function currentList() {
+  return [...stagedAdds, ...loaded.filter(t => !stagedRemoves.has(String(t.id)))];
+}
+
+function renderList() {
   const el = document.getElementById('ar-list');
-  try {
-    const res = await fetch(`/api/v1/autoresponder/${GID}/triggers`);
-    const d = await res.json();
-    const list = d.triggers || [];
-    if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No triggers yet. Add one to the left.</div>'; return; }
-    el.innerHTML = list.map(t => `<div class="ar-item" data-id="${t.id}"><div class="ar-item-trigger"><div class="ar-item-trigger-text">${esc(t.trigger)}</div><span class="ar-item-match">${esc(MATCH_LABELS[t.match_type] || t.match_type)}</span></div><div class="ar-item-response">${esc(t.response)}</div><div class="ar-item-meta">${t.channel_id ? ('<span class="ar-item-channel">' + esc(channelName(t.channel_id)) + '</span>') : ''}${parseInt(t.cooldown) ? ('<span class="ar-item-cooldown">' + t.cooldown + 's cd</span>') : ''}</div><button class="md-action-btn danger ar-item-del" data-id="${t.id}"><i data-lucide="trash-2"></i></button></div>`).join('');
-    lucide.createIcons();
-    el.querySelectorAll('.ar-item-del').forEach(b => b.addEventListener('click', async () => {
-      b.disabled = true;
-      const res = await fetch(`/api/v1/autoresponder/${GID}/triggers/${b.dataset.id}`, { method:'DELETE' });
-      if (res.ok) {
-        if (typeof showToast === 'function') showToast('Trigger removed.', 'success');
-        loadTriggers();
-      } else {
-        if (typeof showToast === 'function') showToast('Failed to remove trigger.', 'error');
-        b.disabled = false;
-      }
-    }));
-  } catch (e) {
-    el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load.</div>';
+  const list = currentList();
+  if (!list.length) {
+    el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No triggers yet. Add one to the left.</div>';
+    return;
   }
+  el.innerHTML = list.map(t => {
+    const isNew = t.is_new;
+    const pendingClass = isNew ? ' is-pending' : '';
+    const pendingBadge = isNew ? '<span class="ar-item-pending">new</span>' : '';
+    return `<div class="ar-item${pendingClass}" data-id="${t.id}"><div class="ar-item-trigger"><div class="ar-item-trigger-text">${esc(t.trigger)}</div>${pendingBadge}<span class="ar-item-match">${esc(t.match_label || MATCH_OPTIONS.find(m=>m.value===t.match_type)?.label || t.match_type)}</span></div><div class="ar-item-response">${esc(t.response)}</div><div class="ar-item-meta">${t.channel_id ? ('<span class="ar-item-channel">' + esc(channelName(t.channel_id)) + '</span>') : ''}${parseInt(t.cooldown) ? ('<span class="ar-item-cooldown">' + t.cooldown + 's cd</span>') : ''}</div><button class="md-action-btn danger ar-item-del" data-id="${t.id}"><i data-lucide="trash-2"></i></button></div>`;
+  }).join('');
+  lucide.createIcons();
+  el.querySelectorAll('.ar-item-del').forEach(b => b.addEventListener('click', () => {
+    const id = b.dataset.id;
+    const item = currentList().find(x => String(x.id) === String(id));
+    if (!item) return;
+    if (item.is_new) {
+      stagedAdds = stagedAdds.filter(x => x.tempId !== item.tempId);
+    } else {
+      stagedRemoves.add(String(id));
+    }
+    renderList();
+    updateSaveBar();
+  }));
 }
 
 function channelName(id) {
@@ -106,8 +130,81 @@ function channelName(id) {
   return '#' + id;
 }
 
+function resetForm() {
+  document.getElementById('ar-trigger').value = '';
+  document.getElementById('ar-response').value = '';
+  document.getElementById('ar-cooldown').value = '0';
+  matchType = 'contains';
+  document.getElementById('ar-match-btn').textContent = 'Contains';
+  selectedChannel = null;
+  const chBtn = document.getElementById('ar-channel-btn');
+  if (chBtn) { chBtn.textContent = 'Any channel'; }
+}
+
+async function saveChanges() {
+  const adds = [...stagedAdds];
+  const removes = [...stagedRemoves];
+  if (!adds.length && !removes.length) return;
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving...';
+  for (const t of adds) {
+    try {
+      const res = await fetch(`/api/v1/autoresponder/${GID}/triggers`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({trigger:t.trigger, response:t.response, match_type:t.match_type, channel_id:t.channel_id, cooldown:t.cooldown}) });
+      if (!res.ok) {
+        let detail = 'Save failed';
+        try { const j = await res.json(); detail = j.error || detail; } catch {}
+        if (typeof showToast === 'function') showToast(detail, 'error', 5000);
+        saveBtn.disabled = false; saveBtn.textContent = 'Save'; return;
+      }
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('Network error saving.', 'error', 5000);
+      saveBtn.disabled = false; saveBtn.textContent = 'Save'; return;
+    }
+  }
+  for (const id of removes) {
+    try {
+      await fetch(`/api/v1/autoresponder/${GID}/triggers/${id}`, { method:'DELETE' });
+    } catch {}
+  }
+  stagedAdds = [];
+  stagedRemoves = new Set();
+  resetForm();
+  await loadTriggers();
+  saveBtn.disabled = false;
+  saveBtn.textContent = 'Save';
+  saveBar.classList.add('is-closed');
+  if (typeof showToast === 'function') showToast('Triggers saved.', 'success');
+}
+
+async function loadTriggers() {
+  const el = document.getElementById('ar-list');
+  try {
+    const res = await fetch(`/api/v1/autoresponder/${GID}/triggers`);
+    const d = await res.json();
+    loaded = (d.triggers || []).map(t => ({ ...t, id: String(t.id) }));
+    renderList();
+  } catch (e) {
+    el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load.</div>';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
 
+  // Match type custom dropdown
+  const mBtn = document.getElementById('ar-match-btn');
+  const mDrop = document.getElementById('ar-match-drop');
+  if (mDrop) {
+    mDrop.innerHTML = MATCH_OPTIONS.map(o => `<button class="md-custom-opt" data-value="${o.value}">${o.label}</button>`).join('');
+    mDrop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+      matchType = b.dataset.value;
+      mBtn.textContent = b.textContent;
+      mDrop.classList.remove('is-open');
+    }));
+    mBtn.addEventListener('click', (e) => { e.stopPropagation(); mDrop.classList.toggle('is-open'); });
+    document.addEventListener('click', (e) => { if(!e.target.closest('#ar-match-wrap')) mDrop.classList.remove('is-open'); });
+  }
+
+  // Channel dropdown
   const chBtn = document.getElementById('ar-channel-btn');
   const chDrop = document.getElementById('ar-channel-drop');
   fetch(`/api/v1/autoresponder/${GID}/channels`).then(r=>r.json()).then(d => {
@@ -115,46 +212,34 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!chDrop) return;
     chDrop.innerHTML = `<button class="md-custom-opt" data-id="">Any channel</button>` + (d.channels||[]).map(c => `<button class="md-custom-opt" data-id="${c.id}">#${esc(c.name)}</button>`).join('');
     chDrop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
-      chBtn.textContent = b.dataset.id ? b.textContent : 'Any channel';
-      chBtn.dataset.channelId = b.dataset.id;
+      selectedChannel = b.dataset.id || null;
+      chBtn.textContent = selectedChannel ? b.textContent : 'Any channel';
       chDrop.classList.remove('is-open');
     }));
     chBtn.addEventListener('click', (e) => { e.stopPropagation(); chDrop.classList.toggle('is-open'); });
     document.addEventListener('click', (e) => { if(!e.target.closest('#ar-channel-wrap')) chDrop.classList.remove('is-open'); });
   }).catch(()=>{});
 
-  document.getElementById('ar-add-btn').addEventListener('click', async () => {
-    const btn = document.getElementById('ar-add-btn');
+  document.getElementById('ar-add-btn').addEventListener('click', () => {
     const trigger = document.getElementById('ar-trigger').value.trim();
     const response = document.getElementById('ar-response').value.trim();
-    const match_type = document.getElementById('ar-match').value;
-    const channel_id = chBtn ? (chBtn.dataset.channelId || null) : null;
     const cooldown = parseInt(document.getElementById('ar-cooldown').value) || 0;
     if (!trigger) { if (typeof showToast === 'function') showToast('Enter a trigger.', 'warning'); return; }
     if (!response) { if (typeof showToast === 'function') showToast('Enter a response.', 'warning'); return; }
-    btn.disabled = true;
-    btn.innerHTML = '<i data-lucide="loader" class="spin"></i> Adding...';
-    lucide.createIcons();
-    try {
-      const res = await fetch(`/api/v1/autoresponder/${GID}/triggers`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({trigger, response, match_type, channel_id, cooldown}) });
-      const d = await res.json().catch(()=>({}));
-      if (!res.ok) {
-        if (typeof showToast === 'function') showToast(d.error || 'Failed to add trigger.', 'error', 5000);
-        return;
-      }
-      document.getElementById('ar-trigger').value = '';
-      document.getElementById('ar-response').value = '';
-      if (chBtn) { chBtn.textContent = 'Any channel'; delete chBtn.dataset.channelId; }
-      document.getElementById('ar-cooldown').value = '0';
-      if (typeof showToast === 'function') showToast('Trigger added.', 'success');
-      loadTriggers();
-    } catch (e) {
-      if (typeof showToast === 'function') showToast('Network error adding trigger.', 'error');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = '<i data-lucide="plus"></i> Add Trigger';
-      lucide.createIcons();
-    }
+    stagedAdds.push({ tempId: 'new-' + Date.now(), is_new: true, trigger, response, match_type: matchType, match_label: MATCH_OPTIONS.find(o=>o.value===matchType)?.label, channel_id: selectedChannel, cooldown });
+    resetForm();
+    renderList();
+    updateSaveBar();
+    if (typeof showToast === 'function') showToast('Trigger staged. Press Save to apply.', 'info');
+  });
+
+  saveBtn.addEventListener('click', saveChanges);
+  document.getElementById('discard-btn').addEventListener('click', () => {
+    stagedAdds = [];
+    stagedRemoves = new Set();
+    resetForm();
+    renderList();
+    updateSaveBar();
   });
 
   loadTriggers();

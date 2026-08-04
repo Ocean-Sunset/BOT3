@@ -197,6 +197,16 @@ CREATE TABLE IF NOT EXISTS sessions (
     data    JSONB NOT NULL DEFAULT '{}',
     expires DOUBLE PRECISION NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS users (
+    id          TEXT PRIMARY KEY,
+    username    TEXT NOT NULL DEFAULT '',
+    global_name TEXT DEFAULT '',
+    avatar      TEXT DEFAULT '',
+    email       TEXT DEFAULT '',
+    created_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now())),
+    last_login  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+);
 """
 
 

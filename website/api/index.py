@@ -450,6 +450,7 @@ async def callback(request: Request, code: str = None):
     user = await discord_get("/users/@me", access_token)
     if user:
         request.session["user"] = user
+        await _upsert_user(user)
 
     return RedirectResponse("/dashboard")
 
@@ -602,6 +603,48 @@ async def require_guild_access(request: Request, guild_id: str):
     if not any(str(g["id"]) == guild_id for g in guilds):
         raise HTTPException(status_code=403, detail="No access to this guild")
     return user
+
+
+# ---------------------------------------------------------------------------
+#  Accounts
+# ---------------------------------------------------------------------------
+
+async def _upsert_user(user: dict):
+    """Record (or update) a user account on login."""
+    if not user or not user.get("id"):
+        return
+    try:
+        await execute(
+            "INSERT INTO users (id, username, global_name, avatar, email, created_at, last_login) "
+            "VALUES ($1, $2, $3, $4, $5, $6, $6) "
+            "ON CONFLICT (id) DO UPDATE SET username = EXCLUDED.username, "
+            "global_name = EXCLUDED.global_name, avatar = EXCLUDED.avatar, "
+            "email = EXCLUDED.email, last_login = EXCLUDED.last_login",
+            str(user["id"]), user.get("username", ""), user.get("global_name") or user.get("username", ""),
+            user.get("avatar"), user.get("email", ""), time.time(),
+        )
+    except Exception as e:
+        logger.error("Failed to upsert user account: %s", e)
+
+
+@app.get("/api/v1/account")
+async def account_info(request: Request):
+    user = await require_auth(request)
+    row = await fetchrow("SELECT id, username, global_name, created_at, last_login FROM users WHERE id = $1", str(user.get("id")))
+    if not row:
+        # Account not recorded yet (e.g. logged in before this feature) - record it now
+        await _upsert_user(user)
+        row = await fetchrow("SELECT id, username, global_name, created_at, last_login FROM users WHERE id = $1", str(user.get("id")))
+    return {"account": dict(row) if row else None}
+
+
+@app.post("/api/v1/account/delete")
+async def account_delete(request: Request):
+    user = await require_auth(request)
+    uid = str(user.get("id"))
+    await execute("DELETE FROM users WHERE id = $1", uid)
+    request.session.clear()
+    return {"ok": True}
 
 
 @app.get("/api/v1/health")
@@ -1336,8 +1379,10 @@ LEVELING_DEFAULTS = {
     "announce_channel_id": None,
     "xp_rate": 1.0,
     "xp_cooldown": 60,
+    "random_xp": True,
     "xp_per_message_min": 15,
     "xp_per_message_max": 25,
+    "role_xp_multipliers": {},
     "level_roles": {},
     "level_up_message": "🎉 {user} reached **level {level}**!",
 }
@@ -1355,6 +1400,26 @@ async def _get_leveling_settings(guild_id: str):
         if isinstance(settings, dict):
             return {**LEVELING_DEFAULTS, **settings}
     return dict(LEVELING_DEFAULTS)
+
+
+def _sanitize_role_multipliers(value):
+    """Validate role_xp_multipliers: dict of {role_id(snowflake): float>=0}."""
+    if not isinstance(value, dict):
+        return None, "role_xp_multipliers must be an object"
+    if len(value) > 50:
+        return None, "too many role multipliers (max 50)"
+    clean = {}
+    for role_id, mult in value.items():
+        if not _valid_snowflake(role_id):
+            return None, f"role '{role_id}' is not a valid Discord ID"
+        try:
+            f = float(mult)
+        except (TypeError, ValueError):
+            return None, f"multiplier for role '{role_id}' must be a number"
+        if f < 0:
+            return None, f"multiplier for role '{role_id}' must be 0 or higher"
+        clean[str(role_id)] = round(f, 2)
+    return clean, None
 
 
 def _sanitize_level_roles(value):
@@ -1393,6 +1458,14 @@ async def leveling_settings_set(guild_id: str, request: Request):
         return JSONResponse({"error": "missing key"}, status_code=400)
     if key == "level_roles":
         clean, err = _sanitize_level_roles(value)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        err = await _save_settings("leveling_settings", str(guild_id), key, clean, LEVELING_DEFAULTS)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        return {"ok": True}
+    if key == "role_xp_multipliers":
+        clean, err = _sanitize_role_multipliers(value)
         if err:
             return JSONResponse({"error": err}, status_code=400)
         err = await _save_settings("leveling_settings", str(guild_id), key, clean, LEVELING_DEFAULTS)

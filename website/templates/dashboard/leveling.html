@@ -1,8 +1,8 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
 <link rel="stylesheet" href="/static/moderation.css?v=10" />
-<link rel="stylesheet" href="/static/leveling.css?v=1" />
-<div>
+<link rel="stylesheet" href="/static/leveling.css?v=2" />
+<div id="leveling-wrap">
 
   <div style="margin-bottom:1rem;animation-delay:.05s;">
     <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Leveling</h1>
@@ -28,9 +28,25 @@
         <div class="md-section-title">XP Settings</div>
         <div class="md-behavior-list">
           <div class="md-behavior-item">
+            <label class="md-toggle"><input type="checkbox" id="lvl-random" /><span class="md-toggle-slider"></span></label>
+            <div><div class="md-behavior-label">Random XP</div><div class="md-behavior-desc">Grant a random amount between min and max per message</div></div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label" id="xp-min-label">XP per Message (min)</div>
+              <input type="number" class="md-input" data-key="xp_per_message_min" min="1" placeholder="15" />
+            </div>
+          </div>
+          <div class="md-behavior-item" id="xp-max-wrap">
+            <div style="flex:1">
+              <div class="md-behavior-label">XP per Message (max)</div>
+              <input type="number" class="md-input" data-key="xp_per_message_max" min="1" placeholder="25" />
+            </div>
+          </div>
+          <div class="md-behavior-item">
             <div style="flex:1">
               <div class="md-behavior-label">XP Rate</div>
-              <div class="md-behavior-desc">Multiplier applied to all XP gained (0.5 = half, 2 = double)</div>
+              <div class="md-behavior-desc">Global multiplier applied to all XP gained (0.5 = half, 2 = double)</div>
               <input type="number" class="md-input" data-key="xp_rate" min="0" step="0.1" placeholder="1.0" />
             </div>
           </div>
@@ -41,18 +57,24 @@
               <input type="number" class="md-input" data-key="xp_cooldown" min="1" placeholder="60" />
             </div>
           </div>
-          <div class="md-behavior-item">
-            <div style="flex:1">
-              <div class="md-behavior-label">XP per Message (min)</div>
-              <input type="number" class="md-input" data-key="xp_per_message_min" min="1" placeholder="15" />
-            </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Role XP Rates</div>
+        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:0.6rem;line-height:1.5;">Members holding these roles earn multiplied XP (1.5 = 50% more, 2 = double, 0 = no XP). The highest rate the member holds wins.</p>
+        <div class="md-level-role-list" id="multiplier-list">
+          <div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
+        </div>
+        <div class="md-level-role-add">
+          <div class="md-custom-select" id="mult-role-select-wrap">
+            <button class="md-custom-select-btn" id="mult-role-select-btn">Select role...</button>
+            <div class="md-custom-select-drop" id="mult-role-select-drop"></div>
           </div>
-          <div class="md-behavior-item">
-            <div style="flex:1">
-              <div class="md-behavior-label">XP per Message (max)</div>
-              <input type="number" class="md-input" data-key="xp_per_message_max" min="1" placeholder="25" />
-            </div>
-          </div>
+          <input type="number" class="md-input" id="mult-amount" min="0" step="0.1" placeholder="Rate (e.g. 2)" style="max-width:120px;" />
+          <button class="md-action-btn" id="mult-add-btn"><i data-lucide="plus"></i> Add</button>
         </div>
       </div>
     </div>
@@ -64,10 +86,12 @@
           <div class="md-behavior-item" style="align-items:flex-start">
             <div style="flex:1">
               <input type="text" class="md-input" data-key="level_up_message" placeholder="🎉 {user} reached **level {level}**!" />
-              <div class="md-vars-hint">Variables: {user} {level} {name} {servername}</div>
+              <div class="md-vars-hint">Variables: {user} {mention} {name} {level} {next_level} {xp} {xp_needed} {role} {servername} {membercount}</div>
             </div>
           </div>
         </div>
+        <div style="font-size:0.7rem;font-weight:700;color:rgba(255,255,255,0.4);margin:0.6rem 0 0.3rem;letter-spacing:0.02em;">PREVIEW</div>
+        <div class="md-lvl-preview" id="lvl-preview">🎉 <span style="color:#5865f2;">@User</span> reached <strong>level 12</strong>!</div>
       </div>
     </div>
 
@@ -121,6 +145,8 @@ const esc = s => { const d=document.createElement('div'); d.textContent=s||''; r
 const pending = {};
 const original = {};
 let SETTINGS_SNAPSHOT = {};
+let LOADED = {};
+let ROLE_MAP = {};
 const saveBar = document.getElementById('save-bar');
 const saveBtn = document.getElementById('save-btn');
 let saveTimer = null;
@@ -132,6 +158,79 @@ function markChanged(key, value) {
   saveBar.classList.remove('is-closed');
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
+  updatePreview();
+}
+
+function updatePreview() {
+  const msg = SETTINGS_SNAPSHOT.level_up_message || '🎉 {user} reached **level {level}**!';
+  const level = 12;
+  const xp = 2470;
+  const xp_needed = 150;
+  const sample = {
+    '{user}': '@User', '{mention}': '@User', '{name}': 'User',
+    '{level}': level, '{next_level}': level+1, '{xp}': xp, '{xp_needed}': xp_needed,
+    '{role}': '@VIP', '{servername}': 'My Server', '{membercount}': 128, '{server}': 'My Server',
+  };
+  let html = msg;
+  for (const k in sample) html = html.split(k).join('<span class="lvl-preview-var">' + sample[k] + '</span>');
+  document.getElementById('lvl-preview').innerHTML = html || '<span style="color:rgba(255,255,255,0.3)">Nothing yet</span>';
+}
+
+function renderDisabledState() {
+  const enabled = document.getElementById('lvl-enabled').checked;
+  document.getElementById('leveling-wrap').classList.toggle('is-disabled', !enabled);
+}
+
+function renderRandomState() {
+  const random = document.getElementById('lvl-random').checked;
+  const maxWrap = document.getElementById('xp-max-wrap');
+  const maxInput = document.querySelector('[data-key="xp_per_message_max"]');
+  const minLabel = document.getElementById('xp-min-label');
+  if (maxWrap) {
+    maxWrap.style.opacity = random ? '1' : '0.4';
+    if (maxInput) maxInput.disabled = !random;
+  }
+  if (minLabel) minLabel.textContent = random ? 'XP per Message (min)' : 'XP per Message (fixed)';
+}
+
+function renderLevelRoles(roles) {
+  const el = document.getElementById('level-role-list');
+  const entries = Object.entries(roles).sort((a,b) => parseInt(a[0]) - parseInt(b[0]));
+  if (!entries.length) {
+    el.innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No level roles yet.</div>';
+    return;
+  }
+  el.innerHTML = entries.map(([level, roleId]) => {
+    const name = ROLE_MAP[roleId] || ('<@' + roleId + '>');
+    return `<div class="md-level-role-item"><span class="md-level-role-badge">Level ${esc(level)}</span><span class="md-level-role-name">${esc(name)}</span><button class="md-action-btn danger" data-remove="${level}"><i data-lucide="trash-2"></i></button></div>`;
+  }).join('');
+  lucide.createIcons();
+  el.querySelectorAll('[data-remove]').forEach(btn => btn.addEventListener('click', () => {
+    const next = { ...SETTINGS_SNAPSHOT.level_roles };
+    delete next[btn.dataset.remove];
+    markChanged('level_roles', next);
+    renderLevelRoles(next);
+  }));
+}
+
+function renderMultipliers(mults) {
+  const el = document.getElementById('multiplier-list');
+  const entries = Object.entries(mults).sort((a,b) => parseFloat(b[1]) - parseFloat(a[1]));
+  if (!entries.length) {
+    el.innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No role rates yet.</div>';
+    return;
+  }
+  el.innerHTML = entries.map(([roleId, mult]) => {
+    const name = ROLE_MAP[roleId] || ('<@' + roleId + '>');
+    return `<div class="md-level-role-item"><span class="md-level-role-badge mult">${esc(String(mult))}×</span><span class="md-level-role-name">${esc(name)}</span><button class="md-action-btn danger" data-mult-remove="${roleId}"><i data-lucide="trash-2"></i></button></div>`;
+  }).join('');
+  lucide.createIcons();
+  el.querySelectorAll('[data-mult-remove]').forEach(btn => btn.addEventListener('click', () => {
+    const next = { ...SETTINGS_SNAPSHOT.role_xp_multipliers };
+    delete next[btn.dataset.multRemove];
+    markChanged('role_xp_multipliers', next);
+    renderMultipliers(next);
+  }));
 }
 
 async function saveChanges() {
@@ -153,14 +252,15 @@ async function saveChanges() {
       return;
     }
   }
-  for (const key of keys) delete pending[key];
+  for (const key of keys) {
+    LOADED[key] = pending[key];
+    delete pending[key];
+  }
   saveBar.classList.add('is-closed');
   saveBtn.disabled = false;
   saveBtn.textContent = 'Save';
   if (typeof showToast === 'function') showToast('Settings saved.', 'success');
 }
-
-let ROLE_MAP = {};
 
 document.addEventListener('DOMContentLoaded', async () => {
 
@@ -169,37 +269,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     (d.roles||[]).forEach(r => { ROLE_MAP[r.id] = r.name; });
     const btn = document.getElementById('lvl-role-select-btn');
     const drop = document.getElementById('lvl-role-select-drop');
-    if (!drop) return;
-    drop.innerHTML = (d.roles||[]).map(r => `<button class="md-custom-opt" data-id="${r.id}">${esc(r.name)}</button>`).join('');
-    drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
-      btn.textContent = b.textContent;
-      btn.dataset.roleId = b.dataset.id;
-      drop.classList.remove('is-open');
-    }));
-    btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
-    document.addEventListener('click', (e) => { if(!e.target.closest('#lvl-role-select-wrap')) drop.classList.remove('is-open'); });
-    renderLevelRoles(SETTINGS_SNAPSHOT.level_roles || {});
-  }).catch(()=>{});
-
-  function renderLevelRoles(roles) {
-    const el = document.getElementById('level-role-list');
-    const entries = Object.entries(roles).sort((a,b) => parseInt(a[0]) - parseInt(b[0]));
-    if (!entries.length) {
-      el.innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No level roles yet.</div>';
-      return;
+    if (drop) {
+      drop.innerHTML = (d.roles||[]).map(r => `<button class="md-custom-opt" data-id="${r.id}">${esc(r.name)}</button>`).join('');
+      drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+        btn.textContent = b.textContent;
+        btn.dataset.roleId = b.dataset.id;
+        drop.classList.remove('is-open');
+      }));
+      btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+      document.addEventListener('click', (e) => { if(!e.target.closest('#lvl-role-select-wrap')) drop.classList.remove('is-open'); });
     }
-    el.innerHTML = entries.map(([level, roleId]) => {
-      const name = ROLE_MAP[roleId] || ('<@' + roleId + '>');
-      return `<div class="md-level-role-item"><span class="md-level-role-badge">Level ${esc(level)}</span><span class="md-level-role-name">${esc(name)}</span><button class="md-action-btn danger" data-remove="${level}"><i data-lucide="trash-2"></i></button></div>`;
-    }).join('');
-    lucide.createIcons();
-    el.querySelectorAll('[data-remove]').forEach(btn => btn.addEventListener('click', () => {
-      const next = { ...SETTINGS_SNAPSHOT.level_roles };
-      delete next[btn.dataset.remove];
-      markChanged('level_roles', next);
-      renderLevelRoles(next);
-    }));
-  }
+    const mbtn = document.getElementById('mult-role-select-btn');
+    const mdrop = document.getElementById('mult-role-select-drop');
+    if (mdrop) {
+      mdrop.innerHTML = (d.roles||[]).map(r => `<button class="md-custom-opt" data-id="${r.id}">${esc(r.name)}</button>`).join('');
+      mdrop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+        mbtn.textContent = b.textContent;
+        mbtn.dataset.roleId = b.dataset.id;
+        mdrop.classList.remove('is-open');
+      }));
+      mbtn.addEventListener('click', (e) => { e.stopPropagation(); mdrop.classList.toggle('is-open'); });
+      document.addEventListener('click', (e) => { if(!e.target.closest('#mult-role-select-wrap')) mdrop.classList.remove('is-open'); });
+    }
+    renderLevelRoles(SETTINGS_SNAPSHOT.level_roles || {});
+    renderMultipliers(SETTINGS_SNAPSHOT.role_xp_multipliers || {});
+  }).catch(()=>{});
 
   document.getElementById('lvl-role-add-btn').addEventListener('click', () => {
     const level = parseInt(document.getElementById('lvl-role-level').value);
@@ -212,19 +306,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderLevelRoles(next);
   });
 
+  document.getElementById('mult-add-btn').addEventListener('click', () => {
+    const roleId = document.getElementById('mult-role-select-btn').dataset.roleId;
+    const amount = parseFloat(document.getElementById('mult-amount').value);
+    if (!roleId) { if (typeof showToast === 'function') showToast('Select a role first.', 'warning'); return; }
+    if (isNaN(amount) || amount < 0) { if (typeof showToast === 'function') showToast('Enter a rate (0 or higher).', 'warning'); return; }
+    const next = { ...(SETTINGS_SNAPSHOT.role_xp_multipliers||{}) };
+    next[String(roleId)] = Math.round(amount * 100) / 100;
+    markChanged('role_xp_multipliers', next);
+    renderMultipliers(next);
+  });
+
   api('/settings').then(d => {
     const s = d.settings || {};
     SETTINGS_SNAPSHOT = { ...s };
+    LOADED = { ...s };
     const enabled = document.getElementById('lvl-enabled');
+    const random = document.getElementById('lvl-random');
     if (enabled) enabled.checked = !!s.enabled;
+    if (random) random.checked = s.random_xp !== false;
     ['xp_rate','xp_cooldown','xp_per_message_min','xp_per_message_max'].forEach(k => {
       const el = document.querySelector(`[data-key="${k}"]`);
       if (el && s[k] !== undefined) el.value = s[k];
     });
     const msg = document.querySelector('[data-key="level_up_message"]');
     if (msg) msg.value = s.level_up_message || '';
+    renderLevelRoles(s.level_roles || {});
+    renderMultipliers(s.role_xp_multipliers || {});
+    renderDisabledState();
+    renderRandomState();
+    updatePreview();
 
-    if (enabled) enabled.addEventListener('change', function(){ markChanged('enabled', this.checked); });
+    if (enabled) enabled.addEventListener('change', function(){ markChanged('enabled', this.checked); renderDisabledState(); });
+    if (random) random.addEventListener('change', function(){ markChanged('random_xp', this.checked); renderRandomState(); });
     document.querySelectorAll('input[type="number"][data-key]').forEach(inp => inp.addEventListener('input', function(){
       markChanged(this.dataset.key, parseFloat(this.value) || 0);
     }));
@@ -269,17 +383,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   saveBtn.addEventListener('click', saveChanges);
   document.getElementById('discard-btn').addEventListener('click', () => {
+    // Revert to the state that was loaded from the server
+    const reverted = { ...LOADED };
     for (const key of Object.keys(pending)) {
-      const el = document.querySelector(`[data-key="${key}"]`);
-      if (el) {
-        if (el.type === 'checkbox') el.checked = !!original[key];
-        else el.value = original[key] ?? '';
-      }
-      delete original[key];
+      if (key in original) reverted[key] = original[key];
     }
-    if ('enabled' in pending) { document.getElementById('lvl-enabled').checked = !!original.enabled ?? !!SETTINGS_SNAPSHOT.enabled; delete original.enabled; }
     for (const key of Object.keys(pending)) delete pending[key];
-    if ('level_roles' in pending || Object.keys(pending).some(k => false)) {}
+    for (const key of Object.keys(original)) delete original[key];
+    SETTINGS_SNAPSHOT = { ...reverted };
+    // Revert simple inputs
+    ['xp_rate','xp_cooldown','xp_per_message_min','xp_per_message_max'].forEach(k => {
+      const el = document.querySelector(`[data-key="${k}"]`);
+      if (el) el.value = (k in reverted) ? reverted[k] : '';
+    });
+    const msg = document.querySelector('[data-key="level_up_message"]');
+    if (msg) msg.value = reverted.level_up_message || '';
+    const enabled = document.getElementById('lvl-enabled');
+    if (enabled) enabled.checked = !!reverted.enabled;
+    const random = document.getElementById('lvl-random');
+    if (random) random.checked = reverted.random_xp !== false;
+    renderLevelRoles(reverted.level_roles || {});
+    renderMultipliers(reverted.role_xp_multipliers || {});
+    renderDisabledState();
+    renderRandomState();
+    updatePreview();
     saveBar.classList.add('is-closed');
   });
 });

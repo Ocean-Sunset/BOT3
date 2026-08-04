@@ -219,11 +219,6 @@
           links.forEach(function(a) {
             a.href = a.getAttribute('href').replace('/guild//', '/guild/' + saved + '/');
           });
-          var sw = document.querySelector('.server-switch');
-          if (sw && sw.getAttribute('href') === '/servers') {
-            var g = document.querySelector('.server-name');
-            if (g) g.textContent = 'Last server';
-          }
         }
       }
     })();

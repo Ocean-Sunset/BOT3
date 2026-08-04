@@ -76,6 +76,24 @@ def unsign_session_id(cookie: str) -> Optional[str]:
     return None
 
 
+# ── Signed-cookie sessions (data embedded in the cookie itself) ──
+# Serverless-safe: no shared store needed; survives any instance / cold start.
+
+def sign_session_data(data: dict) -> str:
+    return _make_serializer(_get_current_key()).dumps(data or {})
+
+
+def unsign_session_data(cookie: str) -> Optional[dict]:
+    for entry in reversed(_key_ring):
+        try:
+            data = _make_serializer(entry["key"]).loads(cookie, max_age=SESSION_TTL)
+            if isinstance(data, dict):
+                return data
+        except (BadSignature, SignatureExpired):
+            continue
+    return None
+
+
 # ── File fallback (only used when DB is unavailable) ──
 
 def _save_file():

@@ -123,54 +123,78 @@ class RotatingSessionMiddleware:
 
         conn = HTTPConnection(scope)
         cookie_val = conn.cookies.get("session")
-        sid = None
-        if cookie_val:
-            sid = rotating_session.unsign_session_id(cookie_val)
-
-        is_new = False
-        if not sid:
-            sid = await rotating_session.create_session_async()
-            is_new = True
-
-        session_data = await rotating_session.get_session_async(sid)
+        # Session data lives in the signed cookie itself — serverless-safe.
+        session_data = rotating_session.unsign_session_data(cookie_val) if cookie_val else None
         if session_data is None:
             session_data = {}
-            await rotating_session.save_session_async(sid, session_data)
-
-        # Snapshot so we only write back to the DB when the session actually changed
-        import json as _json
-        session_snapshot = _json.dumps(session_data, sort_keys=True, default=str)
+        session_snapshot = json.dumps(session_data, sort_keys=True, default=str)
 
         scope["session"] = session_data
-        scope["session_sid"] = sid
 
         async def send_wrapper(message):
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
-                # Save session data back only if it changed
-                if scope.get("session") is not None:
-                    cur = _json.dumps(scope["session"], sort_keys=True, default=str)
-                    if cur != session_snapshot or is_new:
-                        await rotating_session.save_session_async(sid, scope["session"])
-                # Set cookie on new sessions or re-set on each response to refresh expiry.
-                # Production uses a shared .prowlbot.xyz cookie (cross-subdomain for api.),
-                # localhost keeps a same-origin lax cookie.
-                host = (conn.headers.get("host") or "").lower()
-                signed = rotating_session.sign_session_id(sid)
-                if "prowlbot.xyz" in host:
-                    headers["Set-Cookie"] = (
-                        f"session={signed}; Path=/; HttpOnly; SameSite=None; Secure; Domain=.prowlbot.xyz; Max-Age={86400}"
-                    )
-                else:
-                    headers["Set-Cookie"] = (
-                        f"session={signed}; Path=/; HttpOnly; SameSite=lax; Max-Age={86400}"
-                    )
+                # Re-sign the cookie whenever the data changed, to keep it fresh.
+                cur = json.dumps(scope.get("session") or {}, sort_keys=True, default=str)
+                if cur != session_snapshot or not cookie_val:
+                    signed = rotating_session.sign_session_data(scope.get("session") or {})
+                    host = (conn.headers.get("host") or "").lower()
+                    if "prowlbot.xyz" in host:
+                        headers["Set-Cookie"] = (
+                            f"session={signed}; Path=/; HttpOnly; SameSite=None; Secure; Domain=.prowlbot.xyz; Max-Age={86400}"
+                        )
+                    else:
+                        headers["Set-Cookie"] = (
+                            f"session={signed}; Path=/; HttpOnly; SameSite=lax; Max-Age={86400}"
+                        )
             await send(message)
 
         await self.app(scope, receive, send_wrapper)
 
 
 app.add_middleware(RotatingSessionMiddleware)
+
+# ── Subdomain routing: enforce api.prowlbot.xyz = API only, prowlbot.xyz = pages ──
+class SubdomainRouteMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        host = (scope.get("headers") or [])
+        host_str = ""
+        for k, v in host:
+            if k == b"host":
+                host_str = v.decode("latin-1").lower()
+                break
+        path = scope.get("path", "")
+        is_api = path.startswith("/api/")
+        is_api_host = "api.prowlbot.xyz" in host_str
+        is_main_host = "prowlbot.xyz" in host_str and not is_api_host
+
+        # api.prowlbot.xyz should only serve /api/* (and the health/ping endpoints)
+        if is_api_host and not is_api:
+            return await self._send_json(scope, receive, send, 404, {"error": "Not Found"})
+        # prowlbot.xyz should not serve /api/* — send them to the api subdomain
+        if is_main_host and is_api:
+            from starlette.responses import RedirectResponse
+            new_path = "https://api.prowlbot.xyz" + path
+            if scope.get("query_string"):
+                new_path += "?" + scope["query_string"].decode("latin-1")
+            resp = RedirectResponse(new_path, status_code=307)
+            await resp(scope, receive, send)
+            return
+        await self.app(scope, receive, send)
+
+    async def _send_json(self, scope, receive, send, status, obj):
+        from starlette.responses import JSONResponse
+        resp = JSONResponse(obj, status_code=status)
+        await resp(scope, receive, send)
+
+
+app.add_middleware(SubdomainRouteMiddleware)
 
 templates = Jinja2Templates(directory=str(ROOT / "templates"))
 app.mount("/static", StaticFiles(directory=str(ROOT / "static")), name="static")
@@ -437,9 +461,6 @@ async def callback_google():
 
 @app.get("/logout")
 async def logout(request: Request):
-    sid = request.scope.get("session_sid")
-    if sid:
-        await rotating_session.delete_session_async(sid)
     request.session.clear()
     return RedirectResponse("/")
 

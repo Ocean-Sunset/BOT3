@@ -64,6 +64,8 @@
 document.addEventListener('DOMContentLoaded', () => {
   const u = window.__USER || {};
   const g = window.__GUILD || {};
+  let savedGuild = null;
+  try { savedGuild = localStorage.getItem('prowl_guild'); } catch {}
   const avatarUrl = u.avatar ? `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=256` : `https://cdn.discordapp.com/embed/avatars/${parseInt(u.id||0)%5}.png`;
   document.getElementById('prof-avatar').src = avatarUrl;
   document.getElementById('prof-name').textContent = u.global_name || u.username || '—';
@@ -72,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('prof-uid').textContent = u.id || '—';
   document.getElementById('prof-uname').textContent = u.username || '—';
   document.getElementById('prof-dname').textContent = u.global_name || u.username || '—';
-  document.getElementById('prof-server').textContent = g.name || '—';
+  document.getElementById('prof-server').textContent = g.name || (savedGuild ? ('Last server: ' + savedGuild) : '—');
 });
 </script>
 {% endblock %}

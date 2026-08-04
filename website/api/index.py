@@ -514,6 +514,22 @@ async def select_guild(
     return RedirectResponse(f"/guild/{guild_id}/overview", status_code=303)
 
 
+@app.get("/guild/profile")
+async def guild_profile(request: Request):
+    user = get_user(request)
+    if not user:
+        return RedirectResponse("/dashboard")
+    # No guild context; the sidebar uses the last-viewed guild (saved client-side)
+    return templates.TemplateResponse(request, "dashboard/profile.html", {
+        "user": user,
+        "guild": None,
+        "guild_id": "",
+        "active_panel": "profile",
+        "bot_data": {},
+        "config": _cfg(),
+    })
+
+
 @app.get("/guild/{guild_id}/{panel}")
 @app.get("/guild/{guild_id}/")
 async def dashboard(request: Request, guild_id: str, panel: str = "overview"):
@@ -813,6 +829,15 @@ def _sanitize_setting(key: str, value, defaults: dict):
         except (TypeError, ValueError):
             return None, f"'{key}' must be an integer"
         return n, None
+    # Floats (rates / multipliers)
+    if isinstance(default, float):
+        try:
+            f = float(value)
+        except (TypeError, ValueError):
+            return None, f"'{key}' must be a number"
+        if f < 0:
+            return None, f"'{key}' must be positive"
+        return f, None
     return str(value), None
 
 
@@ -1300,6 +1325,241 @@ async def mod_action(guild_id: str, request: Request):
     target_name = body.get("target") if action in ("add_role", "remove_role", "nickname") else user_name
     await _queue_action(guild_id, action, user_id, target_name, reason, duration, moderator)
     return {"ok": True, "queued": True}
+
+
+# ---------------------------------------------------------------------------
+#  Leveling API v1
+# ---------------------------------------------------------------------------
+
+LEVELING_DEFAULTS = {
+    "enabled": True,
+    "announce_channel_id": None,
+    "xp_rate": 1.0,
+    "xp_cooldown": 60,
+    "xp_per_message_min": 15,
+    "xp_per_message_max": 25,
+    "level_roles": {},
+    "level_up_message": "🎉 {user} reached **level {level}**!",
+}
+
+
+async def _get_leveling_settings(guild_id: str):
+    row = await fetchrow("SELECT settings FROM leveling_settings WHERE guild_id = $1", str(guild_id))
+    if row:
+        settings = row["settings"]
+        if isinstance(settings, str):
+            try:
+                settings = json.loads(settings)
+            except (json.JSONDecodeError, TypeError):
+                return dict(LEVELING_DEFAULTS)
+        if isinstance(settings, dict):
+            return {**LEVELING_DEFAULTS, **settings}
+    return dict(LEVELING_DEFAULTS)
+
+
+def _sanitize_level_roles(value):
+    """Validate level_roles: dict of {level(str/int): role_id(snowflake)}."""
+    if not isinstance(value, dict):
+        return None, "level_roles must be an object"
+    if len(value) > 50:
+        return None, "too many level roles (max 50)"
+    clean = {}
+    for level, role_id in value.items():
+        try:
+            lvl = int(level)
+        except (TypeError, ValueError):
+            return None, f"level '{level}' must be an integer"
+        if lvl < 1:
+            return None, "levels must be 1 or higher"
+        if not _valid_snowflake(role_id):
+            return None, f"role for level {lvl} must be a valid Discord ID"
+        clean[str(lvl)] = str(role_id)
+    return clean, None
+
+
+@app.get("/api/v1/leveling/{guild_id}/settings")
+async def leveling_settings(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    return {"settings": await _get_leveling_settings(guild_id)}
+
+
+@app.post("/api/v1/leveling/{guild_id}/settings")
+async def leveling_settings_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    key = body.get("key")
+    value = body.get("value")
+    if not key:
+        return JSONResponse({"error": "missing key"}, status_code=400)
+    if key == "level_roles":
+        clean, err = _sanitize_level_roles(value)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        err = await _save_settings("leveling_settings", str(guild_id), key, clean, LEVELING_DEFAULTS)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        return {"ok": True}
+    err = await _save_settings("leveling_settings", str(guild_id), key, value, LEVELING_DEFAULTS)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    return {"ok": True}
+
+
+@app.get("/api/v1/leveling/{guild_id}/leaderboard")
+async def leveling_leaderboard(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    rows = await query(
+        "SELECT user_id, xp FROM leveling_data WHERE guild_id = $1 ORDER BY xp DESC LIMIT 50",
+        str(guild_id),
+    )
+    if not rows:
+        return {"members": []}
+    # Join with cached member data for names/avatars
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    by_id = {}
+    if d and "members" in d:
+        for m in d["members"]:
+            av = m.get("avatar_url") or m.get("avatar")
+            if av and not str(av).startswith("http"):
+                av = f"https://cdn.discordapp.com/avatars/{m.get('id')}/{av}.png?size=64"
+            by_id[str(m.get("id"))] = {
+                "name": m.get("name", ""), "display_name": m.get("display_name", ""),
+                "avatar_url": av or None,
+            }
+
+    def xp_for_level(lvl: int) -> int:
+        return 100 * lvl + 50 * (lvl - 1)
+
+    def level_from_xp(xp: int) -> int:
+        lvl = 1
+        while xp_for_level(lvl + 1) <= xp:
+            lvl += 1
+        return lvl
+
+    members = []
+    for r in rows:
+        uid = str(r["user_id"])
+        meta = by_id.get(uid, {})
+        xp = int(r["xp"] or 0)
+        level = level_from_xp(xp)
+        members.append({
+            "id": uid, "name": meta.get("name") or uid, "display_name": meta.get("display_name", ""),
+            "avatar_url": meta.get("avatar_url"),
+            "xp": xp, "level": level,
+            "xp_next": xp_for_level(level + 1) - xp_for_level(level),
+        })
+    return {"members": members}
+
+
+@app.get("/api/v1/leveling/{guild_id}/channels")
+async def leveling_channels(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "channels" in d:
+        return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
+    return {"channels": [{"id": "2001", "name": "general"}]}
+
+
+@app.get("/api/v1/leveling/{guild_id}/roles")
+async def leveling_roles(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    roles = d.get("roles", []) if d else []
+    if row and isinstance(row["data"], dict) and "roles" in row["data"]:
+        roles = row["data"]["roles"]
+    result = []
+    for r in roles:
+        if str(r.get("id", "")) == str(guild_id):
+            continue
+        tags = r.get("tags")
+        if isinstance(tags, dict) and tags.get("bot_id"):
+            continue
+        if r.get("managed", False):
+            continue
+        result.append({"id": str(r.get("id")), "name": r.get("name", ""), "color": r.get("color", 0), "position": r.get("position", 0), "count": r.get("count") or r.get("member_count") or 0})
+    result.sort(key=lambda x: x["position"], reverse=True)
+    if not result:
+        result = [
+            {"id": "4005", "name": "VIP", "color": 0, "position": 1, "count": 15},
+            {"id": "4006", "name": "Member", "color": 0, "position": 0, "count": 120},
+        ]
+    return {"roles": result}
+
+
+# ---------------------------------------------------------------------------
+#  Autoresponder API v1
+# ---------------------------------------------------------------------------
+
+@app.get("/api/v1/autoresponder/{guild_id}/triggers")
+async def autoresponder_triggers(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    rows = await query(
+        "SELECT id, trigger, response, match_type, channel_id, cooldown FROM autoresponder WHERE guild_id = $1 ORDER BY created_at ASC",
+        str(guild_id),
+    )
+    if not rows:
+        return {"triggers": []}
+    return {"triggers": [dict(r) for r in rows]}
+
+
+@app.get("/api/v1/autoresponder/{guild_id}/channels")
+async def autoresponder_channels(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "channels" in d:
+        return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
+    return {"channels": [{"id": "2001", "name": "general"}]}
+
+
+@app.post("/api/v1/autoresponder/{guild_id}/triggers")
+async def autoresponder_trigger_add(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    trigger = (body.get("trigger") or "").strip()
+    response = (body.get("response") or "").strip()
+    match_type = body.get("match_type") or "contains"
+    channel_id = body.get("channel_id") or None
+    cooldown = body.get("cooldown") or 0
+    if not trigger or not response:
+        return JSONResponse({"error": "trigger and response are required"}, status_code=400)
+    if len(trigger) > 300:
+        return JSONResponse({"error": "trigger is too long (max 300 chars)"}, status_code=400)
+    if len(response) > 2000:
+        return JSONResponse({"error": "response is too long (max 2000 chars)"}, status_code=400)
+    if match_type not in ("contains", "exact", "starts_with", "ends_with", "regex"):
+        return JSONResponse({"error": "invalid match_type"}, status_code=400)
+    if channel_id is not None and not _valid_snowflake(channel_id):
+        return JSONResponse({"error": "channel must be a valid Discord ID or null"}, status_code=400)
+    try:
+        cooldown = max(0, int(cooldown))
+    except (TypeError, ValueError):
+        return JSONResponse({"error": "cooldown must be an integer (seconds)"}, status_code=400)
+    existing = await query(
+        "SELECT id FROM autoresponder WHERE guild_id = $1 AND lower(trigger) = lower($2) AND match_type = $3",
+        str(guild_id), trigger, match_type,
+    )
+    if existing:
+        return JSONResponse({"error": "A trigger with this text and match type already exists."}, status_code=400)
+    r = await query(
+        "INSERT INTO autoresponder (guild_id, trigger, response, match_type, channel_id, cooldown) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, trigger, response, match_type, channel_id, cooldown",
+        str(guild_id), trigger, response, match_type, channel_id, cooldown,
+    )
+    return {"ok": True, "trigger": dict(r[0]) if r else None}
+
+
+@app.delete("/api/v1/autoresponder/{guild_id}/triggers/{trigger_id}")
+async def autoresponder_trigger_remove(guild_id: str, trigger_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    try:
+        tid = int(trigger_id)
+    except (TypeError, ValueError):
+        return JSONResponse({"error": "invalid trigger id"}, status_code=400)
+    await execute("DELETE FROM autoresponder WHERE guild_id = $1 AND id = $2", str(guild_id), tid)
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------

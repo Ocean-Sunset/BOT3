@@ -1,1 +1,287 @@
-{% extends "dashboard/base.html" %}{% block content %}<div style="padding:2rem 0;"><div style="margin-bottom:1.25rem;"><h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Leveling</h1><p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">XP, ranks, and leaderboard configuration</p></div><div style="border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:1.25rem;background:rgba(255,255,255,0.015);text-align:center;"><p style="color:rgba(255,255,255,0.4);font-size:14px;font-weight:600;padding:4rem 0;">Coming soon.</p></div></div>{% endblock %}
+{% extends "dashboard/base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/moderation.css?v=10" />
+<link rel="stylesheet" href="/static/leveling.css?v=1" />
+<div>
+
+  <div style="margin-bottom:1rem;animation-delay:.05s;">
+    <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Leveling</h1>
+    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">XP, ranks, and leaderboard configuration</p>
+  </div>
+
+  <div class="md-row">
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Leveling</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <label class="md-toggle"><input type="checkbox" id="lvl-enabled" /><span class="md-toggle-slider"></span></label>
+            <div><div class="md-behavior-label">Enable Leveling</div><div class="md-behavior-desc">Members earn XP by chatting and level up as they go</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">XP Settings</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">XP Rate</div>
+              <div class="md-behavior-desc">Multiplier applied to all XP gained (0.5 = half, 2 = double)</div>
+              <input type="number" class="md-input" data-key="xp_rate" min="0" step="0.1" placeholder="1.0" />
+            </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Cooldown (seconds)</div>
+              <div class="md-behavior-desc">Minimum wait between messages before XP is granted</div>
+              <input type="number" class="md-input" data-key="xp_cooldown" min="1" placeholder="60" />
+            </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">XP per Message (min)</div>
+              <input type="number" class="md-input" data-key="xp_per_message_min" min="1" placeholder="15" />
+            </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">XP per Message (max)</div>
+              <input type="number" class="md-input" data-key="xp_per_message_max" min="1" placeholder="25" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Level-Up Message</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <input type="text" class="md-input" data-key="level_up_message" placeholder="🎉 {user} reached **level {level}**!" />
+              <div class="md-vars-hint">Variables: {user} {level} {name} {servername}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Level-Up Announcements</div>
+        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:0.6rem;line-height:1.5;">Post level-up messages in this channel. Set to None to only show level-ups in chat.</p>
+        <div class="md-custom-select" id="announce-select-wrap">
+          <button class="md-custom-select-btn" id="announce-select-btn">Select channel...</button>
+          <div class="md-custom-select-drop" id="announce-select-drop"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Level Roles</div>
+        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:0.6rem;line-height:1.5;">Automatically grant a role when a member reaches a level.</p>
+        <div class="md-level-role-list" id="level-role-list">
+          <div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
+        </div>
+        <div class="md-level-role-add">
+          <input type="number" class="md-input" id="lvl-role-level" min="1" placeholder="Level" style="max-width:90px;" />
+          <div class="md-custom-select" id="lvl-role-select-wrap">
+            <button class="md-custom-select-btn" id="lvl-role-select-btn">Select role...</button>
+            <div class="md-custom-select-drop" id="lvl-role-select-drop"></div>
+          </div>
+          <button class="md-action-btn" id="lvl-role-add-btn"><i data-lucide="plus"></i> Add</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Leaderboard</div>
+        <div class="md-levelboard" id="leaderboard">
+          <div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const GID = window.__GUILD_ID;
+const api = (path, opts) => fetch(`/api/v1/leveling/${GID}${path}`, opts||{}).then(r=>r.json());
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+
+const pending = {};
+const original = {};
+let SETTINGS_SNAPSHOT = {};
+const saveBar = document.getElementById('save-bar');
+const saveBtn = document.getElementById('save-btn');
+let saveTimer = null;
+
+function markChanged(key, value) {
+  if (!(key in original)) original[key] = (key in SETTINGS_SNAPSHOT) ? SETTINGS_SNAPSHOT[key] : !value;
+  pending[key] = value;
+  SETTINGS_SNAPSHOT[key] = value;
+  saveBar.classList.remove('is-closed');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
+}
+
+async function saveChanges() {
+  const keys = Object.keys(pending);
+  if (!keys.length) return;
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving...';
+  for (const key of keys) {
+    try {
+      const res = await fetch(`/api/v1/leveling/${GID}/settings`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]}) });
+      if (!res.ok) {
+        let detail = 'Save failed';
+        try { const j = await res.json(); detail = j.detail || j.error || detail; } catch {}
+        if (typeof showToast === 'function') showToast(detail, 'error', 5000);
+        return;
+      }
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('Network error saving.', 'error', 5000);
+      return;
+    }
+  }
+  for (const key of keys) delete pending[key];
+  saveBar.classList.add('is-closed');
+  saveBtn.disabled = false;
+  saveBtn.textContent = 'Save';
+  if (typeof showToast === 'function') showToast('Settings saved.', 'success');
+}
+
+let ROLE_MAP = {};
+
+document.addEventListener('DOMContentLoaded', async () => {
+
+  api('/roles').then(d => {
+    ROLE_MAP = {};
+    (d.roles||[]).forEach(r => { ROLE_MAP[r.id] = r.name; });
+    const btn = document.getElementById('lvl-role-select-btn');
+    const drop = document.getElementById('lvl-role-select-drop');
+    if (!drop) return;
+    drop.innerHTML = (d.roles||[]).map(r => `<button class="md-custom-opt" data-id="${r.id}">${esc(r.name)}</button>`).join('');
+    drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+      btn.textContent = b.textContent;
+      btn.dataset.roleId = b.dataset.id;
+      drop.classList.remove('is-open');
+    }));
+    btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+    document.addEventListener('click', (e) => { if(!e.target.closest('#lvl-role-select-wrap')) drop.classList.remove('is-open'); });
+    renderLevelRoles(SETTINGS_SNAPSHOT.level_roles || {});
+  }).catch(()=>{});
+
+  function renderLevelRoles(roles) {
+    const el = document.getElementById('level-role-list');
+    const entries = Object.entries(roles).sort((a,b) => parseInt(a[0]) - parseInt(b[0]));
+    if (!entries.length) {
+      el.innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No level roles yet.</div>';
+      return;
+    }
+    el.innerHTML = entries.map(([level, roleId]) => {
+      const name = ROLE_MAP[roleId] || ('<@' + roleId + '>');
+      return `<div class="md-level-role-item"><span class="md-level-role-badge">Level ${esc(level)}</span><span class="md-level-role-name">${esc(name)}</span><button class="md-action-btn danger" data-remove="${level}"><i data-lucide="trash-2"></i></button></div>`;
+    }).join('');
+    lucide.createIcons();
+    el.querySelectorAll('[data-remove]').forEach(btn => btn.addEventListener('click', () => {
+      const next = { ...SETTINGS_SNAPSHOT.level_roles };
+      delete next[btn.dataset.remove];
+      markChanged('level_roles', next);
+      renderLevelRoles(next);
+    }));
+  }
+
+  document.getElementById('lvl-role-add-btn').addEventListener('click', () => {
+    const level = parseInt(document.getElementById('lvl-role-level').value);
+    const roleId = document.getElementById('lvl-role-select-btn').dataset.roleId;
+    if (!level || level < 1) { if (typeof showToast === 'function') showToast('Enter a level (1 or higher).', 'warning'); return; }
+    if (!roleId) { if (typeof showToast === 'function') showToast('Select a role first.', 'warning'); return; }
+    const next = { ...(SETTINGS_SNAPSHOT.level_roles||{}) };
+    next[String(level)] = roleId;
+    markChanged('level_roles', next);
+    renderLevelRoles(next);
+  });
+
+  api('/settings').then(d => {
+    const s = d.settings || {};
+    SETTINGS_SNAPSHOT = { ...s };
+    const enabled = document.getElementById('lvl-enabled');
+    if (enabled) enabled.checked = !!s.enabled;
+    ['xp_rate','xp_cooldown','xp_per_message_min','xp_per_message_max'].forEach(k => {
+      const el = document.querySelector(`[data-key="${k}"]`);
+      if (el && s[k] !== undefined) el.value = s[k];
+    });
+    const msg = document.querySelector('[data-key="level_up_message"]');
+    if (msg) msg.value = s.level_up_message || '';
+
+    if (enabled) enabled.addEventListener('change', function(){ markChanged('enabled', this.checked); });
+    document.querySelectorAll('input[type="number"][data-key]').forEach(inp => inp.addEventListener('input', function(){
+      markChanged(this.dataset.key, parseFloat(this.value) || 0);
+    }));
+    const msgInput = document.querySelector('[data-key="level_up_message"]');
+    if (msgInput) msgInput.addEventListener('input', function(){ markChanged('level_up_message', this.value); });
+
+    const selBtn = document.getElementById('announce-select-btn');
+    const drop = document.getElementById('announce-select-drop');
+    if (selBtn && drop) {
+      api('/channels').then(cd => {
+        if (!cd.channels) return;
+        drop.innerHTML = `<button class="md-custom-opt" data-id="">None</button>` + cd.channels.map(c => `<button class="md-custom-opt" data-id="${c.id}">#${esc(c.name)}</button>`).join('');
+        if (s.announce_channel_id) {
+          const match = cd.channels.find(c => String(c.id) === String(s.announce_channel_id));
+          selBtn.textContent = match ? '#' + match.name : 'Select channel...';
+        }
+        drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+          selBtn.textContent = b.dataset.id ? b.textContent : 'None';
+          markChanged('announce_channel_id', b.dataset.id || null);
+          drop.classList.remove('is-open');
+        }));
+      });
+      selBtn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+      document.addEventListener('click', (e) => { if(!e.target.closest('#announce-select-wrap')) drop.classList.remove('is-open'); });
+    }
+  }).catch(()=>{});
+
+  api('/leaderboard').then(d => {
+    const el = document.getElementById('leaderboard');
+    if (!d.members?.length) { el.innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No XP recorded yet - start chatting!</div>'; return; }
+    const top = d.members.slice(0, 10);
+    const medal = ['🥇','🥈','🥉'];
+    el.innerHTML = top.map((m,i) => {
+      const lvl = parseInt(m.level)||1;
+      const xp = parseInt(m.xp)||0;
+      const next = parseInt(m.xp_next)||0;
+      const cur = (lvl<=1) ? xp : xp - (100*(lvl-1) + 50*(lvl-2));
+      const pct = next ? Math.min(100, Math.round(cur/next*100)) : 100;
+      return `<div class="md-levelboard-row"><span class="md-levelboard-rank">${i<3?medal[i]:('#'+(i+1))}</span><div class="md-levelboard-avatar"><img loading="lazy" decoding="async" src="${m.avatar_url || ('https://cdn.discordapp.com/embed/avatars/'+(parseInt(m.id)%5)+'.png')}" style="width:100%;height:100%;object-fit:cover;" /></div><div class="md-levelboard-info"><div class="md-levelboard-name">${esc(m.display_name || m.name)}</div><div class="md-levelboard-bar"><div class="md-levelboard-fill" style="width:${pct}%"></div></div></div><div class="md-levelboard-meta"><span class="md-levelboard-lvl">Lv ${lvl}</span><span class="md-levelboard-xp">${xp.toLocaleString()} XP</span></div></div>`;
+    }).join('');
+  }).catch(() => document.getElementById('leaderboard').innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load.</div>');
+
+  saveBtn.addEventListener('click', saveChanges);
+  document.getElementById('discard-btn').addEventListener('click', () => {
+    for (const key of Object.keys(pending)) {
+      const el = document.querySelector(`[data-key="${key}"]`);
+      if (el) {
+        if (el.type === 'checkbox') el.checked = !!original[key];
+        else el.value = original[key] ?? '';
+      }
+      delete original[key];
+    }
+    if ('enabled' in pending) { document.getElementById('lvl-enabled').checked = !!original.enabled ?? !!SETTINGS_SNAPSHOT.enabled; delete original.enabled; }
+    for (const key of Object.keys(pending)) delete pending[key];
+    if ('level_roles' in pending || Object.keys(pending).some(k => false)) {}
+    saveBar.classList.add('is-closed');
+  });
+});
+</script>
+{% endblock %}

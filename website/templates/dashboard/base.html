@@ -174,7 +174,7 @@
             <div class="popover-label">Signed in as</div>
             <div class="popover-user">{{ user.username if user else 'User' }}</div>
           </div>
-          <a href="/guild/{{ guild_id }}/profile" class="popover-item"><i data-lucide="user"></i> Profile</a>
+          <a href="/guild/profile" class="popover-item"><i data-lucide="user"></i> Profile</a>
           <a href="/logout" class="popover-item danger"><i data-lucide="log-out"></i> Log out</a>
         </div>
       </div>
@@ -201,6 +201,32 @@
     window.__ACTIVE_PANEL = "{{ active_panel }}";
     window.__USER = {{ user | tojson }};
     window.__GUILD = {{ guild | tojson }};
+  </script>
+  <script>
+    // ── Guild context persistence ──
+    // Save the current guild so /guild/profile (which has no guild in the URL)
+    // can keep the sidebar pointing at the last server the user was on.
+    (function() {
+      var GID = window.__GUILD_ID;
+      if (GID) {
+        try { localStorage.setItem('prowl_guild', GID); } catch {}
+      } else {
+        var saved = null;
+        try { saved = localStorage.getItem('prowl_guild'); } catch {}
+        if (saved) {
+          // Rewrite sidebar links on context-free pages (/guild/profile)
+          var links = document.querySelectorAll('.nav-item[href^="/guild//"], a[href^="/guild//"]');
+          links.forEach(function(a) {
+            a.href = a.getAttribute('href').replace('/guild//', '/guild/' + saved + '/');
+          });
+          var sw = document.querySelector('.server-switch');
+          if (sw && sw.getAttribute('href') === '/servers') {
+            var g = document.querySelector('.server-name');
+            if (g) g.textContent = 'Last server';
+          }
+        }
+      }
+    })();
   </script>
   <script src="/static/dashboard.js"></script>
   <script>

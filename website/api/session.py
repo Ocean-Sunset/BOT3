@@ -45,17 +45,26 @@ CREATE TABLE IF NOT EXISTS sessions (
 """
 
 
+_fallback_key = None
+
+
 def _get_current_key() -> str:
-    global _last_rotation
-    now = time.time()
-    if now - _last_rotation >= KEY_ROTATION or not _key_ring:
-        new_key = secrets.token_hex(32)
-        _key_ring.append({"key": new_key, "since": now})
-        _last_rotation = now
-        cutoff = now - GRACE_PERIOD
-        _key_ring[:] = [k for k in _key_ring if k["since"] > cutoff]
-        if not _key_ring:
-            _key_ring.append({"key": secrets.token_hex(32), "since": now})
+    """Return a STABLE signing key.
+
+    Uses the SECRET_KEY env var so every serverless instance can verify each
+    other's cookies. Falls back to a per-process random key (single-instance dev).
+    """
+    global _fallback_key, _key_ring
+    env_key = os.environ.get("SECRET_KEY")
+    if env_key:
+        if not _key_ring or _key_ring[-1]["key"] != env_key:
+            _key_ring = [{"key": env_key, "since": 0}]
+        return env_key
+    # No env key (local dev without SECRET_KEY): stable per-process key.
+    if not _key_ring:
+        if _fallback_key is None:
+            _fallback_key = secrets.token_hex(32)
+        _key_ring = [{"key": _fallback_key, "since": 0}]
     return _key_ring[-1]["key"]
 
 

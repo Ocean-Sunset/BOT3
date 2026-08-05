@@ -12,6 +12,12 @@
 }
 .md-row > .md-section {
   margin-bottom: 1.5rem;
+  z-index: 1;
+  overflow: visible;
+}
+/* Keep the card with an open dropdown above its siblings so nothing is cut off */
+.md-row > .md-section:has(.is-open) {
+  z-index: 10;
 }
 
 .md-section-title {

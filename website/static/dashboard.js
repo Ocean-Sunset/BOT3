@@ -210,6 +210,7 @@
           return;
         }
         const cw = (row.clientWidth - GAP) / 2;
+        if (!(cw > 0)) return; // not laid out yet - retry on next mutation
         const colH = [0, 0];
         items.forEach((el) => {
           const i = colH[0] <= colH[1] ? 0 : 1;
@@ -226,14 +227,17 @@
 
     layout();
     let timer = null;
+    // Watch content/class changes only - NOT 'style', because layout() itself
+    // writes inline styles and would otherwise trigger an infinite relayout loop.
     const onMut = () => { clearTimeout(timer); timer = setTimeout(layout, 80); };
     rows.forEach((row) => {
       try {
         const obs = new MutationObserver(onMut);
-        obs.observe(row, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "style"] });
+        obs.observe(row, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
       } catch (e) {}
     });
     window.addEventListener("resize", () => { clearTimeout(timer); timer = setTimeout(layout, 120); });
+    window.addEventListener("load", () => { clearTimeout(timer); timer = setTimeout(layout, 150); });
     window.relayoutMasonry = layout;
   }
 

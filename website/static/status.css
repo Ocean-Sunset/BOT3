@@ -6,6 +6,12 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
 }
+
+/* Thin dark scrollbar to match the dashboard */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
 .wave-field { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
 .wave-field span { position: absolute; color: #fff; font-family: monospace; user-select: none; line-height: 1; }
 .vignette { position: fixed; inset: 0; background: radial-gradient(ellipse at center, transparent 30%, #0a0a0a 80%); pointer-events: none; z-index: 0; }

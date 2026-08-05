@@ -825,9 +825,29 @@ async def account_info(request: Request):
 async def account_delete(request: Request):
     user = await require_auth(request)
     uid = str(user.get("id"))
+    username = user.get("username", "Unknown")
+    # Find every server this user owns
+    owned = []
+    try:
+        rows = await query("SELECT guild_id, data FROM guild_data")
+        for row in rows:
+            d = _parse_guild_data(row)
+            if d and str(d.get("owner_id")) == uid:
+                owned.append(str(row["guild_id"]))
+    except Exception as e:
+        logger.error("account delete: failed to list owned guilds: %s", e)
+    # Wipe moderation state for those servers, then queue Prowl to leave each one
+    for gid in owned:
+        try:
+            await execute("DELETE FROM muted_users WHERE guild_id = $1", gid)
+            await execute("DELETE FROM mod_log WHERE guild_id = $1", gid)
+            await execute("DELETE FROM mod_actions WHERE guild_id = $1", gid)
+            await _queue_action(gid, "leave_guild", uid, username, "Account deleted", None, "System")
+        except Exception as e:
+            logger.error("account delete: cleanup failed for %s: %s", gid, e)
     await execute("DELETE FROM users WHERE id = $1", uid)
     request.session.clear()
-    return {"ok": True}
+    return {"ok": True, "cleaned_guilds": len(owned)}
 
 
 @app.get("/api/v1/health")

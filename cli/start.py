@@ -231,6 +231,7 @@ class ProwlBot(commands.Bot):
                 reason = a.get("reason") or "No reason provided"
                 duration = a.get("duration")
                 moderator = a.get("moderator") or "Dashboard"
+                skip_log = False
                 try:
                     if act in ("emergency_lock", "emergency_unlock"):
                         from components.moderation import get_mod_settings, save_mod_settings, perform_lockdown
@@ -315,26 +316,32 @@ class ProwlBot(commands.Bot):
                             raise Exception("member not in guild")
                         await member.edit(nick=a["target_name"], reason="Prowl dashboard")
                         reason = f"Nickname set to {a['target_name']}"
+                    elif act == "leave_guild":
+                        # Account deletion: leave the server entirely
+                        await guild.leave()
+                        reason = "Account deletion — leaving server"
+                        skip_log = True
                     await neon_db.complete_action(a["id"], "completed")
                     logger.info(f"Processed action {a['id']}: {act} -> {a['target_id']} in {a['guild_id']} ({reason})")
-                    # Log to mod_log only on actual success
-                    member_name = member.display_name if member else (a.get("target_name") or str(a["target_id"]))
-                    log_user = member_name
-                    log_reason = reason
-                    if act == "purge":
-                        channel = guild.get_channel(int(a["target_id"]))
-                        log_user = f"#{channel.name}" if channel else a["target_id"]
-                    elif act in ("add_role", "remove_role"):
-                        role = guild.get_role(int(a["target_name"]))
-                        log_reason = f"{'Added' if act=='add_role' else 'Removed'} role {role.name if role else a['target_name']} on @{member_name}"
-                    elif act == "nickname":
-                        log_reason = f"Changed nickname to '{a['target_name']}'"
-                    elif act == "verify_panel":
-                        log_user = "Verification"
-                        log_reason = "Verification panel deployed"
-                    elif act == "verify_user":
-                        log_reason = "Verified via captcha"
-                    await neon_db.push_mod_event(a["guild_id"], a["target_id"], log_user, act, log_reason, moderator)
+                    # Log to mod_log only on actual success (skip for guild-leave)
+                    if not skip_log:
+                        member_name = member.display_name if member else (a.get("target_name") or str(a["target_id"]))
+                        log_user = member_name
+                        log_reason = reason
+                        if act == "purge":
+                            channel = guild.get_channel(int(a["target_id"]))
+                            log_user = f"#{channel.name}" if channel else a["target_id"]
+                        elif act in ("add_role", "remove_role"):
+                            role = guild.get_role(int(a["target_name"]))
+                            log_reason = f"{'Added' if act=='add_role' else 'Removed'} role {role.name if role else a['target_name']} on @{member_name}"
+                        elif act == "nickname":
+                            log_reason = f"Changed nickname to '{a['target_name']}'"
+                        elif act == "verify_panel":
+                            log_user = "Verification"
+                            log_reason = "Verification panel deployed"
+                        elif act == "verify_user":
+                            log_reason = "Verified via captcha"
+                        await neon_db.push_mod_event(a["guild_id"], a["target_id"], log_user, act, log_reason, moderator)
                     # Push member data immediately so the dashboard reflects the change fast
                     if act in ("add_role", "remove_role", "nickname"):
                         self.loop.create_task(self._sync_guild_members(guild))

@@ -365,6 +365,8 @@ class ProwlBot(commands.Bot):
             "bot_version": bot_version,
             "python_version": python_version,
             "num_guilds": len(guilds),
+            "num_shards": len(self.shards) if getattr(self, "shards", None) else 1,
+            "gateway_ping_ms": int(getattr(self, "latency", 0) * 1000),
             "guild_ids": json.dumps(guild_ids),
             "num_channels": sum(len(g.channels) for g in guilds),
             "num_roles": sum(len(g.roles) for g in guilds),
@@ -374,6 +376,8 @@ class ProwlBot(commands.Bot):
             "memory_usage_mb": mem,
             "cpu_usage_percent": cpu,
             "last_restart": last_restart,
+            "ai_status": "operational" if variables.OPENAI_API_KEY else "disabled",
+            "music_status": "disabled",
         }
 
         guild_list = []

@@ -131,6 +131,10 @@
         ['Members', stats.users != null ? Number(stats.users).toLocaleString() : '—'],
         ['Commands', stats.commands != null ? Number(stats.commands).toLocaleString() : '—'],
         ['Uptime', esc(stats.uptime || '—')],
+        ['Memory', stats.memory_mb ? stats.memory_mb + ' MB' : '—'],
+        ['CPU', stats.cpu_percent != null ? stats.cpu_percent + '%' : '—'],
+        ['Shards', stats.shards != null ? stats.shards : '—'],
+        ['Version', esc(stats.version || '—')],
       ];
       el.innerHTML = items.map(i =>
         '<div class="status-stat"><div class="stat-value">' + i[1] + '</div><div class="stat-label">' + i[0] + '</div></div>'

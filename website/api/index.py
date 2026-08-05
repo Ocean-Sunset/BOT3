@@ -909,27 +909,13 @@ CREATE TABLE IF NOT EXISTS incidents (
 async def _ensure_incidents():
     try:
         await execute(_INCIDENTS_TABLE_SQL)
-        row = await fetchval("SELECT COUNT(*) FROM incidents")
-        if row is None or int(row) == 0:
-            now = time.time()
-            two_days = 2 * 86400
-            eight_days = 8 * 86400
-            await execute(
-                "INSERT INTO incidents (title, body, status, severity, starts_at, resolves_at) VALUES "
-                "($1, $2, 'resolved', 'minor', $3, $4), ($5, $6, 'resolved', 'maintenance', $7, $8)",
-                "AI Generation degraded",
-                "The upstream AI provider returned elevated error rates. Requests were queued and retried automatically.",
-                now - two_days, now - two_days + 88 * 60,
-                "Database maintenance",
-                "Scheduled maintenance window for index optimization. Brief increase in latency, no downtime.",
-                now - eight_days, now - eight_days + 12 * 60,
-            )
     except Exception as e:
-        logger.error("incidents seed failed: %s", e)
+        logger.error("incidents table failed: %s", e)
 
 
 @app.get("/api/v1/status/summary")
 async def status_summary(request: Request):
+    t0_all = time.perf_counter()
     rows = await query("SELECT key, value FROM bot_stats")
     data = {row["key"]: row["value"] for row in rows}
 
@@ -954,19 +940,43 @@ async def status_summary(request: Request):
         pass
 
     bot_up = data.get("bot_status") == "Running"
+    try:
+        gateway_ping = int(float(data.get("gateway_ping_ms", 0)))
+        gateway_ping = gateway_ping if gateway_ping > 0 else None
+    except (TypeError, ValueError):
+        gateway_ping = None
+
+    # Live Discord API check (public gateway endpoint)
+    discord_ok = False
+    discord_ms = None
+    try:
+        t0 = time.perf_counter()
+        async with httpx.AsyncClient(timeout=8) as client:
+            r = await client.get(f"{DISCORD_API}/gateway")
+        discord_ok = r.status_code == 200
+        discord_ms = int((time.perf_counter() - t0) * 1000)
+    except Exception:
+        pass
+
+    ai_raw = data.get("ai_status", "unknown")
+    ai_status = ai_raw if ai_raw in ("operational", "degraded", "down", "disabled") else "unknown"
+    music_raw = data.get("music_status", "disabled")
+    music_status = music_raw if music_raw in ("operational", "degraded", "down", "disabled") else "disabled"
+    shard_count = safe_int("num_shards", 1) or 1
+
     services = [
         {"id": "gateway", "name": "Bot Gateway", "status": "operational" if bot_up else "down",
-         "detail": f"Uptime {safe_str('uptime', 'N/A')}", "latency_ms": None},
+         "detail": f"Uptime {safe_str('uptime', 'N/A')}", "latency_ms": gateway_ping},
         {"id": "web", "name": "Web Dashboard & API", "status": "operational",
          "detail": f"v{safe_str('bot_version', '?')} · Python {safe_str('python_version', '?')}", "latency_ms": None},
         {"id": "db", "name": "Database (Neon)", "status": "operational" if db_ok else "down",
          "detail": "PostgreSQL · Neon", "latency_ms": db_ms},
-        {"id": "cdn", "name": "Content Delivery (Cloudflare)", "status": "operational",
-         "detail": "CDN & security", "latency_ms": None},
-        {"id": "ai", "name": "AI Generation", "status": "unknown",
-         "detail": "Third-party provider", "latency_ms": None},
-        {"id": "music", "name": "Music", "status": "unknown",
-         "detail": "Audio providers", "latency_ms": None},
+        {"id": "discord", "name": "Discord API", "status": "operational" if discord_ok else "down",
+         "detail": f"{shard_count} shard{'s' if shard_count != 1 else ''}", "latency_ms": discord_ms},
+        {"id": "ai", "name": "AI Generation (OpenAI)", "status": ai_status,
+         "detail": "OpenAI provider", "latency_ms": None},
+        {"id": "music", "name": "Music", "status": music_status,
+         "detail": "Audio playback", "latency_ms": None},
     ]
 
     shards = []
@@ -1009,6 +1019,11 @@ async def status_summary(request: Request):
             requests.append({"t": b, "count": by_bucket.get(b, 0)})
     except Exception:
         pass
+
+    web_ms = int((time.perf_counter() - t0_all) * 1000)
+    for s in services:
+        if s["id"] == "web":
+            s["latency_ms"] = web_ms
 
     return {
         "stats": {

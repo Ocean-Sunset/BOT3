@@ -507,6 +507,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     api('/feed?scope=mod').then(d => {
       const el = document.getElementById('activity-feed');
       if (!d.events?.length) { el.innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No recent activity.</div>'; return; }
+      const fp = JSON.stringify(d.events.map(e => [e.time, e.user, e.action, e.reason, e.moderator]));
+      if (fp === loadFeed._fp) return;
+      loadFeed._fp = fp;
       const existing = new Set(Array.from(el.querySelectorAll('.md-feed-item')).map(i => i.dataset.key));
       const html = d.events.map(e => {
         const key = e.time + '|' + e.user + '|' + e.action + '|' + (e.reason||'');
@@ -518,7 +521,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }).catch(() => {});
   }
   loadFeed();
-  setInterval(() => { if (!document.hidden) loadFeed(); }, 10000);
+  setInterval(() => { if (!document.hidden) loadFeed(); }, 30000);
 
   api('/members').then(d => {
     const w = document.querySelector('.md-member-table-wrap');

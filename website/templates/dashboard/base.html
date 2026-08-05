@@ -292,7 +292,7 @@
         setTimeout(() => {
           if (!document.hidden) notifyActions();
           schedule();
-        }, pendingNow ? 1500 : 5000);
+        }, pendingNow ? 1500 : 20000);
       })();
       setTimeout(notifyActions, 1200);
     })();

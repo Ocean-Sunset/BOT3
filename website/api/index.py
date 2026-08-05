@@ -2064,7 +2064,7 @@ AUTOMOD_DEFAULTS = {
     "action_configs": {},
 }
 
-AUTOMOD_ACTIONS = ("delete", "warn", "timeout", "kick", "ban")
+AUTOMOD_ACTIONS = ("delete", "delete_dm", "warn", "warn_dm", "timeout", "timeout_dm", "kick", "kick_dm", "ban", "ban_dm")
 AUTOMOD_FILTERS = ("profanity", "spam", "links", "caps", "mentions", "invites", "zalgo", "emoji")
 
 

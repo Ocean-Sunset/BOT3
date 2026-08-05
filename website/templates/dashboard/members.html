@@ -153,7 +153,7 @@ function renderMembers() {
       <td style="padding:0.6rem 0.5rem;background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);font-size:0.76rem;color:${isRecent(m.joined_at)?'#60a5fa':'rgba(255,255,255,0.5)'};white-space:nowrap;">${fmtDate(m.joined_at)}</td>
       <td style="padding:0.6rem 0.5rem;background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);">
         <div class="mem-roles" data-roles-col style="display:flex;gap:0.25rem;flex-wrap:wrap;max-width:280px;align-items:center;min-height:20px;">
-          ${(m.roles||[]).map(id => ROLE_MAP[id] ? `<span class="role-tag">${esc(ROLE_MAP[id])}${manage && BOT.can_manage_roles && !ROLE_MANAGED[id] ? '<span class="role-x" data-remove-role="'+id+'" data-mid="'+mid+'" title="Remove role">✕</span>' : ''}</span>` : '').join('')}
+          ${(m.roles||[]).map(id => ROLE_MAP[id] ? `<span class="role-tag">${esc(ROLE_MAP[id])}${manage && BOT.can_manage_roles && !ROLE_MANAGED[id] ? '<span class="role-x" data-remove-role="'+id+'" data-mid="'+mid+'" data-tooltip="Remove role">✕</span>' : ''}</span>` : '').join('')}
           ${manage && BOT.can_manage_roles ? '<span class="role-tag" data-add-role="'+mid+'" style="cursor:pointer;color:rgba(255,255,255,0.35);font-weight:700;">+</span>' : ''}
         </div>
       </td>

@@ -415,7 +415,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     row.style.cssText = 'display:flex;gap:0.4rem;align-items:center;';
     row.innerHTML = `<input type="text" class="md-input" placeholder="Name" style="flex:1;" value="${esc(name||'')}" />
       <input type="text" class="md-input" placeholder="Value" style="flex:1;" value="${esc(value||'')}" />
-      <label class="md-toggle" title="Inline"><input type="checkbox" ${inline?'checked':''} /><span class="md-toggle-slider"></span></label>
+      <label class="md-toggle" data-tooltip="Inline"><input type="checkbox" ${inline?'checked':''} /><span class="md-toggle-slider"></span></label>
       <button class="md-action-btn danger" style="flex-shrink:0;"><i data-lucide="trash-2"></i></button>`;
     const [n,v,chk,del] = row.children;
     del.addEventListener('click', () => { row.remove(); embedFields = embedFields.filter(f => f !== row._f); renderEmbedPreview(); markChanged('panel_embed', JSON.parse(JSON.stringify(collectEmbed()))); });
@@ -477,7 +477,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="md-behavior-item" style="align-items:flex-start;flex-wrap:wrap;gap:0.5rem;">
         <div style="flex:2;min-width:150px;"><div class="md-behavior-label" style="margin-bottom:0.2rem;">Question</div><input type="text" class="md-input" data-q-label="${i}" value="${esc(q.label)}" /></div>
         <div style="flex:2;min-width:150px;"><div class="md-behavior-label" style="margin-bottom:0.2rem;">Placeholder</div><input type="text" class="md-input" data-q-ph="${i}" value="${esc(q.placeholder)}" /></div>
-        <div style="display:flex;align-items:center;gap:0.4rem;padding-top:1.3rem;"><label class="md-toggle" title="Required"><input type="checkbox" ${q.required?'checked':''} data-q-req="${i}" /><span class="md-toggle-slider"></span></label><button class="md-action-btn danger" data-q-del="${i}" style="flex-shrink:0;"><i data-lucide="trash-2"></i></button></div>
+        <div style="display:flex;align-items:center;gap:0.4rem;padding-top:1.3rem;"><label class="md-toggle" data-tooltip="Required"><input type="checkbox" ${q.required?'checked':''} data-q-req="${i}" /><span class="md-toggle-slider"></span></label><button class="md-action-btn danger" data-q-del="${i}" style="flex-shrink:0;"><i data-lucide="trash-2"></i></button></div>
       </div>`).join('');
     list.querySelectorAll('[data-q-label]').forEach(i => i.addEventListener('input', e => { questions[+i.dataset.qLabel].label = e.target.value; saveQuestions(); }));
     list.querySelectorAll('[data-q-ph]').forEach(i => i.addEventListener('input', e => { questions[+i.dataset.qPh].placeholder = e.target.value; saveQuestions(); }));

@@ -129,21 +129,6 @@
   function initTooltips() {
     const el = document.createElement("div");
     el.id = "prowl-tooltip";
-    Object.assign(el.style, {
-      position: "fixed",
-      padding: "4px 8px",
-      fontSize: "11px",
-      fontWeight: "600",
-      color: "#ccc",
-      background: "#1a1a1a",
-      border: "1px solid rgba(255,255,255,0.1)",
-      borderRadius: "4px",
-      fontFamily: "'Lexend', system-ui, sans-serif",
-      whiteSpace: "nowrap",
-      pointerEvents: "none",
-      zIndex: "99999",
-      display: "none",
-    });
     document.body.appendChild(el);
 
     let timer;

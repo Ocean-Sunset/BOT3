@@ -41,7 +41,7 @@ AUTOMOD_DEFAULTS = {
     "action_configs": {},
 }
 
-ACTIONS = ("delete", "warn", "timeout", "kick", "ban")
+ACTIONS = ("delete", "delete_dm", "warn", "warn_dm", "timeout", "timeout_dm", "kick", "kick_dm", "ban", "ban_dm")
 
 # Display name -> config key (matches website AUTOMOD_FILTERS)
 FILTER_KEY = {
@@ -137,21 +137,29 @@ class AutoMod(commands.Cog, name="AutoMod"):
         member = guild.get_member(author.id)
         configs = settings.get("action_configs", {}) or {}
         cfg = configs.get(FILTER_KEY.get(filter_name, filter_name), {}) if isinstance(configs, dict) else {}
+        send_dm = action.endswith("_dm")
+        base = action[:-3] if send_dm else action
         # Always remove the offending message when we can
         try:
             await message.delete()
         except Exception:
             pass
-        if action == "warn":
+        if send_dm:
+            try:
+                await author.send(f"**AutoMod — {filter_name}** in {guild.name}:\n{reason}")
+            except Exception:
+                pass
+        if base == "warn":
             custom = cfg.get("warn_message")
             if custom:
                 reason = custom
-                try:
-                    await author.send(f"**AutoMod warn** in {guild.name}:\n{custom}")
-                except Exception:
-                    pass
+                if send_dm:
+                    try:
+                        await author.send(f"**AutoMod warn** in {guild.name}:\n{custom}")
+                    except Exception:
+                        pass
             await log_mod_action(guild.id, str(author.id), author.name, "warn", reason, "AutoMod")
-        elif action == "timeout":
+        elif base == "timeout":
             if member:
                 minutes = int(cfg.get("timeout_minutes") or settings.get("filter_timeout_minutes", 60) or 60)
                 until = discord.utils.utcnow() + datetime.timedelta(minutes=minutes)
@@ -161,14 +169,14 @@ class AutoMod(commands.Cog, name="AutoMod"):
                 except Exception as e:
                     logger.warning(f"AutoMod timeout failed: {e}")
             await log_mod_action(guild.id, str(author.id), author.name, "timeout", reason, "AutoMod")
-        elif action == "kick":
+        elif base == "kick":
             if member:
                 try:
                     await member.kick(reason=cfg.get("kick_message") or reason)
                 except Exception as e:
                     logger.warning(f"AutoMod kick failed: {e}")
             await log_mod_action(guild.id, str(author.id), author.name, "kick", cfg.get("kick_message") or reason, "AutoMod")
-        elif action == "ban":
+        elif base == "ban":
             try:
                 days = int(cfg.get("ban_days") or 0)
                 await guild.ban(discord.Object(id=author.id), reason=cfg.get("ban_message") or reason, delete_message_days=max(0, min(7, days)))

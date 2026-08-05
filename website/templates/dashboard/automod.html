@@ -66,10 +66,15 @@ const esc = s => { const d=document.createElement('div'); d.textContent=s||''; r
 
 const ACTIONS = [
   { value:'delete', label:'Delete Message' },
+  { value:'delete_dm', label:'Delete Message + DM' },
   { value:'warn', label:'Warn' },
+  { value:'warn_dm', label:'Warn + DM' },
   { value:'timeout', label:'Timeout' },
+  { value:'timeout_dm', label:'Timeout + DM' },
   { value:'kick', label:'Kick' },
+  { value:'kick_dm', label:'Kick + DM' },
   { value:'ban', label:'Ban' },
+  { value:'ban_dm', label:'Ban + DM' },
 ];
 
 const FILTERS = [
@@ -123,6 +128,7 @@ let cfgFilter = null;
 let cfgAction = null;
 
 function openConfig(filterKey, action) {
+  if (!CONFIG_FIELDS[action]) return;
   cfgFilter = filterKey;
   cfgAction = action;
   const f = FILTERS.find(x => x.key === filterKey);
@@ -162,7 +168,7 @@ function renderFilters() {
       '<div class="am-filter-head">' +
         '<label class="md-toggle"><input type="checkbox" data-enable="' + f.key + '" ' + (en?'checked':'') + ' /><span class="md-toggle-slider"></span></label>' +
         '<div class="am-filter-info"><div class="am-filter-name">' + esc(f.name) + '</div><div class="am-filter-desc">' + esc(f.desc) + '</div></div>' +
-        '<button type="button" class="am-cfg-btn" data-config="' + f.key + '" title="Configure ' + actionLabel(act) + '" ' + (act === 'delete' ? 'style="display:none"' : '') + '><i data-lucide="settings"></i></button>' +
+        '<button type="button" class="am-cfg-btn" data-config="' + f.key + '" data-tooltip="Configure ' + actionLabel(act) + '" ' + ((act === 'delete' || act === 'delete_dm') ? 'style="display:none"' : '') + '><i data-lucide="square-pen"></i></button>' +
         '<div class="md-custom-select am-action-select">' +
           '<button class="md-custom-select-btn" data-action="' + f.key + '">' + actionLabel(act) + '</button>' +
           '<div class="md-custom-select-drop" data-action="' + f.key + '">' +
@@ -177,6 +183,7 @@ function renderFilters() {
     '</div>';
   }).join('');
   bindFilters();
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function bindFilters() {
@@ -202,7 +209,7 @@ function bindFilters() {
     // Show/hide the configure button based on the new action
     const card = drop.closest('.am-filter');
     const cfgBtn = card.querySelector('.am-cfg-btn');
-    if (cfgBtn) cfgBtn.style.display = opt.dataset.value === 'delete' ? 'none' : '';
+    if (cfgBtn) cfgBtn.style.display = (opt.dataset.value === 'delete' || opt.dataset.value === 'delete_dm') ? 'none' : '';
   }));
   document.querySelectorAll('.am-cfg-btn').forEach(b => b.addEventListener('click', (e) => {
     e.stopPropagation();

@@ -13,6 +13,14 @@
     <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
       <div class="md-section-title">Event Logs</div>
       <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:0.75rem;line-height:1.5;">Set a channel per event type to receive those logs. "None" disables that log. Prowl needs the <b style="color:rgba(255,255,255,0.7);">Message Content Intent</b> enabled to see deleted/edited message text.</p>
+      <div class="lg-row lg-everything">
+        <div class="lg-name">Everything</div>
+        <div class="md-custom-select lg-select">
+          <button class="md-custom-select-btn" id="everything-btn">None</button>
+          <div class="md-custom-select-drop" id="everything-drop"></div>
+        </div>
+      </div>
+      <p style="font-size:0.68rem;color:rgba(255,255,255,0.3);margin:0.4rem 0 1rem;line-height:1.5;">Setting "Everything" applies the same channel to every log type below.</p>
       <div class="lg-groups" id="log-groups">
         <div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
       </div>
@@ -158,7 +166,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     LOADED = { ...SETTINGS_SNAPSHOT };
     CHANNELS = cd.channels || [];
     renderGroups();
+    bindEverything();
   });
+
+  function bindEverything() {
+    const btn = document.getElementById('everything-btn');
+    const drop = document.getElementById('everything-drop');
+    if (!btn || !drop) return;
+    drop.innerHTML = '<button class="md-custom-opt" data-id="">None</button>' +
+      CHANNELS.map(c => '<button class="md-custom-opt" data-id="' + c.id + '">#' + esc(c.name) + '</button>').join('');
+    btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+    drop.querySelectorAll('.md-custom-opt').forEach(opt => opt.addEventListener('click', () => {
+      const id = opt.dataset.id;
+      btn.textContent = id ? '#' + opt.textContent.replace(/^#/, '') : 'None';
+      drop.classList.remove('is-open');
+      // Apply the same channel to every log type
+      GROUPS.forEach(g => g.items.forEach(it => markChanged(it.key, id || null)));
+      renderGroups();
+      if (typeof showToast === 'function') showToast('Applied to all log types — press Save to confirm.', 'info');
+    }));
+    document.addEventListener('click', (e) => { if(!e.target.closest('.lg-everything')) drop.classList.remove('is-open'); });
+  }
 
   saveBtn.addEventListener('click', saveChanges);
   document.getElementById('discard-btn').addEventListener('click', () => {

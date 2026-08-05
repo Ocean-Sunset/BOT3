@@ -1,0 +1,281 @@
+import discord
+from discord.ext import commands
+import re
+import time
+import datetime
+import unicodedata
+
+from Ediscord import logger, EmbedBuilder
+from Ediscord import db as neon_db
+from components.moderation import log_mod_action
+
+
+AUTOMOD_DEFAULTS = {
+    "enabled": False,
+    "moderation_channel_id": None,
+    "filter_timeout_minutes": 60,
+    "profanity_enabled": True,
+    "profanity_action": "delete",
+    "profanity_words": "",
+    "spam_enabled": True,
+    "spam_action": "delete",
+    "spam_messages": 5,
+    "spam_window": 5,
+    "links_enabled": False,
+    "links_action": "delete",
+    "links_allowlist": "",
+    "caps_enabled": False,
+    "caps_action": "delete",
+    "caps_percent": 70,
+    "caps_min_chars": 6,
+    "mentions_enabled": False,
+    "mentions_action": "delete",
+    "mentions_max": 5,
+    "invites_enabled": False,
+    "invites_action": "delete",
+    "zalgo_enabled": False,
+    "zalgo_action": "delete",
+    "emoji_enabled": False,
+    "emoji_action": "delete",
+    "emoji_max": 10,
+}
+
+ACTIONS = ("delete", "warn", "timeout", "kick", "ban")
+
+# Default profanity words (community standard). Server can override via profanity_words.
+DEFAULT_PROFANITY = [
+    "fuck", "shit", "bitch", "asshole", "bastard", "cunt", "dick", "pussy",
+    "nigga", "nigger", "faggot", "retard", "whore", "slut", "porn",
+]
+
+URL_RE = re.compile(r"(https?://|www\.)\S+", re.IGNORECASE)
+INVITE_RE = re.compile(r"(discord\.(gg|com/invite)/)[a-zA-Z0-9_-]+", re.IGNORECASE)
+ZALGO_RE = re.compile(r"[\u0300-\u036f\u0489\u0616-\u061a\u06d6-\u06ed\u200d\u2060\u20d0-\u20ff\ufe00-\ufe0f]")
+EMOJI_RE = re.compile(
+    r"[\U0001F300-\U0001FAFF\U00002600-\U000027BF\U0001F000-\U0001F0FF"
+    r"\U0001F900-\U0001F9FF\U0001FA70-\U0001FAFF\U0001F1E6-\U0001F1FF"
+    r"\u2b00-\u2bff\u2934-\u2935\u25aa-\u25fe]"
+)
+
+
+async def get_automod_settings(guild_id: int):
+    pool = await neon_db.get_pool()
+    if not pool:
+        return dict(AUTOMOD_DEFAULTS)
+    row = await pool.fetchrow("SELECT settings FROM automod_settings WHERE guild_id = $1", str(guild_id))
+    return neon_db.parse_settings(row["settings"], AUTOMOD_DEFAULTS) if row else dict(AUTOMOD_DEFAULTS)
+
+
+async def save_automod_settings(guild_id: int, settings: dict):
+    pool = await neon_db.get_pool()
+    if not pool:
+        return
+    await pool.execute(
+        "INSERT INTO automod_settings (guild_id, settings) VALUES ($1, $2::jsonb) "
+        "ON CONFLICT (guild_id) DO UPDATE SET settings = $2::jsonb",
+        str(guild_id), __import__("json").dumps(settings),
+    )
+
+
+def _word_list(words_str: str, defaults):
+    custom = [w.strip().lower() for w in (words_str or "").split(",") if w.strip()]
+    if custom:
+        return custom
+    return defaults
+
+
+class AutoMod(commands.Cog, name="AutoMod"):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+        self.spam_log = {}  # (guild_id, user_id) -> [timestamps]
+        self.trigger_cooldown = {}  # (guild_id, user_id) -> last trigger ts
+
+    async def _mod_channel(self, guild, settings):
+        cid = settings.get("moderation_channel_id")
+        if not cid:
+            return None
+        return guild.get_channel(int(cid))
+
+    async def _post_action(self, guild, settings, message, filter_name, reason, action):
+        channel = await self._mod_channel(guild, settings)
+        if not channel:
+            return
+        embed = (
+            EmbedBuilder()
+            .title(f"🛡️ AutoMod: {filter_name}")
+            .color("orange")
+            .field("User", f"{message.author.mention} (`{message.author.id}`)")
+            .field("Channel", message.channel.mention)
+            .field("Reason", reason)
+            .field("Action", action)
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        try:
+            await channel.send(embed=embed)
+        except Exception as e:
+            logger.warning(f"AutoMod post failed in {guild.id}: {e}")
+
+    async def _apply_action(self, guild, settings, message, filter_name, reason, action):
+        author = message.author
+        member = guild.get_member(author.id)
+        # Always remove the offending message when we can
+        try:
+            await message.delete()
+        except Exception:
+            pass
+        if action == "warn":
+            await log_mod_action(guild.id, str(author.id), author.name, "warn", reason, "AutoMod")
+        elif action == "timeout":
+            if member:
+                minutes = int(settings.get("filter_timeout_minutes", 60) or 60)
+                until = discord.utils.utcnow() + datetime.timedelta(minutes=minutes)
+                try:
+                    await member.timeout(until, reason=reason)
+                    await neon_db.set_muted_user(guild.id, str(author.id), author.name, reason, until.timestamp())
+                except Exception as e:
+                    logger.warning(f"AutoMod timeout failed: {e}")
+            await log_mod_action(guild.id, str(author.id), author.name, "timeout", reason, "AutoMod")
+        elif action == "kick":
+            if member:
+                try:
+                    await member.kick(reason=reason)
+                except Exception as e:
+                    logger.warning(f"AutoMod kick failed: {e}")
+            await log_mod_action(guild.id, str(author.id), author.name, "kick", reason, "AutoMod")
+        elif action == "ban":
+            try:
+                await guild.ban(discord.Object(id=author.id), reason=reason)
+            except Exception as e:
+                logger.warning(f"AutoMod ban failed: {e}")
+            await log_mod_action(guild.id, str(author.id), author.name, "ban", reason, "AutoMod")
+        await self._post_action(guild, settings, message, filter_name, reason, action)
+
+    def _triggered(self, guild_id, user_id, cooldown=10):
+        key = (guild_id, user_id)
+        now = time.time()
+        if self.trigger_cooldown.get(key, 0) + cooldown > now:
+            return True
+        self.trigger_cooldown[key] = now
+        return False
+
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        if message.author.bot or not message.guild or not message.content:
+            return
+        settings = await get_automod_settings(message.guild.id)
+        if not settings.get("enabled"):
+            return
+        if await self._is_mod(message.author, message.guild):
+            return
+
+        content = message.content
+        hits = []
+
+        # Profanity
+        if settings.get("profanity_enabled", True):
+            words = _word_list(settings.get("profanity_words"), DEFAULT_PROFANITY)
+            low = content.lower()
+            for w in words:
+                if re.search(rf"\b{re.escape(w)}\b", low):
+                    hits.append(("Profanity", f"Banned word: `{w}`"))
+                    break
+
+        # Spam
+        if settings.get("spam_enabled", True) and not hits:
+            skey = (message.guild.id, message.author.id)
+            now = time.time()
+            window = int(settings.get("spam_window", 5) or 5)
+            threshold = int(settings.get("spam_messages", 5) or 5)
+            self.spam_log.setdefault(skey, []).append(now)
+            self.spam_log[skey] = [t for t in self.spam_log[skey] if now - t <= window]
+            if len(self.spam_log[skey]) > threshold:
+                hits.append(("Spam", f"{len(self.spam_log[skey])} messages in {window}s"))
+
+        # Links
+        if settings.get("links_enabled") and not hits:
+            allowlist = [d.strip().lower() for d in (settings.get("links_allowlist") or "").split(",") if d.strip()]
+            for m in URL_RE.finditer(content):
+                url = m.group(0)
+                if any(url.lower().startswith(("http://" + d, "https://" + d, "www." + d)) for d in allowlist):
+                    continue
+                hits.append(("Links", "Message contains a link"))
+                break
+
+        # Caps
+        if settings.get("caps_enabled") and not hits:
+            min_chars = int(settings.get("caps_min_chars", 6) or 6)
+            pct = int(settings.get("caps_percent", 70) or 70)
+            letters = [c for c in content if c.isalpha()]
+            if len(letters) >= min_chars:
+                upper = sum(1 for c in letters if c.isupper())
+                if upper / len(letters) * 100 >= pct:
+                    hits.append(("Caps Lock", f"{upper}/{len(letters)} uppercase letters"))
+
+        # Mentions
+        if settings.get("mentions_enabled") and not hits:
+            max_mentions = int(settings.get("mentions_max", 5) or 5)
+            count = len(message.mentions) + content.count("@everyone") + content.count("@here")
+            if count > max_mentions:
+                hits.append(("Mention Spam", f"{count} mentions (max {max_mentions})"))
+
+        # Invites
+        if settings.get("invites_enabled") and not hits:
+            if INVITE_RE.search(content):
+                hits.append(("Invite Links", "Message contains a Discord invite"))
+
+        # Zalgo
+        if settings.get("zalgo_enabled") and not hits:
+            if ZALGO_RE.search(content):
+                hits.append(("Zalgo", "Message contains glitch/combining characters"))
+
+        # Emoji spam
+        if settings.get("emoji_enabled") and not hits:
+            max_emoji = int(settings.get("emoji_max", 10) or 10)
+            count = len(EMOJI_RE.findall(content))
+            if count > max_emoji:
+                hits.append(("Emoji Spam", f"{count} emojis (max {max_emoji})"))
+
+        if not hits:
+            return
+        filter_name, reason = hits[0]
+        action = self._action_for(filter_name, settings)
+        if self._triggered(message.guild.id, message.author.id):
+            return
+        await self._apply_action(message.guild, settings, message, filter_name, reason, action)
+
+    def _action_for(self, filter_name, settings):
+        keymap = {
+            "Profanity": "profanity_action",
+            "Spam": "spam_action",
+            "Links": "links_action",
+            "Caps Lock": "caps_action",
+            "Mention Spam": "mentions_action",
+            "Invite Links": "invites_action",
+            "Zalgo": "zalgo_action",
+            "Emoji Spam": "emoji_action",
+        }
+        action = settings.get(keymap.get(filter_name))
+        return action if action in ACTIONS else "delete"
+
+    async def _is_mod(self, member, guild):
+        if member.guild_permissions.administrator:
+            return True
+        if member.guild_permissions.manage_messages:
+            return True
+        if member.guild_permissions.moderate_members:
+            return True
+        # Bot role check via mod_settings mod_roles
+        try:
+            from components.moderation import get_mod_settings
+            ms = await get_mod_settings(guild.id)
+            mod_roles = ms.get("mod_roles", [])
+            if any(str(r.id) in mod_roles for r in member.roles):
+                return True
+        except Exception:
+            pass
+        return False
+
+
+async def setup(bot: commands.Bot):
+    await bot.add_cog(AutoMod(bot))

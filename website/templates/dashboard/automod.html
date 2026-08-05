@@ -1,1 +1,238 @@
-{% extends "dashboard/base.html" %}{% block content %}<div style="padding:2rem 0;"><div style="margin-bottom:1.25rem;"><h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">AutoMod</h1><p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Automated moderation and content filtering</p></div><div style="border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:1.25rem;background:rgba(255,255,255,0.015);text-align:center;"><p style="color:rgba(255,255,255,0.4);font-size:14px;font-weight:600;padding:4rem 0;">Coming soon.</p></div></div>{% endblock %}
+{% extends "dashboard/base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/moderation.css?v=10" />
+<link rel="stylesheet" href="/static/automod.css?v=1" />
+<div id="automod-wrap">
+
+  <div style="margin-bottom:1rem;animation-delay:.05s;">
+    <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">AutoMod</h1>
+    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Automated moderation and content filtering</p>
+  </div>
+
+  <div class="md-section">
+    <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+      <div class="md-section-title">AutoMod</div>
+      <div class="md-behavior-list">
+        <div class="md-behavior-item">
+          <label class="md-toggle"><input type="checkbox" id="am-enabled" /><span class="md-toggle-slider"></span></label>
+          <div><div class="md-behavior-label">Enable AutoMod</div><div class="md-behavior-desc">Scan every message and act on the filters below</div></div>
+        </div>
+        <div class="md-behavior-item">
+          <div style="flex:1">
+            <div class="md-behavior-label">Moderation Channel</div>
+            <div class="md-behavior-desc">Where AutoMod actions get posted</div>
+            <div class="md-custom-select" id="am-modchannel-wrap">
+              <button class="md-custom-select-btn" id="am-modchannel-btn">Select channel...</button>
+              <div class="md-custom-select-drop" id="am-modchannel-drop"></div>
+            </div>
+          </div>
+        </div>
+        <div class="md-behavior-item">
+          <div style="flex:1">
+            <div class="md-behavior-label">Timeout Duration (minutes)</div>
+            <div class="md-behavior-desc">How long a "timeout" action lasts</div>
+            <input type="number" class="md-input" data-key="filter_timeout_minutes" min="1" placeholder="60" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="md-section">
+    <div class="am-filters" id="filter-list">
+      <div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const GID = window.__GUILD_ID;
+const api = (path, opts) => fetch(`/api/v1/automod/${GID}${path}`, opts||{}).then(r=>r.json());
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+
+const ACTIONS = [
+  { value:'delete', label:'Delete Message' },
+  { value:'warn', label:'Warn' },
+  { value:'timeout', label:'Timeout' },
+  { value:'kick', label:'Kick' },
+  { value:'ban', label:'Ban' },
+];
+
+const FILTERS = [
+  { key:'profanity', name:'Profanity Filter', desc:'Blocks common bad words plus your custom list', fields:[{type:'text', key:'profanity_words', label:'Custom Words', placeholder:'word, another, word'}] },
+  { key:'spam', name:'Spam Detection', desc:'Flags rapid repeated messages', fields:[{type:'number', key:'spam_messages', label:'Max Messages', min:2, ph:'5'},{type:'number', key:'spam_window', label:'Window (seconds)', min:1, ph:'5'}] },
+  { key:'links', name:'Link Filter', desc:'Blocks links in messages (with allowlist)', fields:[{type:'text', key:'links_allowlist', label:'Allowed Domains', placeholder:'example.com, github.com'}] },
+  { key:'caps', name:'Caps Lock', desc:'Flags messages that are mostly uppercase', fields:[{type:'number', key:'caps_percent', label:'Caps %', min:1, ph:'70'},{type:'number', key:'caps_min_chars', label:'Min Characters', min:3, ph:'6'}] },
+  { key:'mentions', name:'Mention Spam', desc:'Flags messages with too many mentions', fields:[{type:'number', key:'mentions_max', label:'Max Mentions', min:1, ph:'5'}] },
+  { key:'invites', name:'Invite Links', desc:'Blocks Discord invite links', fields:[] },
+  { key:'zalgo', name:'Zalgo Text', desc:'Blocks glitch / combining characters', fields:[] },
+  { key:'emoji', name:'Emoji Spam', desc:'Flags messages with too many emojis', fields:[{type:'number', key:'emoji_max', label:'Max Emojis', min:1, ph:'10'}] },
+];
+
+const pending = {};
+const original = {};
+let SETTINGS_SNAPSHOT = {};
+let LOADED = {};
+let CHANNELS = [];
+const saveBar = document.getElementById('save-bar');
+const saveBtn = document.getElementById('save-btn');
+let saveTimer = null;
+
+function markChanged(key, value) {
+  if (!(key in original)) original[key] = (key in SETTINGS_SNAPSHOT) ? SETTINGS_SNAPSHOT[key] : !value;
+  pending[key] = value;
+  SETTINGS_SNAPSHOT[key] = value;
+  saveBar.classList.remove('is-closed');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
+  updateDisabledState();
+}
+
+function updateDisabledState() {
+  document.getElementById('automod-wrap').classList.toggle('is-disabled', !document.getElementById('am-enabled').checked);
+}
+
+function actionLabel(v) {
+  const a = ACTIONS.find(x => x.value === v);
+  return a ? a.label : 'Delete Message';
+}
+
+function renderFilters() {
+  const el = document.getElementById('filter-list');
+  el.innerHTML = FILTERS.map(f => {
+    const en = SETTINGS_SNAPSHOT[f.key + '_enabled'] === true;
+    const act = SETTINGS_SNAPSHOT[f.key + '_action'] || 'delete';
+    return '<div class="am-filter">' +
+      '<div class="am-filter-head">' +
+        '<label class="md-toggle"><input type="checkbox" data-enable="' + f.key + '" ' + (en?'checked':'') + ' /><span class="md-toggle-slider"></span></label>' +
+        '<div class="am-filter-info"><div class="am-filter-name">' + esc(f.name) + '</div><div class="am-filter-desc">' + esc(f.desc) + '</div></div>' +
+        '<div class="md-custom-select am-action-select">' +
+          '<button class="md-custom-select-btn" data-action="' + f.key + '">' + actionLabel(act) + '</button>' +
+          '<div class="md-custom-select-drop" data-action="' + f.key + '">' +
+            ACTIONS.map(a => '<button class="md-custom-opt" data-value="' + a.value + '">' + a.label + '</button>').join('') +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      (f.fields.length ? '<div class="am-filter-fields">' + f.fields.map(fd =>
+        '<div class="am-field"><div class="am-field-label">' + esc(fd.label) + '</div>' +
+        '<input type="' + fd.type + '" class="md-input" data-field="' + fd.key + '" min="' + (fd.min||'') + '" value="' + esc(SETTINGS_SNAPSHOT[fd.key] ?? '') + '" placeholder="' + esc(fd.ph||'') + '" /></div>'
+      ).join('') + '</div>' : '') +
+    '</div>';
+  }).join('');
+  bindFilters();
+}
+
+function bindFilters() {
+  document.querySelectorAll('[data-enable]').forEach(cb => cb.addEventListener('change', function(){
+    markChanged(this.dataset.enable + '_enabled', this.checked);
+  }));
+  document.querySelectorAll('[data-field]').forEach(inp => inp.addEventListener('input', function(){
+    markChanged(this.dataset.field, inp.type === 'number' ? (parseInt(inp.value)||0) : inp.value);
+  }));
+  document.querySelectorAll('.am-action-select .md-custom-select-btn').forEach(btn => btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const drop = btn.nextElementSibling;
+    document.querySelectorAll('.md-custom-select-drop').forEach(d => { if (d !== drop) d.classList.remove('is-open'); });
+    drop.classList.toggle('is-open');
+  }));
+  document.querySelectorAll('.am-action-select .md-custom-opt').forEach(opt => opt.addEventListener('click', () => {
+    const drop = opt.closest('.md-custom-select-drop');
+    const btn = drop.previousElementSibling;
+    const key = btn.dataset.action + '_action';
+    btn.textContent = opt.textContent;
+    markChanged(key, opt.dataset.value);
+    drop.classList.remove('is-open');
+  }));
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.am-action-select')) document.querySelectorAll('.md-custom-select-drop').forEach(d => d.classList.remove('is-open'));
+  });
+}
+
+async function saveChanges() {
+  const keys = Object.keys(pending);
+  if (!keys.length) return;
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving...';
+  for (const key of keys) {
+    try {
+      const res = await fetch(`/api/v1/automod/${GID}/settings`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]}) });
+      if (!res.ok) {
+        let detail = 'Save failed';
+        try { const j = await res.json(); detail = j.detail || j.error || detail; } catch {}
+        if (typeof showToast === 'function') showToast(detail, 'error', 5000);
+        return;
+      }
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('Network error saving.', 'error', 5000);
+      return;
+    }
+  }
+  for (const key of keys) { LOADED[key] = pending[key]; delete pending[key]; }
+  saveBar.classList.add('is-closed');
+  saveBtn.disabled = false;
+  saveBtn.textContent = 'Save';
+  if (typeof showToast === 'function') showToast('AutoMod settings saved.', 'success');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  Promise.all([
+    api('/settings').catch(()=>({settings:{}})),
+    api('/channels').catch(()=>({channels:[]})),
+  ]).then(([sd, cd]) => {
+    SETTINGS_SNAPSHOT = { ...(sd.settings||{}) };
+    LOADED = { ...SETTINGS_SNAPSHOT };
+    CHANNELS = cd.channels || [];
+    const enabled = document.getElementById('am-enabled');
+    enabled.checked = SETTINGS_SNAPSHOT.enabled === true;
+    enabled.addEventListener('change', function(){ markChanged('enabled', this.checked); });
+    const t = document.querySelector('[data-key="filter_timeout_minutes"]');
+    if (t) t.value = SETTINGS_SNAPSHOT.filter_timeout_minutes ?? 60;
+    t.addEventListener('input', function(){ markChanged('filter_timeout_minutes', parseInt(this.value)||0); });
+
+    // Moderation channel dropdown
+    const mBtn = document.getElementById('am-modchannel-btn');
+    const mDrop = document.getElementById('am-modchannel-drop');
+    if (mBtn && mDrop) {
+      mDrop.innerHTML = '<button class="md-custom-opt" data-id="">None</button>' + CHANNELS.map(c => '<button class="md-custom-opt" data-id="' + c.id + '">#' + esc(c.name) + '</button>').join('');
+      const cur = SETTINGS_SNAPSHOT.moderation_channel_id;
+      const match = CHANNELS.find(c => String(c.id) === String(cur));
+      if (match) mBtn.textContent = '#' + match.name;
+      mBtn.addEventListener('click', (e) => { e.stopPropagation(); mDrop.classList.toggle('is-open'); });
+      mDrop.querySelectorAll('.md-custom-opt').forEach(opt => opt.addEventListener('click', () => {
+        mBtn.textContent = opt.dataset.id ? '#' + opt.textContent.replace(/^#/, '') : 'None';
+        markChanged('moderation_channel_id', opt.dataset.id || null);
+        mDrop.classList.remove('is-open');
+      }));
+      document.addEventListener('click', (e) => { if(!e.target.closest('#am-modchannel-wrap')) mDrop.classList.remove('is-open'); });
+    }
+
+    renderFilters();
+    updateDisabledState();
+  });
+
+  saveBtn.addEventListener('click', saveChanges);
+  document.getElementById('discard-btn').addEventListener('click', () => {
+    const reverted = { ...LOADED };
+    for (const key of Object.keys(pending)) {
+      if (key in original) reverted[key] = original[key];
+    }
+    for (const key of Object.keys(pending)) delete pending[key];
+    for (const key of Object.keys(original)) delete original[key];
+    SETTINGS_SNAPSHOT = { ...reverted };
+    document.getElementById('am-enabled').checked = SETTINGS_SNAPSHOT.enabled === true;
+    const t = document.querySelector('[data-key="filter_timeout_minutes"]');
+    if (t) t.value = SETTINGS_SNAPSHOT.filter_timeout_minutes ?? 60;
+    const mBtn = document.getElementById('am-modchannel-btn');
+    if (mBtn) {
+      const match = CHANNELS.find(c => String(c.id) === String(reverted.moderation_channel_id));
+      mBtn.textContent = match ? '#' + match.name : 'Select channel...';
+    }
+    renderFilters();
+    updateDisabledState();
+    saveBar.classList.add('is-closed');
+  });
+});
+</script>
+{% endblock %}

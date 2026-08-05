@@ -2030,6 +2030,89 @@ async def logging_channels(guild_id: str, request: Request):
 
 
 # ---------------------------------------------------------------------------
+#  AutoMod API v1
+# ---------------------------------------------------------------------------
+
+AUTOMOD_DEFAULTS = {
+    "enabled": False,
+    "moderation_channel_id": None,
+    "filter_timeout_minutes": 60,
+    "profanity_enabled": True,
+    "profanity_action": "delete",
+    "profanity_words": "",
+    "spam_enabled": True,
+    "spam_action": "delete",
+    "spam_messages": 5,
+    "spam_window": 5,
+    "links_enabled": False,
+    "links_action": "delete",
+    "links_allowlist": "",
+    "caps_enabled": False,
+    "caps_action": "delete",
+    "caps_percent": 70,
+    "caps_min_chars": 6,
+    "mentions_enabled": False,
+    "mentions_action": "delete",
+    "mentions_max": 5,
+    "invites_enabled": False,
+    "invites_action": "delete",
+    "zalgo_enabled": False,
+    "zalgo_action": "delete",
+    "emoji_enabled": False,
+    "emoji_action": "delete",
+    "emoji_max": 10,
+}
+
+AUTOMOD_ACTIONS = ("delete", "warn", "timeout", "kick", "ban")
+
+
+async def _get_automod_settings(guild_id: str):
+    row = await fetchrow("SELECT settings FROM automod_settings WHERE guild_id = $1", str(guild_id))
+    if row:
+        settings = row["settings"]
+        if isinstance(settings, str):
+            try:
+                settings = json.loads(settings)
+            except (json.JSONDecodeError, TypeError):
+                return dict(AUTOMOD_DEFAULTS)
+        if isinstance(settings, dict):
+            return {**AUTOMOD_DEFAULTS, **settings}
+    return dict(AUTOMOD_DEFAULTS)
+
+
+@app.get("/api/v1/automod/{guild_id}/settings")
+async def automod_settings_get(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    return {"settings": await _get_automod_settings(guild_id)}
+
+
+@app.post("/api/v1/automod/{guild_id}/settings")
+async def automod_settings_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    key = body.get("key")
+    value = body.get("value")
+    if not key:
+        return JSONResponse({"error": "missing key"}, status_code=400)
+    if key.endswith("_action") and value not in AUTOMOD_ACTIONS:
+        return JSONResponse({"error": "invalid action"}, status_code=400)
+    err = await _save_settings("automod_settings", str(guild_id), key, value, AUTOMOD_DEFAULTS)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    return {"ok": True}
+
+
+@app.get("/api/v1/automod/{guild_id}/channels")
+async def automod_channels(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "channels" in d:
+        return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
+    return {"channels": [{"id": "2001", "name": "general"}]}
+
+
+# ---------------------------------------------------------------------------
 #  Autoresponder API v1
 # ---------------------------------------------------------------------------
 

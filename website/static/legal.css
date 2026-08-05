@@ -1,0 +1,59 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0a0a0a;
+  color: #fff;
+  font-family: 'Lexend', system-ui, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.wave-field { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+.wave-field span { position: absolute; color: #fff; font-family: monospace; user-select: none; line-height: 1; }
+.vignette { position: fixed; inset: 0; background: radial-gradient(ellipse at center, transparent 30%, #0a0a0a 80%); pointer-events: none; z-index: 0; }
+
+.legal-page {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 760px;
+  padding: 3rem 1.5rem 4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.legal-brand {
+  display: flex; align-items: center; gap: 0.6rem;
+  text-decoration: none; color: #fff; margin-bottom: 1.75rem;
+}
+.legal-brand img { width: 30px; height: 30px; object-fit: contain; }
+.legal-brand span { font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; }
+
+.legal-card {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  border-radius: 8px;
+  padding: 2rem 2.25rem;
+}
+.legal-card h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 900; letter-spacing: -0.03em; }
+.legal-updated { margin-top: 0.4rem; font-size: 0.78rem; color: rgba(255,255,255,0.35); font-weight: 500; }
+.legal-card section { margin-top: 1.6rem; }
+.legal-card h2 { font-size: 1rem; font-weight: 800; letter-spacing: -0.01em; color: rgba(255,255,255,0.9); }
+.legal-card p { margin-top: 0.5rem; font-size: 0.85rem; color: #888; line-height: 1.7; font-weight: 400; }
+.legal-card ul { margin: 0.5rem 0 0 1.25rem; }
+.legal-card li { font-size: 0.85rem; color: #888; line-height: 1.7; }
+.legal-card a { color: #fff; font-weight: 600; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.2); }
+.legal-card a:hover { border-color: #fff; }
+
+.legal-footer { margin-top: 1.5rem; display: flex; gap: 1.25rem; }
+.legal-footer a { font-size: 0.8rem; color: #555; text-decoration: none; font-weight: 600; transition: color 0.2s; }
+.legal-footer a:hover { color: #888; }
+
+@media (max-width: 600px) {
+  .legal-card { padding: 1.4rem 1.25rem; }
+  .legal-page { padding: 2rem 1rem 3rem; }
+}

@@ -1,0 +1,81 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0a0a0a;
+  color: #fff;
+  font-family: 'Lexend', system-ui, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+.wave-field { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+.wave-field span { position: absolute; color: #fff; font-family: monospace; user-select: none; line-height: 1; }
+.vignette { position: fixed; inset: 0; background: radial-gradient(ellipse at center, transparent 30%, #0a0a0a 80%); pointer-events: none; z-index: 0; }
+
+/* ── Nav ── */
+.status-nav {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.4rem 6vw;
+}
+.status-brand { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; color: #fff; }
+.status-brand img { width: 30px; height: 30px; object-fit: contain; }
+.status-brand span { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.02em; }
+.status-home-link { font-size: 0.8rem; color: #555; text-decoration: none; font-weight: 600; transition: color 0.2s; }
+.status-home-link:hover { color: #888; }
+
+/* ── Hero ── */
+.status-page { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; padding: 1rem 1.5rem 3rem; }
+.status-hero { text-align: center; padding: 1.5rem 0 2rem; }
+.status-pill {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.35rem 0.9rem; border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03);
+  font-size: 0.78rem; font-weight: 700;
+}
+.status-pill.operational { color: #57f287; }
+.status-pill.degraded { color: #fbbf24; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.status-dot.operational { background: #57f287; box-shadow: 0 0 10px rgba(87,242,135,0.6); }
+.status-dot.degraded { background: #fbbf24; box-shadow: 0 0 10px rgba(251,191,36,0.6); }
+.status-hero h1 { margin-top: 1.1rem; font-size: clamp(2rem, 6vw, 3.2rem); font-weight: 900; letter-spacing: -0.04em; }
+.status-sub { margin-top: 0.5rem; color: #666; font-size: 0.95rem; font-weight: 500; }
+
+.status-metrics { display: flex; justify-content: center; gap: 2.5rem; margin-top: 1.75rem; }
+.metric-value { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.02em; }
+.metric-label { margin-top: 0.2rem; font-size: 0.72rem; color: rgba(255,255,255,0.35); font-weight: 600; }
+
+/* ── Sections ── */
+.status-section { margin-top: 2.25rem; }
+.status-section h2 { font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.4); margin-bottom: 0.75rem; }
+.status-card { border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); border-radius: 8px; overflow: hidden; }
+.status-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0.95rem 1.25rem;
+}
+.status-row + .status-row { border-top: 1px solid rgba(255,255,255,0.05); }
+.status-service { display: flex; align-items: center; gap: 0.75rem; }
+.status-name { font-size: 0.9rem; font-weight: 700; }
+.status-detail { margin-top: 0.15rem; font-size: 0.72rem; color: rgba(255,255,255,0.35); }
+.status-side { display: flex; align-items: center; gap: 0.75rem; }
+.status-bar { width: 120px; height: 5px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; display: inline-block; }
+.status-bar i { display: block; height: 100%; border-radius: 999px; background: #57f287; }
+.status-bar i.warn { background: #fbbf24; }
+.status-latency { font-size: 0.75rem; color: rgba(255,255,255,0.45); font-weight: 600; width: 44px; text-align: right; }
+
+/* ── Incidents ── */
+.incident { padding: 1rem 1.25rem; }
+.incident + .incident { border-top: 1px solid rgba(255,255,255,0.05); }
+.incident-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.incident-title { font-size: 0.9rem; font-weight: 700; }
+.incident-status { font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 999px; }
+.incident-status.resolved { color: #57f287; background: rgba(87,242,135,0.08); border: 1px solid rgba(87,242,135,0.2); }
+.incident-time { margin-top: 0.3rem; font-size: 0.72rem; color: rgba(255,255,255,0.3); }
+.incident-body { margin-top: 0.5rem; font-size: 0.8rem; color: #777; line-height: 1.6; }
+
+.status-footer { position: relative; z-index: 1; text-align: center; padding: 2rem 0 2.5rem; font-size: 0.75rem; color: rgba(255,255,255,0.25); }
+
+@media (max-width: 560px) {
+  .status-metrics { gap: 1.25rem; }
+  .status-bar { width: 70px; }
+  .status-row { padding: 0.85rem 1rem; }
+  .status-nav { padding: 1.2rem 1.25rem; }
+}

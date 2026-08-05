@@ -123,7 +123,7 @@ class RotatingSessionMiddleware:
 
         conn = HTTPConnection(scope)
         cookie_val = conn.cookies.get("session")
-        # Session data lives in the signed cookie itself — serverless-safe.
+        # Session data lives in the signed cookie itself - serverless-safe.
         session_data = rotating_session.unsign_session_data(cookie_val) if cookie_val else None
         if session_data is None:
             session_data = {}
@@ -177,7 +177,7 @@ class SubdomainRouteMiddleware:
         # api.prowlbot.xyz should only serve /api/* (and the health/ping endpoints)
         if is_api_host and not is_api:
             return await self._send_json(scope, receive, send, 404, {"error": "Not Found"})
-        # prowlbot.xyz should not serve /api/* — send them to the api subdomain
+        # prowlbot.xyz should not serve /api/* - send them to the api subdomain
         if is_main_host and is_api:
             from starlette.responses import RedirectResponse
             new_path = "https://api.prowlbot.xyz" + path
@@ -368,6 +368,21 @@ async def invite(request: Request):
     return templates.TemplateResponse(request, "invite.html", {"config": _cfg()})
 
 
+@app.get("/terms", response_class=HTMLResponse)
+async def terms(request: Request):
+    return templates.TemplateResponse(request, "tos.html", {"config": _cfg()})
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy(request: Request):
+    return templates.TemplateResponse(request, "privacy.html", {"config": _cfg()})
+
+
+@app.get("/status", response_class=HTMLResponse)
+async def status_page(request: Request):
+    return templates.TemplateResponse(request, "status.html", {"config": _cfg()})
+
+
 @app.get("/captcha/{provider}", response_class=HTMLResponse)
 async def captcha_page(request: Request, provider: str):
     """Hosted captcha solve page: renders the widget and auto-verifies on solve."""
@@ -528,7 +543,7 @@ async def guild_profile(request: Request):
         "active_panel": "profile",
         "bot_data": {},
         "config": _cfg(),
-    })
+    }, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/guild/{guild_id}/{panel}")
@@ -563,7 +578,8 @@ async def dashboard(request: Request, guild_id: str, panel: str = "overview"):
         "config": _cfg(),
     }
 
-    return templates.TemplateResponse(request, f"dashboard/{panel}.html", ctx)
+    return templates.TemplateResponse(request, f"dashboard/{panel}.html", ctx,
+                                      headers={"Cache-Control": "no-store"})
 
 
 # ---------------------------------------------------------------------------
@@ -1385,6 +1401,7 @@ LEVELING_DEFAULTS = {
     "role_xp_multipliers": {},
     "level_roles": {},
     "level_up_message": "🎉 {user} reached **level {level}**!",
+    "level_up_message_mode": "basic", "level_up_embed": {},
 }
 
 
@@ -1466,6 +1483,14 @@ async def leveling_settings_set(guild_id: str, request: Request):
         return {"ok": True}
     if key == "role_xp_multipliers":
         clean, err = _sanitize_role_multipliers(value)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        err = await _save_settings("leveling_settings", str(guild_id), key, clean, LEVELING_DEFAULTS)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        return {"ok": True}
+    if key == "level_up_embed":
+        clean, err = _sanitize_panel_embed(value)
         if err:
             return JSONResponse({"error": err}, status_code=400)
         err = await _save_settings("leveling_settings", str(guild_id), key, clean, LEVELING_DEFAULTS)

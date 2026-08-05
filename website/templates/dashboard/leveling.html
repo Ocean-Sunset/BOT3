@@ -81,17 +81,28 @@
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Level-Up Message</div>
-        <div class="md-behavior-list">
-          <div class="md-behavior-item" style="align-items:flex-start">
-            <div style="flex:1">
-              <input type="text" class="md-input" data-key="level_up_message" placeholder="🎉 {user} reached **level {level}**!" />
-              <div class="md-vars-hint">Variables: {user} {mention} {name} {level} {next_level} {xp} {xp_needed} {role} {servername} {membercount}</div>
-            </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;">
+          <div class="md-section-title">Level-Up Message</div>
+          <div class="md-segmented">
+            <button class="extra-tab msg-mode-tab is-active" data-mode="basic">Basic</button>
+            <button class="extra-tab msg-mode-tab" data-mode="custom">Custom</button>
           </div>
         </div>
-        <div style="font-size:0.7rem;font-weight:700;color:rgba(255,255,255,0.4);margin:0.6rem 0 0.3rem;letter-spacing:0.02em;">PREVIEW</div>
-        <div class="md-lvl-preview" id="lvl-preview">🎉 <span style="color:#5865f2;">@User</span> reached <strong>level 12</strong>!</div>
+        <div data-basic-view="level">
+          <div class="md-behavior-list">
+            <div class="md-behavior-item" style="align-items:flex-start">
+              <div style="flex:1">
+                <input type="text" class="md-input" data-key="level_up_message" placeholder="🎉 {user} reached **level {level}**!" />
+                <div class="md-vars-hint">Variables: {user} {mention} {name} {level} {next_level} {xp} {xp_needed} {role} {servername} {membercount}</div>
+              </div>
+            </div>
+          </div>
+          <div style="font-size:0.7rem;font-weight:700;color:rgba(255,255,255,0.4);margin:0.6rem 0 0.3rem;letter-spacing:0.02em;">PREVIEW</div>
+          <div class="md-lvl-preview" id="lvl-preview">🎉 <span style="color:#5865f2;">@User</span> reached <strong>level 12</strong>!</div>
+        </div>
+        <div data-custom-view="level" style="display:none;">
+          <button class="md-action-btn" data-edit-embed="level" style="width:100%;justify-content:center;padding:0.5rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
+        </div>
       </div>
     </div>
 
@@ -135,8 +146,82 @@
 
   </div>
 </div>
+
+<!-- Custom embed editor modal -->
+<div class="md-modal-overlay" id="embed-editor-modal">
+  <div class="md-modal" style="min-width:520px;max-width:560px;max-height:80vh;overflow-y:auto;">
+    <h3 id="embed-editor-title">Level-Up Embed</h3>
+    <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin:0.2rem 0 0.75rem;line-height:1.5;">Variables work in title, description and footer: <code>{user}</code> <code>{mention}</code> <code>{name}</code> <code>{level}</code> <code>{next_level}</code> <code>{xp}</code> <code>{xp_needed}</code> <code>{role}</code> <code>{servername}</code> <code>{membercount}</code></div>
+    <div style="display:flex;flex-direction:column;gap:0.6rem;margin:0.75rem 0;">
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Title</div>
+        <input type="text" class="md-input" id="ee-title" placeholder="🎉 Level Up!" />
+      </div>
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Description</div>
+        <textarea class="md-input md-textarea" id="ee-desc" rows="3" placeholder="{user} reached **level {level}**!"></textarea>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Color</div>
+          <div style="display:flex;align-items:center;gap:0.4rem;">
+            <input type="color" id="ee-color" value="#57f287" style="width:36px;height:32px;border:none;background:none;cursor:pointer;" />
+            <input type="text" class="md-input" id="ee-color-hex" value="#57f287" style="max-width:90px;" />
+          </div>
+          <div class="md-presets" id="ee-presets" style="margin:0.4rem 0 0 0;flex-wrap:wrap;"></div>
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">URL</div>
+          <input type="text" class="md-input" id="ee-url" placeholder="https://..." />
+          <div style="font-size:0.65rem;color:rgba(255,255,255,0.3);margin-top:0.25rem;line-height:1.4;">Makes the embed title clickable.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Author Name</div>
+          <input type="text" class="md-input" id="ee-author" placeholder="Author" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Author Icon URL</div>
+          <input type="text" class="md-input" id="ee-author-icon" placeholder="https://...png" />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Footer Text</div>
+          <input type="text" class="md-input" id="ee-footer" placeholder="Footer" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Footer Icon URL</div>
+          <input type="text" class="md-input" id="ee-footer-icon" placeholder="https://...png" />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Image URL</div>
+          <input type="text" class="md-input" id="ee-image" placeholder="https://...png" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Thumbnail URL</div>
+          <input type="text" class="md-input" id="ee-thumbnail" placeholder="https://...png" />
+        </div>
+      </div>
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Fields</div>
+        <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-bottom:0.4rem;line-height:1.5;">Fields are the small labelled rows inside an embed. Each has a Name and a Value; "Inline" places it side-by-side with others.</div>
+        <div id="ee-fields" style="display:flex;flex-direction:column;gap:0.4rem;"></div>
+        <button class="md-action-btn" id="ee-add-field" style="margin-top:0.4rem;"><i data-lucide="plus"></i> Add Field</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="md-action-btn" id="ee-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save Embed</button>
+      <button class="md-action-btn" id="ee-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script>
 const GID = window.__GUILD_ID;
 const api = (path, opts) => fetch(`/api/v1/leveling/${GID}${path}`, opts||{}).then(r=>r.json());
@@ -171,9 +256,123 @@ function updatePreview() {
     '{level}': level, '{next_level}': level+1, '{xp}': xp, '{xp_needed}': xp_needed,
     '{role}': '@VIP', '{servername}': 'My Server', '{membercount}': 128, '{server}': 'My Server',
   };
-  let html = msg;
-  for (const k in sample) html = html.split(k).join('<span class="lvl-preview-var">' + sample[k] + '</span>');
+  // Swap variables for safe placeholder tokens so markdown renders first, then re-insert highlighted vars
+  let tmp = msg;
+  const tokens = {};
+  Object.keys(sample).forEach(k => {
+    const t = '\u27E6PV' + Math.random().toString(36).slice(2,8) + '\u27E7';
+    tokens[t] = '<span class="lvl-preview-var">' + esc(String(sample[k])) + '</span>';
+    tmp = tmp.split(k).join(t);
+  });
+  let html = tmp;
+  if (window.marked) { try { html = marked.parse(html); } catch (e) {} }
+  html = html.trim();
+  if (html.startsWith('<p>') && html.endsWith('</p>')) html = html.slice(3, -4);
+  Object.keys(tokens).forEach(t => { html = html.split(t).join(tokens[t]); });
   document.getElementById('lvl-preview').innerHTML = html || '<span style="color:rgba(255,255,255,0.3)">Nothing yet</span>';
+}
+
+// ── Basic/Custom embed mode + editor ──
+function setModeView(action, mode, dirty) {
+  document.querySelectorAll('.msg-mode-tab').forEach(t => t.classList.toggle('is-active', t.dataset.mode === mode));
+  const basic = document.querySelector(`[data-basic-view="${action}"]`);
+  const custom = document.querySelector(`[data-custom-view="${action}"]`);
+  if (basic) basic.style.display = mode === 'basic' ? '' : 'none';
+  if (custom) custom.style.display = mode === 'custom' ? '' : 'none';
+  if (dirty) markChanged('level_up_message_mode', mode);
+}
+
+const eeVal = id => document.getElementById(id)?.value ?? '';
+function collectEmbed() {
+  const e = {
+    title: eeVal('ee-title'), description: eeVal('ee-desc'), url: eeVal('ee-url'),
+    color: eeVal('ee-color-hex'),
+    author_name: eeVal('ee-author'), author_icon: eeVal('ee-author-icon'),
+    footer_text: eeVal('ee-footer'), footer_icon: eeVal('ee-footer-icon'),
+    image_url: eeVal('ee-image'), thumbnail_url: eeVal('ee-thumbnail'),
+  };
+  const fields = [];
+  document.querySelectorAll('#ee-fields .ee-field-row').forEach(row => {
+    const name = row.querySelector('.ee-field-name').value.trim();
+    const value = row.querySelector('.ee-field-value').value;
+    const inline = row.querySelector('.ee-field-inline').checked;
+    if (name) fields.push({ name, value, inline });
+  });
+  if (fields.length) e.fields = fields;
+  for (const k of ['title','description','url','author_name','author_icon','footer_text','footer_icon','image_url','thumbnail_url']) {
+    if (!e[k]) delete e[k];
+  }
+  if (!e.color || e.color.toLowerCase() === '#57f287') delete e.color;
+  return e;
+}
+function addFieldRow(f) {
+  const row = document.createElement('div');
+  row.className = 'ee-field-row';
+  row.style.cssText = 'display:flex;gap:0.4rem;align-items:center;';
+  row.innerHTML = `<input type="text" class="md-input ee-field-name" placeholder="Name" style="flex:1.2" value="${esc(f?.name||'')}"/>
+    <input type="text" class="md-input ee-field-value" placeholder="Value" style="flex:2" value="${esc(f?.value||'')}"/>
+    <label style="display:flex;align-items:center;gap:0.3rem;color:rgba(255,255,255,0.4);font-size:0.7rem;white-space:nowrap;"><input type="checkbox" class="ee-field-inline" ${f?.inline?'checked':''} /> Inline</label>
+    <button type="button" class="md-action-btn ee-field-del" style="padding:0.25rem;"><i data-lucide="x"></i></button>`;
+  row.querySelector('.ee-field-del').addEventListener('click', () => row.remove());
+  document.getElementById('ee-fields').appendChild(row);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+function loadEmbedEditor(embed) {
+  const e = embed || {};
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+  set('ee-title', e.title); set('ee-desc', e.description); set('ee-url', e.url);
+  set('ee-author', e.author_name); set('ee-author-icon', e.author_icon);
+  set('ee-footer', e.footer_text); set('ee-footer-icon', e.footer_icon);
+  set('ee-image', e.image_url); set('ee-thumbnail', e.thumbnail_url);
+  const hex = (e.color && !/^#/.test(String(e.color))) ? '#' + e.color : (e.color || '#57f287');
+  set('ee-color-hex', hex);
+  const colorInput = document.getElementById('ee-color');
+  if (colorInput) colorInput.value = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#57f287';
+  const fw = document.getElementById('ee-fields');
+  fw.innerHTML = '';
+  (e.fields || []).forEach(fld => addFieldRow(fld));
+}
+
+const EMBED_DEFAULTS = { level: { title:'🎉 Level Up!', description:'{user} reached **level {level}**!', color:'#57f287' } };
+
+document.querySelectorAll('.msg-mode-tab').forEach(t => t.addEventListener('click', () => setModeView('level', t.dataset.mode, true)));
+document.querySelectorAll('[data-edit-embed]').forEach(b => b.addEventListener('click', () => {
+  const saved = SETTINGS_SNAPSHOT.level_up_embed || {};
+  loadEmbedEditor(Object.keys(saved).length ? saved : EMBED_DEFAULTS.level);
+  document.getElementById('embed-editor-modal').classList.add('is-open');
+}));
+document.getElementById('ee-save').addEventListener('click', () => {
+  const e = collectEmbed();
+  if (Object.keys(e).length === 0) {
+    if (typeof showToast === 'function') showToast('The embed is empty — add a title, description, footer or a field first.', 'warning', 5000);
+    return;
+  }
+  markChanged('level_up_embed', e);
+  if (typeof showToast === 'function') showToast('Level-up embed updated.', 'success');
+  document.getElementById('embed-editor-modal').classList.remove('is-open');
+});
+document.getElementById('ee-cancel').addEventListener('click', () => document.getElementById('embed-editor-modal').classList.remove('is-open'));
+document.getElementById('ee-add-field').addEventListener('click', () => addFieldRow({}));
+const eeHex = document.getElementById('ee-color-hex');
+const eeColor = document.getElementById('ee-color');
+if (eeHex && eeColor) {
+  eeHex.addEventListener('input', () => { if (/^#[0-9a-fA-F]{6}$/.test(eeHex.value)) eeColor.value = eeHex.value; });
+  eeColor.addEventListener('input', () => { eeHex.value = eeColor.value; });
+}
+const EE_PRESETS = ['#57f287','#5865f2','#fee75c','#faa61a','#ed4245','#eb459e','#00c8ff','#b6a2e0','#ffffff','#313338','#000000'];
+const eePresets = document.getElementById('ee-presets');
+if (eePresets) {
+  EE_PRESETS.forEach(c => {
+    const sw = document.createElement('button');
+    sw.type = 'button';
+    sw.style.cssText = 'width:22px;height:22px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);background:' + c + ';cursor:pointer;padding:0;';
+    sw.title = c;
+    sw.addEventListener('click', () => {
+      if (eeHex) { eeHex.value = c; eeHex.dispatchEvent(new Event('input')); }
+      if (eeColor) eeColor.value = c;
+    });
+    eePresets.appendChild(sw);
+  });
 }
 
 function renderDisabledState() {
@@ -335,6 +534,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderMultipliers(s.role_xp_multipliers || {});
     renderDisabledState();
     renderRandomState();
+    setModeView('level', s.level_up_message_mode || 'basic', false);
     updatePreview();
 
     if (enabled) enabled.addEventListener('change', function(){ markChanged('enabled', this.checked); renderDisabledState(); });
@@ -391,6 +591,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     for (const key of Object.keys(pending)) delete pending[key];
     for (const key of Object.keys(original)) delete original[key];
     SETTINGS_SNAPSHOT = { ...reverted };
+    setModeView('level', reverted.level_up_message_mode || 'basic', false);
     // Revert simple inputs
     ['xp_rate','xp_cooldown','xp_per_message_min','xp_per_message_max'].forEach(k => {
       const el = document.querySelector(`[data-key="${k}"]`);

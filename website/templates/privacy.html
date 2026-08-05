@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prowl - Privacy Policy</title>
+  <meta name="description" content="Prowl bot Privacy Policy." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/static/favicon.png" />
+  <link rel="stylesheet" href="/static/legal.css?v=1" />
+</head>
+<body>
+  <div class="wave-field" id="wave-field"></div>
+  <div class="vignette"></div>
+
+  <div class="legal-page">
+    <a href="/" class="legal-brand">
+      <img src="/static/favicon.png" alt="Prowl" />
+      <span>Prowl</span>
+    </a>
+    <div class="legal-card">
+      <h1>Privacy Policy</h1>
+      <p class="legal-updated">Last updated: August 5, 2026</p>
+
+      <section>
+        <h2>1. Information We Collect</h2>
+        <p>When you use Prowl, we may collect server IDs, user IDs, channel IDs, role IDs, message counts, XP data, and configuration settings required to operate the bot's features. When you log into the dashboard, we may store your Discord user ID, username, and avatar.</p>
+      </section>
+
+      <section>
+        <h2>2. How We Use Information</h2>
+        <p>Collected information is used solely to provide and improve the service — such as storing your server's settings, tracking XP, logging moderation actions, and verifying accounts. We do not sell your data.</p>
+      </section>
+
+      <section>
+        <h2>3. Data Storage &amp; Retention</h2>
+        <p>Data is stored on secure cloud servers. Configuration data is retained until you delete it or remove the bot. Moderation logs are retained for a reasonable period for server management purposes.</p>
+      </section>
+
+      <section>
+        <h2>4. Third-Party Services</h2>
+        <p>Prowl integrates with Discord, and may use third-party providers for features such as image generation and captcha verification. These services have their own privacy policies.</p>
+      </section>
+
+      <section>
+        <h2>5. Account Deletion</h2>
+        <p>You may delete your dashboard account at any time from the profile page. This removes your account record. To remove server data, remove the bot from the server or contact us.</p>
+      </section>
+
+      <section>
+        <h2>6. Contact</h2>
+        <p>Questions about this policy? Reach out through the Discord server or the contact information on the site.</p>
+      </section>
+    </div>
+    <div class="legal-footer">
+      <a href="/">Back to home</a>
+      <a href="/terms">Terms of Service</a>
+    </div>
+  </div>
+
+  <script>
+    const waveField = document.getElementById('wave-field');
+    const count = window.innerWidth < 768 ? 25 : 50;
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('span');
+      el.textContent = '~';
+      el.style.left = Math.random() * 100 + '%';
+      el.style.top = Math.random() * 100 + '%';
+      el.style.fontSize = (1 + Math.random() * 1.8) + 'rem';
+      el.style.opacity = 0.03 + Math.random() * 0.08;
+      waveField.appendChild(el);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prowl Status</title>
+  <meta name="description" content="Prowl bot status page." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/static/favicon.png" />
+  <link rel="stylesheet" href="/static/status.css?v=1" />
+</head>
+<body>
+
+  <div class="wave-field" id="wave-field"></div>
+  <div class="vignette"></div>
+
+  <header class="status-nav">
+    <a href="/" class="status-brand">
+      <img src="/static/favicon.png" alt="Prowl" />
+      <span>Prowl</span>
+    </a>
+    <a href="https://prowlbot.xyz" class="status-home-link">prowlbot.xyz</a>
+  </header>
+
+  <main class="status-page">
+    <div class="status-hero">
+      <div class="status-pill operational">
+        <span class="status-dot"></span>
+        All Systems Operational
+      </div>
+      <h1>Prowl Status</h1>
+      <p class="status-sub">Real-time status of Prowl's services.</p>
+      <div class="status-metrics">
+        <div class="metric">
+          <div class="metric-value">99.9%</div>
+          <div class="metric-label">Uptime (90 days)</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value">42ms</div>
+          <div class="metric-label">Avg Latency</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value">12,847</div>
+          <div class="metric-label">Servers</div>
+        </div>
+      </div>
+    </div>
+
+    <section class="status-section">
+      <h2>Services</h2>
+      <div class="status-card">
+        <div class="status-row">
+          <div class="status-service">
+            <span class="status-dot operational"></span>
+            <div>
+              <div class="status-name">Bot Gateway</div>
+              <div class="status-detail">Discord connection &amp; commands</div>
+            </div>
+          </div>
+          <div class="status-side">
+            <span class="status-bar"><i style="width:99.99%"></i></span>
+            <span class="status-latency">38ms</span>
+          </div>
+        </div>
+        <div class="status-row">
+          <div class="status-service">
+            <span class="status-dot operational"></span>
+            <div>
+              <div class="status-name">Web Dashboard</div>
+              <div class="status-detail">Dashboard &amp; API endpoints</div>
+            </div>
+          </div>
+          <div class="status-side">
+            <span class="status-bar"><i style="width:99.9%"></i></span>
+            <span class="status-latency">51ms</span>
+          </div>
+        </div>
+        <div class="status-row">
+          <div class="status-service">
+            <span class="status-dot operational"></span>
+            <div>
+              <div class="status-name">Database</div>
+              <div class="status-detail">PostgreSQL (Neon)</div>
+            </div>
+          </div>
+          <div class="status-side">
+            <span class="status-bar"><i style="width:100%"></i></span>
+            <span class="status-latency">24ms</span>
+          </div>
+        </div>
+        <div class="status-row">
+          <div class="status-service">
+            <span class="status-dot degraded"></span>
+            <div>
+              <div class="status-name">AI Generation</div>
+              <div class="status-detail">Image &amp; text generation</div>
+            </div>
+          </div>
+          <div class="status-side">
+            <span class="status-bar"><i class="warn" style="width:96%"></i></span>
+            <span class="status-latency">210ms</span>
+          </div>
+        </div>
+        <div class="status-row">
+          <div class="status-service">
+            <span class="status-dot operational"></span>
+            <div>
+              <div class="status-name">Music</div>
+              <div class="status-detail">Audio playback providers</div>
+            </div>
+          </div>
+          <div class="status-side">
+            <span class="status-bar"><i style="width:99.8%"></i></span>
+            <span class="status-latency">67ms</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="status-section">
+      <h2>Incidents</h2>
+      <div class="status-card incident-card">
+        <div class="incident">
+          <div class="incident-head">
+            <span class="incident-title">AI Generation degraded</span>
+            <span class="incident-status resolved">Resolved</span>
+          </div>
+          <div class="incident-time">Aug 3, 2026 · 09:12 – 10:40 UTC</div>
+          <p class="incident-body">The upstream AI provider returned elevated error rates. Requests have been queued and retried automatically.</p>
+        </div>
+        <div class="incident">
+          <div class="incident-head">
+            <span class="incident-title">Database maintenance</span>
+            <span class="incident-status resolved">Resolved</span>
+          </div>
+          <div class="incident-time">Jul 28, 2026 · 03:00 – 03:12 UTC</div>
+          <p class="incident-body">Scheduled maintenance window for index optimization. Brief increase in latency, no downtime.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="status-footer">
+    <span>&copy; 2026 Prowl. All rights reserved.</span>
+  </footer>
+
+  <script>
+    const waveField = document.getElementById('wave-field');
+    const count = window.innerWidth < 768 ? 25 : 50;
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('span');
+      el.textContent = '~';
+      el.style.left = Math.random() * 100 + '%';
+      el.style.top = Math.random() * 100 + '%';
+      el.style.fontSize = (1 + Math.random() * 1.8) + 'rem';
+      el.style.opacity = 0.03 + Math.random() * 0.08;
+      waveField.appendChild(el);
+    }
+  </script>
+</body>
+</html>

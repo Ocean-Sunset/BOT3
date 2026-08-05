@@ -20,6 +20,7 @@ LEVELING_DEFAULTS = {
     "level_roles": {},
     "role_xp_multipliers": {},
     "level_up_message": "🎉 {user} reached **level {level}**!",
+    "level_up_message_mode": "basic", "level_up_embed": {},
     "xp_per_message_min": 15,
     "xp_per_message_max": 25,
 }
@@ -73,6 +74,45 @@ def format_level_up_message(
     out = template
     for key, value in replacements.items():
         out = out.replace(key, value)
+    return out
+
+
+def build_embed(data: dict) -> discord.Embed:
+    """Build a discord.Embed from a dashboard-configured dict."""
+    if not isinstance(data, dict):
+        data = {}
+    color = data.get("color")
+    try:
+        color = int(str(color).lstrip("#"), 16) if color else 0x57F287
+    except (ValueError, TypeError):
+        color = 0x57F287
+    embed = discord.Embed(
+        title=data.get("title") or None,
+        description=data.get("description") or None,
+        color=color,
+    )
+    if data.get("url"):
+        embed.url = data["url"]
+    if data.get("author_name"):
+        embed.set_author(name=data["author_name"], url=data.get("author_url") or None, icon_url=data.get("author_icon") or None)
+    if data.get("image_url"):
+        embed.set_image(url=data["image_url"])
+    if data.get("thumbnail_url"):
+        embed.set_thumbnail(url=data["thumbnail_url"])
+    if data.get("footer_text") or data.get("footer_icon"):
+        embed.set_footer(text=data.get("footer_text") or "", icon_url=data.get("footer_icon") or None)
+    for f in (data.get("fields") or []):
+        if isinstance(f, dict) and f.get("name"):
+            embed.add_field(name=f["name"][:256], value=(f.get("value") or "\u200b")[:1024], inline=bool(f.get("inline")))
+    return embed
+
+
+def render_embed_vars(data: dict, message: discord.Message, level: int, xp: int, xp_needed: int, granted_role=None) -> dict:
+    """Render level-up variables inside an embed's text fields."""
+    out = dict(data)
+    for key in ("title", "description", "footer_text", "author_name", "url"):
+        if out.get(key):
+            out[key] = format_level_up_message(str(out[key]), message, level, xp, xp_needed, granted_role)
     return out
 
 
@@ -184,26 +224,35 @@ class Leveling(commands.Cog, name="Leveling"):
                 try:
                     level_up_msg = settings.get("level_up_message", "🎉 {user} reached **level {level}**!")
                     xp_needed = xp_for_level(new_level + 1) - new_xp
-                    msg = format_level_up_message(
-                        level_up_msg,
-                        message=message,
-                        level=new_level,
-                        xp=new_xp,
-                        xp_needed=xp_needed,
-                        granted_role=granted_role,
-                    )
-                    embed = (
-                        EmbedBuilder()
-                        .title("🎉 Level Up!")
-                        .description(msg)
-                        .color("green")
-                        .field("New Level", str(new_level))
-                        .field("Total XP", str(new_xp))
-                        .thumbnail(message.author.display_avatar.url)
-                        .timestamp(datetime.datetime.utcnow())
-                        .build()
-                    )
-                    await channel.send(embed=embed)
+                    mode = settings.get("level_up_message_mode", "basic")
+                    if mode == "custom" and settings.get("level_up_embed"):
+                        data = render_embed_vars(
+                            settings.get("level_up_embed") or {}, message=message,
+                            level=new_level, xp=new_xp, xp_needed=xp_needed, granted_role=granted_role,
+                        )
+                        embed = build_embed(data)
+                        await channel.send(embed=embed)
+                    else:
+                        msg = format_level_up_message(
+                            level_up_msg,
+                            message=message,
+                            level=new_level,
+                            xp=new_xp,
+                            xp_needed=xp_needed,
+                            granted_role=granted_role,
+                        )
+                        embed = (
+                            EmbedBuilder()
+                            .title("🎉 Level Up!")
+                            .description(msg)
+                            .color("green")
+                            .field("New Level", str(new_level))
+                            .field("Total XP", str(new_xp))
+                            .thumbnail(message.author.display_avatar.url)
+                            .timestamp(datetime.datetime.utcnow())
+                            .build()
+                        )
+                        await channel.send(embed=embed)
                 except Exception as e:
                     logger.warning(f"Failed to send level up message: {e}")
 

@@ -204,7 +204,7 @@ async def get_session_async(sid: str) -> Optional[dict]:
         if time.time() < entry["expires"]:
             return entry["data"]
         del _session_store[sid]
-    # Not in memory — try DB (shared across instances / cold starts)
+    # Not in memory - try DB (shared across instances / cold starts)
     row = await _db_get(sid)
     if row:
         if time.time() < row["expires"]:

@@ -53,7 +53,7 @@
     </a>
     <div class="captcha-card gsap-hero">
       <h1 class="captcha-title">Google reCAPTCHA</h1>
-      <p class="captcha-sub">Complete the puzzle below. You'll be verified automatically — no need to copy anything.</p>
+      <p class="captcha-sub">Complete the puzzle below. You'll be verified automatically - no need to copy anything.</p>
       <div class="captcha-widget">
         {% if recaptcha_version == "v3" %}
           <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:rgba(255,255,255,0.5);">
@@ -96,7 +96,7 @@
           body: JSON.stringify({ token, code: CODE, provider: PROVIDER })
         });
         if (res.status === 500) {
-          setStatus('Internal server error — please try again later.', false);
+          setStatus('Internal server error - please try again later.', false);
           return;
         }
         const data = await res.json();
@@ -107,7 +107,7 @@
           setStatus(msg, false);
         }
       } catch (e) {
-        setStatus('Network error — please try again later.', false);
+        setStatus('Network error - please try again later.', false);
       }
     }
 
@@ -141,9 +141,9 @@
           grecaptcha.ready(function() {
             grecaptcha.execute({{ site_key | tojson }}, { action: 'verify' }).then(function(token) {
               if (token) complete(token);
-              else setStatus('Could not obtain a token — the site key may be wrong.', false);
+              else setStatus('Could not obtain a token - the site key may be wrong.', false);
             }).catch(function() {
-              setStatus('Invalid reCAPTCHA key — the site key does not match the version. Try a v2 checkbox key or set RECAPTCHA_VERSION=v2.', false);
+              setStatus('Invalid reCAPTCHA key - the site key does not match the version. Try a v2 checkbox key or set RECAPTCHA_VERSION=v2.', false);
             });
           });
         } else {
@@ -158,11 +158,11 @@
               sitekey: {{ site_key | tojson }},
               theme: 'dark',
               callback: complete,
-              'expired-callback': function() { done = false; setStatus('Captcha expired — solve it again.', false); },
-              'error-callback': function() { done = false; setStatus('Captcha error — try again.', false); }
+              'expired-callback': function() { done = false; setStatus('Captcha expired - solve it again.', false); },
+              'error-callback': function() { done = false; setStatus('Captcha error - try again.', false); }
             });
           } catch (e) {
-            setStatus('Captcha setup issue — site key type mismatch.', false);
+            setStatus('Captcha setup issue - site key type mismatch.', false);
           }
         }
       };

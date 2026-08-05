@@ -80,16 +80,16 @@
         </div>
 
         <div class="server-info">
-          <div class="server-icon">
-            {% if guild and guild.icon %}
-              <img src="https://cdn.discordapp.com/icons/{{ guild_id }}/{{ guild.icon }}.png?size=64" alt="" />
-            {% elif guild %}
-              {{ guild.name[0] | upper }}
-            {% else %}
-              ?
-            {% endif %}
-          </div>
-          <div class="server-name sidebar-label">{{ guild.name if guild else 'No Server' }}</div>
+          {% if guild %}
+            <div class="server-icon">
+              {% if guild.icon %}
+                <img src="https://cdn.discordapp.com/icons/{{ guild_id }}/{{ guild.icon }}.png?size=64" alt="" />
+              {% else %}
+                {{ guild.name[0] | upper }}
+              {% endif %}
+            </div>
+            <div class="server-name sidebar-label">{{ guild.name }}</div>
+          {% endif %}
           <a href="/servers" class="server-switch" data-tooltip="Switch server">
             <i data-lucide="repeat"></i>
           </a>
@@ -252,7 +252,7 @@
             const now = Date.now();
             if (now - lastWarn > 8000 && typeof window.showToast === 'function') {
               lastWarn = now;
-              window.showToast('Rate limited (429) — slow down, retrying shortly.', 'warning', 6000);
+              window.showToast('Rate limited (429) - slow down, retrying shortly.', 'warning', 6000);
             }
           }
           return res;

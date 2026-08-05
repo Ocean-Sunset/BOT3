@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prowl - Terms of Service</title>
+  <meta name="description" content="Prowl bot Terms of Service." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/static/favicon.png" />
+  <link rel="stylesheet" href="/static/legal.css?v=1" />
+</head>
+<body>
+  <div class="wave-field" id="wave-field"></div>
+  <div class="vignette"></div>
+
+  <div class="legal-page">
+    <a href="/" class="legal-brand">
+      <img src="/static/favicon.png" alt="Prowl" />
+      <span>Prowl</span>
+    </a>
+    <div class="legal-card">
+      <h1>Terms of Service</h1>
+      <p class="legal-updated">Last updated: August 5, 2026</p>
+
+      <section>
+        <h2>1. Acceptance of Terms</h2>
+        <p>By adding Prowl to a Discord server, using the dashboard, or interacting with the bot in any way, you agree to these Terms of Service. If you do not agree, please remove the bot and stop using the service.</p>
+      </section>
+
+      <section>
+        <h2>2. The Service</h2>
+        <p>Prowl is a Discord bot providing moderation, automation, entertainment, and utility features through a web dashboard and slash commands. We may add, remove, or change features at any time without notice.</p>
+      </section>
+
+      <section>
+        <h2>3. Acceptable Use</h2>
+        <p>You agree not to use Prowl to:</p>
+        <ul>
+          <li>Violate Discord's Terms of Service or Community Guidelines.</li>
+          <li>Harass, threaten, or dox any individual.</li>
+          <li>Attempt to disrupt, overload, or exploit the service or its infrastructure.</li>
+          <li>Use the service for any unlawful purpose.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>4. Account &amp; Data</h2>
+        <p>You are responsible for the actions taken with your account. Server configuration data is stored to operate the service. See our <a href="/privacy">Privacy Policy</a> for details.</p>
+      </section>
+
+      <section>
+        <h2>5. Disclaimers</h2>
+        <p>The service is provided "as is" without warranties of any kind. We are not liable for any direct, indirect, incidental, or consequential damages arising from your use of the service.</p>
+      </section>
+
+      <section>
+        <h2>6. Changes</h2>
+        <p>We may update these Terms at any time. Continued use of the service after changes constitutes acceptance of the updated Terms.</p>
+      </section>
+
+      <section>
+        <h2>7. Contact</h2>
+        <p>Questions about these Terms? Reach out through the Discord server or the contact information on the site.</p>
+      </section>
+    </div>
+    <div class="legal-footer">
+      <a href="/">Back to home</a>
+      <a href="/privacy">Privacy Policy</a>
+    </div>
+  </div>
+
+  <script>
+    const waveField = document.getElementById('wave-field');
+    const count = window.innerWidth < 768 ? 25 : 50;
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('span');
+      el.textContent = '~';
+      el.style.left = Math.random() * 100 + '%';
+      el.style.top = Math.random() * 100 + '%';
+      el.style.fontSize = (1 + Math.random() * 1.8) + 'rem';
+      el.style.opacity = 0.03 + Math.random() * 0.08;
+      waveField.appendChild(el);
+    }
+  </script>
+</body>
+</html>

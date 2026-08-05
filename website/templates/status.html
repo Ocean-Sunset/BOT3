@@ -123,9 +123,22 @@
       label.textContent = state === 'down' ? 'Partial Outage' : state === 'degraded' ? 'Degraded Performance' : 'All Systems Operational';
     }
 
+    function agoStr(ts) {
+      if (!ts) return 'never';
+      const s = Math.max(0, Math.floor(Date.now() / 1000 - ts));
+      if (s < 60) return s + 's ago';
+      if (s < 3600) return Math.floor(s / 60) + 'm ago';
+      return Math.floor(s / 3600) + 'h ago';
+    }
+
     function renderStats(stats) {
       const el = document.getElementById('status-stats');
       if (!stats) { el.innerHTML = ''; return; }
+      const syncTile = stats.last_sync
+        ? (stats.stale
+            ? '<span style="color:#f87171;">Stale · ' + agoStr(stats.last_sync) + '</span>'
+            : '<span style="color:#57f287;">Live</span>')
+        : '—';
       const items = [
         ['Servers', stats.guilds != null ? Number(stats.guilds).toLocaleString() : '—'],
         ['Members', stats.users != null ? Number(stats.users).toLocaleString() : '—'],
@@ -135,6 +148,7 @@
         ['CPU', stats.cpu_percent != null ? stats.cpu_percent + '%' : '—'],
         ['Shards', stats.shards != null ? stats.shards : '—'],
         ['Version', esc(stats.version || '—')],
+        ['Bot Heartbeat', syncTile],
       ];
       el.innerHTML = items.map(i =>
         '<div class="status-stat"><div class="stat-value">' + i[1] + '</div><div class="stat-label">' + i[0] + '</div></div>'

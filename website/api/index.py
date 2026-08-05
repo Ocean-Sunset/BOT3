@@ -916,8 +916,9 @@ async def _ensure_incidents():
 @app.get("/api/v1/status/summary")
 async def status_summary(request: Request):
     t0_all = time.perf_counter()
-    rows = await query("SELECT key, value FROM bot_stats")
+    rows = await query("SELECT key, value, updated_at FROM bot_stats")
     data = {row["key"]: row["value"] for row in rows}
+    last_upd = {row["key"]: row["updated_at"] for row in rows}
 
     def safe_int(key, default=0):
         try:
@@ -927,6 +928,27 @@ async def status_summary(request: Request):
 
     def safe_str(key, default=""):
         return data.get(key, default)
+
+    # Heartbeat staleness: the bot pushes stats every ~2 min. If nothing has
+    # been written recently the process is down, regardless of the stored value.
+    STALE_BOT_SECONDS = 240
+    last_sync = 0
+    for v in last_upd.values():
+        try:
+            last_sync = max(last_sync, int(v))
+        except (TypeError, ValueError):
+            pass
+    bot_stale = bool(last_sync) and (time.time() - last_sync) > STALE_BOT_SECONDS
+
+    def ago(ts):
+        if not ts:
+            return "never"
+        s = int(max(0, time.time() - ts))
+        if s < 60:
+            return f"{s}s ago"
+        if s < 3600:
+            return f"{s // 60}m ago"
+        return f"{s // 3600}h ago"
 
     # Live DB check + measured latency
     db_ok = False
@@ -939,7 +961,7 @@ async def status_summary(request: Request):
     except Exception:
         pass
 
-    bot_up = data.get("bot_status") == "Running"
+    bot_up = data.get("bot_status") == "Running" and not bot_stale
     try:
         gateway_ping = int(float(data.get("gateway_ping_ms", 0)))
         gateway_ping = gateway_ping if gateway_ping > 0 else None
@@ -959,14 +981,21 @@ async def status_summary(request: Request):
         pass
 
     ai_raw = data.get("ai_status", "unknown")
-    ai_status = ai_raw if ai_raw in ("operational", "degraded", "down", "disabled") else "unknown"
+    if bot_stale and ai_raw in ("operational", "disabled", "unknown"):
+        ai_status = "down"
+    else:
+        ai_status = ai_raw if ai_raw in ("operational", "degraded", "down", "disabled") else "unknown"
     music_raw = data.get("music_status", "disabled")
-    music_status = music_raw if music_raw in ("operational", "degraded", "down", "disabled") else "disabled"
+    if bot_stale and music_raw in ("operational", "disabled", "unknown"):
+        music_status = "down"
+    else:
+        music_status = music_raw if music_raw in ("operational", "degraded", "down", "disabled") else "disabled"
     shard_count = safe_int("num_shards", 1) or 1
 
     services = [
         {"id": "gateway", "name": "Bot Gateway", "status": "operational" if bot_up else "down",
-         "detail": f"Uptime {safe_str('uptime', 'N/A')}", "latency_ms": gateway_ping},
+         "detail": f"Uptime {safe_str('uptime', 'N/A')}" if bot_up else f"No heartbeat · last seen {ago(last_sync)}",
+         "latency_ms": gateway_ping},
         {"id": "web", "name": "Web Dashboard & API", "status": "operational",
          "detail": f"v{safe_str('bot_version', '?')} · Python {safe_str('python_version', '?')}", "latency_ms": None},
         {"id": "db", "name": "Database (Neon)", "status": "operational" if db_ok else "down",
@@ -1039,6 +1068,8 @@ async def status_summary(request: Request):
             "python_version": safe_str("python_version", "unknown"),
             "shards": safe_int("num_shards"),
             "last_restart": safe_str("last_restart", "unknown"),
+            "last_sync": last_sync,
+            "stale": bot_stale,
         },
         "services": services,
         "shards": shards,

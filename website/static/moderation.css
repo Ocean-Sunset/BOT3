@@ -8,17 +8,15 @@
 }
 
 .md-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem 0.75rem;
-  align-items: start;
+  column-count: 2;
+  column-gap: 0.75rem;
 }
 .md-row > .md-section {
-  margin-bottom: 0;
-  min-width: 0;
+  break-inside: avoid;
+  margin-bottom: 1.5rem;
 }
 @media (max-width: 900px) {
-  .md-row { grid-template-columns: 1fr; }
+  .md-row { column-count: 1; }
 }
 
 .md-section-title {

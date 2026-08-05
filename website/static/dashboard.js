@@ -192,11 +192,15 @@
       nav.scrollTop = saved.scrollTop;
     }
 
-    // Save scroll position before page unload
+    // Save scroll position before page unload (debounced - sync localStorage on scroll is janky)
+    let scrollTimer = null;
     nav.addEventListener("scroll", () => {
-      const data = JSON.parse(localStorage.getItem(SIDEBAR_KEY) || "{}");
-      data.scrollTop = nav.scrollTop;
-      localStorage.setItem(SIDEBAR_KEY, JSON.stringify(data));
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        const data = JSON.parse(localStorage.getItem(SIDEBAR_KEY) || "{}");
+        data.scrollTop = nav.scrollTop;
+        localStorage.setItem(SIDEBAR_KEY, JSON.stringify(data));
+      }, 150);
     });
   }
 

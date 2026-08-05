@@ -9,12 +9,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="icon" href="/static/favicon.png" />
-  <link rel="stylesheet" href="/static/legal.css?v=1" />
+  <link rel="stylesheet" href="/static/legal.css?v=2" />
+  <link rel="stylesheet" href="/static/index.css?v=3" />
 </head>
 <body>
-  <div class="wave-field" id="wave-field"></div>
-  <div class="vignette"></div>
-
   <div class="legal-page">
     <a href="/" class="legal-brand">
       <img src="/static/favicon.png" alt="Prowl" />
@@ -135,7 +133,7 @@
 
       <section id="security">
         <h2>10. Security</h2>
-        <p>We protect data in transit using HTTPS with HSTS, store data with access controls, and sign session cookies to prevent tampering. However, no method of transmission or storage is completely secure, and we cannot guarantee absolute security. If you become aware of a security issue, please contact us at support@prowlbot.xyz.</p>
+        <p>We protect data in transit using HTTPS with HSTS, store data with access controls, and sign session cookies to prevent tampering. However, no method of transmission or storage is completely secure, and we cannot guarantee absolute security. If you become aware of a security issue, please contact us at support.prowlbot.xyz@gmail.com.</p>
       </section>
 
       <section id="rights">
@@ -149,13 +147,13 @@
           <li>receive your data in a portable format; and</li>
           <li>withdraw consent at any time, where processing is based on consent.</li>
         </ul>
-        <p>To exercise any of these rights, contact us at <a href="mailto:support@prowlbot.xyz">support@prowlbot.xyz</a>. You also have the right to lodge a complaint with the French data protection authority (CNIL) or with your local supervisory authority.</p>
+        <p>To exercise any of these rights, contact us at <a href="mailto:support.prowlbot.xyz@gmail.com">support.prowlbot.xyz@gmail.com</a>. You also have the right to lodge a complaint with the French data protection authority (CNIL) or with your local supervisory authority.</p>
       </section>
 
       <section id="deletion">
         <h2>12. Account Deletion and Data Removal</h2>
         <p>You can delete your dashboard account at any time from the profile page. This permanently removes your account record and signs you out.</p>
-        <p>To remove your server&rsquo;s data, remove Prowl from your server or contact us at <a href="mailto:support@prowlbot.xyz">support@prowlbot.xyz</a>. Individual members of a server using Prowl may request deletion of their data through the server&rsquo;s administrators or by contacting us directly.</p>
+        <p>To remove your server&rsquo;s data, remove Prowl from your server or contact us at <a href="mailto:support.prowlbot.xyz@gmail.com">support.prowlbot.xyz@gmail.com</a>. Individual members of a server using Prowl may request deletion of their data through the server&rsquo;s administrators or by contacting us directly.</p>
       </section>
 
       <section id="children">
@@ -170,27 +168,41 @@
 
       <section id="contact">
         <h2>15. Contact</h2>
-        <p>Questions about this Policy or your data? Contact us at <a href="mailto:support@prowlbot.xyz">support@prowlbot.xyz</a>.</p>
+        <p>Questions about this Policy or your data? Contact us at <a href="mailto:support.prowlbot.xyz@gmail.com">support.prowlbot.xyz@gmail.com</a>.</p>
       </section>
     </div>
-    <div class="legal-footer">
-      <a href="/">Back to home</a>
+  </div>
+
+  <div class="footer-links">
+    <div class="footer-col">
+      <h4>Product</h4>
+      <a href="#features">Features</a>
+      <a href="/login">Dashboard</a>
+      <a href="#">Changelog</a>
+    </div>
+    <div class="footer-col">
+      <h4>Resources</h4>
+      <a href="#">Documentation</a>
+      <a href="#">API Reference</a>
+      <a href="/status">Status</a>
+    </div>
+    <div class="footer-col">
+      <h4>Community</h4>
+      <a href="#">Discord Server</a>
+    </div>
+    <div class="footer-col">
+      <h4>Legal</h4>
+      <a href="/privacy">Privacy Policy</a>
       <a href="/terms">Terms of Service</a>
     </div>
   </div>
 
-  <script>
-    const waveField = document.getElementById('wave-field');
-    const count = window.innerWidth < 768 ? 25 : 50;
-    for (let i = 0; i < count; i++) {
-      const el = document.createElement('span');
-      el.textContent = '~';
-      el.style.left = Math.random() * 100 + '%';
-      el.style.top = Math.random() * 100 + '%';
-      el.style.fontSize = (1 + Math.random() * 1.8) + 'rem';
-      el.style.opacity = 0.03 + Math.random() * 0.08;
-      waveField.appendChild(el);
-    }
-  </script>
+  <div class="footer-bottom">
+    <span>&copy; 2026 Prowl. All rights reserved.</span>
+  </div>
+
+  <div class="big-prowl">
+    <h1>PROWL</h1>
+  </div>
 </body>
 </html>

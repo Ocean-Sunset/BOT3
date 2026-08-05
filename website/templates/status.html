@@ -30,7 +30,6 @@
     <h1 class="status-title">Prowl Status</h1>
     <p class="status-sub">Real-time status of Prowl's services, infrastructure, and Discord shards.</p>
     <div class="status-stats" id="status-stats"></div>
-    <div class="status-updated" id="status-updated">Loading…</div>
   </header>
 
   <main class="status-grid">
@@ -270,23 +269,11 @@
       }).join('');
     }
 
-    let lastLoaded = 0;
-
-    function updateUpdated() {
-      const el = document.getElementById('status-updated');
-      if (!el) return;
-      el.textContent = lastLoaded
-        ? 'Auto-refreshes every 15s · last updated ' + agoStr(lastLoaded)
-        : 'Loading…';
-    }
-
     async function loadStatus() {
       try {
         const res = await fetch('/api/v1/status/summary', { headers: { 'Accept': 'application/json' } });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
-        lastLoaded = Math.floor(Date.now() / 1000);
-        updateUpdated();
         renderServices(data.services || []);
         renderStats(data.stats);
         renderShards(data.shards || [], data.stats && data.stats.shards);
@@ -302,7 +289,6 @@
 
     loadStatus();
     setInterval(loadStatus, 15000);
-    setInterval(updateUpdated, 1000);
   </script>
 </body>
 </html>

@@ -7,7 +7,7 @@ import unicodedata
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
-from components.moderation import log_mod_action
+from components.moderation import build_embed, log_mod_action, render_embed_data
 
 
 AUTOMOD_DEFAULTS = {
@@ -112,9 +112,15 @@ class AutoMod(commands.Cog, name="AutoMod"):
             return None
         return guild.get_channel(int(cid))
 
-    async def _post_action(self, guild, settings, message, filter_name, reason, action):
+    async def _post_action(self, guild, settings, message, filter_name, reason, action, custom_embed=None):
         channel = await self._mod_channel(guild, settings)
         if not channel:
+            return
+        if custom_embed is not None:
+            try:
+                await channel.send(embed=custom_embed)
+            except Exception as e:
+                logger.warning(f"AutoMod post failed in {guild.id}: {e}")
             return
         embed = (
             EmbedBuilder()
@@ -132,6 +138,18 @@ class AutoMod(commands.Cog, name="AutoMod"):
         except Exception as e:
             logger.warning(f"AutoMod post failed in {guild.id}: {e}")
 
+    def _custom_embed(self, cfg, base, message, reason):
+        """Return a discord.Embed for a custom-message action, or None."""
+        if not isinstance(cfg, dict):
+            return None
+        if cfg.get(base + "_mode") != "custom":
+            return None
+        data = cfg.get(base + "_embed") or {}
+        if not isinstance(data, dict) or not (data.get("title") or data.get("description")):
+            return None
+        rendered = render_embed_data(data, message.author, reason, 0, "")
+        return build_embed(rendered)
+
     async def _apply_action(self, guild, settings, message, filter_name, reason, action):
         author = message.author
         member = guild.get_member(author.id)
@@ -144,9 +162,13 @@ class AutoMod(commands.Cog, name="AutoMod"):
             await message.delete()
         except Exception:
             pass
+        custom_embed = self._custom_embed(cfg, base, message, reason)
         if send_dm:
             try:
-                await author.send(f"**AutoMod — {filter_name}** in {guild.name}:\n{reason}")
+                if custom_embed is not None:
+                    await author.send(embed=custom_embed)
+                else:
+                    await author.send(f"**AutoMod — {filter_name}** in {guild.name}:\n{reason}")
             except Exception:
                 pass
         if base == "warn":
@@ -183,7 +205,7 @@ class AutoMod(commands.Cog, name="AutoMod"):
             except Exception as e:
                 logger.warning(f"AutoMod ban failed: {e}")
             await log_mod_action(guild.id, str(author.id), author.name, "ban", cfg.get("ban_message") or reason, "AutoMod")
-        await self._post_action(guild, settings, message, filter_name, reason, action)
+        await self._post_action(guild, settings, message, filter_name, reason, action, custom_embed)
 
     def _triggered(self, guild_id, user_id, cooldown=10):
         key = (guild_id, user_id)

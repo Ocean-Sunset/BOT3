@@ -2082,6 +2082,12 @@ def _sanitize_action_configs(value):
         for k, v in cfg.items():
             if k in ("warn_message", "kick_message", "ban_message") and isinstance(v, str) and v.strip():
                 c[k] = v[:500]
+            elif k in ("warn_mode", "kick_mode", "ban_mode") and v in ("basic", "custom"):
+                c[k] = v
+            elif k in ("warn_embed", "kick_embed", "ban_embed"):
+                clean_embed, err = _sanitize_panel_embed(v)
+                if not err:
+                    c[k] = clean_embed
             elif k == "mute_minutes":
                 try:
                     c[k] = max(1, int(v))

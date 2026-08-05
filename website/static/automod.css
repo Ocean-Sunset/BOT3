@@ -65,6 +65,32 @@
 }
 .am-cfg-btn svg { width: 14px; height: 14px; }
 .am-cfg-btn:hover { color: #e9edf5; border-color: rgba(255,255,255,0.25); }
+
+/* Basic/Custom mode toggle in the config popup */
+.am-mode-row {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 0.75rem;
+}
+.am-mode-tab {
+  flex: 1;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: inherit;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.5);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.am-mode-tab:hover { color: #e9edf5; }
+.am-mode-tab.is-active {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.2);
+  color: #e9edf5;
+}
 .am-filter-fields {
   display: flex;
   gap: 0.6rem;

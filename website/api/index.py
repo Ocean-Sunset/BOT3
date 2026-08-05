@@ -1235,6 +1235,7 @@ def _sanitize_setting(key: str, value, defaults: dict):
 
     # Discord ID fields (channel/role selectors) must be a snowflake or null
     id_key = (key.endswith("_ping_role") or key.endswith("_announce_channel_id")
+              or key.endswith("_channel")
               or key in ("modlog_channel_id", "default_announce_channel_id", "default_ping_role"))
     if id_key:
         if value is None or value == "":
@@ -1955,6 +1956,77 @@ async def leveling_roles(guild_id: str, request: Request):
             {"id": "4006", "name": "Member", "color": 0, "position": 0, "count": 120},
         ]
     return {"roles": result}
+
+
+# ---------------------------------------------------------------------------
+#  Logging API v1
+# ---------------------------------------------------------------------------
+
+LOGGING_DEFAULTS = {
+    "message_delete_channel": None,
+    "message_edit_channel": None,
+    "member_join_channel": None,
+    "member_leave_channel": None,
+    "member_ban_channel": None,
+    "member_unban_channel": None,
+    "nickname_channel": None,
+    "member_roles_channel": None,
+    "member_timeout_channel": None,
+    "channel_create_channel": None,
+    "channel_delete_channel": None,
+    "channel_update_channel": None,
+    "role_create_channel": None,
+    "role_delete_channel": None,
+    "role_update_channel": None,
+    "server_update_channel": None,
+    "emoji_update_channel": None,
+    "invite_create_channel": None,
+    "voice_channel": None,
+}
+
+
+async def _get_logging_settings(guild_id: str):
+    row = await fetchrow("SELECT settings FROM logging_settings WHERE guild_id = $1", str(guild_id))
+    if row:
+        settings = row["settings"]
+        if isinstance(settings, str):
+            try:
+                settings = json.loads(settings)
+            except (json.JSONDecodeError, TypeError):
+                return dict(LOGGING_DEFAULTS)
+        if isinstance(settings, dict):
+            return {**LOGGING_DEFAULTS, **settings}
+    return dict(LOGGING_DEFAULTS)
+
+
+@app.get("/api/v1/logging/{guild_id}/settings")
+async def logging_settings_get(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    return {"settings": await _get_logging_settings(guild_id)}
+
+
+@app.post("/api/v1/logging/{guild_id}/settings")
+async def logging_settings_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    key = body.get("key")
+    value = body.get("value")
+    if not key:
+        return JSONResponse({"error": "missing key"}, status_code=400)
+    err = await _save_settings("logging_settings", str(guild_id), key, value, LOGGING_DEFAULTS)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    return {"ok": True}
+
+
+@app.get("/api/v1/logging/{guild_id}/channels")
+async def logging_channels(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "channels" in d:
+        return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
+    return {"channels": [{"id": "2001", "name": "general"}]}
 
 
 # ---------------------------------------------------------------------------

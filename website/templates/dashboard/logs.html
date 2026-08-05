@@ -1,1 +1,177 @@
-{% extends "dashboard/base.html" %}{% block content %}<div style="padding:2rem 0;"><div style="margin-bottom:1.25rem;"><h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Logs</h1><p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Server audit logs and event tracking</p></div><div style="border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:1.25rem;background:rgba(255,255,255,0.015);text-align:center;"><p style="color:rgba(255,255,255,0.4);font-size:14px;font-weight:600;padding:4rem 0;">Coming soon.</p></div></div>{% endblock %}
+{% extends "dashboard/base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/moderation.css?v=10" />
+<link rel="stylesheet" href="/static/logging.css?v=1" />
+<div>
+
+  <div style="margin-bottom:1rem;animation-delay:.05s;">
+    <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Logs</h1>
+    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Choose which type of logs get sent where</p>
+  </div>
+
+  <div class="md-section">
+    <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+      <div class="md-section-title">Event Logs</div>
+      <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:0.75rem;line-height:1.5;">Set a channel per event type to receive those logs. "None" disables that log. Prowl needs the <b style="color:rgba(255,255,255,0.7);">Message Content Intent</b> enabled to see deleted/edited message text.</p>
+      <div class="lg-groups" id="log-groups">
+        <div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const GID = window.__GUILD_ID;
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+
+const GROUPS = [
+  { label:'Messages', items:[
+    { key:'message_delete_channel', name:'Message Deleted' },
+    { key:'message_edit_channel', name:'Message Edited' },
+  ]},
+  { label:'Members', items:[
+    { key:'member_join_channel', name:'Member Joined' },
+    { key:'member_leave_channel', name:'Member Left' },
+    { key:'member_ban_channel', name:'Member Banned' },
+    { key:'member_unban_channel', name:'Member Unbanned' },
+    { key:'nickname_channel', name:'Nickname Changed' },
+    { key:'member_roles_channel', name:'Roles Changed' },
+    { key:'member_timeout_channel', name:'Timeout Changed' },
+  ]},
+  { label:'Channels', items:[
+    { key:'channel_create_channel', name:'Channel Created' },
+    { key:'channel_delete_channel', name:'Channel Deleted' },
+    { key:'channel_update_channel', name:'Channel Updated' },
+  ]},
+  { label:'Roles', items:[
+    { key:'role_create_channel', name:'Role Created' },
+    { key:'role_delete_channel', name:'Role Deleted' },
+    { key:'role_update_channel', name:'Role Updated' },
+  ]},
+  { label:'Server', items:[
+    { key:'server_update_channel', name:'Server Updated' },
+    { key:'emoji_update_channel', name:'Emoji Updated' },
+    { key:'invite_create_channel', name:'Invite Created' },
+    { key:'voice_channel', name:'Voice Join / Leave / Move' },
+  ]},
+];
+
+const pending = {};
+const original = {};
+let SETTINGS_SNAPSHOT = {};
+let LOADED = {};
+let CHANNELS = [];
+const saveBar = document.getElementById('save-bar');
+const saveBtn = document.getElementById('save-btn');
+let saveTimer = null;
+
+function markChanged(key, value) {
+  if (!(key in original)) original[key] = (key in SETTINGS_SNAPSHOT) ? SETTINGS_SNAPSHOT[key] : null;
+  pending[key] = value;
+  SETTINGS_SNAPSHOT[key] = value;
+  saveBar.classList.remove('is-closed');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
+}
+
+function renderGroups() {
+  const el = document.getElementById('log-groups');
+  el.innerHTML = GROUPS.map(g =>
+    '<div class="lg-group"><div class="lg-group-label">' + esc(g.label) + '</div>' +
+    g.items.map(it => {
+      const cur = SETTINGS_SNAPSHOT[it.key];
+      const match = CHANNELS.find(c => String(c.id) === String(cur));
+      return '<div class="lg-row" data-key="' + it.key + '">' +
+        '<div class="lg-name">' + esc(it.name) + '</div>' +
+        '<div class="md-custom-select lg-select">' +
+          '<button class="md-custom-select-btn" data-key="' + it.key + '">' + (match ? '#' + esc(match.name) : 'None') + '</button>' +
+          '<div class="md-custom-select-drop" data-key="' + it.key + '">' +
+            '<button class="md-custom-opt" data-id="">None</button>' +
+            CHANNELS.map(c => '<button class="md-custom-opt" data-id="' + c.id + '">#' + esc(c.name) + '</button>').join('') +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('') + '</div>'
+  ).join('');
+  bindSelects();
+}
+
+function bindSelects() {
+  document.querySelectorAll('.lg-select .md-custom-select-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const drop = btn.nextElementSibling;
+      document.querySelectorAll('.md-custom-select-drop').forEach(d => { if (d !== drop) d.classList.remove('is-open'); });
+      drop.classList.toggle('is-open');
+    });
+  });
+  document.querySelectorAll('.lg-select .md-custom-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const drop = opt.closest('.md-custom-select-drop');
+      const btn = drop.previousElementSibling;
+      const key = btn.dataset.key;
+      const id = opt.dataset.id;
+      btn.textContent = id ? '#' + opt.textContent.replace(/^#/, '') : 'None';
+      markChanged(key, id || null);
+      drop.classList.remove('is-open');
+    });
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.lg-select')) document.querySelectorAll('.md-custom-select-drop').forEach(d => d.classList.remove('is-open'));
+  });
+}
+
+async function saveChanges() {
+  const keys = Object.keys(pending);
+  if (!keys.length) return;
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving...';
+  for (const key of keys) {
+    try {
+      const res = await fetch(`/api/v1/logging/${GID}/settings`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]}) });
+      if (!res.ok) {
+        let detail = 'Save failed';
+        try { const j = await res.json(); detail = j.detail || j.error || detail; } catch {}
+        if (typeof showToast === 'function') showToast(detail, 'error', 5000);
+        return;
+      }
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('Network error saving.', 'error', 5000);
+      return;
+    }
+  }
+  for (const key of keys) { LOADED[key] = pending[key]; delete pending[key]; }
+  saveBar.classList.add('is-closed');
+  saveBtn.disabled = false;
+  saveBtn.textContent = 'Save';
+  if (typeof showToast === 'function') showToast('Log settings saved.', 'success');
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  Promise.all([
+    fetch(`/api/v1/logging/${GID}/settings`).then(r=>r.json()).catch(()=>({settings:{}})),
+    fetch(`/api/v1/logging/${GID}/channels`).then(r=>r.json()).catch(()=>({channels:[]})),
+  ]).then(([sd, cd]) => {
+    SETTINGS_SNAPSHOT = { ...(sd.settings||{}) };
+    LOADED = { ...SETTINGS_SNAPSHOT };
+    CHANNELS = cd.channels || [];
+    renderGroups();
+  });
+
+  saveBtn.addEventListener('click', saveChanges);
+  document.getElementById('discard-btn').addEventListener('click', () => {
+    const reverted = { ...LOADED };
+    for (const key of Object.keys(pending)) {
+      if (key in original) reverted[key] = original[key];
+    }
+    for (const key of Object.keys(pending)) delete pending[key];
+    for (const key of Object.keys(original)) delete original[key];
+    SETTINGS_SNAPSHOT = { ...reverted };
+    renderGroups();
+    saveBar.classList.add('is-closed');
+  });
+});
+</script>
+{% endblock %}

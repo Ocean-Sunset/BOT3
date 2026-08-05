@@ -127,6 +127,12 @@ CREATE TABLE IF NOT EXISTS leveling_settings (
     updated_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
 );
 
+CREATE TABLE IF NOT EXISTS logging_settings (
+    guild_id    TEXT PRIMARY KEY,
+    settings    JSONB NOT NULL DEFAULT '{}',
+    updated_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+);
+
 CREATE TABLE IF NOT EXISTS leveling_data (
     guild_id    TEXT NOT NULL,
     user_id     TEXT NOT NULL,

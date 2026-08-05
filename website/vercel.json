@@ -1,4 +1,9 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "deploy-bot": false
+    }
+  },
   "builds": [
     {
       "src": "api/index.py",

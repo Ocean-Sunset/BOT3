@@ -63,6 +63,29 @@ body {
 .status-stat .stat-value { font-size: 1.35rem; font-weight: 900; letter-spacing: -0.02em; }
 .status-stat .stat-label { margin-top: 0.15rem; font-size: 0.7rem; color: rgba(255,255,255,0.35); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
 
+.status-updated {
+  margin-top: 1rem;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.35);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.status-updated::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #57f287;
+  box-shadow: 0 0 8px rgba(87,242,135,0.6);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
 /* ── Dashboard grid ── */
 .status-grid {
   position: relative;

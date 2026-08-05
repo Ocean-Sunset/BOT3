@@ -980,11 +980,6 @@ async def status_summary(request: Request):
     except Exception:
         pass
 
-    ai_raw = data.get("ai_status", "unknown")
-    if bot_stale and ai_raw in ("operational", "disabled", "unknown"):
-        ai_status = "down"
-    else:
-        ai_status = ai_raw if ai_raw in ("operational", "degraded", "down", "disabled") else "unknown"
     music_raw = data.get("music_status", "disabled")
     if bot_stale and music_raw in ("operational", "disabled", "unknown"):
         music_status = "down"
@@ -1002,8 +997,6 @@ async def status_summary(request: Request):
          "detail": "PostgreSQL · Neon", "latency_ms": db_ms},
         {"id": "discord", "name": "Discord API", "status": "operational" if discord_ok else "down",
          "detail": f"{shard_count} shard{'s' if shard_count != 1 else ''}", "latency_ms": discord_ms},
-        {"id": "ai", "name": "AI Generation (OpenAI)", "status": ai_status,
-         "detail": "OpenAI provider", "latency_ms": None},
         {"id": "music", "name": "Music", "status": music_status,
          "detail": "Audio playback", "latency_ms": None},
     ]
@@ -1070,6 +1063,7 @@ async def status_summary(request: Request):
             "last_restart": safe_str("last_restart", "unknown"),
             "last_sync": last_sync,
             "stale": bot_stale,
+            "downtime": (int(time.time() - last_sync) if bot_stale else None),
         },
         "services": services,
         "shards": shards,

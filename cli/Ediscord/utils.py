@@ -343,12 +343,12 @@ def write_bot_data(bot):
 
     total_users = len(bot.users)
     active_users = sum(1 for m in bot.get_all_members() if m.status != discord.Status.offline)
-    total_commands = getattr(bot, "total_commands", 0)
+    total_commands = len(bot.tree.get_commands())
     launch_time = getattr(bot, "launch_time", None)
     uptime_seconds = int(time.time() - launch_time) if launch_time else 0
     uptime_str = time.strftime("%Hh %Mm %Ss", time.gmtime(uptime_seconds))
     bot_status = "Running" if bot.is_ready() else "Not Running"
-    bot_version = f"{getattr(bot, 'version', 'unknown')} (2025.09.19.19.00.12)"
+    bot_version = str(getattr(bot, "version", "unknown"))
     python_version = sys.version.replace("\n", " ")
     guilds = list(bot.guilds)
     num_guilds = len(guilds)

@@ -354,12 +354,12 @@ class ProwlBot(commands.Bot):
 
         total_users = len(self.users)
         active_users = sum(1 for m in self.get_all_members() if m.status != discord.Status.offline)
-        total_commands = getattr(self, "total_commands", 0)
+        total_commands = len(self.tree.get_commands())
         launch_time = getattr(self, "launch_time", None)
         uptime_seconds = int(time.time() - launch_time) if launch_time else 0
         uptime_str = time.strftime("%Hh %Mm %Ss", time.gmtime(uptime_seconds))
         bot_status = "Running" if self.is_ready() else "Not Running"
-        bot_version = f"{getattr(self, 'version', 'unknown')} (2025.09.19.19.00.12)"
+        bot_version = str(getattr(self, "version", "unknown"))
         python_version = sys.version.replace("\n", " ")
         guilds = list(self.guilds)
         guild_ids = [str(g.id) for g in guilds]
@@ -387,7 +387,6 @@ class ProwlBot(commands.Bot):
             "memory_usage_mb": mem,
             "cpu_usage_percent": cpu,
             "last_restart": last_restart,
-            "ai_status": "operational" if variables.OPENAI_API_KEY else "disabled",
             "music_status": "disabled",
         }
 

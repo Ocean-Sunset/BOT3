@@ -154,6 +154,60 @@ class RotatingSessionMiddleware:
 
 app.add_middleware(RotatingSessionMiddleware)
 
+# ── Security headers ──
+# 'unsafe-inline'/'unsafe-eval' are required by the CDN-based JS, tailwind play
+# CDN, and inline dashboard scripts. The CSP still restricts every other source
+# to known domains (defense in depth against injected external resources).
+CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' "
+    "https://cdn.tailwindcss.com https://unpkg.com https://cdnjs.cloudflare.com "
+    "https://cdn.jsdelivr.net https://www.google.com https://www.gstatic.com "
+    "https://challenges.cloudflare.com; "
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+    "font-src 'self' https://fonts.gstatic.com data:; "
+    "img-src 'self' data: https://cdn.discordapp.com https://img.itch.zone; "
+    "connect-src 'self' https://api.prowlbot.xyz https://discord.com "
+    "https://www.google.com https://www.gstatic.com https://challenges.cloudflare.com; "
+    "frame-src https://www.google.com https://www.gstatic.com https://challenges.cloudflare.com; "
+    "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+)
+
+
+class SecurityHeadersMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        host = ""
+        for k, v in scope.get("headers") or []:
+            if k == b"host":
+                host = v.decode("latin-1").lower()
+                break
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                from starlette.datastructures import MutableHeaders
+                headers = MutableHeaders(scope=message)
+                headers["Content-Security-Policy"] = CSP
+                headers["X-Content-Type-Options"] = "nosniff"
+                headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+                headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+                headers["X-Frame-Options"] = "DENY"
+                # Only on production hosts - HSTS on localhost would break dev
+                if "prowlbot.xyz" in host:
+                    headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
+
+
+app.add_middleware(SecurityHeadersMiddleware)
+
 # ── Subdomain routing: enforce api.prowlbot.xyz = API only, prowlbot.xyz = pages ──
 class SubdomainRouteMiddleware:
     """
@@ -203,6 +257,10 @@ class SubdomainRouteMiddleware:
                         },
                     },
                 )
+            # Browsers request the favicon when API endpoints 4xx - let it through
+            if path in ("/favicon.ico", "/favicon.png"):
+                await self.app(scope, receive, send)
+                return
             if not path.startswith("/api/"):
                 return await self._send_json(
                     scope, receive, send, 404,

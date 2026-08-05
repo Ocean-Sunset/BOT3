@@ -140,26 +140,28 @@ function embedField(label, id, ph, v) {
 }
 
 function openConfig(filterKey, action) {
-  if (action !== 'mute' && !CONFIG_MSG_ACTIONS.includes(action)) return;
+  // Config lives on the base action (warn_dm -> warn); only warn/kick/ban/mute are configurable
+  const base = String(action || '').replace(/_dm$/, '');
+  if (base !== 'mute' && !CONFIG_MSG_ACTIONS.includes(base)) return;
   cfgFilter = filterKey;
-  cfgAction = action;
+  cfgAction = base;
   const f = FILTERS.find(x => x.key === filterKey);
   document.getElementById('am-config-title').textContent = 'Configure ' + actionLabel(action);
   document.getElementById('am-config-sub').textContent = f ? f.name + ' — ' + f.desc : '';
   const cur = (SETTINGS_SNAPSHOT.action_configs || {})[filterKey] || {};
   const el = document.getElementById('am-config-fields');
-  const banDays = (action === 'ban') ? '<div class="am-field-label" style="margin-top:0.6rem;">Delete Messages (days)</div>' +
+  const banDays = (base === 'ban') ? '<div class="am-field-label" style="margin-top:0.6rem;">Delete Messages (days)</div>' +
     '<input type="number" class="md-input" data-cfg="ban_days" min="0" max="7" value="' + esc(cur.ban_days ?? 0) + '" style="width:100%;" />' : '';
-  if (action === 'mute') {
+  if (base === 'mute') {
     el.innerHTML = '<div class="am-field-label">Mute Duration (minutes)</div>' +
       '<input type="number" class="md-input" data-cfg="mute_minutes" min="1" value="' + esc(cur.mute_minutes ?? 60) + '" style="width:100%;" />';
   } else {
-    const mode = cur[action + '_mode'] === 'custom' ? 'custom' : 'basic';
-    const msg = cur[action + '_message'] || '';
-    const emb = cur[action + '_embed'] || {};
+    const mode = cur[base + '_mode'] === 'custom' ? 'custom' : 'basic';
+    const msg = cur[base + '_message'] || '';
+    const emb = cur[base + '_embed'] || {};
     const hex = (emb.color && !/^#/.test(String(emb.color))) ? '#' + emb.color : (emb.color || '#5865f2');
-    const msgLabel = action === 'warn' ? 'Warn Message' : action === 'kick' ? 'Kick Message' : 'Ban Message';
-    const msgPh = action === 'warn' ? 'Message shown to the warned user' : 'Reason attached to the ' + action;
+    const msgLabel = base === 'warn' ? 'Warn Message' : base === 'kick' ? 'Kick Message' : 'Ban Message';
+    const msgPh = base === 'warn' ? 'Message shown to the warned user' : 'Reason attached to the ' + base;
     el.innerHTML =
       '<div class="am-mode-row">' +
         '<button type="button" class="am-mode-tab" data-am-mode="basic">Basic Message</button>' +
@@ -167,7 +169,7 @@ function openConfig(filterKey, action) {
       '</div>' +
       '<div data-am-view="basic">' +
         '<div class="am-field-label">' + msgLabel + '</div>' +
-        '<input type="text" class="md-input" data-cfg="' + action + '_message" value="' + esc(msg) + '" placeholder="' + esc(msgPh) + '" style="width:100%;" />' +
+        '<input type="text" class="md-input" data-cfg="' + base + '_message" value="' + esc(msg) + '" placeholder="' + esc(msgPh) + '" style="width:100%;" />' +
         banDays +
       '</div>' +
       '<div data-am-view="custom" style="display:none;">' +
@@ -233,11 +235,13 @@ function renderFilters() {
   el.innerHTML = FILTERS.map(f => {
     const en = SETTINGS_SNAPSHOT[f.key + '_enabled'] === true;
     const act = SETTINGS_SNAPSHOT[f.key + '_action'] || 'delete';
+    const cfgBase = act.replace(/_dm$/, '');
+    const cfgVisible = cfgBase === 'mute' || CONFIG_MSG_ACTIONS.includes(cfgBase);
     return '<div class="am-filter">' +
       '<div class="am-filter-head">' +
         '<label class="md-toggle"><input type="checkbox" data-enable="' + f.key + '" ' + (en?'checked':'') + ' /><span class="md-toggle-slider"></span></label>' +
         '<div class="am-filter-info"><div class="am-filter-name">' + esc(f.name) + '</div><div class="am-filter-desc">' + esc(f.desc) + '</div></div>' +
-        '<button type="button" class="am-cfg-btn" data-config="' + f.key + '" data-tooltip="Configure ' + actionLabel(act) + '" ' + (act.endsWith('_dm') ? '' : 'style="display:none"') + '><i data-lucide="square-pen"></i></button>' +
+        '<button type="button" class="am-cfg-btn" data-config="' + f.key + '" data-tooltip="Configure ' + actionLabel(act) + '" ' + (cfgVisible ? '' : 'style="display:none"') + '><i data-lucide="square-pen"></i></button>' +
         '<div class="md-custom-select am-action-select">' +
           '<button class="md-custom-select-btn" data-action="' + f.key + '">' + actionLabel(act) + '</button>' +
           '<div class="md-custom-select-drop" data-action="' + f.key + '">' +
@@ -275,10 +279,12 @@ function bindFilters() {
     btn.textContent = opt.textContent;
     markChanged(key, opt.dataset.value);
     drop.classList.remove('is-open');
-    // Show/hide the configure button based on the new action (only for +DM)
+    // Show/hide the configure button based on the new action (warn/kick/ban/mute)
     const card = drop.closest('.am-filter');
     const cfgBtn = card.querySelector('.am-cfg-btn');
-    if (cfgBtn) cfgBtn.style.display = opt.dataset.value.endsWith('_dm') ? '' : 'none';
+    const newBase = opt.dataset.value.replace(/_dm$/, '');
+    const newVisible = newBase === 'mute' || CONFIG_MSG_ACTIONS.includes(newBase);
+    if (cfgBtn) cfgBtn.style.display = newVisible ? '' : 'none';
   }));
   document.querySelectorAll('.am-cfg-btn').forEach(b => b.addEventListener('click', (e) => {
     e.stopPropagation();

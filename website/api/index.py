@@ -638,8 +638,59 @@ async def callback(request: Request, code: str = None):
 
 
 @app.get("/callback/google")
-async def callback_google():
-    return RedirectResponse("/dashboard")
+async def callback_google(request: Request, code: str = None):
+    """Complete Google OAuth. If a dashboard user is logged in, link the Google
+    account to their Prowl account. Otherwise redirect to the login page."""
+    if not code:
+        return RedirectResponse("/login")
+    google_id = os.environ.get("GOOGLE_CLIENT_ID", "")
+    google_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+    redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI", "http://localhost:8000/callback/google")
+    if not google_id or not google_secret:
+        return RedirectResponse("/login")
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "code": code,
+                    "client_id": google_id,
+                    "client_secret": google_secret,
+                    "redirect_uri": redirect_uri,
+                    "grant_type": "authorization_code",
+                },
+            )
+            if r.status_code != 200:
+                return RedirectResponse("/login")
+            token_json = r.json()
+            access_token = token_json.get("access_token")
+            if not access_token:
+                return RedirectResponse("/login")
+            ui = await client.get(
+                "https://openidconnect.googleapis.com/v1/userinfo",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            if ui.status_code != 200:
+                return RedirectResponse("/login")
+            profile = ui.json()
+    except Exception as e:
+        logger.error("Google OAuth failed: %s", e)
+        return RedirectResponse("/login")
+
+    gid = str(profile.get("sub", "") or "")
+    gemail = profile.get("email", "") or ""
+    user = get_user(request)
+    if user and user.get("id"):
+        try:
+            await execute(
+                "UPDATE users SET google_id = $1, google_email = $2 WHERE id = $3",
+                gid, gemail, str(user.get("id")),
+            )
+        except Exception as e:
+            logger.error("Google account link failed: %s", e)
+        return RedirectResponse("/guild/profile")
+    return RedirectResponse("/login")
 
 
 @app.get("/logout")
@@ -813,12 +864,22 @@ async def _upsert_user(user: dict):
 @app.get("/api/v1/account")
 async def account_info(request: Request):
     user = await require_auth(request)
-    row = await fetchrow("SELECT id, username, global_name, created_at, last_login FROM users WHERE id = $1", str(user.get("id")))
+    row = await fetchrow("SELECT id, username, global_name, created_at, last_login, google_id, google_email FROM users WHERE id = $1", str(user.get("id")))
     if not row:
         # Account not recorded yet (e.g. logged in before this feature) - record it now
         await _upsert_user(user)
-        row = await fetchrow("SELECT id, username, global_name, created_at, last_login FROM users WHERE id = $1", str(user.get("id")))
+        row = await fetchrow("SELECT id, username, global_name, created_at, last_login, google_id, google_email FROM users WHERE id = $1", str(user.get("id")))
     return {"account": dict(row) if row else None}
+
+
+@app.post("/api/v1/account/google/unlink")
+async def account_google_unlink(request: Request):
+    user = await require_auth(request)
+    try:
+        await execute("UPDATE users SET google_id = '', google_email = '' WHERE id = $1", str(user.get("id")))
+    except Exception as e:
+        logger.error("google unlink failed: %s", e)
+    return {"ok": True}
 
 
 @app.post("/api/v1/account/delete")
@@ -1236,7 +1297,9 @@ def _sanitize_setting(key: str, value, defaults: dict):
     # Discord ID fields (channel/role selectors) must be a snowflake or null
     id_key = (key.endswith("_ping_role") or key.endswith("_announce_channel_id")
               or key.endswith("_channel")
-              or key in ("modlog_channel_id", "default_announce_channel_id", "default_ping_role"))
+              or key in ("modlog_channel_id", "default_announce_channel_id", "default_ping_role",
+                         "channel_id", "auto_role_id", "verified_role_id", "support_role_id",
+                         "category_id", "panel_channel_id", "log_channel_id", "panel_message_id"))
     if id_key:
         if value is None or value == "":
             return None, None
@@ -2289,6 +2352,79 @@ async def raid_channels(guild_id: str, request: Request):
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
     return {"channels": [{"id": "2001", "name": "general"}]}
+
+
+# ---------------------------------------------------------------------------
+#  Welcomer API v1
+# ---------------------------------------------------------------------------
+
+WELCOME_DEFAULTS = {
+    "enabled": False,
+    "channel_id": None,
+    "welcome_message": "Welcome {member} to {server}!",
+    "goodbye_message": "{member} has left {server}.",
+    "welcome_dm": False,
+    "welcome_dm_message": "Welcome to **{server}**! Make sure to read the rules.",
+    "auto_role_id": None,
+    "welcome_embed": True,
+    "goodbye_embed": True,
+}
+
+
+async def _get_welcome_settings(guild_id: str):
+    row = await fetchrow("SELECT settings FROM welcome_settings WHERE guild_id = $1", str(guild_id))
+    if row:
+        settings = row["settings"]
+        if isinstance(settings, str):
+            try:
+                settings = json.loads(settings)
+            except (json.JSONDecodeError, TypeError):
+                return dict(WELCOME_DEFAULTS)
+        if isinstance(settings, dict):
+            return {**WELCOME_DEFAULTS, **settings}
+    return dict(WELCOME_DEFAULTS)
+
+
+@app.get("/api/v1/welcomer/{guild_id}/settings")
+async def welcomer_settings_get(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    return {"settings": await _get_welcome_settings(guild_id)}
+
+
+@app.post("/api/v1/welcomer/{guild_id}/settings")
+async def welcomer_settings_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    key = body.get("key")
+    value = body.get("value")
+    if not key:
+        return JSONResponse({"error": "missing key"}, status_code=400)
+    err = await _save_settings("welcome_settings", str(guild_id), key, value, WELCOME_DEFAULTS)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    return {"ok": True}
+
+
+@app.get("/api/v1/welcomer/{guild_id}/channels")
+async def welcomer_channels(guild_id: str, request: Request):
+    """Text channels for the welcome channel dropdown."""
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "channels" in d:
+        return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
+    return {"channels": []}
+
+
+@app.get("/api/v1/welcomer/{guild_id}/roles")
+async def welcomer_roles(guild_id: str, request: Request):
+    """All roles for the auto-role dropdown."""
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "roles" in d:
+        return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
+    return {"roles": []}
 
 
 # ---------------------------------------------------------------------------

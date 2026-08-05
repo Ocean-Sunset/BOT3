@@ -232,9 +232,14 @@ CREATE TABLE IF NOT EXISTS users (
     global_name TEXT DEFAULT '',
     avatar      TEXT DEFAULT '',
     email       TEXT DEFAULT '',
+    google_id   TEXT DEFAULT '',
+    google_email TEXT DEFAULT '',
     created_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now())),
     last_login  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS google_email TEXT DEFAULT '';
 """
 
 

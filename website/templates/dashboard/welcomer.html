@@ -1,1 +1,292 @@
-{% extends "dashboard/base.html" %}{% block content %}<div style="padding:2rem 0;"><div style="margin-bottom:1.25rem;"><h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Welcomer</h1><p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Welcome messages and member join events</p></div><div style="border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:1.25rem;background:rgba(255,255,255,0.015);text-align:center;"><p style="color:rgba(255,255,255,0.4);font-size:14px;font-weight:600;padding:4rem 0;">Coming soon.</p></div></div>{% endblock %}
+{% extends "dashboard/base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/moderation.css?v=15" />
+<style>
+.wl-code { font-size:0.72rem; font-weight:700; color:#e9edf5; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:4px; padding:0.2rem 0.45rem; font-family:monospace; }
+.wl-code-note { font-size:0.72rem; color:rgba(255,255,255,0.4); margin-right:0.6rem; }
+#welcomer-wrap.is-disabled .md-section:not(.am-master) { opacity:0.35; pointer-events:none; filter:grayscale(0.4); transition:opacity 0.25s ease, filter 0.25s ease; }
+#welcomer-wrap .md-section { transition:opacity 0.25s ease, filter 0.25s ease; }
+</style>
+<div id="welcomer-wrap">
+
+  <div style="margin-bottom:1rem;animation-delay:.05s;">
+    <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Welcomer</h1>
+    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Welcome messages, goodbye messages, and auto-roles for new members</p>
+  </div>
+
+  <div class="md-row">
+
+    <div class="md-section am-master">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Welcomer</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <label class="md-toggle"><input type="checkbox" id="wl-enabled" /><span class="md-toggle-slider"></span></label>
+            <div><div class="md-behavior-label">Enable Welcomer</div><div class="md-behavior-desc">Send a welcome message when someone joins your server</div></div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Welcome Channel</div>
+              <div class="md-behavior-desc">Where welcome &amp; goodbye messages get posted</div>
+              <div class="md-custom-select" id="wl-channel-wrap">
+                <button class="md-custom-select-btn" id="wl-channel-btn">Select channel...</button>
+                <div class="md-custom-select-drop" id="wl-channel-drop"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Welcome Message</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <label class="md-toggle"><input type="checkbox" id="wl-wembed" /><span class="md-toggle-slider"></span></label>
+            <div><div class="md-behavior-label">Send as Embed</div><div class="md-behavior-desc">A styled embed with the member's avatar and account age</div></div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Message</div>
+              <div class="md-behavior-desc">Use {member}, {server} and {count} as placeholders</div>
+              <input type="text" class="md-input" id="wl-wmsg" placeholder="Welcome {member} to {server}!" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="md-row">
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Goodbye Message</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <label class="md-toggle"><input type="checkbox" id="wl-gembed" /><span class="md-toggle-slider"></span></label>
+            <div><div class="md-behavior-label">Send as Embed</div><div class="md-behavior-desc">A styled embed when someone leaves</div></div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Message</div>
+              <div class="md-behavior-desc">Leave empty to disable goodbye messages</div>
+              <input type="text" class="md-input" id="wl-gmsg" placeholder="{member} has left {server}." />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Welcome DM</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <label class="md-toggle"><input type="checkbox" id="wl-wdm" /><span class="md-toggle-slider"></span></label>
+            <div><div class="md-behavior-label">Send a DM on join</div><div class="md-behavior-desc">Private message sent to each new member (if their DMs are open)</div></div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">DM Message</div>
+              <div class="md-behavior-desc">Use {server} and {member} as placeholders</div>
+              <input type="text" class="md-input" id="wl-wdmmsg" placeholder="Welcome to **{server}**! Make sure to read the rules." />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="md-row">
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Auto Role</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Role to assign</div>
+              <div class="md-behavior-desc">Given to every new member on join. Select "None" to disable.</div>
+              <div class="md-custom-select" id="wl-role-wrap">
+                <button class="md-custom-select-btn" id="wl-role-btn">Select role...</button>
+                <div class="md-custom-select-drop" id="wl-role-drop"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Placeholders</div>
+        <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-top:0.4rem;">
+          <code class="wl-code">{member}</code><span class="wl-code-note">mentions the member</span>
+          <code class="wl-code">{member.name}</code><span class="wl-code-note">their username</span>
+          <code class="wl-code">{server}</code><span class="wl-code-note">server name</span>
+          <code class="wl-code">{count}</code><span class="wl-code-note">member count</span>
+        </div>
+        <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.6;margin-top:0.75rem;">Use these in any welcome, goodbye, or DM message and they'll be filled in when a member joins or leaves.</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const GID = window.__GUILD_ID;
+const api = (path, opts) => fetch(`/api/v1/welcomer/${GID}${path}`, opts||{}).then(r=>r.json());
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+
+const pending = {};
+const original = {};
+let SETTINGS_SNAPSHOT = {};
+let LOADED = {};
+let CHANNELS = [];
+let ROLES = [];
+const saveBar = document.getElementById('save-bar');
+const saveBtn = document.getElementById('save-btn');
+let saveTimer = null;
+
+function markChanged(key, value) {
+  if (!(key in original)) original[key] = (key in SETTINGS_SNAPSHOT) ? SETTINGS_SNAPSHOT[key] : !value;
+  pending[key] = value;
+  SETTINGS_SNAPSHOT[key] = value;
+  saveBar.classList.remove('is-closed');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
+  updateDisabledState();
+}
+
+function updateDisabledState() {
+  document.getElementById('welcomer-wrap').classList.toggle('is-disabled', !document.getElementById('wl-enabled').checked);
+}
+
+async function saveChanges() {
+  const keys = Object.keys(pending);
+  if (!keys.length) return;
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving...';
+  for (const key of keys) {
+    try {
+      const res = await fetch(`/api/v1/welcomer/${GID}/settings`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]}) });
+      if (!res.ok) {
+        let detail = 'Save failed';
+        try { const j = await res.json(); detail = j.detail || j.error || detail; } catch {}
+        if (typeof showToast === 'function') showToast(detail, 'error', 5000);
+        return;
+      }
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('Network error saving.', 'error', 5000);
+      return;
+    }
+  }
+  for (const key of keys) { LOADED[key] = pending[key]; delete original[key]; delete pending[key]; }
+  saveBar.classList.add('is-closed');
+  saveBtn.disabled = false;
+  saveBtn.textContent = 'Save';
+  if (typeof showToast === 'function') showToast('Welcomer settings saved.', 'success');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  Promise.all([
+    api('/settings').catch(()=>({settings:{}})),
+    api('/channels').catch(()=>({channels:[]})),
+    api('/roles').catch(()=>({roles:[]})),
+  ]).then(([sd, cd, rd]) => {
+    SETTINGS_SNAPSHOT = { ...(sd.settings||{}) };
+    LOADED = { ...SETTINGS_SNAPSHOT };
+    CHANNELS = cd.channels || [];
+    ROLES = rd.roles || [];
+
+    const enabled = document.getElementById('wl-enabled');
+    enabled.checked = SETTINGS_SNAPSHOT.enabled === true;
+    enabled.addEventListener('change', function(){ markChanged('enabled', this.checked); });
+
+    const wembed = document.getElementById('wl-wembed');
+    wembed.checked = SETTINGS_SNAPSHOT.welcome_embed !== false;
+    wembed.addEventListener('change', function(){ markChanged('welcome_embed', this.checked); });
+    const gembed = document.getElementById('wl-gembed');
+    gembed.checked = SETTINGS_SNAPSHOT.goodbye_embed !== false;
+    gembed.addEventListener('change', function(){ markChanged('goodbye_embed', this.checked); });
+    const wdm = document.getElementById('wl-wdm');
+    wdm.checked = SETTINGS_SNAPSHOT.welcome_dm === true;
+    wdm.addEventListener('change', function(){ markChanged('welcome_dm', this.checked); });
+
+    const wmsg = document.getElementById('wl-wmsg');
+    wmsg.value = SETTINGS_SNAPSHOT.welcome_message || '';
+    wmsg.addEventListener('input', function(){ markChanged('welcome_message', this.value); });
+    const gmsg = document.getElementById('wl-gmsg');
+    gmsg.value = SETTINGS_SNAPSHOT.goodbye_message || '';
+    gmsg.addEventListener('input', function(){ markChanged('goodbye_message', this.value || ''); });
+    const wdmmsg = document.getElementById('wl-wdmmsg');
+    wdmmsg.value = SETTINGS_SNAPSHOT.welcome_dm_message || '';
+    wdmmsg.addEventListener('input', function(){ markChanged('welcome_dm_message', this.value); });
+
+    // Channel dropdown
+    const chBtn = document.getElementById('wl-channel-btn');
+    const chDrop = document.getElementById('wl-channel-drop');
+    chDrop.innerHTML = '<button class="md-custom-opt" data-id="">None</button>' + CHANNELS.map(c => '<button class="md-custom-opt" data-id="' + c.id + '">#' + esc(c.name) + '</button>').join('');
+    const curCh = SETTINGS_SNAPSHOT.channel_id;
+    const chMatch = CHANNELS.find(c => String(c.id) === String(curCh));
+    if (chMatch) chBtn.textContent = '#' + chMatch.name;
+    chBtn.addEventListener('click', (e) => { e.stopPropagation(); chDrop.classList.toggle('is-open'); });
+    chDrop.querySelectorAll('.md-custom-opt').forEach(opt => opt.addEventListener('click', () => {
+      chBtn.textContent = opt.dataset.id ? '#' + opt.textContent.replace(/^#/, '') : 'None';
+      markChanged('channel_id', opt.dataset.id || null);
+      chDrop.classList.remove('is-open');
+    }));
+    document.addEventListener('click', (e) => { if (!e.target.closest('#wl-channel-wrap')) chDrop.classList.remove('is-open'); });
+
+    // Role dropdown
+    const rBtn = document.getElementById('wl-role-btn');
+    const rDrop = document.getElementById('wl-role-drop');
+    rDrop.innerHTML = '<button class="md-custom-opt" data-id="">None</button>' + ROLES.map(r => '<button class="md-custom-opt" data-id="' + r.id + '">' + esc(r.name) + '</button>').join('');
+    const curRole = SETTINGS_SNAPSHOT.auto_role_id;
+    const roleMatch = ROLES.find(r => String(r.id) === String(curRole));
+    if (roleMatch) rBtn.textContent = roleMatch.name;
+    rBtn.addEventListener('click', (e) => { e.stopPropagation(); rDrop.classList.toggle('is-open'); });
+    rDrop.querySelectorAll('.md-custom-opt').forEach(opt => opt.addEventListener('click', () => {
+      rBtn.textContent = opt.dataset.id ? opt.textContent : 'None';
+      markChanged('auto_role_id', opt.dataset.id || null);
+      rDrop.classList.remove('is-open');
+    }));
+    document.addEventListener('click', (e) => { if (!e.target.closest('#wl-role-wrap')) rDrop.classList.remove('is-open'); });
+
+    updateDisabledState();
+  });
+
+  saveBtn.addEventListener('click', saveChanges);
+  document.getElementById('discard-btn').addEventListener('click', () => {
+    const reverted = { ...LOADED };
+    for (const key of Object.keys(pending)) {
+      if (key in original) reverted[key] = original[key];
+    }
+    for (const key of Object.keys(pending)) delete pending[key];
+    for (const key of Object.keys(original)) delete original[key];
+    SETTINGS_SNAPSHOT = { ...reverted };
+    document.getElementById('wl-enabled').checked = reverted.enabled === true;
+    document.getElementById('wl-wembed').checked = reverted.welcome_embed !== false;
+    document.getElementById('wl-gembed').checked = reverted.goodbye_embed !== false;
+    document.getElementById('wl-wdm').checked = reverted.welcome_dm === true;
+    document.getElementById('wl-wmsg').value = reverted.welcome_message || '';
+    document.getElementById('wl-gmsg').value = reverted.goodbye_message || '';
+    document.getElementById('wl-wdmmsg').value = reverted.welcome_dm_message || '';
+    const chBtn = document.getElementById('wl-channel-btn');
+    const m = CHANNELS.find(c => String(c.id) === String(reverted.channel_id));
+    chBtn.textContent = m ? '#' + m.name : 'Select channel...';
+    const rBtn = document.getElementById('wl-role-btn');
+    const rm = ROLES.find(r => String(r.id) === String(reverted.auto_role_id));
+    rBtn.textContent = rm ? rm.name : 'Select role...';
+    updateDisabledState();
+    saveBar.classList.add('is-closed');
+  });
+});
+</script>
+{% endblock %}

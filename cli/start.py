@@ -45,6 +45,7 @@ class ProwlBot(commands.Bot):
         logger.info(f"Synced {len(synced)} slash commands.")
         self.loop.create_task(self._dashboard_writer())
         self.loop.create_task(self._initial_neon_push())
+        self.loop.create_task(self._stats_syncer())
         self.loop.create_task(self._neon_syncer())
         self.loop.create_task(self._member_sync())
         self.loop.create_task(self._mod_settings_poller())
@@ -102,8 +103,18 @@ class ProwlBot(commands.Bot):
                 logger.error(f"Dashboard write failed: {e}")
             await asyncio.sleep(60)
 
+    async def _stats_syncer(self):
+        """Push lightweight bot stats every 20s so the status page stays live."""
+        await self.wait_until_ready()
+        while not self.is_closed():
+            try:
+                await neon_db.push_bot_stats(await self._build_stats())
+            except Exception as e:
+                logger.error(f"Stats sync failed: {e}")
+            await asyncio.sleep(20)
+
     async def _neon_syncer(self):
-        """Push bot stats and guild data to Neon every 5 minutes."""
+        """Push full guild data (and stats) to Neon every 2 minutes."""
         await self.wait_until_ready()
         while not self.is_closed():
             try:
@@ -335,8 +346,8 @@ class ProwlBot(commands.Bot):
         finally:
             self._processing_actions = False
 
-    async def _push_to_neon(self):
-        """Build stats and push directly to Neon PostgreSQL."""
+    async def _build_stats(self):
+        """Build the lightweight bot_stats dict (used by the fast + full syncs)."""
         process = psutil.Process(os.getpid())
         mem = process.memory_info().rss // 1024 // 1024
         cpu = process.cpu_percent()
@@ -356,7 +367,7 @@ class ProwlBot(commands.Bot):
         all_commands = [cmd.name for cmd in self.tree.get_commands()]
         last_restart = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(launch_time)) if launch_time else "unknown"
 
-        bot_stats = {
+        return {
             "total_users": total_users,
             "active_users": active_users,
             "total_commands": total_commands,
@@ -380,6 +391,11 @@ class ProwlBot(commands.Bot):
             "music_status": "disabled",
         }
 
+    async def _push_to_neon(self):
+        """Build stats and push directly to Neon PostgreSQL."""
+        bot_stats = await self._build_stats()
+
+        guilds = list(self.guilds)
         guild_list = []
         for guild in guilds:
             icon_url = str(guild.icon.url) if guild.icon else None

@@ -9,136 +9,54 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="icon" href="/static/favicon.png" />
-  <link rel="stylesheet" href="/static/status.css?v=2" />
+  <link rel="stylesheet" href="/static/status.css?v=3" />
 </head>
 <body>
 
   <div class="wave-field" id="wave-field"></div>
   <div class="vignette"></div>
 
-  <header class="status-nav">
+  <nav class="status-nav">
     <a href="https://prowlbot.xyz" class="status-brand">
       <img src="/static/favicon.png" alt="Prowl" />
       <span>Prowl</span>
     </a>
+    <span class="status-pill operational" id="overall-pill">
+      <span class="status-dot"></span><span id="overall-label">Loading…</span>
+    </span>
+  </nav>
+
+  <header class="status-hero">
+    <h1 class="status-title">Prowl Status</h1>
+    <p class="status-sub">Real-time status of Prowl's services, infrastructure, and Discord shards.</p>
+    <div class="status-stats" id="status-stats"></div>
   </header>
 
-  <main class="status-page">
-    <div class="status-hero">
-      <div class="status-pill operational">
-        <span class="status-dot"></span>
-        All Systems Operational
-      </div>
-      <h1>Prowl Status</h1>
-      <p class="status-sub">Real-time status of Prowl's services.</p>
-      <div class="status-metrics">
-        <div class="metric">
-          <div class="metric-value">99.9%</div>
-          <div class="metric-label">Uptime (90 days)</div>
-        </div>
-        <div class="metric">
-          <div class="metric-value">42ms</div>
-          <div class="metric-label">Avg Latency</div>
-        </div>
-        <div class="metric">
-          <div class="metric-value">12,847</div>
-          <div class="metric-label">Servers</div>
-        </div>
-      </div>
-    </div>
+  <main class="status-grid">
 
-    <section class="status-section">
-      <h2>Services</h2>
-      <div class="status-card">
-        <div class="status-row">
-          <div class="status-service">
-            <span class="status-dot operational"></span>
-            <div>
-              <div class="status-name">Bot Gateway</div>
-              <div class="status-detail">Discord connection &amp; commands</div>
-            </div>
-          </div>
-          <div class="status-side">
-            <span class="status-bar"><i style="width:99.99%"></i></span>
-            <span class="status-latency">38ms</span>
-          </div>
-        </div>
-        <div class="status-row">
-          <div class="status-service">
-            <span class="status-dot operational"></span>
-            <div>
-              <div class="status-name">Web Dashboard</div>
-              <div class="status-detail">Dashboard &amp; API endpoints</div>
-            </div>
-          </div>
-          <div class="status-side">
-            <span class="status-bar"><i style="width:99.9%"></i></span>
-            <span class="status-latency">51ms</span>
-          </div>
-        </div>
-        <div class="status-row">
-          <div class="status-service">
-            <span class="status-dot operational"></span>
-            <div>
-              <div class="status-name">Database</div>
-              <div class="status-detail">PostgreSQL (Neon)</div>
-            </div>
-          </div>
-          <div class="status-side">
-            <span class="status-bar"><i style="width:100%"></i></span>
-            <span class="status-latency">24ms</span>
-          </div>
-        </div>
-        <div class="status-row">
-          <div class="status-service">
-            <span class="status-dot degraded"></span>
-            <div>
-              <div class="status-name">AI Generation</div>
-              <div class="status-detail">Image &amp; text generation</div>
-            </div>
-          </div>
-          <div class="status-side">
-            <span class="status-bar"><i class="warn" style="width:96%"></i></span>
-            <span class="status-latency">210ms</span>
-          </div>
-        </div>
-        <div class="status-row">
-          <div class="status-service">
-            <span class="status-dot operational"></span>
-            <div>
-              <div class="status-name">Music</div>
-              <div class="status-detail">Audio playback providers</div>
-            </div>
-          </div>
-          <div class="status-side">
-            <span class="status-bar"><i style="width:99.8%"></i></span>
-            <span class="status-latency">67ms</span>
-          </div>
-        </div>
-      </div>
+    <section class="panel" id="services-panel">
+      <h2 class="panel-title">Services</h2>
+      <div id="services-list"><div class="empty">Loading…</div></div>
     </section>
 
-    <section class="status-section">
-      <h2>Incidents</h2>
-      <div class="status-card incident-card">
-        <div class="incident">
-          <div class="incident-head">
-            <span class="incident-title">AI Generation degraded</span>
-            <span class="incident-status resolved">Resolved</span>
-          </div>
-          <div class="incident-time">Aug 3, 2026 · 09:12 – 10:40 UTC</div>
-          <p class="incident-body">The upstream AI provider returned elevated error rates. Requests have been queued and retried automatically.</p>
-        </div>
-        <div class="incident">
-          <div class="incident-head">
-            <span class="incident-title">Database maintenance</span>
-            <span class="incident-status resolved">Resolved</span>
-          </div>
-          <div class="incident-time">Jul 28, 2026 · 03:00 – 03:12 UTC</div>
-          <p class="incident-body">Scheduled maintenance window for index optimization. Brief increase in latency, no downtime.</p>
-        </div>
+    <section class="panel" id="graph-panel">
+      <h2 class="panel-title">Requests <span class="panel-sub">last 24 hours</span></h2>
+      <div class="graph-wrap">
+        <canvas id="requests-chart"></canvas>
       </div>
+      <div class="graph-meta" id="graph-meta"><span>Loading…</span></div>
     </section>
+
+    <section class="panel" id="shards-panel">
+      <h2 class="panel-title">Discord Shards</h2>
+      <div id="shards-list"><div class="empty">Loading…</div></div>
+    </section>
+
+    <section class="panel" id="incidents-panel">
+      <h2 class="panel-title">Incidents</h2>
+      <div id="incidents-list"><div class="empty">Loading…</div></div>
+    </section>
+
   </main>
 
   <footer class="status-footer">
@@ -157,6 +75,193 @@
       el.style.opacity = 0.03 + Math.random() * 0.08;
       waveField.appendChild(el);
     }
+  </script>
+
+  <script>
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+
+    function fmt(ts, withDate) {
+      const d = new Date(ts * 1000);
+      const hh = String(d.getUTCHours()).padStart(2, '0');
+      const mm = String(d.getUTCMinutes()).padStart(2, '0');
+      const day = withDate ? MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() + ' · ' : '';
+      return day + hh + ':' + mm + ' UTC';
+    }
+
+    function renderServices(services) {
+      const list = document.getElementById('services-list');
+      if (!services || !services.length) {
+        list.innerHTML = '<div class="empty">No service data available.</div>';
+        return;
+      }
+      list.innerHTML = services.map(s => {
+        const lat = s.latency_ms != null ? '<span class="service-latency">' + s.latency_ms + 'ms</span>' : '';
+        return '<div class="service-row">' +
+          '<div class="service-left">' +
+            '<span class="service-dot ' + esc(s.status) + '"></span>' +
+            '<div><div class="service-name">' + esc(s.name) + '</div>' +
+            '<div class="service-detail">' + esc(s.detail || '') + '</div></div>' +
+          '</div>' +
+          '<div class="service-side"><span class="service-status ' + esc(s.status) + '">' + esc(s.status) + '</span>' + lat + '</div>' +
+        '</div>';
+      }).join('');
+
+      const pill = document.getElementById('overall-pill');
+      const label = document.getElementById('overall-label');
+      let state = 'operational';
+      for (const s of services) {
+        if (s.status === 'down') { state = 'down'; break; }
+        if (s.status === 'degraded' && state === 'operational') state = 'degraded';
+      }
+      pill.className = 'status-pill ' + state;
+      label.textContent = state === 'down' ? 'Partial Outage' : state === 'degraded' ? 'Degraded Performance' : 'All Systems Operational';
+    }
+
+    function renderStats(stats) {
+      const el = document.getElementById('status-stats');
+      if (!stats) { el.innerHTML = ''; return; }
+      const items = [
+        ['Servers', stats.guilds != null ? Number(stats.guilds).toLocaleString() : '—'],
+        ['Members', stats.users != null ? Number(stats.users).toLocaleString() : '—'],
+        ['Commands', stats.commands != null ? Number(stats.commands).toLocaleString() : '—'],
+        ['Uptime', esc(stats.uptime || '—')],
+      ];
+      el.innerHTML = items.map(i =>
+        '<div class="status-stat"><div class="stat-value">' + i[1] + '</div><div class="stat-label">' + i[0] + '</div></div>'
+      ).join('');
+    }
+
+    function renderGraph(points) {
+      const canvas = document.getElementById('requests-chart');
+      const wrap = canvas.parentElement;
+      const dpr = window.devicePixelRatio || 1;
+      const w = wrap.clientWidth;
+      const h = 190;
+      if (!w) return;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const padL = 8, padR = 8, padT = 10, padB = 18;
+      const n = points.length;
+      const max = Math.max(1, ...points.map(p => p.count));
+      const stepX = n > 1 ? (w - padL - padR) / (n - 1) : 0;
+      const y = c => padT + (h - padT - padB) * (1 - c / max);
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const yy = padT + (h - padT - padB) * (i / 4);
+        ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(w - padR, yy); ctx.stroke();
+      }
+
+      const pts = points.map((p, i) => [padL + i * stepX, y(p.count)]);
+
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], h - padB);
+      pts.forEach(p => ctx.lineTo(p[0], p[1]));
+      ctx.lineTo(pts[pts.length - 1][0], h - padB);
+      ctx.closePath();
+      const grad = ctx.createLinearGradient(0, padT, 0, h - padB);
+      grad.addColorStop(0, 'rgba(87,242,135,0.35)');
+      grad.addColorStop(1, 'rgba(87,242,135,0)');
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      pts.forEach(p => ctx.lineTo(p[0], p[1]));
+      ctx.strokeStyle = '#57f287';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      for (let i = 0; i < n; i += 6) {
+        const d = new Date(points[i].t * 1000);
+        ctx.fillText(String(d.getUTCHours()).padStart(2, '0') + ':00', padL + i * stepX, h - 4);
+      }
+
+      const total = points.reduce((a, p) => a + p.count, 0);
+      document.getElementById('graph-meta').innerHTML =
+        '<span>Total requests: ' + total.toLocaleString() + '</span>' +
+        '<span>Peak: ' + max.toLocaleString() + '/hr</span>';
+    }
+
+    function renderShards(shards, count) {
+      const list = document.getElementById('shards-list');
+      if (!Array.isArray(shards) || shards.length === 0) {
+        const msg = count
+          ? 'Prowl runs ' + count + ' shard' + (count === 1 ? '' : 's') + ' (per-shard details are not reported).'
+          : 'Prowl is not currently running sharded — no shard data is reported.';
+        list.innerHTML = '<div class="empty">' + msg + '</div>';
+        return;
+      }
+      list.innerHTML = shards.map(s => {
+        const st = s.status || 'online';
+        const dotCls = st === 'online' ? 'operational' : st === 'reconnecting' || st === 'connecting' ? 'degraded' : 'down';
+        const guilds = s.guilds != null ? Number(s.guilds).toLocaleString() + ' guilds' : '';
+        return '<div class="shard-row">' +
+          '<div class="shard-left"><span class="service-dot ' + dotCls + '"></span>' +
+          '<span class="shard-id">Shard ' + (s.id != null ? s.id : '?') + '</span></div>' +
+          '<div class="shard-side"><span class="shard-guilds">' + esc(guilds) + '</span>' +
+          '<span class="service-status ' + esc(st) + '">' + esc(st) + '</span></div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function renderIncidents(incidents) {
+      const list = document.getElementById('incidents-list');
+      if (!incidents || !incidents.length) {
+        list.innerHTML = '<div class="empty">No incidents reported. Stay pawsome.</div>';
+        return;
+      }
+      const sorted = incidents.slice().sort((a, b) =>
+        (a.status === 'active' ? 0 : 1) - (b.status === 'active' ? 0 : 1) || (b.starts_at - a.starts_at)
+      );
+      list.innerHTML = sorted.map(i => {
+        const active = i.status === 'active';
+        const time = fmt(i.starts_at, true) + ' – ' + (i.resolves_at ? fmt(i.resolves_at, false) : 'ongoing');
+        return '<div class="incident">' +
+          '<div class="incident-head"><span class="incident-title">' + esc(i.title) + '</span>' +
+          '<span class="incident-tag ' + (active ? 'active' : 'resolved') + '">' + (active ? 'Active' : 'Resolved') + '</span></div>' +
+          '<div class="incident-time">' + time + '</div>' +
+          (i.body ? '<p class="incident-body">' + esc(i.body) + '</p>' : '') +
+        '</div>';
+      }).join('');
+    }
+
+    async function loadStatus() {
+      try {
+        const res = await fetch('/api/v1/status/summary', { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        renderServices(data.services || []);
+        renderStats(data.stats);
+        renderShards(data.shards || [], data.stats && data.stats.shards);
+        renderIncidents(data.incidents || []);
+        renderGraph(data.requests || []);
+      } catch (e) {
+        document.getElementById('services-list').innerHTML = '<div class="empty">Failed to load status data.</div>';
+        const label = document.getElementById('overall-label');
+        label.textContent = 'Status unavailable';
+        document.getElementById('overall-pill').className = 'status-pill down';
+      }
+    }
+
+    loadStatus();
+    setInterval(loadStatus, 60000);
+    window.addEventListener('resize', () => loadStatus());
   </script>
 </body>
 </html>

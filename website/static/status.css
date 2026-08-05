@@ -10,19 +10,23 @@ body {
 .wave-field span { position: absolute; color: #fff; font-family: monospace; user-select: none; line-height: 1; }
 .vignette { position: fixed; inset: 0; background: radial-gradient(ellipse at center, transparent 30%, #0a0a0a 80%); pointer-events: none; z-index: 0; }
 
-/* ── Nav ── */
+/* ── Nav (matches index.html) ── */
 .status-nav {
-  position: relative; z-index: 1;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 1.4rem 6vw;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 4vw;
+  background: rgba(10,10,10,0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 .status-brand { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; color: #fff; }
-.status-brand img { width: 30px; height: 30px; object-fit: contain; }
-.status-brand span { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.02em; }
+.status-brand img { width: 26px; height: 26px; object-fit: contain; }
+.status-brand span { font-weight: 800; font-size: 1.05rem; letter-spacing: -0.02em; }
 
-/* ── Hero ── */
-.status-page { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; padding: 1rem 1.5rem 3rem; }
-.status-hero { text-align: center; padding: 1.5rem 0 2rem; }
 .status-pill {
   display: inline-flex; align-items: center; gap: 0.5rem;
   padding: 0.35rem 0.9rem; border-radius: 999px;
@@ -31,49 +35,118 @@ body {
 }
 .status-pill.operational { color: #57f287; }
 .status-pill.degraded { color: #fbbf24; }
+.status-pill.down { color: #f87171; }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.status-dot.operational { background: #57f287; box-shadow: 0 0 10px rgba(87,242,135,0.6); }
-.status-dot.degraded { background: #fbbf24; box-shadow: 0 0 10px rgba(251,191,36,0.6); }
-.status-hero h1 { margin-top: 1.1rem; font-size: clamp(3rem, 7vw, 6.5rem); font-weight: 900; line-height: 1.05; letter-spacing: -0.04em; }
-.status-sub { margin-top: 0.5rem; color: #666; font-size: 0.95rem; font-weight: 500; }
+.status-pill.operational .status-dot { background: #57f287; box-shadow: 0 0 10px rgba(87,242,135,0.6); }
+.status-pill.degraded .status-dot { background: #fbbf24; box-shadow: 0 0 10px rgba(251,191,36,0.6); }
+.status-pill.down .status-dot { background: #f87171; box-shadow: 0 0 10px rgba(248,113,113,0.6); }
 
-.status-metrics { display: flex; justify-content: center; gap: 2.5rem; margin-top: 1.75rem; }
-.metric-value { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.02em; }
-.metric-label { margin-top: 0.2rem; font-size: 0.72rem; color: rgba(255,255,255,0.35); font-weight: 600; }
-
-/* ── Sections ── */
-.status-section { margin-top: 2.25rem; }
-.status-section h2 { font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.4); margin-bottom: 0.75rem; }
-.status-card { border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); border-radius: 8px; overflow: hidden; }
-.status-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-  padding: 0.95rem 1.25rem;
+/* ── Hero (title matches index.html hero-title size/position) ── */
+.status-hero {
+  position: relative;
+  z-index: 1;
+  min-height: 40vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4rem 6vw 2rem;
 }
-.status-row + .status-row { border-top: 1px solid rgba(255,255,255,0.05); }
-.status-service { display: flex; align-items: center; gap: 0.75rem; }
-.status-name { font-size: 0.9rem; font-weight: 700; }
-.status-detail { margin-top: 0.15rem; font-size: 0.72rem; color: rgba(255,255,255,0.35); }
-.status-side { display: flex; align-items: center; gap: 0.75rem; }
-.status-bar { width: 120px; height: 5px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; display: inline-block; }
-.status-bar i { display: block; height: 100%; border-radius: 999px; background: #57f287; }
-.status-bar i.warn { background: #fbbf24; }
-.status-latency { font-size: 0.75rem; color: rgba(255,255,255,0.45); font-weight: 600; width: 44px; text-align: right; }
+.status-title {
+  font-size: clamp(3rem, 7vw, 6.5rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+.status-sub { margin-top: 1rem; font-size: clamp(1rem, 1.3vw, 1.15rem); color: #555; font-weight: 500; max-width: 520px; line-height: 1.6; }
+
+.status-stats { display: flex; gap: 2.5rem; margin-top: 1.75rem; flex-wrap: wrap; }
+.status-stat .stat-value { font-size: 1.35rem; font-weight: 900; letter-spacing: -0.02em; }
+.status-stat .stat-label { margin-top: 0.15rem; font-size: 0.7rem; color: rgba(255,255,255,0.35); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* ── Dashboard grid ── */
+.status-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem 6vw 4rem;
+}
+#services-panel { grid-column: 1; grid-row: 1; }
+#graph-panel    { grid-column: 2; grid-row: 1; }
+#shards-panel   { grid-column: 1; grid-row: 2; }
+#incidents-panel{ grid-column: 2; grid-row: 2; }
+
+.panel {
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+.panel-title {
+  display: flex; align-items: baseline; gap: 0.6rem;
+  font-size: 0.72rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.08em; color: rgba(255,255,255,0.4); margin-bottom: 0.75rem;
+}
+.panel-sub { text-transform: none; letter-spacing: 0; font-weight: 600; color: rgba(255,255,255,0.28); }
+
+/* ── Services ── */
+.service-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.75rem 0; }
+.service-row + .service-row { border-top: 1px solid rgba(255,255,255,0.05); }
+.service-left { display: flex; align-items: center; gap: 0.7rem; min-width: 0; }
+.service-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.service-dot.operational { background: #57f287; box-shadow: 0 0 10px rgba(87,242,135,0.5); }
+.service-dot.degraded { background: #fbbf24; box-shadow: 0 0 10px rgba(251,191,36,0.5); }
+.service-dot.down { background: #f87171; box-shadow: 0 0 10px rgba(248,113,113,0.5); }
+.service-dot.unknown { background: #6b7280; }
+.service-name { font-size: 0.88rem; font-weight: 700; }
+.service-detail { margin-top: 0.15rem; font-size: 0.72rem; color: rgba(255,255,255,0.35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+.service-side { display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0; }
+.service-status { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+.service-status.operational { color: #57f287; }
+.service-status.degraded { color: #fbbf24; }
+.service-status.down { color: #f87171; }
+.service-status.unknown { color: #9ca3af; }
+.service-latency { font-size: 0.72rem; color: rgba(255,255,255,0.4); font-weight: 600; }
+
+/* ── Graph ── */
+.graph-wrap { position: relative; height: 190px; }
+#requests-chart { width: 100%; height: 100%; display: block; }
+.graph-meta { margin-top: 0.75rem; font-size: 0.75rem; color: rgba(255,255,255,0.4); font-weight: 600; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+
+/* ── Shards ── */
+.shard-row { display: flex; align-items: center; justify-content: space-between; padding: 0.7rem 0; }
+.shard-row + .shard-row { border-top: 1px solid rgba(255,255,255,0.05); }
+.shard-left { display: flex; align-items: center; gap: 0.7rem; }
+.shard-id { font-size: 0.85rem; font-weight: 700; font-family: monospace; }
+.shard-side { display: flex; align-items: center; gap: 0.7rem; }
+.shard-guilds { font-size: 0.72rem; color: rgba(255,255,255,0.4); font-weight: 600; }
 
 /* ── Incidents ── */
-.incident { padding: 1rem 1.25rem; }
+.incident { padding: 0.9rem 0; }
 .incident + .incident { border-top: 1px solid rgba(255,255,255,0.05); }
-.incident-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
-.incident-title { font-size: 0.9rem; font-weight: 700; }
-.incident-status { font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 999px; }
-.incident-status.resolved { color: #57f287; background: rgba(87,242,135,0.08); border: 1px solid rgba(87,242,135,0.2); }
-.incident-time { margin-top: 0.3rem; font-size: 0.72rem; color: rgba(255,255,255,0.3); }
-.incident-body { margin-top: 0.5rem; font-size: 0.8rem; color: #777; line-height: 1.6; }
+.incident-head { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.incident-title { font-size: 0.88rem; font-weight: 700; }
+.incident-tag { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.15rem 0.55rem; border-radius: 999px; }
+.incident-tag.active { color: #fbbf24; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); }
+.incident-tag.resolved { color: #57f287; background: rgba(87,242,135,0.1); border: 1px solid rgba(87,242,135,0.25); }
+.incident-time { margin-top: 0.3rem; font-size: 0.72rem; color: rgba(255,255,255,0.3); font-family: monospace; }
+.incident-body { margin-top: 0.4rem; font-size: 0.8rem; color: #777; line-height: 1.6; }
 
-.status-footer { position: relative; z-index: 1; text-align: center; padding: 2rem 0 2.5rem; font-size: 0.75rem; color: rgba(255,255,255,0.25); }
+.empty { font-size: 0.8rem; color: rgba(255,255,255,0.35); padding: 0.75rem 0; line-height: 1.6; }
 
-@media (max-width: 560px) {
-  .status-metrics { gap: 1.25rem; }
-  .status-bar { width: 70px; }
-  .status-row { padding: 0.85rem 1rem; }
-  .status-nav { padding: 1.2rem 1.25rem; }
+.status-footer { position: relative; z-index: 1; text-align: center; padding: 0 0 2.5rem; font-size: 0.75rem; color: rgba(255,255,255,0.25); }
+
+@media (max-width: 900px) {
+  .status-grid { grid-template-columns: 1fr; }
+  #services-panel { grid-column: 1; grid-row: 1; }
+  #graph-panel    { grid-column: 1; grid-row: 2; }
+  #shards-panel   { grid-column: 1; grid-row: 3; }
+  #incidents-panel{ grid-column: 1; grid-row: 4; }
+  .status-stats { gap: 1.5rem; }
+  .status-nav { padding: 0.75rem 1.25rem; }
+  .status-hero { padding: 3rem 1.25rem 1.5rem; }
+  .status-grid { padding: 1rem 1.25rem 3rem; }
 }

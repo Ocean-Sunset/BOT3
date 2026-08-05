@@ -189,6 +189,54 @@
     });
   }
 
+  // ========================= MASONRY (.md-row) =========================
+  // Places each card into the currently-shortest column so a tall block on
+  // one side doesn't push the next block below it (Pinterest-style), with no
+  // row stretching.
+
+  function initMasonry() {
+    const rows = document.querySelectorAll(".md-row");
+    if (!rows.length) return;
+    const GAP = 12;     // column gap (0.75rem)
+    const ROW_GAP = 24; // section margin-bottom (1.5rem)
+
+    function layout() {
+      const twoCol = window.innerWidth >= 900;
+      rows.forEach((row) => {
+        const items = Array.from(row.children);
+        if (!twoCol || !items.length) {
+          items.forEach((el) => { el.style.position = ""; el.style.top = ""; el.style.left = ""; el.style.width = ""; });
+          row.style.position = ""; row.style.height = "";
+          return;
+        }
+        const cw = (row.clientWidth - GAP) / 2;
+        const colH = [0, 0];
+        items.forEach((el) => {
+          const i = colH[0] <= colH[1] ? 0 : 1;
+          el.style.width = cw + "px";
+          el.style.position = "absolute";
+          el.style.left = (i === 0 ? 0 : cw + GAP) + "px";
+          el.style.top = colH[i] + "px";
+          colH[i] += el.offsetHeight + ROW_GAP;
+        });
+        row.style.position = "relative";
+        row.style.height = Math.max(colH[0], colH[1]) + "px";
+      });
+    }
+
+    layout();
+    let timer = null;
+    const onMut = () => { clearTimeout(timer); timer = setTimeout(layout, 80); };
+    rows.forEach((row) => {
+      try {
+        const obs = new MutationObserver(onMut);
+        obs.observe(row, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "style"] });
+      } catch (e) {}
+    });
+    window.addEventListener("resize", () => { clearTimeout(timer); timer = setTimeout(layout, 120); });
+    window.relayoutMasonry = layout;
+  }
+
   // ========================= INIT =========================
 
   function init() {
@@ -198,6 +246,7 @@
     initSidebarScroll();
     initUserPopover();
     initTooltips();
+    initMasonry();
   }
 
   if (document.readyState === "loading") {

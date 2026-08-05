@@ -8,17 +8,10 @@
 }
 
 .md-row {
-  column-count: 2;
-  column-gap: 0.75rem;
+  position: relative;
 }
 .md-row > .md-section {
-  break-inside: avoid;
   margin-bottom: 1.5rem;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 320px;
-}
-@media (max-width: 900px) {
-  .md-row { column-count: 1; }
 }
 
 .md-section-title {

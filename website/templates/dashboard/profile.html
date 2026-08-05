@@ -1,7 +1,7 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
 <link rel="stylesheet" href="/static/profile.css?v=2" />
-<link rel="stylesheet" href="/static/moderation.css?v=13" />
+<link rel="stylesheet" href="/static/moderation.css?v=14" />
 <div style="padding:2rem 0;">
   <div style="margin-bottom:1.5rem;">
     <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Profile</h1>
@@ -37,10 +37,6 @@
           <div class="md-behavior-item" style="justify-content:space-between;">
             <span style="font-size:0.82rem;color:rgba(255,255,255,0.5);">Display Name</span>
             <span style="font-size:0.82rem;font-weight:700;" id="prof-dname">-</span>
-          </div>
-          <div class="md-behavior-item" style="justify-content:space-between;">
-            <span style="font-size:0.82rem;color:rgba(255,255,255,0.5);">Server</span>
-            <span style="font-size:0.82rem;font-weight:700;" id="prof-server">-</span>
           </div>
         </div>
       </div>
@@ -96,7 +92,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('prof-uid').textContent = u.id || '-';
   document.getElementById('prof-uname').textContent = u.username || '-';
   document.getElementById('prof-dname').textContent = u.global_name || u.username || '-';
-  document.getElementById('prof-server').textContent = g.name || '-';
 
   fetch('/api/v1/account').then(r=>r.json()).then(d => {
     const created = d.account && d.account.created_at;

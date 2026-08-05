@@ -1,0 +1,151 @@
+import discord
+from discord.ext import commands
+import asyncio
+import datetime
+
+from Ediscord import logger, EmbedBuilder
+from Ediscord import db as neon_db
+from components.moderation import get_mod_settings, save_mod_settings, perform_lockdown
+
+
+RAID_DEFAULTS = {
+    "enabled": False,
+    "join_threshold": 5,
+    "join_window": 10,
+    "join_action": "kick",
+    "account_age_min": 0,
+    "account_age_action": "kick",
+    "auto_recovery": True,
+    "recovery_minutes": 30,
+    "moderation_channel_id": None,
+}
+
+RAID_ACTIONS = ("kick", "ban", "lockdown", "verify")
+
+
+async def get_raid_settings(guild_id: int):
+    pool = await neon_db.get_pool()
+    if not pool:
+        return dict(RAID_DEFAULTS)
+    row = await pool.fetchrow("SELECT settings FROM raid_settings WHERE guild_id = $1", str(guild_id))
+    return neon_db.parse_settings(row["settings"], RAID_DEFAULTS) if row else dict(RAID_DEFAULTS)
+
+
+class RaidProtection(commands.Cog, name="RaidProtection"):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+        self.recent_joins = {}   # guild_id -> [(ts, member_id)]
+        self.raid_active = {}    # guild_id -> bool
+
+    async def _mod_channel(self, guild, settings):
+        cid = settings.get("moderation_channel_id")
+        if not cid:
+            return None
+        return guild.get_channel(int(cid))
+
+    async def _log(self, guild, settings, title, description, color="orange"):
+        ch = await self._mod_channel(guild, settings)
+        if not ch:
+            return
+        try:
+            await ch.send(embed=EmbedBuilder().title(title).description(description).color(color).timestamp(datetime.datetime.utcnow()).build())
+        except Exception as e:
+            logger.warning(f"Raid log failed in {guild.id}: {e}")
+
+    async def _apply_action(self, guild, settings, member, reason, action):
+        if action == "kick":
+            try:
+                await member.kick(reason=reason)
+                return True
+            except Exception as e:
+                logger.warning(f"Raid kick failed: {e}")
+        elif action == "ban":
+            try:
+                await member.ban(reason=reason)
+                return True
+            except Exception as e:
+                logger.warning(f"Raid ban failed: {e}")
+        elif action == "lockdown":
+            mods = await get_mod_settings(guild.id)
+            ok, detail = await perform_lockdown(guild, True, mods, save_mod_settings)
+            return ok
+        elif action == "verify":
+            try:
+                from components.verification import get_verify_settings, save_verify_settings
+                vs = await get_verify_settings(guild.id)
+                if vs.get("channel_id") and vs.get("verified_role_id"):
+                    vs["enabled"] = True
+                    await save_verify_settings(guild.id, vs)
+                    cog = self.bot.get_cog("Verification")
+                    if cog and await cog._send_panel(guild, vs):
+                        return True
+            except Exception as e:
+                logger.warning(f"Raid verify failed: {e}")
+            mods = await get_mod_settings(guild.id)
+            ok, detail = await perform_lockdown(guild, True, mods, save_mod_settings)
+            return ok
+        return False
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member):
+        if member.bot or not member.guild:
+            return
+        guild = member.guild
+        settings = await get_raid_settings(guild.id)
+        if not settings.get("enabled"):
+            return
+        now = datetime.datetime.utcnow().timestamp()
+        gid = guild.id
+
+        # Account age filter
+        min_age_min = int(settings.get("account_age_min", 0) or 0)
+        if min_age_min > 0:
+            age_min = (now - member.created_at.replace(tzinfo=None).timestamp()) / 60
+            if age_min < min_age_min:
+                reason = f"Raid protection: account {int(age_min)}min old (min {min_age_min})"
+                await self._apply_action(guild, settings, member, reason, settings.get("account_age_action", "kick"))
+                await self._log(guild, settings, "🛡️ Raid Protection", f"{member.mention} (`{member}`) blocked — {reason}")
+                return
+
+        # Join burst detection
+        threshold = int(settings.get("join_threshold", 5) or 5)
+        window = int(settings.get("join_window", 10) or 10)
+        action = settings.get("join_action", "kick")
+        self.recent_joins.setdefault(gid, []).append((now, member.id))
+        self.recent_joins[gid] = [(t, mid) for t, mid in self.recent_joins[gid] if now - t < window]
+        if len(self.recent_joins[gid]) >= threshold and not self.raid_active.get(gid):
+            self.raid_active[gid] = True
+            reason = f"Raid detected: {len(self.recent_joins[gid])} joins in {window}s"
+            # Kick/ban every member in the window; lockdown/verify act once
+            if action in ("kick", "ban"):
+                for t, mid in self.recent_joins[gid]:
+                    m = guild.get_member(mid)
+                    if m:
+                        await self._apply_action(guild, settings, m, reason, action)
+            else:
+                await self._apply_action(guild, settings, member, reason, action)
+            await self._log(guild, settings, "🚨 Raid Detected", f"{reason}\nAction: **{action}**", "red")
+            # Auto-recovery for lockdown
+            if settings.get("auto_recovery") and action == "lockdown":
+                minutes = int(settings.get("recovery_minutes", 30) or 30)
+                asyncio.create_task(self._recover(guild.id, minutes))
+
+    async def _recover(self, guild_id, minutes):
+        await asyncio.sleep(minutes * 60)
+        self.raid_active.pop(guild_id, None)
+        guild = self.bot.get_guild(int(guild_id))
+        if not guild:
+            return
+        settings = await get_raid_settings(guild.id)
+        if not settings.get("auto_recovery"):
+            return
+        mods = await get_mod_settings(guild.id)
+        try:
+            await perform_lockdown(guild, False, mods, save_mod_settings)
+        except Exception as e:
+            logger.warning(f"Raid recovery failed: {e}")
+        await self._log(guild, settings, "✅ Raid Recovery", "Server unlocked after the raid.", "green")
+
+
+async def setup(bot: commands.Bot):
+    await bot.add_cog(RaidProtection(bot))

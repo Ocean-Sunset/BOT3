@@ -162,6 +162,12 @@ CREATE TABLE IF NOT EXISTS automod_settings (
     updated_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
 );
 
+CREATE TABLE IF NOT EXISTS raid_settings (
+    guild_id    TEXT PRIMARY KEY,
+    settings    JSONB NOT NULL DEFAULT '{}',
+    updated_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+);
+
 CREATE TABLE IF NOT EXISTS autoresponder (
     id          SERIAL PRIMARY KEY,
     guild_id    TEXT NOT NULL,

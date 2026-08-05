@@ -2227,6 +2227,71 @@ async def automod_channels(guild_id: str, request: Request):
 
 
 # ---------------------------------------------------------------------------
+#  Raid Protection API v1
+# ---------------------------------------------------------------------------
+
+RAID_DEFAULTS = {
+    "enabled": False,
+    "join_threshold": 5,
+    "join_window": 10,
+    "join_action": "kick",
+    "account_age_min": 0,
+    "account_age_action": "kick",
+    "auto_recovery": True,
+    "recovery_minutes": 30,
+    "moderation_channel_id": None,
+}
+
+RAID_ACTIONS = ("kick", "ban", "lockdown", "verify")
+
+
+async def _get_raid_settings(guild_id: str):
+    row = await fetchrow("SELECT settings FROM raid_settings WHERE guild_id = $1", str(guild_id))
+    if row:
+        settings = row["settings"]
+        if isinstance(settings, str):
+            try:
+                settings = json.loads(settings)
+            except (json.JSONDecodeError, TypeError):
+                return dict(RAID_DEFAULTS)
+        if isinstance(settings, dict):
+            return {**RAID_DEFAULTS, **settings}
+    return dict(RAID_DEFAULTS)
+
+
+@app.get("/api/v1/raid/{guild_id}/settings")
+async def raid_settings_get(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    return {"settings": await _get_raid_settings(guild_id)}
+
+
+@app.post("/api/v1/raid/{guild_id}/settings")
+async def raid_settings_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    key = body.get("key")
+    value = body.get("value")
+    if not key:
+        return JSONResponse({"error": "missing key"}, status_code=400)
+    if key.endswith("_action") and value not in RAID_ACTIONS:
+        return JSONResponse({"error": "invalid action"}, status_code=400)
+    err = await _save_settings("raid_settings", str(guild_id), key, value, RAID_DEFAULTS)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    return {"ok": True}
+
+
+@app.get("/api/v1/raid/{guild_id}/channels")
+async def raid_channels(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "channels" in d:
+        return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
+    return {"channels": [{"id": "2001", "name": "general"}]}
+
+
+# ---------------------------------------------------------------------------
 #  Autoresponder API v1
 # ---------------------------------------------------------------------------
 

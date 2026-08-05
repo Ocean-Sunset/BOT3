@@ -401,7 +401,7 @@ body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 0 1.5rem 1.5rem;
+  padding: 1.5rem;
 }
 #app-content::-webkit-scrollbar { width: 6px; }
 #app-content::-webkit-scrollbar-track { background: transparent; }

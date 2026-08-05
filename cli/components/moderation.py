@@ -16,7 +16,7 @@ MOD_DEFAULTS = {
     "dm_on_action": True, "require_reason": True, "silent_mod": False,
     "auto_thread": False, "track_stats": True,
     "cmd_ban": True, "cmd_kick": True, "cmd_tempban": True,
-    "cmd_unban": True, "cmd_timeout": True, "cmd_unmute": True,
+    "cmd_unban": True, "cmd_mute": True, "cmd_timeout": True, "cmd_unmute": True,
     "cmd_warn": True, "cmd_purge": True,
     "mod_roles": [], "emergency_lock": False,
     # ── Modlog ──
@@ -706,13 +706,13 @@ class Moderation(commands.Cog, name="Moderation"):
         await send_modlog(interaction.guild, settings, log_embed)
         await log_mod_action(interaction.guild_id, str(user.id), user.name, "unban", reason, interaction.user.name)
 
-    @app_commands.command(name="mute", description="Timeout a member")
+    @app_commands.command(name="mute", description="Mute a member")
     @app_commands.describe(member="The member to mute", duration="Duration in minutes (optional)", reason="Reason for the mute (optional)")
     @is_mod()
     async def mute(self, interaction: discord.Interaction, member: discord.Member, duration: int = None, reason: str = None):
         settings = await get_mod_settings(interaction.guild_id)
-        if not settings.get("cmd_timeout", True):
-            return await interaction.response.send_message(embed=_error_embed("Timeout command is disabled."), ephemeral=True)
+        if not settings.get("cmd_mute", settings.get("cmd_timeout", True)):
+            return await interaction.response.send_message(embed=_error_embed("Mute command is disabled."), ephemeral=True)
         if not await check_emergency_lock(interaction):
             return
         if member.id == interaction.user.id:
@@ -732,7 +732,7 @@ class Moderation(commands.Cog, name="Moderation"):
         try:
             await member.timeout(until, reason=reason)
         except discord.Forbidden:
-            return await interaction.response.send_message(embed=_error_embed("I don't have permission to timeout this member."), ephemeral=True)
+            return await interaction.response.send_message(embed=_error_embed("I don't have permission to mute this member."), ephemeral=True)
         except discord.HTTPException as e:
             logger.error(f"Mute failed for {member.id} in {interaction.guild_id}: {e}")
             return await interaction.response.send_message(embed=_error_embed(f"Failed to mute: {e}"), ephemeral=True)
@@ -785,7 +785,7 @@ class Moderation(commands.Cog, name="Moderation"):
             interaction.guild_id, member.id, member.name, reason, until.timestamp()
         )
 
-    @app_commands.command(name="unmute", description="Remove a timeout from a member")
+    @app_commands.command(name="unmute", description="Remove a mute from a member")
     @app_commands.describe(member="The member to unmute", reason="Reason for the unmute")
     @is_mod()
     async def unmute(self, interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
@@ -798,12 +798,12 @@ class Moderation(commands.Cog, name="Moderation"):
             return await interaction.response.send_message(embed=_error_embed("I cannot unmute this member - their role is higher than or equal to mine."), ephemeral=True)
 
         if not member.is_timed_out():
-            return await interaction.response.send_message(embed=_error_embed("This member is not currently timed out."), ephemeral=True)
+            return await interaction.response.send_message(embed=_error_embed("This member is not currently muted."), ephemeral=True)
 
         try:
             await member.timeout(None, reason=reason)
         except discord.Forbidden:
-            return await interaction.response.send_message(embed=_error_embed("I don't have permission to remove this member's timeout."), ephemeral=True)
+            return await interaction.response.send_message(embed=_error_embed("I don't have permission to remove this member's mute."), ephemeral=True)
         except discord.HTTPException as e:
             logger.error(f"Unmute failed for {member.id} in {interaction.guild_id}: {e}")
             return await interaction.response.send_message(embed=_error_embed(f"Failed to unmute: {e}"), ephemeral=True)
@@ -811,7 +811,7 @@ class Moderation(commands.Cog, name="Moderation"):
         if not settings.get("silent_mod"):
             embed = (
                 EmbedBuilder().title("🔊 Member Unmuted")
-                .description(f"{member.mention}'s timeout has been removed.")
+                .description(f"{member.mention}'s mute has been removed.")
                 .color("green")
                 .field("Reason", reason)
                 .field("Moderator", interaction.user.mention)
@@ -825,7 +825,7 @@ class Moderation(commands.Cog, name="Moderation"):
         if settings.get("dm_on_action", True) and settings.get("mute_dm", True):
             dm_embed = self._user_dm_embed(
                 "You have been unmuted",
-                f"Your timeout in **{interaction.guild.name}** has been removed.\n**Reason:** {reason}",
+                f"Your mute in **{interaction.guild.name}** has been removed.\n**Reason:** {reason}",
                 "green",
             )
             await safe_dm(member, embed=dm_embed)
@@ -975,7 +975,7 @@ class Moderation(commands.Cog, name="Moderation"):
             .field("/tempban", b(settings.get("cmd_tempban")))
             .field("/unban", b(settings.get("cmd_unban")))
             .field("/kick", b(settings.get("cmd_kick")))
-            .field("/mute (timeout)", b(settings.get("cmd_timeout")))
+            .field("/mute", b(settings.get("cmd_mute", settings.get("cmd_timeout", True))))
             .field("/unmute", b(settings.get("cmd_unmute")))
             .field("/warn", b(settings.get("cmd_warn")))
             .field("/purge", b(settings.get("cmd_purge")))

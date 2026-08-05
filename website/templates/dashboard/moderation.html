@@ -497,6 +497,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Activity feed (live) ──
   const ACTIONS = { kick:'was kicked', ban:'was banned', unban:'was unbanned', tempban:'was temp-banned', mute:'was muted', unmute:'was unmuted', warn:'was warned', purge:'purged messages in', lockdown:'locked down the server', nickname:'had their nickname changed', add_role:'had a role added', remove_role:'had a role removed' };
+  const FEED_ICONS = {
+    mute:       { icon:'message-circle-x',    color:'#34d399' },
+    unmute:     { icon:'message-circle-check', color:'#e9edf5' },
+    purge:      { icon:'trash',               color:'#e9edf5' },
+    warn:       { icon:'circle-alert',        color:'#fbbf24' },
+    ban:        { icon:'user-round-x',        color:'#f87171' },
+    tempban:    { icon:'timer',               color:'#fbbf24' },
+    unban:      { icon:'user-round-check',    color:'#34d399' },
+    kick:       { icon:'user-round-minus',    color:'#fb923c' },
+    lockdown:   { icon:'shield-off',          color:'#f87171' },
+    nickname:   { icon:'tag',                 color:'#60a5fa' },
+    add_role:   { icon:'user-plus',           color:'#a78bfa' },
+    remove_role:{ icon:'user-minus',          color:'#a78bfa' },
+  };
+  const FEED_DEFAULT_ICON = { icon:'activity', color:'#e9edf5' };
+  function feedIcon(e) { return FEED_ICONS[e.action] || FEED_DEFAULT_ICON; }
   function feedLabel(e) {
     if (e.action === 'purge') return `${esc(e.moderator||'Someone')} purged messages in ${esc(e.user)}`;
     const verb = ACTIONS[e.action];
@@ -515,9 +531,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const key = e.time + '|' + e.user + '|' + e.action + '|' + (e.reason||'');
         const isNew = !existing.has(key);
         existing.add(key);
-        return `<div class="md-feed-item${isNew ? ' is-new' : ''}" data-key="${key}"><span class="md-feed-dot ${e.color||'gray'}"></span><span class="md-feed-label">${feedLabel(e)}</span><span class="md-feed-reason">${esc(e.reason||'')}</span><span class="md-feed-time">${esc(e.time)}</span></div>`;
+        const ic = feedIcon(e);
+        return `<div class="md-feed-item${isNew ? ' is-new' : ''}" data-key="${key}"><i data-lucide="${ic.icon}" style="width:14px;height:14px;flex-shrink:0;color:${ic.color};"></i><span class="md-feed-label">${feedLabel(e)}</span><span class="md-feed-reason">${esc(e.reason||'')}</span><span class="md-feed-time">${esc(e.time)}</span></div>`;
       }).join('');
       el.innerHTML = html;
+      if (typeof lucide !== 'undefined') lucide.createIcons();
     }).catch(() => {});
   }
   loadFeed();
@@ -652,7 +670,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const cmdItems = [
     {key:'ban',label:'Ban',code:'/ban / /unban'},{key:'kick',label:'Kick',code:'/kick'},
-    {key:'timeout',label:'Timeout',code:'/mute / /unmute'},{key:'warn',label:'Warn',code:'/warn / /unwarn / /warnings'},
+    {key:'mute',label:'Mute',code:'/mute / /unmute'},{key:'warn',label:'Warn',code:'/warn / /unwarn / /warnings'},
   ];
   api('/settings').then(d => {
     const el = document.getElementById('cmd-grid');

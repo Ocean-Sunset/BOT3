@@ -15,7 +15,7 @@ LOGGING_DEFAULTS = {
     "member_unban_channel": None,
     "nickname_channel": None,
     "member_roles_channel": None,
-    "member_timeout_channel": None,
+    "member_mute_channel": None,
     "channel_create_channel": None,
     "channel_delete_channel": None,
     "channel_update_channel": None,
@@ -211,22 +211,22 @@ class Logging(commands.Cog, name="Logging"):
                 .build()
             )
             await self._post(after.guild, "member_roles_channel", embed)
-        # Timeout
+        # Mute (Discord timeout)
         if before.timed_out_until != after.timed_out_until:
             if after.timed_out_until:
-                text = f"Timed out until {_fmt_time(after.timed_out_until)}"
+                text = f"Muted until {_fmt_time(after.timed_out_until)}"
             else:
-                text = "Timeout lifted"
+                text = "Mute lifted"
             embed = (
                 EmbedBuilder()
-                .title("⏱️ Timeout Changed")
+                .title("⏱️ Mute Changed")
                 .color("orange")
                 .field("User", f"{after.mention} (`{after.id}`)")
                 .field("Status", text)
                 .timestamp(datetime.datetime.utcnow())
                 .build()
             )
-            await self._post(after.guild, "member_timeout_channel", embed)
+            await self._post(after.guild, "member_mute_channel", embed)
 
     # ── Channels ──
     @commands.Cog.listener()

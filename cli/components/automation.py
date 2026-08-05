@@ -112,9 +112,9 @@ class Automation(commands.Cog, name="Automation"):
             if before.timed_out_until and before.timed_out_until > discord.utils.utcnow():
                 try:
                     await after.timeout(before.timed_out_until, reason="Mute evasion detected")
-                    logger.info(f"Re-applied timeout to {after.name} in {after.guild.name} (mute evasion)")
+                    logger.info(f"Re-applied mute to {after.name} in {after.guild.name} (mute evasion)")
                 except Exception as e:
-                    logger.warning(f"Failed to re-apply timeout: {e}")
+                    logger.warning(f"Failed to re-apply mute: {e}")
 
     auto_group = app_commands.Group(name="automation", description="Automation settings")
 

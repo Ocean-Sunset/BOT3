@@ -318,6 +318,22 @@ api('/roles').then(d => {
 
 // ── Activity feed (live) ──
 const ACTIONS = { kick:'was kicked', ban:'was banned', unban:'was unbanned', tempban:'was temp-banned', mute:'was muted', unmute:'was unmuted', warn:'was warned', purge:'purged messages in', lockdown:'locked down the server', nickname:'had their nickname changed', add_role:'had a role added', remove_role:'had a role removed' };
+const FEED_ICONS = {
+  mute:       { icon:'message-circle-x',    color:'#34d399' },
+  unmute:     { icon:'message-circle-check', color:'#e9edf5' },
+  purge:      { icon:'trash',               color:'#e9edf5' },
+  warn:       { icon:'circle-alert',        color:'#fbbf24' },
+  ban:        { icon:'user-round-x',        color:'#f87171' },
+  tempban:    { icon:'timer',               color:'#fbbf24' },
+  unban:      { icon:'user-round-check',    color:'#34d399' },
+  kick:       { icon:'user-round-minus',    color:'#fb923c' },
+  lockdown:   { icon:'shield-off',          color:'#f87171' },
+  nickname:   { icon:'tag',                 color:'#60a5fa' },
+  add_role:   { icon:'user-plus',           color:'#a78bfa' },
+  remove_role:{ icon:'user-minus',          color:'#a78bfa' },
+};
+const FEED_DEFAULT_ICON = { icon:'activity', color:'#e9edf5' };
+function feedIcon(e) { return FEED_ICONS[e.action] || FEED_DEFAULT_ICON; }
 function feedLabel(e) {
   if (e.action === 'purge') return `${esc(e.moderator||'Someone')} purged messages in ${esc(e.user)}`;
   const verb = ACTIONS[e.action];
@@ -328,13 +344,15 @@ function loadFeed() {
   api('/feed').then(d => {
     const el = document.getElementById('activity-feed');
     if (!d.events?.length) { el.textContent = 'No recent activity.'; return; }
-    el.innerHTML = d.events.slice(0, 20).map(e =>
-      `<div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.04);">
-        <span style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${e.color === 'green' ? '#34d399' : e.color === 'red' ? '#f87171' : e.color === 'yellow' ? '#fbbf24' : '#666'}"></span>
+    el.innerHTML = d.events.slice(0, 20).map(e => {
+      const ic = feedIcon(e);
+      return `<div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+        <i data-lucide="${ic.icon}" style="width:14px;height:14px;flex-shrink:0;color:${ic.color};"></i>
         <span style="font-size:14px;font-weight:600;color:rgba(255,255,255,0.7);min-width:0;">${feedLabel(e)}</span>
         <span style="font-size:12px;color:rgba(255,255,255,0.3);margin-left:auto;flex-shrink:0;">${esc(e.time)}</span>
-      </div>`
-    ).join('');
+      </div>`;
+    }).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
   }).catch(() => {});
 }
 loadFeed();

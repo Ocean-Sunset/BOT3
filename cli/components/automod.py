@@ -13,7 +13,7 @@ from components.moderation import log_mod_action
 AUTOMOD_DEFAULTS = {
     "enabled": False,
     "moderation_channel_id": None,
-    "filter_timeout_minutes": 60,
+    "filter_mute_minutes": 60,
     "profanity_enabled": True,
     "profanity_action": "delete",
     "profanity_words": "",
@@ -41,7 +41,7 @@ AUTOMOD_DEFAULTS = {
     "action_configs": {},
 }
 
-ACTIONS = ("delete", "delete_dm", "warn", "warn_dm", "timeout", "timeout_dm", "kick", "kick_dm", "ban", "ban_dm")
+ACTIONS = ("delete", "delete_dm", "warn", "warn_dm", "mute", "mute_dm", "kick", "kick_dm", "ban", "ban_dm")
 
 # Display name -> config key (matches website AUTOMOD_FILTERS)
 FILTER_KEY = {
@@ -159,16 +159,16 @@ class AutoMod(commands.Cog, name="AutoMod"):
                     except Exception:
                         pass
             await log_mod_action(guild.id, str(author.id), author.name, "warn", reason, "AutoMod")
-        elif base == "timeout":
+        elif base == "mute":
             if member:
-                minutes = int(cfg.get("timeout_minutes") or settings.get("filter_timeout_minutes", 60) or 60)
+                minutes = int(cfg.get("mute_minutes") or settings.get("filter_mute_minutes", 60) or 60)
                 until = discord.utils.utcnow() + datetime.timedelta(minutes=minutes)
                 try:
                     await member.timeout(until, reason=reason)
                     await neon_db.set_muted_user(guild.id, str(author.id), author.name, reason, until.timestamp())
                 except Exception as e:
-                    logger.warning(f"AutoMod timeout failed: {e}")
-            await log_mod_action(guild.id, str(author.id), author.name, "timeout", reason, "AutoMod")
+                    logger.warning(f"AutoMod mute failed: {e}")
+            await log_mod_action(guild.id, str(author.id), author.name, "mute", reason, "AutoMod")
         elif base == "kick":
             if member:
                 try:

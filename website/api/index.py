@@ -1148,7 +1148,7 @@ async def api_commands(request: Request):
 MOD_SETTINGS_DEFAULTS = {
     "dm_on_action": True, "require_reason": True, "silent_mod": False,
     "auto_thread": False, "track_stats": True,
-    "cmd_ban": True, "cmd_kick": True, "cmd_timeout": True, "cmd_warn": True,
+    "cmd_ban": True, "cmd_kick": True, "cmd_mute": True, "cmd_timeout": True, "cmd_warn": True,
     # ── Modlog ──
     "modlog_channel_id": None,
     # ── Ban ──
@@ -1971,7 +1971,7 @@ LOGGING_DEFAULTS = {
     "member_unban_channel": None,
     "nickname_channel": None,
     "member_roles_channel": None,
-    "member_timeout_channel": None,
+    "member_mute_channel": None,
     "channel_create_channel": None,
     "channel_delete_channel": None,
     "channel_update_channel": None,
@@ -2036,7 +2036,7 @@ async def logging_channels(guild_id: str, request: Request):
 AUTOMOD_DEFAULTS = {
     "enabled": False,
     "moderation_channel_id": None,
-    "filter_timeout_minutes": 60,
+    "filter_mute_minutes": 60,
     "profanity_enabled": True,
     "profanity_action": "delete",
     "profanity_words": "",
@@ -2064,12 +2064,12 @@ AUTOMOD_DEFAULTS = {
     "action_configs": {},
 }
 
-AUTOMOD_ACTIONS = ("delete", "delete_dm", "warn", "warn_dm", "timeout", "timeout_dm", "kick", "kick_dm", "ban", "ban_dm")
+AUTOMOD_ACTIONS = ("delete", "delete_dm", "warn", "warn_dm", "mute", "mute_dm", "kick", "kick_dm", "ban", "ban_dm")
 AUTOMOD_FILTERS = ("profanity", "spam", "links", "caps", "mentions", "invites", "zalgo", "emoji")
 
 
 def _sanitize_action_configs(value):
-    """Validate action_configs: dict of {filter: {warn_message, timeout_minutes, kick_message, ban_message, ban_days}}."""
+    """Validate action_configs: dict of {filter: {warn_message, mute_minutes, kick_message, ban_message, ban_days}}."""
     if not isinstance(value, dict):
         return None, "action_configs must be an object"
     clean = {}
@@ -2082,7 +2082,7 @@ def _sanitize_action_configs(value):
         for k, v in cfg.items():
             if k in ("warn_message", "kick_message", "ban_message") and isinstance(v, str) and v.strip():
                 c[k] = v[:500]
-            elif k == "timeout_minutes":
+            elif k == "mute_minutes":
                 try:
                     c[k] = max(1, int(v))
                 except (TypeError, ValueError):

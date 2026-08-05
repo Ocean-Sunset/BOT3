@@ -156,36 +156,83 @@ app.add_middleware(RotatingSessionMiddleware)
 
 # ── Subdomain routing: enforce api.prowlbot.xyz = API only, prowlbot.xyz = pages ──
 class SubdomainRouteMiddleware:
+    """
+    Enforce the subdomain split:
+      - api.prowlbot.xyz  -> API-only (only /api/*, plus a small root descriptor)
+      - status.prowlbot.xyz -> status page at any non-static path
+      - prowlbot.xyz / www.prowlbot.xyz -> main website; /api/* redirects to api subdomain
+    """
+
     def __init__(self, app):
         self.app = app
+
+    def _host(self, scope):
+        headers = dict(scope.get("headers") or [])
+        # Prefer the real host; Vercel may forward via x-forwarded-host
+        host = headers.get(b"host", b"").decode("latin-1").lower()
+        if not host and b"x-forwarded-host" in headers:
+            host = headers.get(b"x-forwarded-host", b"").decode("latin-1").lower()
+        if host and ":" in host:
+            host = host.split(":")[0]
+        return host
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
-        host = (scope.get("headers") or [])
-        host_str = ""
-        for k, v in host:
-            if k == b"host":
-                host_str = v.decode("latin-1").lower()
-                break
-        path = scope.get("path", "")
-        is_api = path.startswith("/api/")
-        is_api_host = "api.prowlbot.xyz" in host_str
-        is_main_host = "prowlbot.xyz" in host_str and not is_api_host
 
-        # api.prowlbot.xyz should only serve /api/* (and the health/ping endpoints)
-        if is_api_host and not is_api:
-            return await self._send_json(scope, receive, send, 404, {"error": "Not Found"})
-        # prowlbot.xyz should not serve /api/* - send them to the api subdomain
-        if is_main_host and is_api:
+        host = self._host(scope)
+        path = scope.get("path", "")
+        query = scope.get("query_string", b"").decode("latin-1")
+
+        is_api_host = host == "api.prowlbot.xyz"
+        is_status_host = host == "status.prowlbot.xyz"
+        is_main_host = host in ("prowlbot.xyz", "www.prowlbot.xyz")
+
+        # api.prowlbot.xyz: API-only gateway
+        if is_api_host:
+            if path in ("/", ""):
+                return await self._send_json(
+                    scope, receive, send, 200,
+                    {
+                        "service": "prowl-api",
+                        "version": "1.0.0",
+                        "endpoints": {
+                            "health": "https://api.prowlbot.xyz/api/v1/health",
+                            "ping": "https://api.prowlbot.xyz/api/v1/ping",
+                        },
+                    },
+                )
+            if not path.startswith("/api/"):
+                return await self._send_json(
+                    scope, receive, send, 404,
+                    {"error": "Not Found", "message": "Only /api/* routes are available on this subdomain."},
+                )
+            await self.app(scope, receive, send)
+            return
+
+        # status.prowlbot.xyz: serve the status page at the root
+        if is_status_host:
+            # Static assets are shared with the main app; allow them through
+            if path.startswith("/static/") or path in ("/favicon.ico", "/favicon.png"):
+                await self.app(scope, receive, send)
+                return
+            # Rewrite everything else to the /status page handler
+            scope["path"] = "/status"
+            scope["raw_path"] = b"/status"
+            await self.app(scope, receive, send)
+            return
+
+        # prowlbot.xyz: main website; API routes should live on the API subdomain
+        if is_main_host and path.startswith("/api/"):
             from starlette.responses import RedirectResponse
-            new_path = "https://api.prowlbot.xyz" + path
-            if scope.get("query_string"):
-                new_path += "?" + scope["query_string"].decode("latin-1")
+            new_path = f"https://api.prowlbot.xyz{path}"
+            if query:
+                new_path += "?" + query
             resp = RedirectResponse(new_path, status_code=307)
             await resp(scope, receive, send)
             return
+
         await self.app(scope, receive, send)
 
     async def _send_json(self, scope, receive, send, status, obj):

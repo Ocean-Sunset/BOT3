@@ -38,9 +38,22 @@ AUTOMOD_DEFAULTS = {
     "emoji_enabled": False,
     "emoji_action": "delete",
     "emoji_max": 10,
+    "action_configs": {},
 }
 
 ACTIONS = ("delete", "warn", "timeout", "kick", "ban")
+
+# Display name -> config key (matches website AUTOMOD_FILTERS)
+FILTER_KEY = {
+    "Profanity": "profanity",
+    "Spam": "spam",
+    "Links": "links",
+    "Caps Lock": "caps",
+    "Mention Spam": "mentions",
+    "Invite Links": "invites",
+    "Zalgo": "zalgo",
+    "Emoji Spam": "emoji",
+}
 
 # Default profanity words (community standard). Server can override via profanity_words.
 DEFAULT_PROFANITY = [
@@ -51,6 +64,9 @@ DEFAULT_PROFANITY = [
 URL_RE = re.compile(r"(https?://|www\.)\S+", re.IGNORECASE)
 INVITE_RE = re.compile(r"(discord\.(gg|com/invite)/)[a-zA-Z0-9_-]+", re.IGNORECASE)
 ZALGO_RE = re.compile(r"[\u0300-\u036f\u0489\u0616-\u061a\u06d6-\u06ed\u200d\u2060\u20d0-\u20ff\ufe00-\ufe0f]")
+# Domains + extensions that should never be blocked by the link filter (media/gifs)
+MEDIA_HOSTS = ("cdn.discordapp.com", "tenor.com", "cdn.tenor.com", "giphy.com", "media.giphy.com", "imgur.com", "i.imgur.com")
+MEDIA_EXT = (".gif", ".png", ".jpg", ".jpeg", ".webp", ".webm", ".mp4", ".mov")
 EMOJI_RE = re.compile(
     r"[\U0001F300-\U0001FAFF\U00002600-\U000027BF\U0001F000-\U0001F0FF"
     r"\U0001F900-\U0001F9FF\U0001FA70-\U0001FAFF\U0001F1E6-\U0001F1FF"
@@ -119,16 +135,25 @@ class AutoMod(commands.Cog, name="AutoMod"):
     async def _apply_action(self, guild, settings, message, filter_name, reason, action):
         author = message.author
         member = guild.get_member(author.id)
+        configs = settings.get("action_configs", {}) or {}
+        cfg = configs.get(FILTER_KEY.get(filter_name, filter_name), {}) if isinstance(configs, dict) else {}
         # Always remove the offending message when we can
         try:
             await message.delete()
         except Exception:
             pass
         if action == "warn":
+            custom = cfg.get("warn_message")
+            if custom:
+                reason = custom
+                try:
+                    await author.send(f"**AutoMod warn** in {guild.name}:\n{custom}")
+                except Exception:
+                    pass
             await log_mod_action(guild.id, str(author.id), author.name, "warn", reason, "AutoMod")
         elif action == "timeout":
             if member:
-                minutes = int(settings.get("filter_timeout_minutes", 60) or 60)
+                minutes = int(cfg.get("timeout_minutes") or settings.get("filter_timeout_minutes", 60) or 60)
                 until = discord.utils.utcnow() + datetime.timedelta(minutes=minutes)
                 try:
                     await member.timeout(until, reason=reason)
@@ -139,16 +164,17 @@ class AutoMod(commands.Cog, name="AutoMod"):
         elif action == "kick":
             if member:
                 try:
-                    await member.kick(reason=reason)
+                    await member.kick(reason=cfg.get("kick_message") or reason)
                 except Exception as e:
                     logger.warning(f"AutoMod kick failed: {e}")
-            await log_mod_action(guild.id, str(author.id), author.name, "kick", reason, "AutoMod")
+            await log_mod_action(guild.id, str(author.id), author.name, "kick", cfg.get("kick_message") or reason, "AutoMod")
         elif action == "ban":
             try:
-                await guild.ban(discord.Object(id=author.id), reason=reason)
+                days = int(cfg.get("ban_days") or 0)
+                await guild.ban(discord.Object(id=author.id), reason=cfg.get("ban_message") or reason, delete_message_days=max(0, min(7, days)))
             except Exception as e:
                 logger.warning(f"AutoMod ban failed: {e}")
-            await log_mod_action(guild.id, str(author.id), author.name, "ban", reason, "AutoMod")
+            await log_mod_action(guild.id, str(author.id), author.name, "ban", cfg.get("ban_message") or reason, "AutoMod")
         await self._post_action(guild, settings, message, filter_name, reason, action)
 
     def _triggered(self, guild_id, user_id, cooldown=10):
@@ -197,7 +223,13 @@ class AutoMod(commands.Cog, name="AutoMod"):
             allowlist = [d.strip().lower() for d in (settings.get("links_allowlist") or "").split(",") if d.strip()]
             for m in URL_RE.finditer(content):
                 url = m.group(0)
-                if any(url.lower().startswith(("http://" + d, "https://" + d, "www." + d)) for d in allowlist):
+                lower = url.lower()
+                if any(lower.startswith(("http://" + d, "https://" + d, "www." + d)) for d in allowlist):
+                    continue
+                # Never block media/GIF links
+                if any(host in lower for host in MEDIA_HOSTS):
+                    continue
+                if lower.rstrip("/.,)").endswith(MEDIA_EXT):
                     continue
                 hits.append(("Links", "Message contains a link"))
                 break

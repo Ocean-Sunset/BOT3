@@ -49,6 +49,22 @@
   flex-shrink: 0;
   min-width: 150px;
 }
+.am-cfg-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.am-cfg-btn svg { width: 14px; height: 14px; }
+.am-cfg-btn:hover { color: #e9edf5; border-color: rgba(255,255,255,0.25); }
 .am-filter-fields {
   display: flex;
   gap: 0.6rem;

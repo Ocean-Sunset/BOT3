@@ -2061,9 +2061,39 @@ AUTOMOD_DEFAULTS = {
     "emoji_enabled": False,
     "emoji_action": "delete",
     "emoji_max": 10,
+    "action_configs": {},
 }
 
 AUTOMOD_ACTIONS = ("delete", "warn", "timeout", "kick", "ban")
+AUTOMOD_FILTERS = ("profanity", "spam", "links", "caps", "mentions", "invites", "zalgo", "emoji")
+
+
+def _sanitize_action_configs(value):
+    """Validate action_configs: dict of {filter: {warn_message, timeout_minutes, kick_message, ban_message, ban_days}}."""
+    if not isinstance(value, dict):
+        return None, "action_configs must be an object"
+    clean = {}
+    for fk, cfg in value.items():
+        if fk not in AUTOMOD_FILTERS:
+            continue
+        if not isinstance(cfg, dict):
+            continue
+        c = {}
+        for k, v in cfg.items():
+            if k in ("warn_message", "kick_message", "ban_message") and isinstance(v, str) and v.strip():
+                c[k] = v[:500]
+            elif k == "timeout_minutes":
+                try:
+                    c[k] = max(1, int(v))
+                except (TypeError, ValueError):
+                    pass
+            elif k == "ban_days":
+                try:
+                    c[k] = max(0, min(7, int(v)))
+                except (TypeError, ValueError):
+                    pass
+        clean[fk] = c
+    return clean, None
 
 
 async def _get_automod_settings(guild_id: str):
@@ -2096,6 +2126,14 @@ async def automod_settings_set(guild_id: str, request: Request):
         return JSONResponse({"error": "missing key"}, status_code=400)
     if key.endswith("_action") and value not in AUTOMOD_ACTIONS:
         return JSONResponse({"error": "invalid action"}, status_code=400)
+    if key == "action_configs":
+        clean, err = _sanitize_action_configs(value)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        err = await _save_settings("automod_settings", str(guild_id), key, clean, AUTOMOD_DEFAULTS)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        return {"ok": True}
     err = await _save_settings("automod_settings", str(guild_id), key, value, AUTOMOD_DEFAULTS)
     if err:
         return JSONResponse({"error": err}, status_code=400)

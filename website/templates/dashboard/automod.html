@@ -1,7 +1,7 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
 <link rel="stylesheet" href="/static/moderation.css?v=10" />
-<link rel="stylesheet" href="/static/automod.css?v=2" />
+<link rel="stylesheet" href="/static/automod.css?v=3" />
 <div id="automod-wrap">
 
   <div style="margin-bottom:1rem;animation-delay:.05s;">
@@ -44,6 +44,18 @@
     </div>
   </div>
 
+</div>
+
+<div class="md-modal-overlay" id="am-config-modal">
+  <div class="md-modal" style="max-width:440px;">
+    <h3 id="am-config-title">Configure</h3>
+    <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin:0.2rem 0 0.75rem;line-height:1.5;" id="am-config-sub"></div>
+    <div id="am-config-fields" style="display:flex;flex-direction:column;gap:0.6rem;"></div>
+    <div style="display:flex;gap:0.5rem;margin-top:0.9rem;">
+      <button class="md-action-btn" id="am-config-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save</button>
+      <button class="md-action-btn" id="am-config-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button>
+    </div>
+  </div>
 </div>
 {% endblock %}
 {% block scripts %}
@@ -99,6 +111,48 @@ function actionLabel(v) {
   return a ? a.label : 'Delete Message';
 }
 
+// ── Action config popup ──
+const CONFIG_FIELDS = {
+  warn:    [{ type:'text',   key:'warn_message',     label:'Warn Message',       ph:'Message shown to the warned user' }],
+  timeout: [{ type:'number', key:'timeout_minutes',  label:'Timeout Duration (minutes)', min:1 }],
+  kick:    [{ type:'text',   key:'kick_message',     label:'Kick Message',       ph:'Reason attached to the kick' }],
+  ban:     [{ type:'text',   key:'ban_message',      label:'Ban Message',        ph:'Reason attached to the ban' },
+            { type:'number', key:'ban_days',         label:'Delete Messages (days)', min:0, max:7 }],
+};
+let cfgFilter = null;
+let cfgAction = null;
+
+function openConfig(filterKey, action) {
+  cfgFilter = filterKey;
+  cfgAction = action;
+  const f = FILTERS.find(x => x.key === filterKey);
+  document.getElementById('am-config-title').textContent = 'Configure ' + actionLabel(action);
+  document.getElementById('am-config-sub').textContent = f ? f.name + ' — ' + f.desc : '';
+  const cur = (SETTINGS_SNAPSHOT.action_configs || {})[filterKey] || {};
+  const el = document.getElementById('am-config-fields');
+  el.innerHTML = CONFIG_FIELDS[action].map(fd =>
+    '<div><div class="am-field-label">' + esc(fd.label) + '</div>' +
+    '<input type="' + fd.type + '" class="md-input" data-cfg="' + fd.key + '" ' +
+      (fd.min !== undefined ? 'min="' + fd.min + '" ' : '') +
+      (fd.max !== undefined ? 'max="' + fd.max + '" ' : '') +
+      'value="' + esc(cur[fd.key] ?? '') + '" placeholder="' + esc(fd.ph||'') + '" style="width:100%;" /></div>'
+  ).join('');
+  document.getElementById('am-config-modal').classList.add('is-open');
+}
+
+function saveConfig() {
+  if (!cfgFilter) return;
+  const obj = {};
+  document.querySelectorAll('[data-cfg]').forEach(inp => {
+    obj[inp.dataset.cfg] = inp.type === 'number' ? (parseInt(inp.value) || 0) : inp.value;
+  });
+  const all = { ...(SETTINGS_SNAPSHOT.action_configs || {}) };
+  all[cfgFilter] = obj;
+  markChanged('action_configs', all);
+  document.getElementById('am-config-modal').classList.remove('is-open');
+  if (typeof showToast === 'function') showToast('Action config saved — press Save to confirm.', 'info');
+}
+
 function renderFilters() {
   const el = document.getElementById('filter-list');
   el.innerHTML = FILTERS.map(f => {
@@ -108,6 +162,7 @@ function renderFilters() {
       '<div class="am-filter-head">' +
         '<label class="md-toggle"><input type="checkbox" data-enable="' + f.key + '" ' + (en?'checked':'') + ' /><span class="md-toggle-slider"></span></label>' +
         '<div class="am-filter-info"><div class="am-filter-name">' + esc(f.name) + '</div><div class="am-filter-desc">' + esc(f.desc) + '</div></div>' +
+        '<button type="button" class="am-cfg-btn" data-config="' + f.key + '" title="Configure ' + actionLabel(act) + '" ' + (act === 'delete' ? 'style="display:none"' : '') + '><i data-lucide="settings"></i></button>' +
         '<div class="md-custom-select am-action-select">' +
           '<button class="md-custom-select-btn" data-action="' + f.key + '">' + actionLabel(act) + '</button>' +
           '<div class="md-custom-select-drop" data-action="' + f.key + '">' +
@@ -144,6 +199,15 @@ function bindFilters() {
     btn.textContent = opt.textContent;
     markChanged(key, opt.dataset.value);
     drop.classList.remove('is-open');
+    // Show/hide the configure button based on the new action
+    const card = drop.closest('.am-filter');
+    const cfgBtn = card.querySelector('.am-cfg-btn');
+    if (cfgBtn) cfgBtn.style.display = opt.dataset.value === 'delete' ? 'none' : '';
+  }));
+  document.querySelectorAll('.am-cfg-btn').forEach(b => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const f = FILTERS.find(x => x.key === b.dataset.config);
+    openConfig(b.dataset.config, f ? (SETTINGS_SNAPSHOT[f.key + '_action'] || 'delete') : 'delete');
   }));
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.am-action-select')) document.querySelectorAll('.md-custom-select-drop').forEach(d => d.classList.remove('is-open'));
@@ -169,7 +233,7 @@ async function saveChanges() {
       return;
     }
   }
-  for (const key of keys) { LOADED[key] = pending[key]; delete pending[key]; }
+  for (const key of keys) { LOADED[key] = pending[key]; delete original[key]; delete pending[key]; }
   saveBar.classList.add('is-closed');
   saveBtn.disabled = false;
   saveBtn.textContent = 'Save';
@@ -213,6 +277,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   saveBtn.addEventListener('click', saveChanges);
+  const cfgModal = document.getElementById('am-config-modal');
+  document.getElementById('am-config-save').addEventListener('click', saveConfig);
+  document.getElementById('am-config-cancel').addEventListener('click', () => cfgModal.classList.remove('is-open'));
+  cfgModal.addEventListener('click', e => { if (e.target === cfgModal) cfgModal.classList.remove('is-open'); });
   document.getElementById('discard-btn').addEventListener('click', () => {
     const reverted = { ...LOADED };
     for (const key of Object.keys(pending)) {

@@ -12,7 +12,7 @@
   <div class="md-section">
     <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
       <div class="md-section-title">Event Logs</div>
-      <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:0.75rem;line-height:1.5;">Set a channel per event type to receive those logs. "None" disables that log. Prowl needs the <b style="color:rgba(255,255,255,0.7);">Message Content Intent</b> enabled to see deleted/edited message text.</p>
+      <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:0.75rem;line-height:1.5;">Set a channel per event type to receive those logs. "None" disables that log.</p>
       <div class="lg-row lg-everything">
         <div class="lg-name">Everything</div>
         <div class="md-custom-select lg-select">
@@ -108,6 +108,7 @@ function renderGroups() {
 
 function bindSelects() {
   document.querySelectorAll('.lg-select .md-custom-select-btn').forEach(btn => {
+    if (btn.id === 'everything-btn') return; // bound separately by bindEverything
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const drop = btn.nextElementSibling;
@@ -116,6 +117,7 @@ function bindSelects() {
     });
   });
   document.querySelectorAll('.lg-select .md-custom-opt').forEach(opt => {
+    if (opt.closest('#everything-drop')) return; // bound separately by bindEverything
     opt.addEventListener('click', () => {
       const drop = opt.closest('.md-custom-select-drop');
       const btn = drop.previousElementSibling;
@@ -150,7 +152,7 @@ async function saveChanges() {
       return;
     }
   }
-  for (const key of keys) { LOADED[key] = pending[key]; delete pending[key]; }
+  for (const key of keys) { LOADED[key] = pending[key]; delete original[key]; delete pending[key]; }
   saveBar.classList.add('is-closed');
   saveBtn.disabled = false;
   saveBtn.textContent = 'Save';

@@ -336,8 +336,27 @@ class Verification(commands.Cog, name="Verification"):
     async def remove(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message("You need Administrator permission.", ephemeral=True)
+        await self._delete_panel(interaction.guild)
         await save_verify_settings(interaction.guild_id, {"enabled": False})
         await interaction.response.send_message("Verification system removed.", ephemeral=True)
+
+    async def _delete_panel(self, guild: discord.Guild):
+        """Delete the deployed verification panel message (if any) and forget it."""
+        settings = await get_verify_settings(guild.id)
+        mid = settings.get("panel_message_id")
+        if not mid:
+            return
+        channel = guild.get_channel(int(settings.get("channel_id") or 0))
+        if channel:
+            try:
+                msg = await channel.fetch_message(int(mid))
+                await msg.delete()
+            except Exception:
+                pass
+        settings["panel_message_id"] = None
+        await save_verify_settings(guild.id, settings)
+        if mid in self.panel_messages:
+            del self.panel_messages[mid]
 
 
 async def setup(bot: commands.Bot):

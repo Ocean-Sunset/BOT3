@@ -286,6 +286,14 @@ class ProwlBot(commands.Bot):
                         if not await cog._send_panel(guild, settings):
                             raise Exception("verify panel send failed")
                         reason = "Verification panel deployed"
+                    elif act == "verify_panel_remove":
+                        from components.verification import Verification
+                        cog = self.get_cog("Verification")
+                        if not cog:
+                            raise Exception("Verification cog not loaded")
+                        await cog._delete_panel(guild)
+                        reason = "Verification panel removed"
+                        skip_log = True
                     elif act == "verify_user":
                         target = guild.get_member(int(a["target_id"]))
                         if not target:

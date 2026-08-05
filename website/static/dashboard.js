@@ -241,6 +241,19 @@
     window.relayoutMasonry = layout;
   }
 
+  // ========================= QUICK LINKS USAGE =========================
+  // Count how often a user visits each panel so Quick Links can reorder by usage.
+  function initUsageTracking() {
+    const panel = window.__ACTIVE_PANEL;
+    if (!panel) return;
+    try {
+      const key = "prowl_usage";
+      const u = JSON.parse(localStorage.getItem(key) || "{}");
+      u[panel] = (u[panel] || 0) + 1;
+      localStorage.setItem(key, JSON.stringify(u));
+    } catch (e) {}
+  }
+
   // ========================= INIT =========================
 
   function init() {
@@ -251,6 +264,7 @@
     initUserPopover();
     initTooltips();
     initMasonry();
+    initUsageTracking();
   }
 
   if (document.readyState === "loading") {

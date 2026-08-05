@@ -1726,6 +1726,76 @@ async def mod_message_stats(guild_id: str, request: Request):
     return {"points": [{"t": r["timestamp"], "v": r["message_count"]} for r in rows]}
 
 
+_STATS_HISTORY_SQL = """
+CREATE TABLE IF NOT EXISTS guild_stats_history (
+    guild_id        TEXT NOT NULL,
+    day             TEXT NOT NULL,
+    member_count    INTEGER NOT NULL DEFAULT 0,
+    channel_count   INTEGER NOT NULL DEFAULT 0,
+    role_count      INTEGER NOT NULL DEFAULT 0,
+    category_count  INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (guild_id, day)
+);
+"""
+
+
+@app.get("/api/v1/mod/{guild_id}/stats/daily")
+async def mod_stats_daily(guild_id: str, request: Request):
+    """Daily snapshot of the 4 server stats + day-over-day % change."""
+    await require_guild_access(request, guild_id)
+    from datetime import date, timedelta
+    try:
+        await execute(_STATS_HISTORY_SQL)
+    except Exception:
+        pass
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    d = d or {}
+    members = int(d.get("member_count", 0) or 0)
+    channels = sum(1 for c in (d.get("channels") or []) if c.get("type", 0) == 0)
+    categories = sum(1 for c in (d.get("channels") or []) if c.get("type", 0) == 4)
+    roles = len(d.get("roles", []) or [])
+    today = date.today().isoformat()
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    try:
+        await execute(
+            "INSERT INTO guild_stats_history (guild_id, day, member_count, channel_count, role_count, category_count) "
+            "VALUES ($1, $2, $3, $4, $5, $6) "
+            "ON CONFLICT (guild_id, day) DO UPDATE SET "
+            "member_count = EXCLUDED.member_count, channel_count = EXCLUDED.channel_count, "
+            "role_count = EXCLUDED.role_count, category_count = EXCLUDED.category_count",
+            str(guild_id), today, members, channels, roles, categories,
+        )
+    except Exception:
+        pass
+    prev = None
+    try:
+        yrow = await fetchrow(
+            "SELECT member_count, channel_count, role_count, category_count "
+            "FROM guild_stats_history WHERE guild_id = $1 AND day = $2",
+            str(guild_id), yesterday,
+        )
+        prev = dict(yrow) if yrow else None
+    except Exception:
+        pass
+
+    def pct(cur, p):
+        if p is None or p <= 0:
+            return None
+        return round((cur - p) / p * 100, 1)
+
+    return {
+        "today": {"members": members, "channels": channels, "roles": roles, "categories": categories},
+        "yesterday": prev,
+        "pct": {
+            "members": pct(members, prev["member_count"] if prev else None),
+            "channels": pct(channels, prev["channel_count"] if prev else None),
+            "roles": pct(roles, prev["role_count"] if prev else None),
+            "categories": pct(categories, prev["category_count"] if prev else None),
+        },
+    }
+
+
 @app.get("/api/v1/mod/{guild_id}/actions")
 async def mod_actions_list(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
@@ -2527,6 +2597,9 @@ async def verify_settings_set(guild_id: str, request: Request):
     if not key: return JSONResponse({"error": "missing key"}, 400)
     err = await _save_settings("verify_settings", str(guild_id), key, value, VERIFY_SETTINGS_DEFAULTS)
     if err: return JSONResponse({"error": err}, 400)
+    # Disabling verification should also remove the deployed panel
+    if key == "enabled" and not value:
+        await _queue_action(str(guild_id), "verify_panel_remove", "0", "", "Verification disabled - panel removed", None)
     return {"ok": True}
 
 

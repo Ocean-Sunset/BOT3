@@ -86,6 +86,16 @@ CREATE TABLE IF NOT EXISTS member_history (
 
 CREATE INDEX IF NOT EXISTS idx_member_history_guild ON member_history (guild_id, timestamp);
 
+CREATE TABLE IF NOT EXISTS guild_stats_history (
+    guild_id        TEXT NOT NULL,
+    day             TEXT NOT NULL,
+    member_count    INTEGER NOT NULL DEFAULT 0,
+    channel_count   INTEGER NOT NULL DEFAULT 0,
+    role_count      INTEGER NOT NULL DEFAULT 0,
+    category_count  INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (guild_id, day)
+);
+
 CREATE TABLE IF NOT EXISTS message_history (
     guild_id    TEXT NOT NULL,
     timestamp   DOUBLE PRECISION NOT NULL,

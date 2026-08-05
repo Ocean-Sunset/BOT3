@@ -237,7 +237,7 @@ function renderFilters() {
       '<div class="am-filter-head">' +
         '<label class="md-toggle"><input type="checkbox" data-enable="' + f.key + '" ' + (en?'checked':'') + ' /><span class="md-toggle-slider"></span></label>' +
         '<div class="am-filter-info"><div class="am-filter-name">' + esc(f.name) + '</div><div class="am-filter-desc">' + esc(f.desc) + '</div></div>' +
-        '<button type="button" class="am-cfg-btn" data-config="' + f.key + '" data-tooltip="Configure ' + actionLabel(act) + '" ' + ((act === 'delete' || act === 'delete_dm') ? 'style="display:none"' : '') + '><i data-lucide="square-pen"></i></button>' +
+        '<button type="button" class="am-cfg-btn" data-config="' + f.key + '" data-tooltip="Configure ' + actionLabel(act) + '" ' + (act.endsWith('_dm') ? '' : 'style="display:none"') + '><i data-lucide="square-pen"></i></button>' +
         '<div class="md-custom-select am-action-select">' +
           '<button class="md-custom-select-btn" data-action="' + f.key + '">' + actionLabel(act) + '</button>' +
           '<div class="md-custom-select-drop" data-action="' + f.key + '">' +
@@ -275,10 +275,10 @@ function bindFilters() {
     btn.textContent = opt.textContent;
     markChanged(key, opt.dataset.value);
     drop.classList.remove('is-open');
-    // Show/hide the configure button based on the new action
+    // Show/hide the configure button based on the new action (only for +DM)
     const card = drop.closest('.am-filter');
     const cfgBtn = card.querySelector('.am-cfg-btn');
-    if (cfgBtn) cfgBtn.style.display = (opt.dataset.value === 'delete' || opt.dataset.value === 'delete_dm') ? 'none' : '';
+    if (cfgBtn) cfgBtn.style.display = opt.dataset.value.endsWith('_dm') ? '' : 'none';
   }));
   document.querySelectorAll('.am-cfg-btn').forEach(b => b.addEventListener('click', (e) => {
     e.stopPropagation();

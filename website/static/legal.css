@@ -17,6 +17,7 @@ body {
 .legal-brand {
   display: inline-flex; align-items: center; gap: 0.6rem;
   text-decoration: none; color: #fff;
+  border-bottom: none;
 }
 .legal-brand img { width: 30px; height: 30px; object-fit: contain; }
 .legal-brand span { font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; }

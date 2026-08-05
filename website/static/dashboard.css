@@ -9,6 +9,9 @@ body {
   overflow: hidden;
 }
 
+/* Generic show/hide utility (was provided by the removed Tailwind CDN) */
+.hidden { display: none !important; }
+
 #app-shell {
   display: flex;
   height: 100vh;

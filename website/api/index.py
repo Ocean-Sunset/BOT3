@@ -586,22 +586,19 @@ async def auth_discord():
     return RedirectResponse(f"https://discord.com/api/oauth2/authorize?{params}")
 
 
-@app.get("/login/google")
-async def login_google():
-    google_id = os.environ.get("GOOGLE_CLIENT_ID", "")
-    if not google_id:
-        return HTMLResponse("Google OAuth not configured yet.", status_code=503)
-    google_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "")
-    redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI", "http://localhost:8000/callback/google")
+@app.get("/login/github")
+async def login_github():
+    github_id = os.environ.get("GITHUB_CLIENT_ID", "")
+    if not github_id:
+        return HTMLResponse("GitHub OAuth not configured yet.", status_code=503)
+    redirect_uri = os.environ.get("GITHUB_REDIRECT_URI", "http://localhost:8000/callback/github")
     params = urllib.parse.urlencode({
-        "client_id": google_id,
+        "client_id": github_id,
         "redirect_uri": redirect_uri,
-        "response_type": "code",
-        "scope": "openid email profile",
-        "access_type": "offline",
-        "prompt": "consent",
+        "scope": "read:user user:email",
+        "allow_signup": "true",
     })
-    return RedirectResponse(f"https://accounts.google.com/o/oauth2/v2/auth?{params}")
+    return RedirectResponse(f"https://github.com/login/oauth/authorize?{params}")
 
 
 @app.get("/callback")
@@ -637,29 +634,29 @@ async def callback(request: Request, code: str = None):
     return RedirectResponse("/dashboard")
 
 
-@app.get("/callback/google")
-async def callback_google(request: Request, code: str = None):
-    """Complete Google OAuth. If a dashboard user is logged in, link the Google
+@app.get("/callback/github")
+async def callback_github(request: Request, code: str = None):
+    """Complete GitHub OAuth. If a dashboard user is logged in, link the GitHub
     account to their Prowl account. Otherwise redirect to the login page."""
     if not code:
         return RedirectResponse("/login")
-    google_id = os.environ.get("GOOGLE_CLIENT_ID", "")
-    google_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "")
-    redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI", "http://localhost:8000/callback/google")
-    if not google_id or not google_secret:
+    github_id = os.environ.get("GITHUB_CLIENT_ID", "")
+    github_secret = os.environ.get("GITHUB_CLIENT_SECRET", "")
+    redirect_uri = os.environ.get("GITHUB_REDIRECT_URI", "http://localhost:8000/callback/github")
+    if not github_id or not github_secret:
         return RedirectResponse("/login")
 
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             r = await client.post(
-                "https://oauth2.googleapis.com/token",
+                "https://github.com/login/oauth/access_token",
                 data={
+                    "client_id": github_id,
+                    "client_secret": github_secret,
                     "code": code,
-                    "client_id": google_id,
-                    "client_secret": google_secret,
                     "redirect_uri": redirect_uri,
-                    "grant_type": "authorization_code",
                 },
+                headers={"Accept": "application/json"},
             )
             if r.status_code != 200:
                 return RedirectResponse("/login")
@@ -668,27 +665,28 @@ async def callback_google(request: Request, code: str = None):
             if not access_token:
                 return RedirectResponse("/login")
             ui = await client.get(
-                "https://openidconnect.googleapis.com/v1/userinfo",
-                headers={"Authorization": f"Bearer {access_token}"},
+                "https://api.github.com/user",
+                headers={"Authorization": f"Bearer {access_token}", "Accept": "application/vnd.github+json"},
             )
             if ui.status_code != 200:
                 return RedirectResponse("/login")
             profile = ui.json()
     except Exception as e:
-        logger.error("Google OAuth failed: %s", e)
+        logger.error("GitHub OAuth failed: %s", e)
         return RedirectResponse("/login")
 
-    gid = str(profile.get("sub", "") or "")
+    gid = str(profile.get("id", "") or "")
+    gname = profile.get("login", "") or ""
     gemail = profile.get("email", "") or ""
     user = get_user(request)
     if user and user.get("id"):
         try:
             await execute(
-                "UPDATE users SET google_id = $1, google_email = $2 WHERE id = $3",
-                gid, gemail, str(user.get("id")),
+                "UPDATE users SET github_id = $1, github_username = $2, github_email = $3 WHERE id = $4",
+                gid, gname, gemail, str(user.get("id")),
             )
         except Exception as e:
-            logger.error("Google account link failed: %s", e)
+            logger.error("GitHub account link failed: %s", e)
         return RedirectResponse("/guild/profile")
     return RedirectResponse("/login")
 
@@ -864,21 +862,21 @@ async def _upsert_user(user: dict):
 @app.get("/api/v1/account")
 async def account_info(request: Request):
     user = await require_auth(request)
-    row = await fetchrow("SELECT id, username, global_name, created_at, last_login, google_id, google_email FROM users WHERE id = $1", str(user.get("id")))
+    row = await fetchrow("SELECT id, username, global_name, created_at, last_login, github_id, github_username, github_email FROM users WHERE id = $1", str(user.get("id")))
     if not row:
         # Account not recorded yet (e.g. logged in before this feature) - record it now
         await _upsert_user(user)
-        row = await fetchrow("SELECT id, username, global_name, created_at, last_login, google_id, google_email FROM users WHERE id = $1", str(user.get("id")))
+        row = await fetchrow("SELECT id, username, global_name, created_at, last_login, github_id, github_username, github_email FROM users WHERE id = $1", str(user.get("id")))
     return {"account": dict(row) if row else None}
 
 
-@app.post("/api/v1/account/google/unlink")
-async def account_google_unlink(request: Request):
+@app.post("/api/v1/account/github/unlink")
+async def account_github_unlink(request: Request):
     user = await require_auth(request)
     try:
-        await execute("UPDATE users SET google_id = '', google_email = '' WHERE id = $1", str(user.get("id")))
+        await execute("UPDATE users SET github_id = '', github_username = '', github_email = '' WHERE id = $1", str(user.get("id")))
     except Exception as e:
-        logger.error("google unlink failed: %s", e)
+        logger.error("github unlink failed: %s", e)
     return {"ok": True}
 
 

@@ -124,7 +124,7 @@ body {
   gap: 0.75rem;
 }
 
-.btn-discord, .btn-google {
+.btn-discord, .btn-github {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -144,13 +144,13 @@ body {
 .btn-discord { background: #5865F2; }
 .btn-discord:hover { background: #4752C4; }
 
-.btn-google {
+.btn-github {
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.1);
 }
-.btn-google:hover { background: rgba(255,255,255,0.02); }
+.btn-github:hover { background: rgba(255,255,255,0.02); }
 
-.btn-discord svg, .btn-google svg { width: 20px; height: 20px; }
+.btn-discord svg, .btn-github svg { width: 20px; height: 20px; }
 
 .card-right {
   display: flex;

@@ -426,7 +426,7 @@ body {
 /* ── User select ── */
 .nav-item, .nav-label, .nav-badge, .nav-group-label,
 .sidebar-brand-name, .server-name, .user-name,
-.md-section-title, .btn-discord, .btn-google, .mode-btn,
+.md-section-title, .btn-discord, .btn-github, .mode-btn,
 .nav-item .nav-label, .popover-item,
 .md-feed-item, .md-member-name, .md-behavior-label, .md-behavior-desc,
 .md-cmd-name, .md-role-name, .md-role-count, .md-panic-status,
@@ -442,7 +442,7 @@ body {
 h1, h2, h3, h4, h5, h6,
 .title, .subtitle, .section-title, .section-desc,
 .section-label, .cta-title, .cta-sub,
-.btn-primary, .btn-secondary, .btn-discord, .btn-google,
+.btn-primary, .btn-secondary, .btn-discord, .btn-github,
 .nav-cta, .brand-name, .brand,
 button, .save-btn, .discard-btn {
   user-select: none;

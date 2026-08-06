@@ -3473,6 +3473,30 @@ async def automation_roles(guild_id: str, request: Request):
     return {"roles": []}
 
 
+@app.get("/api/v1/automation/{guild_id}/graph")
+async def automation_graph_get(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT nodes, connections FROM automation_graph WHERE guild_id = $1", str(guild_id))
+    if row:
+        return {"nodes": row["nodes"] if isinstance(row["nodes"], list) else json.loads(row["nodes"] or "[]"),
+                "connections": row["connections"] if isinstance(row["connections"], list) else json.loads(row["connections"] or "[]")}
+    return {"nodes": [], "connections": []}
+
+
+@app.post("/api/v1/automation/{guild_id}/graph")
+async def automation_graph_save(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    nodes = body.get("nodes", [])
+    connections = body.get("connections", [])
+    await execute(
+        "INSERT INTO automation_graph (guild_id, nodes, connections, updated_at) "
+        "VALUES ($1,$2::jsonb,$3::jsonb,$4) ON CONFLICT (guild_id) DO UPDATE SET nodes=$2::jsonb, connections=$3::jsonb, updated_at=$4",
+        str(guild_id), json.dumps(nodes), json.dumps(connections), time.time(),
+    )
+    return {"ok": True}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("api.index:app", host="127.0.0.1", port=8000, reload=True)

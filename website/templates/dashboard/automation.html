@@ -1,95 +1,63 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
-<link rel="stylesheet" href="/static/moderation.css?v=16" />
 <style>
-.aut-rule { border:1px solid rgba(255,255,255,0.08); border-radius:4px; background:rgba(255,255,255,0.015); padding:0.9rem 1rem; margin-bottom:0.5rem; }
-.aut-rule-head { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; }
-.aut-rule-name { font-size:0.88rem; font-weight:800; letter-spacing:-0.01em; }
-.aut-rule-flow { display:flex; align-items:center; gap:0.4rem; font-size:0.72rem; color:rgba(255,255,255,0.4); margin-top:0.35rem; flex-wrap:wrap; }
-.aut-rule-flow .aut-tag { font-size:0.66rem; font-weight:800; text-transform:uppercase; letter-spacing:0.03em; padding:0.15rem 0.45rem; border-radius:999px; }
-.aut-rule-flow .aut-tag.trigger { color:#60a5fa; background:rgba(96,165,250,0.08); border:1px solid rgba(96,165,250,0.2); }
-.aut-rule-flow .aut-tag.action { color:#34d399; background:rgba(52,211,153,0.08); border:1px solid rgba(52,211,153,0.2); }
-.aut-rule-flow .aut-arrow { color:rgba(255,255,255,0.25); font-weight:700; }
-.aut-rule-actions { display:flex; gap:0.35rem; flex-shrink:0; }
-.aut-rule-actions button { padding:0.3rem 0.55rem; font-size:0.68rem; border-radius:4px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.6); cursor:pointer; font-family:inherit; font-weight:600; transition:all 0.15s; }
-.aut-rule-actions button:hover { color:#e9edf5; border-color:rgba(255,255,255,0.25); }
-.aut-rule-actions button.danger:hover { color:#f87171; border-color:rgba(248,113,113,0.3); }
-#welcomer-wrap.is-disabled .md-section:not(.am-master) { opacity:0.35; pointer-events:none; filter:grayscale(0.4); transition:opacity 0.25s ease, filter 0.25s ease; }
-#welcomer-wrap .md-section { transition:opacity 0.25s ease, filter 0.25s ease; }
+#aut-canvas-wrap { position:relative; border:1px solid rgba(255,255,255,0.08); border-radius:6px; background:rgba(10,10,10,0.6); min-height:500px; overflow:hidden; margin-bottom:1.5rem; }
+#aut-canvas { position:relative; width:2400px; height:1600px; }
+#aut-svg { position:absolute; inset:0; pointer-events:none; z-index:1; }
+#aut-svg path { fill:none; stroke:rgba(96,165,250,0.5); stroke-width:2; stroke-linecap:round; }
+.aut-node { position:absolute; z-index:2; min-width:160px; border-radius:6px; background:#151822; border:1px solid rgba(255,255,255,0.12); padding:0.65rem 0.85rem; cursor:move; user-select:none; transition:box-shadow 0.15s; }
+.aut-node:hover { box-shadow:0 0 0 1px rgba(96,165,250,0.3); }
+.aut-node.selected { border-color:#60a5fa; box-shadow:0 0 0 1px #60a5fa; }
+.aut-node .aut-node-title { font-size:0.75rem; font-weight:800; letter-spacing:-0.01em; margin-bottom:0.3rem; display:flex; align-items:center; gap:0.4rem; }
+.aut-node .aut-node-dot { position:absolute; width:10px; height:10px; border-radius:50%; border:2px solid rgba(255,255,255,0.3); background:#151822; z-index:3; cursor:pointer; }
+.aut-node .aut-node-dot:hover { border-color:#60a5fa; background:#60a5fa; }
+.aut-node .aut-node-dot.in { left:50%; top:-6px; transform:translateX(-50%); }
+.aut-node .aut-node-dot.out { left:50%; bottom:-6px; transform:translateX(-50%); }
+.aut-node .aut-node-tag { font-size:0.62rem; font-weight:800; text-transform:uppercase; letter-spacing:0.03em; padding:0.1rem 0.4rem; border-radius:999px; display:inline-block; }
+.aut-node .aut-node-tag.trigger { color:#60a5fa; background:rgba(96,165,250,0.1); border:1px solid rgba(96,165,250,0.2); }
+.aut-node .aut-node-tag.action { color:#34d399; background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.2); }
+.aut-node .aut-node-summary { font-size:0.65rem; color:rgba(255,255,255,0.35); margin-top:0.25rem; line-height:1.4; }
+.aut-node .aut-node-del { position:absolute; top:4px; right:6px; width:18px; height:18px; border-radius:50%; border:none; background:rgba(248,113,113,0.15); color:#f87171; font-size:0.7rem; cursor:pointer; display:none; align-items:center; justify-content:center; line-height:1; }
+.aut-node:hover .aut-node-del { display:flex; }
+.aut-node .aut-node-del:hover { background:#f87171; color:#fff; }
+.aut-palette { display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1rem; padding:0.75rem; border:1px solid rgba(255,255,255,0.06); border-radius:6px; background:rgba(255,255,255,0.015); }
+.aut-palette-block { padding:0.4rem 0.7rem; border-radius:4px; font-size:0.7rem; font-weight:700; cursor:grab; user-select:none; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.03); color:rgba(255,255,255,0.7); transition:all 0.15s; white-space:nowrap; }
+.aut-palette-block:hover { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.2); }
+.aut-palette-block:active { cursor:grabbing; }
+.aut-palette-label { font-size:0.65rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:rgba(255,255,255,0.3); align-self:center; margin-right:0.25rem; }
+.aut-toolbar { display:flex; gap:0.5rem; margin-bottom:0.75rem; }
 </style>
+
 <div id="automation-wrap">
-
-  <div style="margin-bottom:1rem;">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
-      <div>
-        <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Automation</h1>
-        <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Build custom automation rules — when X happens, do Y</p>
-      </div>
-      <button class="md-action-btn" id="aut-add-btn" style="padding:0.55rem 1rem;background:rgba(255,255,255,0.1);color:#e9edf5;justify-content:center;gap:0.5rem;"><i data-lucide="plus"></i> Add Rule</button>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+    <div>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Automation</h1>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Build custom workflows — drag nodes onto the canvas and connect them</p>
+    </div>
+    <div class="aut-toolbar">
+      <button class="md-action-btn" id="aut-save-btn" style="padding:0.5rem 1rem;background:rgba(255,255,255,0.1);color:#e9edf5;justify-content:center;gap:0.4rem;"><i data-lucide="save"></i> Save</button>
+      <button class="md-action-btn" id="aut-clear-btn" style="padding:0.5rem 1rem;color:rgba(255,255,255,0.4);justify-content:center;gap:0.4rem;"><i data-lucide="trash-2"></i> Clear</button>
     </div>
   </div>
 
-  <div class="md-row">
-
-    <div class="md-section" style="grid-column:1/-1;">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Automation Rules</div>
-        <div id="aut-rules"><div class="empty">Loading...</div></div>
-        <div id="aut-empty" style="text-align:center;padding:2rem;color:rgba(255,255,255,0.25);font-size:0.8rem;display:none;">No rules yet — click Add Rule to create your first automation.</div>
-      </div>
-    </div>
-
-    <div class="md-section">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Feature Overrides</div>
-        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:0.75rem;line-height:1.5;">When you enable an override, the native feature page is disabled — edit it here instead.</p>
-        <div class="md-behavior-list" id="aut-overrides"><div class="empty">Loading...</div></div>
-      </div>
-    </div>
-
-    <div class="md-section">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">How Automation Works</div>
-        <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.7;">
-          <p style="margin-bottom:0.5rem;">Each rule has a <b style="color:rgba(255,255,255,0.65);">trigger</b> (something that happens) and an <b style="color:rgba(255,255,255,0.65);">action</b> (what Prowl does in response).</p>
-          <p style="margin-bottom:0.5rem;"><b style="color:#60a5fa;font-size:0.68rem;">Triggers:</b> Member Joins, Member Leaves, Message Contains, Message Starts With, Role Added, Role Removed.</p>
-          <p><b style="color:#34d399;font-size:0.68rem;">Actions:</b> Send Message, Send DM, Add Role, Remove Role, Kick, Ban, Timeout.</p>
-        </div>
-      </div>
-    </div>
-
+  <div class="aut-palette">
+    <span class="aut-palette-label">Triggers</span>
+    <div class="aut-palette-block" data-palette="member_join" draggable="true">Member Joins</div>
+    <div class="aut-palette-block" data-palette="member_leave" draggable="true">Member Leaves</div>
+    <div class="aut-palette-block" data-palette="message_contains" draggable="true">Message Contains</div>
+    <span class="aut-palette-label" style="margin-left:0.75rem;">Actions</span>
+    <div class="aut-palette-block" data-palette="send_message" draggable="true">Send Message</div>
+    <div class="aut-palette-block" data-palette="send_dm" draggable="true">Send DM</div>
+    <div class="aut-palette-block" data-palette="add_role" draggable="true">Add Role</div>
+    <div class="aut-palette-block" data-palette="remove_role" draggable="true">Remove Role</div>
+    <div class="aut-palette-block" data-palette="kick" draggable="true">Kick</div>
+    <div class="aut-palette-block" data-palette="ban" draggable="true">Ban</div>
+    <div class="aut-palette-block" data-palette="mute" draggable="true">Timeout</div>
   </div>
-</div>
 
-<!-- Rule editor modal -->
-<div class="md-modal-overlay" id="aut-modal">
-  <div class="md-modal" style="max-width:500px;max-height:85vh;overflow-y:auto;">
-    <h3 id="aut-modal-title">New Automation Rule</h3>
-    <div id="aut-form" style="display:flex;flex-direction:column;gap:0.75rem;margin:0.75rem 0;">
-      <div>
-        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Rule Name</div>
-        <input type="text" class="md-input" id="aut-name" placeholder="e.g. Welcome new members" />
-      </div>
-      <div>
-        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Trigger</div>
-        <div class="md-custom-select" id="aut-trigger-wrap">
-          <button class="md-custom-select-btn" id="aut-trigger-btn">Member Joins</button>
-          <div class="md-custom-select-drop" id="aut-trigger-drop"></div>
-        </div>
-      </div>
-      <div id="aut-trigger-cfg"></div>
-      <div>
-        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Action</div>
-        <div class="md-custom-select" id="aut-action-wrap">
-          <button class="md-custom-select-btn" id="aut-action-btn">Send Message</button>
-          <div class="md-custom-select-drop" id="aut-action-drop"></div>
-        </div>
-      </div>
-      <div id="aut-action-cfg"></div>
-    </div>
-    <div style="display:flex;gap:0.5rem;">
-      <button class="md-action-btn" id="aut-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save Rule</button>
-      <button class="md-action-btn" id="aut-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button>
+  <div id="aut-canvas-wrap">
+    <div id="aut-canvas">
+      <svg id="aut-svg"></svg>
     </div>
   </div>
 </div>
@@ -97,200 +65,267 @@
 {% block scripts %}
 <script>
 const GID = window.__GUILD_ID;
-const api = (path, opts={}) => fetch(`/api/v1/automation/${GID}${path}`, opts).then(r=>r.json());
+const api = (p,o={}) => fetch(`/api/v1/automation/${GID}${p}`,o).then(r=>r.json());
 const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
 
-const TRIGGERS = [
-  {value:'member_join', label:'Member Joins', cfg:'none'},
-  {value:'member_leave', label:'Member Leaves', cfg:'none'},
-  {value:'message_contains', label:'Message Contains', cfg:'text'},
-  {value:'message_starts', label:'Message Starts With', cfg:'text'},
-  {value:'role_added', label:'Role Added', cfg:'role'},
-  {value:'role_removed', label:'Role Removed', cfg:'role'},
-];
-const ACTIONS = [
-  {value:'send_message', label:'Send Message', cfg:'channel_text'},
-  {value:'send_dm', label:'Send DM', cfg:'text'},
-  {value:'add_role', label:'Add Role', cfg:'role'},
-  {value:'remove_role', label:'Remove Role', cfg:'role'},
-  {value:'kick', label:'Kick', cfg:'none'},
-  {value:'ban', label:'Ban', cfg:'none'},
-  {value:'mute', label:'Timeout', cfg:'duration'},
-];
-const OVERRIDES = [
-  {key:'welcomer', label:'Welcomer'},
-  {key:'verification', label:'Verification'},
-  {key:'leveling', label:'Leveling'},
-  {key:'moderation', label:'Auto-Mod Actions'},
-];
+const TYPE_LABELS = {
+  member_join:'Member Joins', member_leave:'Member Leaves', message_contains:'Message Contains',
+  send_message:'Send Message', send_dm:'Send DM', add_role:'Add Role', remove_role:'Remove Role',
+  kick:'Kick', ban:'Ban', mute:'Timeout'
+};
+const TRIGGER_TYPES = ['member_join','member_leave','message_contains'];
+const ACTION_TYPES = ['send_message','send_dm','add_role','remove_role','kick','ban','mute'];
 
-let RULES = [], CHANNELS = [], ROLES = [], editingId = null;
+let nodes = []; let nextId = 1; let connections = [];  // connections: [{from:nodeId, to:nodeId}]
+let selectedNode = null; let connectingFrom = null;
+let dragNode = null, dragOffX = 0, dragOffY = 0;
+let CHANNELS=[], ROLES=[];
 
-function triggerLabel(v) { return (TRIGGERS.find(x=>x.value===v)||{}).label||v; }
-function actionLabel(v) { return (ACTIONS.find(x=>x.value===v)||{}).label||v; }
-
-function field(label, id, placeholder, type='text') {
-  return '<div class="md-behavior-label" style="margin-bottom:0.25rem;margin-top:0.5rem;">'+label+'</div>' +
-    '<input type="'+type+'" class="md-input" id="'+id+'" placeholder="'+(placeholder||'')+'" style="width:100%;" />';
-}
-function selectField(label, id, opts) {
-  return '<div class="md-behavior-label" style="margin-bottom:0.25rem;margin-top:0.5rem;">'+label+'</div>' +
-    '<div class="md-custom-select" id="'+id+'-wrap"><button class="md-custom-select-btn" id="'+id+'-btn">Select...</button>' +
-    '<div class="md-custom-select-drop" id="'+id+'-drop">'+opts.map(o=>'<button class="md-custom-opt" data-id="'+o.id+'">'+esc(o.name)+'</button>').join('')+'</div></div>';
-}
-function bindSmallSelect(wrapId, btnId, dropId, onPick) {
-  const btn = document.getElementById(btnId), drop = document.getElementById(dropId);
-  if(!btn||!drop) return;
-  btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
-  drop.querySelectorAll('.md-custom-opt').forEach(o => o.addEventListener('click', () => {
-    onPick(o); drop.classList.remove('is-open');
-  }));
-  document.addEventListener('click', e => { if(!e.target.closest('#'+wrapId)) drop.classList.remove('is-open'); });
+function createNode(type, x, y) {
+  return {id:nextId++, type, x, y, config:{}};
 }
 
-function updateTriggerCfg() {
-  const v = document.getElementById('aut-trigger-btn').dataset.value || 'member_join';
-  const t = TRIGGERS.find(x=>x.value===v);
-  const el = document.getElementById('aut-trigger-cfg');
-  if (t && t.cfg==='text') el.innerHTML = field('Match Text','aut-tcfg-text','e.g. hello');
-  else if (t && t.cfg==='role') { el.innerHTML = selectField('Role','aut-tcfg-role',ROLES); bindSmallSelect('aut-tcfg-role-wrap','aut-tcfg-role-btn','aut-tcfg-role-drop', o => { document.getElementById('aut-tcfg-role-btn').textContent=o.textContent; document.getElementById('aut-tcfg-role-btn').dataset.id=o.dataset.id; }); }
-  else el.innerHTML = '';
+function renderNode(n) {
+  const isTrigger = TRIGGER_TYPES.includes(n.type);
+  const cfg = n.config||{};
+  let summary = '';
+  if (n.type==='send_message'||n.type==='send_dm') summary = cfg.text ? '"'+cfg.text.slice(0,40)+'"' : '';
+  else if (n.type==='add_role'||n.type==='remove_role') summary = cfg.role_id ? (ROLES.find(r=>String(r.id)===String(cfg.role_id))||{}).name||'' : '';
+  else if (n.type==='mute') summary = (cfg.duration||60)+'min';
+  else if (n.type==='message_contains') summary = cfg.text ? '"'+cfg.text.slice(0,30)+'"' : '';
+  const summaryHtml = summary ? '<div class="aut-node-summary">'+esc(summary)+'</div>' : '';
+  return `<div class="aut-node" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;">
+    <div class="aut-node-title"><span class="aut-node-tag ${isTrigger?'trigger':'action'}">${isTrigger?'TRIGGER':'ACTION'}</span>${TYPE_LABELS[n.type]||n.type}</div>
+    ${summaryHtml}
+    ${isTrigger?'':'<div class="aut-node-dot in" data-connect="in"></div>'}
+    <div class="aut-node-dot out" data-connect="out"></div>
+    <button class="aut-node-del" data-del="${n.id}">&times;</button>
+  </div>`;
 }
 
-function updateActionCfg() {
-  const v = document.getElementById('aut-action-btn').dataset.value || 'send_message';
-  const a = ACTIONS.find(x=>x.value===v);
-  const el = document.getElementById('aut-action-cfg');
-  if (a && a.cfg==='channel_text') el.innerHTML = selectField('Channel','aut-acfg-ch',CHANNELS) + field('Message','aut-acfg-text','e.g. Welcome {member}!');
-  else if (a && a.cfg==='text') el.innerHTML = field('Message','aut-acfg-text','e.g. Welcome!');
-  else if (a && a.cfg==='role') { el.innerHTML = selectField('Role','aut-acfg-role',ROLES); bindSmallSelect('aut-acfg-role-wrap','aut-acfg-role-btn','aut-acfg-role-drop', o => { document.getElementById('aut-acfg-role-btn').textContent=o.textContent; document.getElementById('aut-acfg-role-btn').dataset.id=o.dataset.id; }); }
-  else if (a && a.cfg==='duration') el.innerHTML = field('Duration (minutes)','aut-acfg-dur','60','number');
-  else el.innerHTML = '';
-  if (a && a.cfg==='channel_text') bindSmallSelect('aut-acfg-ch-wrap','aut-acfg-ch-btn','aut-acfg-ch-drop', o => { document.getElementById('aut-acfg-ch-btn').textContent='#'+o.textContent.replace(/^#/,''); document.getElementById('aut-acfg-ch-btn').dataset.id=o.dataset.id; });
-}
-
-function collectCfg() {
-  const triggerCfg = {}, actionCfg = {};
-  const tv = document.getElementById('aut-trigger-btn').dataset.value;
-  const av = document.getElementById('aut-action-btn').dataset.value;
-  const t = TRIGGERS.find(x=>x.value===tv), a = ACTIONS.find(x=>x.value===av);
-  if (t && t.cfg==='text') triggerCfg.text = document.getElementById('aut-tcfg-text')?.value||'';
-  if (t && t.cfg==='role') triggerCfg.role_id = document.getElementById('aut-tcfg-role-btn')?.dataset.id||'';
-  if (a && (a.cfg==='channel_text'||a.cfg==='text')) actionCfg.text = document.getElementById('aut-acfg-text')?.value||'';
-  if (a && a.cfg==='channel_text') actionCfg.channel_id = document.getElementById('aut-acfg-ch-btn')?.dataset.id||'';
-  if (a && a.cfg==='role') actionCfg.role_id = document.getElementById('aut-acfg-role-btn')?.dataset.id||'';
-  if (a && a.cfg==='duration') actionCfg.duration = parseInt(document.getElementById('aut-acfg-dur')?.value)||60;
-  return {trigger_cfg:triggerCfg, action_cfg:actionCfg};
-}
-
-function openEditor(id) {
-  editingId = id;
-  const existing = id ? RULES.find(r=>r.id===id) : null;
-  document.getElementById('aut-modal-title').textContent = existing ? 'Edit Rule' : 'New Rule';
-  document.getElementById('aut-name').value = existing ? (existing.name||'') : '';
-  document.getElementById('aut-trigger-btn').dataset.value = existing ? (existing.trigger_type||'member_join') : 'member_join';
-  document.getElementById('aut-trigger-btn').textContent = triggerLabel(existing ? existing.trigger_type : 'member_join');
-  document.getElementById('aut-action-btn').dataset.value = existing ? (existing.action_type||'send_message') : 'send_message';
-  document.getElementById('aut-action-btn').textContent = actionLabel(existing ? existing.action_type : 'send_message');
-  const tc = existing?.trigger_cfg||{}, ac = existing?.action_cfg||{};
-  updateTriggerCfg(); updateActionCfg();
-  setTimeout(() => {
-    if (tc.text) { const e=document.getElementById('aut-tcfg-text'); if(e) e.value=tc.text; }
-    if (tc.role_id) { const e=document.getElementById('aut-tcfg-role-btn'); if(e) { const r=ROLES.find(x=>String(x.id)===String(tc.role_id)); if(r) e.textContent=r.name; e.dataset.id=tc.role_id; } }
-    if (ac.text) { const e=document.getElementById('aut-acfg-text'); if(e) e.value=ac.text; }
-    if (ac.channel_id) { const e=document.getElementById('aut-acfg-ch-btn'); if(e) { const c=CHANNELS.find(x=>String(x.id)===String(ac.channel_id)); if(c) e.textContent='#'+c.name; e.dataset.id=ac.channel_id; } }
-    if (ac.role_id) { const e=document.getElementById('aut-acfg-role-btn'); if(e) { const r=ROLES.find(x=>String(x.id)===String(ac.role_id)); if(r) e.textContent=r.name; e.dataset.id=ac.role_id; } }
-    if (ac.duration) { const e=document.getElementById('aut-acfg-dur'); if(e) e.value=ac.duration; }
-  }, 50);
-  document.getElementById('aut-modal').classList.add('is-open');
-}
-
-function renderRules() {
-  const el = document.getElementById('aut-rules');
-  document.getElementById('aut-empty').style.display = RULES.length ? 'none' : '';
-  el.innerHTML = RULES.map(r => {
-    const cfg = (r.trigger_cfg||{});
-    const acfg = (r.action_cfg||{});
-    const tLabel = triggerLabel(r.trigger_type) + (cfg.text ? ' "'+cfg.text.slice(0,30)+'"' : '') + (cfg.role_id ? ' (role)' : '');
-    const aLabel = actionLabel(r.action_type) + (acfg.text ? ' "'+acfg.text.slice(0,30)+'"' : '') + (acfg.channel_id ? ' to #'+ (CHANNELS.find(c=>String(c.id)===String(acfg.channel_id))||{}).name||'' : '');
-    return '<div class="aut-rule"><div class="aut-rule-head"><div style="min-width:0;"><div class="aut-rule-name">'+esc(r.name||'Rule')+'</div>' +
-      '<div class="aut-rule-flow"><span class="aut-tag trigger">'+tLabel+'</span> <span class="aut-arrow">&rarr;</span> <span class="aut-tag action">'+aLabel+'</span></div></div>' +
-      '<div class="aut-rule-actions"><button onclick="openEditor('+r.id+')"><i data-lucide="pen-square"></i></button>' +
-      '<button class="danger" onclick="deleteRule('+r.id+')"><i data-lucide="trash-2"></i></button></div></div></div>';
-  }).join('') || '';
-  if(typeof lucide!=='undefined') lucide.createIcons();
-}
-
-async function deleteRule(id) {
-  if(!confirm('Delete this rule?')) return;
-  await api('/rules/'+id, {method:'DELETE'});
-  loadRules();
-}
-
-async function saveRule() {
-  const name = document.getElementById('aut-name').value.trim();
-  if (!name) { if(typeof showToast==='function') showToast('Name is required.','warning'); return; }
-  const trigger_type = document.getElementById('aut-trigger-btn').dataset.value;
-  const action_type = document.getElementById('aut-action-btn').dataset.value;
-  const {trigger_cfg, action_cfg} = collectCfg();
-  const body = {name, trigger_type, action_type, trigger_cfg, action_cfg};
-  if (editingId) {
-    await api('/rules/'+editingId, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-  } else {
-    await api('/rules', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-  }
-  document.getElementById('aut-modal').classList.remove('is-open');
-  loadRules();
-  if(typeof showToast==='function') showToast(editingId?'Rule updated.':'Rule created.','success');
-}
-
-function renderOverrides(ov) {
-  const el = document.getElementById('aut-overrides');
-  el.innerHTML = OVERRIDES.map(o => {
-    const on = ov && ov[o.key] === true;
-    return '<div class="md-behavior-item" style="justify-content:space-between;">' +
-      '<div><div class="md-behavior-label">'+o.label+'</div><div class="md-behavior-desc">Overrides the native '+o.label+' dashboard page</div></div>' +
-      '<label class="md-toggle"><input type="checkbox" data-ovr="'+o.key+'" '+(on?'checked':'')+' /><span class="md-toggle-slider"></span></label></div>';
+function renderAll() {
+  const canvas = document.getElementById('aut-canvas');
+  canvas.innerHTML = '<svg id="aut-svg"></svg>' + nodes.map(renderNode).join('');
+  // Re-render svg
+  const svg = document.getElementById('aut-svg');
+  svg.setAttribute('width', '2400'); svg.setAttribute('height', '1600');
+  svg.innerHTML = connections.map(c => {
+    const fn = nodes.find(x=>x.id===c.from); const tn = nodes.find(x=>x.id===c.to);
+    if (!fn||!tn) return '';
+    const elF = canvas.querySelector(`[data-id="${c.from}"]`); const elT = canvas.querySelector(`[data-id="${c.to}"]`);
+    if (!elF||!elT) return '';
+    const dotOut = elF.querySelector('.out'); const dotIn = elT.querySelector('.in');
+    const r = canvas.getBoundingClientRect();
+    const x1 = elF.offsetLeft + (dotOut?dotOut.offsetLeft + 5 : elF.offsetWidth/2);
+    const y1 = elF.offsetTop + (dotOut?dotOut.offsetTop + 5 : elF.offsetHeight);
+    const x2 = elT.offsetLeft + (dotIn?dotIn.offsetLeft + 5 : elT.offsetWidth/2);
+    const y2 = elT.offsetTop + (dotIn?dotIn.offsetTop + 5 : 0);
+    const dy = Math.abs(y2-y1)*0.4;
+    return `<path d="M${x1} ${y1} C${x1} ${y1+dy} ${x2} ${y2-dy} ${x2} ${y2}" />`;
   }).join('');
-  el.querySelectorAll('[data-ovr]').forEach(cb => cb.addEventListener('change', function(){
-    const v = this.checked;
-    api('/overrides', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:this.dataset.ovr, value:v})});
-    if(typeof showToast==='function') showToast((OVERRIDES.find(x=>x.key===this.dataset.ovr)||{}).label+(v?' override enabled.':' override disabled.'), 'info');
+  bindNodes();
+}
+
+function bindNodes() {
+  const canvas = document.getElementById('aut-canvas');
+  // Delete buttons
+  canvas.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    const id = parseInt(b.dataset.del);
+    deleteNode(id);
   }));
+  // Node dragging
+  canvas.querySelectorAll('.aut-node').forEach(el => {
+    el.addEventListener('mousedown', e => {
+      if (e.target.closest('[data-del]')||e.target.closest('[data-connect]')) return;
+      dragNode = nodes.find(n => n.id === parseInt(el.dataset.id));
+      if (!dragNode) return;
+      selectedNode = dragNode;
+      canvas.querySelectorAll('.aut-node').forEach(x => x.classList.toggle('selected', dragNode&&parseInt(x.dataset.id)===dragNode.id));
+      dragOffX = e.clientX - dragNode.x;
+      dragOffY = e.clientY - dragNode.y;
+      e.preventDefault();
+    });
+    // Connection dots
+    el.querySelectorAll('[data-connect]').forEach(dot => {
+      dot.addEventListener('mousedown', e => {
+        e.stopPropagation(); e.preventDefault();
+        const nid = parseInt(el.dataset.id);
+        const isOut = dot.dataset.connect === 'out';
+        if (connectingFrom) {
+          // Complete connection
+          const fromNid = connectingFrom;
+          connectingFrom = null;
+          if (isOut) {
+            const existing = connections.find(c => c.from===nid);
+            if (existing) connections = connections.filter(c => c.from!==nid);
+            connections.push({from:nid, to:fromNid});
+          } else {
+            const existing = connections.find(c => c.to===nid);
+            if (existing) connections = connections.filter(c => c.to!==nid);
+            connections.push({from:fromNid, to:nid});
+          }
+          renderAll();
+        } else if (isOut) {
+          connectingFrom = nid;
+          dot.style.borderColor = '#60a5fa'; dot.style.background = '#60a5fa';
+        }
+      });
+    });
+  });
+  // Click on empty canvas to deselect / cancel connect
+  canvas.addEventListener('mousedown', e => {
+    if (e.target === canvas) {
+      if (connectingFrom) { connectingFrom=null; renderAll(); }
+      selectedNode = null; canvas.querySelectorAll('.aut-node').forEach(x => x.classList.remove('selected'));
+    }
+  });
 }
 
-async function loadRules() {
-  await loadOverrides();
-  RULES = (await api('/rules')).rules||[];
-  CHANNELS = ((await api('/channels')).channels || []);
-  ROLES = ((await api('/roles')).roles || []);
-  renderRules();
-}
-async function loadOverrides() {
-  const d = (await api('/overrides')).overrides||{};
-  renderOverrides(d);
+function deleteNode(id) {
+  nodes = nodes.filter(n => n.id!==id);
+  connections = connections.filter(c => c.from!==id && c.to!==id);
+  renderAll();
 }
 
-// Trigger / Action dropdowns
-function bindTypeSelect(wrapId, btnId, dropId, types, updateFn) {
-  const btn = document.getElementById(btnId), drop = document.getElementById(dropId);
-  drop.innerHTML = types.map(t => '<button class="md-custom-opt" data-value="'+t.value+'">'+t.label+'</button>').join('');
-  btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
-  drop.querySelectorAll('.md-custom-opt').forEach(opt => opt.addEventListener('click', () => {
-    btn.textContent = opt.textContent; btn.dataset.value = opt.dataset.value;
-    drop.classList.remove('is-open'); updateFn();
-  }));
-  document.addEventListener('click', e => { if(!e.target.closest('#'+wrapId)) drop.classList.remove('is-open'); });
+// Global mouse move / up for dragging
+document.addEventListener('mousemove', e => {
+  if (!dragNode) return;
+  dragNode.x = Math.max(0, Math.min(2200, e.clientX - dragOffX));
+  dragNode.y = Math.max(0, Math.min(1400, e.clientY - dragOffY));
+  const el = document.querySelector(`.aut-node[data-id="${dragNode.id}"]`);
+  if (el) { el.style.left = dragNode.x+'px'; el.style.top = dragNode.y+'px'; }
+  // Redraw svg
+  const svg = document.getElementById('aut-svg');
+  const canvas = document.getElementById('aut-canvas');
+  svg.innerHTML = connections.map(c => {
+    const fn = nodes.find(x=>x.id===c.from); const tn = nodes.find(x=>x.id===c.to);
+    if (!fn||!tn) return '';
+    const elF = canvas.querySelector(`[data-id="${c.from}"]`); const elT = canvas.querySelector(`[data-id="${c.to}"]`);
+    if (!elF||!elT) return '';
+    const x1 = elF.offsetLeft + (elF.querySelector('.out')?elF.querySelector('.out').offsetLeft+5:elF.offsetWidth/2);
+    const y1 = elF.offsetTop + (elF.querySelector('.out')?elF.querySelector('.out').offsetTop+5:elF.offsetHeight);
+    const x2 = elT.offsetLeft + (elT.querySelector('.in')?elT.querySelector('.in').offsetLeft+5:elT.offsetWidth/2);
+    const y2 = elT.offsetTop + (elT.querySelector('.in')?elT.querySelector('.in').offsetTop+5:0);
+    const dy = Math.abs(y2-y1)*0.4;
+    return `<path d="M${x1} ${y1} C${x1} ${y1+dy} ${x2} ${y2-dy} ${x2} ${y2}" />`;
+  }).join('');
+});
+document.addEventListener('mouseup', () => {
+  dragNode = null;
+  if (connectingFrom) renderAll();
+  connectingFrom = null;
+});
+
+// Double-click node to configure
+document.getElementById('aut-canvas-wrap').addEventListener('dblclick', e => {
+  const nodeEl = e.target.closest('.aut-node');
+  if (!nodeEl) return;
+  const id = parseInt(nodeEl.dataset.id);
+  const n = nodes.find(x => x.id===id);
+  if (!n) return;
+  configureNode(n);
+});
+
+function configureNode(n) {
+  const label = TYPE_LABELS[n.type]||n.type;
+  const cfg = n.config||{};
+  let html = '';
+  const field = (lbl, id, ph, t='text') => `<div style="margin-bottom:0.6rem;"><div class="md-behavior-label" style="margin-bottom:0.25rem;">${lbl}</div><input type="${t}" class="md-input" id="${id}" placeholder="${ph||''}" style="width:100%;" /></div>`;
+  const select = (lbl, id, opts) => `<div style="margin-bottom:0.6rem;"><div class="md-behavior-label" style="margin-bottom:0.25rem;">${lbl}</div><div class="md-custom-select" id="${id}-wrap"><button class="md-custom-select-btn" id="${id}-btn">Select...</button><div class="md-custom-select-drop" id="${id}-drop">${opts.map(o=>'<button class="md-custom-opt" data-id="'+o.id+'">'+esc(o.name)+'</button>').join('')}</div></div></div>`;
+  if (n.type==='send_message'||n.type==='send_dm') {
+    if (n.type==='send_message') html += select('Channel','cfg-ch',CHANNELS).replace('Select...',(CHANNELS.find(c=>String(c.id)===String(cfg.channel_id))||{}).name||'Select...');
+    html += field('Message','cfg-text','e.g. Welcome {member}!');
+  } else if (n.type==='add_role'||n.type==='remove_role') {
+    html += select('Role','cfg-role',ROLES).replace('Select...',(ROLES.find(r=>String(r.id)===String(cfg.role_id))||{}).name||'Select...');
+  } else if (n.type==='mute') {
+    html += field('Duration (minutes)','cfg-dur','60','number');
+  } else if (n.type==='message_contains') {
+    html += field('Match Text','cfg-text','e.g. hello');
+  }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'md-modal-overlay'; overlay.style.zIndex=200;
+  overlay.innerHTML = `<div class="md-modal" style="max-width:440px;"><h3>Configure ${label}</h3><div style="margin:0.75rem 0;">${html||'<p style="color:rgba(255,255,255,0.4);">No extra configuration needed.</p>'}</div><div style="display:flex;gap:0.5rem;"><button class="md-action-btn" id="cfg-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save</button><button class="md-action-btn" id="cfg-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button></div></div>`;
+  document.body.appendChild(overlay);
+  overlay.classList.add('is-open');
+  // Fill values
+  setTimeout(() => {
+    if (cfg.text) { const e=document.getElementById('cfg-text'); if(e) e.value=cfg.text; }
+    if (cfg.duration) { const e=document.getElementById('cfg-dur'); if(e) e.value=cfg.duration; }
+    // Bind dropdowns
+    if (n.type==='send_message') bindCfgSelect('cfg-ch', cfg.channel_id||'', CHANNELS, '#');
+    if (n.type==='add_role'||n.type==='remove_role') bindCfgSelect('cfg-role', cfg.role_id||'', ROLES, '');
+  }, 30);
+
+  function bindCfgSelect(wrapId, curId, opts, prefix) {
+    const btn = document.getElementById(wrapId+'-btn'), drop = document.getElementById(wrapId+'-drop');
+    const match = opts.find(x=>String(x.id)===String(curId));
+    if (btn&&match) btn.textContent = prefix + match.name;
+    if (btn) btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+    if (drop) drop.querySelectorAll('.md-custom-opt').forEach(o => o.addEventListener('click', () => {
+      btn.textContent = prefix+o.textContent.replace(/^#/,''); o.dataset.sel = o.dataset.id; drop.classList.remove('is-open');
+    }));
+    if (drop) document.addEventListener('click', e => { if(!e.target.closest('#'+wrapId+'-wrap')) drop.classList.remove('is-open'); });
+  }
+
+  overlay.querySelector('#cfg-save').addEventListener('click', () => {
+    if (n.type==='send_message') { cfg.channel_id=overlay.querySelector('#cfg-ch-drop .md-custom-opt')?.dataset?.sel||''; cfg.text=document.getElementById('cfg-text')?.value||''; }
+    else if (n.type==='send_dm') cfg.text=document.getElementById('cfg-text')?.value||'';
+    else if (n.type==='add_role'||n.type==='remove_role') cfg.role_id=overlay.querySelector('#cfg-role-drop .md-custom-opt')?.dataset?.sel||'';
+    else if (n.type==='mute') cfg.duration=parseInt(document.getElementById('cfg-dur')?.value)||60;
+    else if (n.type==='message_contains') cfg.text=document.getElementById('cfg-text')?.value||'';
+    overlay.remove(); renderAll();
+  });
+  overlay.querySelector('#cfg-cancel').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  bindTypeSelect('aut-trigger-wrap','aut-trigger-btn','aut-trigger-drop', TRIGGERS, updateTriggerCfg);
-  bindTypeSelect('aut-action-wrap','aut-action-btn','aut-action-drop', ACTIONS, updateActionCfg);
-  loadRules();
-  document.getElementById('aut-add-btn').addEventListener('click', () => openEditor(null));
-  document.getElementById('aut-save').addEventListener('click', saveRule);
-  document.getElementById('aut-cancel').addEventListener('click', () => document.getElementById('aut-modal').classList.remove('is-open'));
-  document.getElementById('aut-modal').addEventListener('click', e => { if(e.target===document.getElementById('aut-modal')) e.target.classList.remove('is-open'); });
+// Palette drag → canvas
+document.querySelectorAll('.aut-palette-block').forEach(block => {
+  block.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', block.dataset.palette); });
+});
+const wrap = document.getElementById('aut-canvas-wrap');
+wrap.addEventListener('dragover', e => e.preventDefault());
+wrap.addEventListener('drop', e => {
+  e.preventDefault();
+  const type = e.dataTransfer.getData('text/plain');
+  if (!TYPE_LABELS[type]) return;
+  const rect = wrap.getBoundingClientRect();
+  const x = Math.max(0, e.clientX - rect.left - 80);
+  const y = Math.max(0, e.clientY - rect.top - 20);
+  nodes.push(createNode(type, x, y));
+  renderAll();
+});
+
+// Save / Load
+async function saveGraph() {
+  const body = {nodes:nodes.map(n=>({...n})), connections:[...connections]};
+  await api('/graph', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  if(typeof showToast==='function') showToast('Automation graph saved.','success');
+}
+async function loadGraph() {
+  try {
+    const d = await api('/graph');
+    if (d.nodes&&d.nodes.length) {
+      nodes = d.nodes; nextId = Math.max(...nodes.map(n=>n.id), 0)+1;
+      connections = d.connections||[];
+      renderAll();
+    }
+  } catch(e) {}
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  [CHANNELS, ROLES] = await Promise.all([
+    api('/channels').then(d=>d.channels||[]),
+    api('/roles').then(d=>d.roles||[]),
+  ]);
+  loadGraph();
+  document.getElementById('aut-save-btn').addEventListener('click', saveGraph);
+  document.getElementById('aut-clear-btn').addEventListener('click', () => {
+    if (!confirm('Clear the entire canvas?')) return;
+    nodes = []; connections = []; nextId = 1; renderAll();
+  });
 });
 </script>
 {% endblock %}

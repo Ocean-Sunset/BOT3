@@ -168,6 +168,13 @@ CREATE TABLE IF NOT EXISTS automation_settings (
     updated_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
 );
 
+CREATE TABLE IF NOT EXISTS automation_graph (
+    guild_id    TEXT PRIMARY KEY,
+    nodes       JSONB NOT NULL DEFAULT '[]',
+    connections JSONB NOT NULL DEFAULT '[]',
+    updated_at  DOUBLE PRECISION NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS automod_settings (
     guild_id    TEXT PRIMARY KEY,
     settings    JSONB NOT NULL DEFAULT '{}',

@@ -1,7 +1,7 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
 <link rel="stylesheet" href="/static/moderation.css?v=15" />
-<link rel="stylesheet" href="/static/raid_protection.css?v=4" />
+<link rel="stylesheet" href="/static/raid_protection.css?v=5" />
 <div id="raid-wrap">
 
   <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem;">
@@ -152,7 +152,7 @@
       </div>
     </div>
 
-    <div class="md-section rp-score-block" style="display:none;">
+    <div class="md-section rp-score-block rp-hidden">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div class="md-section-title">Score Threshold</div>
         <div class="md-behavior-list">
@@ -170,7 +170,7 @@
       </div>
     </div>
 
-    <div class="md-section rp-score-block" style="display:none;">
+    <div class="md-section rp-score-block rp-hidden">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div class="md-section-title">Scoring Criteria</div>
         <div class="md-behavior-list">
@@ -207,7 +207,7 @@
       </div>
     </div>
 
-    <div class="md-section rp-score-block" style="display:none;">
+    <div class="md-section rp-score-block rp-hidden">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div class="md-section-title">When the Threshold Is Reached</div>
         <div class="md-behavior-list">
@@ -228,7 +228,7 @@
       </div>
     </div>
 
-    <div class="md-section rp-score-block" style="display:none;">
+    <div class="md-section rp-score-block rp-hidden">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div class="md-section-title">How Scoring Works</div>
         <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.7;">
@@ -304,10 +304,16 @@ function updateScoreSummary() {
 
 function setMode(mode, dirty) {
   document.querySelectorAll('[data-rp-mode]').forEach(b => b.classList.toggle('is-active', b.dataset.rpMode === mode));
-  document.querySelectorAll('.rp-switch-block').forEach(el => el.style.display = mode === 'switches' ? '' : 'none');
-  document.querySelectorAll('.rp-score-block').forEach(el => el.style.display = mode === 'score' ? '' : 'none');
+  // Class toggles trigger the masonry's MutationObserver (it watches 'class'
+  // on cards inside the row) so blocks reflow with uniform spacing.
+  document.querySelectorAll('.rp-switch-block').forEach(el => el.classList.toggle('rp-hidden', mode !== 'switches'));
+  document.querySelectorAll('.rp-score-block').forEach(el => el.classList.toggle('rp-hidden', mode !== 'score'));
   if (dirty) markChanged('mode', mode);
-  if (typeof window.relayoutMasonry === 'function') window.relayoutMasonry();
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (typeof window.relayoutMasonry === 'function') window.relayoutMasonry();
+    });
+  });
 }
 
 function bindActionSelect(prefix, key) {

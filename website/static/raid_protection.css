@@ -10,6 +10,8 @@
   transition: opacity 0.25s ease, filter 0.25s ease;
 }
 
+.rp-hidden { display: none !important; }
+
 .rp-select .md-custom-select-btn {
   text-align: left;
   color: rgba(255,255,255,0.6);

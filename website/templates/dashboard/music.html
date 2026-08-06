@@ -2,11 +2,8 @@
 {% block content %}
 <link rel="stylesheet" href="/static/moderation.css?v=16" />
 <style>
-.mu-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; align-items:start; }
-.mu-grid > .md-section { margin-bottom:0; }
 #music-wrap.is-disabled .md-section:not(.am-master) { opacity:0.35; pointer-events:none; filter:grayscale(0.4); transition:opacity 0.25s ease, filter 0.25s ease; }
 #music-wrap .md-section { transition:opacity 0.25s ease, filter 0.25s ease; }
-@media (max-width:900px) { .mu-grid { grid-template-columns:1fr; } }
 </style>
 <div id="music-wrap">
 
@@ -15,7 +12,7 @@
     <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Configure music playback, DJ permissions and default settings</p>
   </div>
 
-  <div class="mu-grid">
+  <div class="md-row">
 
     <div class="md-section am-master">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">

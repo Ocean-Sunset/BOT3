@@ -2,9 +2,6 @@
 {% block content %}
 <link rel="stylesheet" href="/static/moderation.css?v=16" />
 <style>
-.set-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; align-items:start; }
-.set-grid > .md-section { margin-bottom:0; }
-@media (max-width:900px) { .set-grid { grid-template-columns:1fr; } }
 .set-stat { display:flex; justify-content:space-between; padding:0.45rem 0; font-size:0.82rem; }
 .set-stat-key { color:rgba(255,255,255,0.5); font-weight:600; }
 .set-stat-val { font-weight:700; font-family:monospace; }
@@ -19,7 +16,7 @@
     <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Server overview, integrations and data controls</p>
   </div>
 
-  <div class="set-grid">
+  <div class="md-row">
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">

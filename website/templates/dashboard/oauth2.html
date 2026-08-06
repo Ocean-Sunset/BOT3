@@ -2,9 +2,6 @@
 {% block content %}
 <link rel="stylesheet" href="/static/moderation.css?v=16" />
 <style>
-.oa-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; align-items:start; }
-.oa-grid > .md-section { margin-bottom:0; }
-@media (max-width:900px) { .oa-grid { grid-template-columns:1fr; } }
 .oa-code { font-size:0.72rem; font-family:monospace; color:rgba(255,255,255,0.7); background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:4px; padding:0.35rem 0.55rem; word-break:break-all; }
 .oa-scopes { display:flex; flex-wrap:wrap; gap:0.35rem; }
 .oa-scope { font-size:0.68rem; font-weight:700; color:rgba(255,255,255,0.5); background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:999px; padding:0.2rem 0.6rem; }
@@ -16,7 +13,7 @@
     <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Manage authorization, API connections and bot invite</p>
   </div>
 
-  <div class="oa-grid">
+  <div class="md-row">
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">

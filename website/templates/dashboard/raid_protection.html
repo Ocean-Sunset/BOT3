@@ -1,16 +1,21 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
 <link rel="stylesheet" href="/static/moderation.css?v=15" />
-<link rel="stylesheet" href="/static/raid_protection.css?v=2" />
+<link rel="stylesheet" href="/static/raid_protection.css?v=3" />
 <div id="raid-wrap">
 
-  <div style="margin-bottom:1rem;animation-delay:.05s;">
-    <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Raid Protection</h1>
-    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Detect join raids and stop them before they get out of hand</p>
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem;">
+    <div>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Raid Protection</h1>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Detect join raids and stop them before they get out of hand</p>
+    </div>
+    <div class="md-segmented">
+      <button type="button" class="extra-tab is-active" data-rp-mode="switches">Individual Switches</button>
+      <button type="button" class="extra-tab" data-rp-mode="score">Score</button>
+    </div>
   </div>
 
   <div class="md-row">
-
     <div class="md-section am-master">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div class="md-section-title">Raid Protection</div>
@@ -35,67 +40,6 @@
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Join Burst Detection</div>
-        <div class="md-behavior-list">
-          <div class="md-behavior-item">
-            <div style="flex:1">
-              <div class="md-behavior-label">Join Threshold</div>
-              <div class="md-behavior-desc">How many new joins within the window counts as a raid</div>
-              <input type="number" class="md-input" data-key="join_threshold" min="2" placeholder="5" />
-            </div>
-          </div>
-          <div class="md-behavior-item">
-            <div style="flex:1">
-              <div class="md-behavior-label">Window (seconds)</div>
-              <div class="md-behavior-desc">The time span the threshold applies to</div>
-              <input type="number" class="md-input" data-key="join_window" min="1" placeholder="10" />
-            </div>
-          </div>
-          <div class="md-behavior-item">
-            <div style="flex:1">
-              <div class="md-behavior-label">When a raid is detected</div>
-              <div class="md-behavior-desc" id="rp-action-hint">What Prowl does to stop it</div>
-              <div class="md-custom-select rp-select" id="rp-joinaction-wrap">
-                <button class="md-custom-select-btn" id="rp-joinaction-btn">Kick</button>
-                <div class="md-custom-select-drop" id="rp-joinaction-drop"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <div class="md-row">
-
-    <div class="md-section">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Account Age Filter</div>
-        <div class="md-behavior-list">
-          <div class="md-behavior-item">
-            <div style="flex:1">
-              <div class="md-behavior-label">Minimum Account Age (minutes)</div>
-              <div class="md-behavior-desc">Block members whose Discord account is younger than this. 0 = disabled.</div>
-              <input type="number" class="md-input" data-key="account_age_min" min="0" placeholder="0" />
-            </div>
-          </div>
-          <div class="md-behavior-item">
-            <div style="flex:1">
-              <div class="md-behavior-label">Action</div>
-              <div class="md-behavior-desc">Applied to members failing the age check</div>
-              <div class="md-custom-select rp-select" id="rp-ageaction-wrap">
-                <button class="md-custom-select-btn" id="rp-ageaction-btn">Kick</button>
-                <div class="md-custom-select-drop" id="rp-ageaction-drop"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="md-section">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div class="md-section-title">Auto Recovery</div>
         <div class="md-behavior-list">
           <div class="md-behavior-item">
@@ -110,17 +54,199 @@
             </div>
           </div>
           <div class="md-behavior-item">
-            <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.6;padding-top:0.25rem;">This only matters when the <b>Join Burst action</b> is set to <b>Lockdown Server</b> or <b>Require Verification</b> — those lock the server down, and this re-opens it automatically. For Kick / Ban it has no effect.</div>
+            <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.6;padding-top:0.25rem;">Only matters when the raid <b>action</b> is <b>Lockdown Server</b> or <b>Require Verification</b> — those lock the server down, and this re-opens it automatically. Kick / Ban aren't affected.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="raid-switches">
+    <div class="md-row">
+      <div class="md-section">
+        <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+          <div class="md-section-title">Join Burst Detection</div>
+          <div class="md-behavior-list">
+            <div class="md-behavior-item">
+              <div style="flex:1">
+                <div class="md-behavior-label">Join Threshold</div>
+                <div class="md-behavior-desc">How many new joins within the window counts as a raid</div>
+                <input type="number" class="md-input" data-key="join_threshold" min="2" placeholder="5" />
+              </div>
+            </div>
+            <div class="md-behavior-item">
+              <div style="flex:1">
+                <div class="md-behavior-label">Window (seconds)</div>
+                <div class="md-behavior-desc">The time span the threshold applies to</div>
+                <input type="number" class="md-input" data-key="join_window" min="1" placeholder="10" />
+              </div>
+            </div>
+            <div class="md-behavior-item">
+              <div style="flex:1">
+                <div class="md-behavior-label">When a raid is detected</div>
+                <div class="md-behavior-desc" id="rp-action-hint">What Prowl does to stop it</div>
+                <div class="md-custom-select rp-select" id="rp-joinaction-wrap">
+                  <button class="md-custom-select-btn" id="rp-joinaction-btn">Kick</button>
+                  <div class="md-custom-select-drop" id="rp-joinaction-drop"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="md-section">
+        <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+          <div class="md-section-title">Account Age Filter</div>
+          <div class="md-behavior-list">
+            <div class="md-behavior-item">
+              <div style="flex:1">
+                <div class="md-behavior-label">Minimum Account Age (minutes)</div>
+                <div class="md-behavior-desc">Block members whose Discord account is younger than this. 0 = disabled.</div>
+                <input type="number" class="md-input" data-key="account_age_min" min="0" placeholder="0" />
+              </div>
+            </div>
+            <div class="md-behavior-item">
+              <div style="flex:1">
+                <div class="md-behavior-label">Action</div>
+                <div class="md-behavior-desc">Applied to members failing the age check</div>
+                <div class="md-custom-select rp-select" id="rp-ageaction-wrap">
+                  <button class="md-custom-select-btn" id="rp-ageaction-btn">Kick</button>
+                  <div class="md-custom-select-drop" id="rp-ageaction-drop"></div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
+    <div class="md-row">
+      <div class="md-section">
+        <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+          <div class="md-section-title">Default Avatar Recognition</div>
+          <div class="md-behavior-list">
+            <div class="md-behavior-item">
+              <label class="md-toggle"><input type="checkbox" id="rp-avatar-enabled" /><span class="md-toggle-slider"></span></label>
+              <div><div class="md-behavior-label">Block Default Avatars</div><div class="md-behavior-desc">Act on members still using Discord's default avatar — a common raider trait</div></div>
+            </div>
+            <div class="md-behavior-item">
+              <div style="flex:1">
+                <div class="md-behavior-label">Action</div>
+                <div class="md-behavior-desc">Applied to members with a default avatar</div>
+                <div class="md-custom-select rp-select" id="rp-avataraction-wrap">
+                  <button class="md-custom-select-btn" id="rp-avataraction-btn">Kick</button>
+                  <div class="md-custom-select-drop" id="rp-avataraction-drop"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="md-section">
+        <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+          <div class="md-section-title">Actions Explained</div>
+          <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.7;">
+            <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Kick</b> — removes each flagged new member.</div>
+            <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Ban</b> — bans each flagged new member.</div>
+            <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Lockdown Server</b> — locks the server down (uses the Moderation lockdown feature) so nobody can join or message until it's lifted. Use Auto Recovery to re-open it.</div>
+            <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Require Verification</b> — locks the server and enables the verification panel so real members can prove they're human.</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div class="md-section">
-    <div style="font-size:0.75rem;color:rgba(255,255,255,0.3);line-height:1.6;">
-      <b style="color:rgba(255,255,255,0.5);">Actions explained:</b> <b>Kick</b> removes each new member in the burst &middot; <b>Ban</b> bans them &middot; <b>Lockdown Server</b> locks the server down (uses the Moderation lockdown feature) so nobody can join or message until it's lifted &middot; <b>Require Verification</b> locks the server and enables the verification panel so real members can prove they're human.
+  <div id="raid-score" style="display:none;">
+    <div class="md-row">
+      <div class="md-section">
+        <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+          <div class="md-section-title">Score Threshold</div>
+          <div class="md-behavior-list">
+            <div class="md-behavior-item">
+              <div style="flex:1">
+                <div class="md-behavior-label">Threshold (points)</div>
+                <div class="md-behavior-desc">Members are acted on when their score reaches this value or more</div>
+                <input type="number" class="md-input" data-key="score_threshold" min="1" placeholder="3" />
+              </div>
+            </div>
+            <div class="md-behavior-item">
+              <div style="font-size:0.8rem;color:#fbbf24;line-height:1.6;padding:0.2rem 0;"><span id="score-summary">—</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="md-section">
+        <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+          <div class="md-section-title">Scoring Criteria</div>
+          <div class="md-behavior-list">
+            <div class="md-behavior-item">
+              <div style="flex:1">
+                <div class="md-behavior-label">Default Avatar</div>
+                <div class="md-behavior-desc">Points added when the member uses Discord's default avatar. 0 = off.</div>
+                <input type="number" class="md-input" data-key="score_default_avatar" min="0" placeholder="2" />
+              </div>
+            </div>
+            <div class="md-behavior-item">
+              <div style="flex:1">
+                <div class="md-behavior-label">New Account</div>
+                <div class="md-behavior-desc">Points when the account is younger than the minimum age. 0 = off.</div>
+                <div style="display:flex;gap:0.5rem;">
+                  <input type="number" class="md-input" data-key="score_new_account" min="0" placeholder="2" style="flex:1;" />
+                  <input type="number" class="md-input" data-key="score_new_account_min" min="0" placeholder="10" style="flex:1;" />
+                </div>
+                <div style="font-size:0.66rem;color:rgba(255,255,255,0.35);margin-top:0.25rem;">points · min account age in minutes</div>
+              </div>
+            </div>
+            <div class="md-behavior-item">
+              <div style="flex:1">
+                <div class="md-behavior-label">Join Burst</div>
+                <div class="md-behavior-desc">Points when this join is part of a wave of the join threshold in the window. 0 = off.</div>
+                <div style="display:flex;gap:0.5rem;">
+                  <input type="number" class="md-input" data-key="score_join_burst" min="0" placeholder="1" style="flex:1;" />
+                  <input type="number" class="md-input" data-key="score_window" min="1" placeholder="10" style="flex:1;" />
+                </div>
+                <div style="font-size:0.66rem;color:rgba(255,255,255,0.35);margin-top:0.25rem;">points · window in seconds (uses the join threshold above for burst size)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-row">
+      <div class="md-section">
+        <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+          <div class="md-section-title">When the Threshold Is Reached</div>
+          <div class="md-behavior-list">
+            <div class="md-behavior-item">
+              <div style="flex:1">
+                <div class="md-behavior-label">Action</div>
+                <div class="md-behavior-desc">What happens to a member who reaches the threshold</div>
+                <div class="md-custom-select rp-select" id="rp-scoreaction-wrap">
+                  <button class="md-custom-select-btn" id="rp-scoreaction-btn">Kick</button>
+                  <div class="md-custom-select-drop" id="rp-scoreaction-drop"></div>
+                </div>
+              </div>
+            </div>
+            <div class="md-behavior-item">
+              <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.6;padding-top:0.25rem;">Lockdown Server / Require Verification also lock the server down — combine with Auto Recovery to unlock automatically.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="md-section">
+        <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+          <div class="md-section-title">How Scoring Works</div>
+          <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.7;">
+            <p style="padding:0.3rem 0;">Every new member starts at <b style="color:rgba(255,255,255,0.65);">0 points</b>. Each criterion they match adds its points. If the total reaches the <b style="color:rgba(255,255,255,0.65);">threshold</b>, the action above is applied immediately.</p>
+            <p style="padding:0.3rem 0;">Example: default avatar (+2) + young account (+2) + join burst (+1) = 5. With a threshold of 3, they're kicked on arrival.</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -133,8 +259,8 @@ const api = (path, opts) => fetch(`/api/v1/raid/${GID}${path}`, opts||{}).then(r
 const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
 
 const ACTIONS = [
-  { value:'kick', label:'Kick', hint:'Removes each new member in the burst.' },
-  { value:'ban', label:'Ban', hint:'Bans each new member in the burst.' },
+  { value:'kick', label:'Kick', hint:'Removes each flagged member.' },
+  { value:'ban', label:'Ban', hint:'Bans each flagged member.' },
   { value:'lockdown', label:'Lockdown Server', hint:'Locks the server down so the raid can\u2019t get further in. Re-opens via Auto Recovery.' },
   { value:'verify', label:'Require Verification', hint:'Locks the server and prompts members to verify through the verification panel.' },
 ];
@@ -157,6 +283,7 @@ function markChanged(key, value) {
   saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
   updateDisabledState();
   updateActionHint();
+  updateScoreSummary();
 }
 
 function updateDisabledState() {
@@ -170,7 +297,7 @@ function actionLabel(v) {
 
 function actionHint(v) {
   const a = ACTIONS.find(x => x.value === v);
-  return a ? a.hint : 'Removes each new member in the burst.';
+  return a ? a.hint : 'Removes each flagged member.';
 }
 
 function updateActionHint() {
@@ -178,17 +305,40 @@ function updateActionHint() {
   if (el) el.textContent = actionHint(SETTINGS_SNAPSHOT.join_action || 'kick');
 }
 
-function bindSelect(id) {
-  const btn = document.getElementById(id + '-btn');
-  const drop = document.getElementById(id + '-drop');
+function updateScoreSummary() {
+  const th = SETTINGS_SNAPSHOT.score_threshold ?? 3;
+  const act = actionLabel(SETTINGS_SNAPSHOT.score_action || 'kick').toLowerCase();
+  const el = document.getElementById('score-summary');
+  if (el) el.textContent = 'Members are ' + act + 'ed when their score reaches ' + th + ' or more points.';
+}
+
+function setMode(mode, dirty) {
+  document.querySelectorAll('[data-rp-mode]').forEach(b => b.classList.toggle('is-active', b.dataset.rpMode === mode));
+  document.getElementById('raid-switches').style.display = mode === 'switches' ? '' : 'none';
+  document.getElementById('raid-score').style.display = mode === 'score' ? '' : 'none';
+  if (dirty) markChanged('mode', mode);
+  if (typeof window.relayoutMasonry === 'function') window.relayoutMasonry();
+}
+
+function bindActionSelect(prefix, key) {
+  const btn = document.getElementById(prefix + '-btn');
+  const drop = document.getElementById(prefix + '-drop');
   if (!btn || !drop) return;
   btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
   drop.querySelectorAll('.md-custom-opt').forEach(opt => opt.addEventListener('click', () => {
     btn.textContent = opt.textContent;
-    markChanged(id.replace('rp-', '') === 'joinaction' ? 'join_action' : 'account_age_action', opt.dataset.value);
+    markChanged(key, opt.dataset.value);
     drop.classList.remove('is-open');
   }));
-  document.addEventListener('click', (e) => { if (!e.target.closest('#' + id + '-wrap')) drop.classList.remove('is-open'); });
+  document.addEventListener('click', (e) => { if (!e.target.closest('#' + prefix + '-wrap')) drop.classList.remove('is-open'); });
+}
+
+function populateActionSelect(prefix, value) {
+  const btn = document.getElementById(prefix + '-btn');
+  const drop = document.getElementById(prefix + '-drop');
+  drop.innerHTML = ACTIONS.map(a => '<button class="md-custom-opt" data-value="' + a.value + '">' + a.label + '</button>').join('');
+  bindActionSelect(prefix, value);
+  btn.textContent = actionLabel(SETTINGS_SNAPSHOT[value] || 'kick');
 }
 
 async function saveChanges() {
@@ -218,11 +368,6 @@ async function saveChanges() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  ['rp-joinaction', 'rp-ageaction'].forEach(id => {
-    document.getElementById(id + '-drop').innerHTML = ACTIONS.map(a => '<button class="md-custom-opt" data-value="' + a.value + '">' + a.label + '</button>').join('');
-    bindSelect(id);
-  });
-
   Promise.all([
     api('/settings').catch(()=>({settings:{}})),
     api('/channels').catch(()=>({channels:[]})),
@@ -230,14 +375,19 @@ document.addEventListener('DOMContentLoaded', () => {
     SETTINGS_SNAPSHOT = { ...(sd.settings||{}) };
     LOADED = { ...SETTINGS_SNAPSHOT };
     CHANNELS = cd.channels || [];
+
     const enabled = document.getElementById('rp-enabled');
     enabled.checked = SETTINGS_SNAPSHOT.enabled === true;
     enabled.addEventListener('change', function(){ markChanged('enabled', this.checked); });
     const recovery = document.getElementById('rp-recovery');
     recovery.checked = SETTINGS_SNAPSHOT.auto_recovery !== false;
     recovery.addEventListener('change', function(){ markChanged('auto_recovery', this.checked); });
+    const avatarEn = document.getElementById('rp-avatar-enabled');
+    avatarEn.checked = SETTINGS_SNAPSHOT.default_avatar_enabled === true;
+    avatarEn.addEventListener('change', function(){ markChanged('default_avatar_enabled', this.checked); });
 
-    ['join_threshold','join_window','account_age_min','recovery_minutes'].forEach(k => {
+    ['join_threshold','join_window','account_age_min','recovery_minutes','score_threshold',
+     'score_window','score_default_avatar','score_new_account','score_new_account_min','score_join_burst'].forEach(k => {
       const el = document.querySelector('[data-key="' + k + '"]');
       if (el && SETTINGS_SNAPSHOT[k] !== undefined) el.value = SETTINGS_SNAPSHOT[k];
     });
@@ -245,6 +395,17 @@ document.addEventListener('DOMContentLoaded', () => {
       markChanged(this.dataset.key, parseInt(this.value) || 0);
     }));
 
+    // Mode selector
+    setMode(SETTINGS_SNAPSHOT.mode === 'score' ? 'score' : 'switches', false);
+    document.querySelectorAll('[data-rp-mode]').forEach(b => b.addEventListener('click', () => setMode(b.dataset.rpMode, true)));
+
+    // Action dropdowns
+    populateActionSelect('rp-joinaction', 'join_action');
+    populateActionSelect('rp-ageaction', 'account_age_action');
+    populateActionSelect('rp-avataraction', 'default_avatar_action');
+    populateActionSelect('rp-scoreaction', 'score_action');
+
+    // Moderation channel
     const mBtn = document.getElementById('rp-modchannel-btn');
     const mDrop = document.getElementById('rp-modchannel-drop');
     mDrop.innerHTML = '<button class="md-custom-opt" data-id="">None</button>' + CHANNELS.map(c => '<button class="md-custom-opt" data-id="' + c.id + '">#' + esc(c.name) + '</button>').join('');
@@ -259,10 +420,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }));
     document.addEventListener('click', (e) => { if (!e.target.closest('#rp-modchannel-wrap')) mDrop.classList.remove('is-open'); });
 
-    document.getElementById('rp-joinaction-btn').textContent = actionLabel(SETTINGS_SNAPSHOT.join_action || 'kick');
-    document.getElementById('rp-ageaction-btn').textContent = actionLabel(SETTINGS_SNAPSHOT.account_age_action || 'kick');
     updateDisabledState();
     updateActionHint();
+    updateScoreSummary();
   });
 
   saveBtn.addEventListener('click', saveChanges);
@@ -276,19 +436,25 @@ document.addEventListener('DOMContentLoaded', () => {
     SETTINGS_SNAPSHOT = { ...reverted };
     document.getElementById('rp-enabled').checked = reverted.enabled === true;
     document.getElementById('rp-recovery').checked = reverted.auto_recovery !== false;
-    ['join_threshold','join_window','account_age_min','recovery_minutes'].forEach(k => {
+    document.getElementById('rp-avatar-enabled').checked = reverted.default_avatar_enabled === true;
+    ['join_threshold','join_window','account_age_min','recovery_minutes','score_threshold',
+     'score_window','score_default_avatar','score_new_account','score_new_account_min','score_join_burst'].forEach(k => {
       const el = document.querySelector('[data-key="' + k + '"]');
       if (el) el.value = reverted[k] ?? '';
     });
-    document.getElementById('rp-joinaction-btn').textContent = actionLabel(reverted.join_action || 'kick');
-    document.getElementById('rp-ageaction-btn').textContent = actionLabel(reverted.account_age_action || 'kick');
+    ['join_action','account_age_action','default_avatar_action','score_action'].forEach((k,i) => {
+      const btn = document.getElementById(['rp-joinaction','rp-ageaction','rp-avataraction','rp-scoreaction'][i] + '-btn');
+      if (btn) btn.textContent = actionLabel(reverted[k] || 'kick');
+    });
     const mBtn = document.getElementById('rp-modchannel-btn');
     if (mBtn) {
       const m = CHANNELS.find(c => String(c.id) === String(reverted.moderation_channel_id));
       mBtn.textContent = m ? '#' + m.name : 'Select channel...';
     }
+    setMode(reverted.mode === 'score' ? 'score' : 'switches', false);
     updateDisabledState();
     updateActionHint();
+    updateScoreSummary();
     saveBar.classList.add('is-closed');
   });
 });

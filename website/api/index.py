@@ -1318,6 +1318,16 @@ def _sanitize_setting(key: str, value, defaults: dict):
             return None, f"'{key}' must be a valid Discord ID or null"
         return str(value), None
 
+    # Lists (e.g. auto_role_ids) and dicts (embed data) pass through as-is
+    if isinstance(default, list):
+        if not isinstance(value, list):
+            return None, f"'{key}' must be a list"
+        return value, None
+    if isinstance(default, dict):
+        if not isinstance(value, dict):
+            return None, f"'{key}' must be an object"
+        return value, None
+
     # Booleans
     if isinstance(default, bool):
         return bool(value), None
@@ -2306,11 +2316,24 @@ async def automod_channels(guild_id: str, request: Request):
 
 RAID_DEFAULTS = {
     "enabled": False,
+    "mode": "switches",
+    # switches mode
     "join_threshold": 5,
     "join_window": 10,
     "join_action": "kick",
     "account_age_min": 0,
     "account_age_action": "kick",
+    "default_avatar_enabled": False,
+    "default_avatar_action": "kick",
+    # score mode
+    "score_threshold": 3,
+    "score_action": "kick",
+    "score_window": 10,
+    "score_default_avatar": 2,
+    "score_new_account_min": 10,
+    "score_new_account": 2,
+    "score_join_burst": 1,
+    # shared
     "auto_recovery": True,
     "recovery_minutes": 30,
     "moderation_channel_id": None,
@@ -2347,6 +2370,8 @@ async def raid_settings_set(guild_id: str, request: Request):
     value = body.get("value")
     if not key:
         return JSONResponse({"error": "missing key"}, status_code=400)
+    if key == "mode" and value not in ("switches", "score"):
+        return JSONResponse({"error": "invalid mode"}, status_code=400)
     if key.endswith("_action") and value not in RAID_ACTIONS:
         return JSONResponse({"error": "invalid action"}, status_code=400)
     err = await _save_settings("raid_settings", str(guild_id), key, value, RAID_DEFAULTS)
@@ -2373,12 +2398,14 @@ WELCOME_DEFAULTS = {
     "enabled": False,
     "channel_id": None,
     "welcome_message": "Welcome {member} to {server}!",
+    "welcome_mode": "basic",
+    "welcome_embed_data": {},
     "goodbye_message": "{member} has left {server}.",
+    "goodbye_mode": "basic",
+    "goodbye_embed_data": {},
     "welcome_dm": False,
     "welcome_dm_message": "Welcome to **{server}**! Make sure to read the rules.",
-    "auto_role_id": None,
-    "welcome_embed": True,
-    "goodbye_embed": True,
+    "auto_role_ids": [],
 }
 
 
@@ -2410,6 +2437,20 @@ async def welcomer_settings_set(guild_id: str, request: Request):
     value = body.get("value")
     if not key:
         return JSONResponse({"error": "missing key"}, status_code=400)
+    if key == "auto_role_ids":
+        if not isinstance(value, list):
+            return JSONResponse({"error": "auto_role_ids must be a list"}, status_code=400)
+        clean = []
+        for rid in value:
+            if not _valid_snowflake(rid):
+                return JSONResponse({"error": f"role '{rid}' is not a valid Discord ID"}, status_code=400)
+            clean.append(str(rid))
+        value = clean
+    elif key in ("welcome_embed_data", "goodbye_embed_data"):
+        clean, err = _sanitize_panel_embed(value)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        value = clean
     err = await _save_settings("welcome_settings", str(guild_id), key, value, WELCOME_DEFAULTS)
     if err:
         return JSONResponse({"error": err}, status_code=400)

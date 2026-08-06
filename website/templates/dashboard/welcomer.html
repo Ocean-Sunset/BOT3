@@ -6,6 +6,11 @@
 .wl-code-note { font-size:0.72rem; color:rgba(255,255,255,0.4); margin-right:0.6rem; }
 #welcomer-wrap.is-disabled .md-section:not(.am-master) { opacity:0.35; pointer-events:none; filter:grayscale(0.4); transition:opacity 0.25s ease, filter 0.25s ease; }
 #welcomer-wrap .md-section { transition:opacity 0.25s ease, filter 0.25s ease; }
+#welcomer-wrap .md-row { margin-bottom:1.5rem; }
+.wl-role-tag { display:inline-flex; align-items:center; gap:0.35rem; font-size:0.72rem; font-weight:700; color:#e9edf5; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:4px; padding:0.25rem 0.5rem; margin:0.2rem 0.35rem 0.2rem 0; }
+.wl-role-rm { background:none; border:none; color:rgba(255,255,255,0.5); cursor:pointer; font-size:0.9rem; line-height:1; padding:0; font-family:inherit; }
+.wl-role-rm:hover { color:#f87171; }
+.wl-role-empty { font-size:0.72rem; color:rgba(255,255,255,0.35); }
 </style>
 <div id="welcomer-wrap">
 
@@ -40,19 +45,26 @@
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Welcome Message</div>
-        <div class="md-behavior-list">
-          <div class="md-behavior-item">
-            <label class="md-toggle"><input type="checkbox" id="wl-wembed" /><span class="md-toggle-slider"></span></label>
-            <div><div class="md-behavior-label">Send as Embed</div><div class="md-behavior-desc">A styled embed with the member's avatar and account age</div></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;">
+          <div class="md-section-title" style="margin-bottom:0;">Welcome Message</div>
+          <div class="md-segmented">
+            <button type="button" class="extra-tab is-active" data-wl-mode="welcome" data-wl-modeval="basic">Default</button>
+            <button type="button" class="extra-tab" data-wl-mode="welcome" data-wl-modeval="custom">Custom</button>
           </div>
-          <div class="md-behavior-item">
-            <div style="flex:1">
-              <div class="md-behavior-label">Message</div>
-              <div class="md-behavior-desc">Use {member}, {server} and {count} as placeholders</div>
-              <input type="text" class="md-input" id="wl-wmsg" placeholder="Welcome {member} to {server}!" />
+        </div>
+        <div data-wl-basic="welcome">
+          <div class="md-behavior-list">
+            <div class="md-behavior-item">
+              <div style="flex:1">
+                <div class="md-behavior-label">Message</div>
+                <div class="md-behavior-desc">Shown inside the default welcome embed</div>
+                <input type="text" class="md-input" id="wl-wmsg" placeholder="Welcome {member} to {server}!" />
+              </div>
             </div>
           </div>
+        </div>
+        <div data-wl-custom="welcome" style="display:none;">
+          <button class="md-action-btn" data-edit-embed="welcome" style="width:100%;justify-content:center;padding:0.5rem;margin-top:0.25rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
         </div>
       </div>
     </div>
@@ -63,19 +75,26 @@
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Goodbye Message</div>
-        <div class="md-behavior-list">
-          <div class="md-behavior-item">
-            <label class="md-toggle"><input type="checkbox" id="wl-gembed" /><span class="md-toggle-slider"></span></label>
-            <div><div class="md-behavior-label">Send as Embed</div><div class="md-behavior-desc">A styled embed when someone leaves</div></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;">
+          <div class="md-section-title" style="margin-bottom:0;">Goodbye Message</div>
+          <div class="md-segmented">
+            <button type="button" class="extra-tab is-active" data-wl-mode="goodbye" data-wl-modeval="basic">Default</button>
+            <button type="button" class="extra-tab" data-wl-mode="goodbye" data-wl-modeval="custom">Custom</button>
           </div>
-          <div class="md-behavior-item">
-            <div style="flex:1">
-              <div class="md-behavior-label">Message</div>
-              <div class="md-behavior-desc">Leave empty to disable goodbye messages</div>
-              <input type="text" class="md-input" id="wl-gmsg" placeholder="{member} has left {server}." />
+        </div>
+        <div data-wl-basic="goodbye">
+          <div class="md-behavior-list">
+            <div class="md-behavior-item">
+              <div style="flex:1">
+                <div class="md-behavior-label">Message</div>
+                <div class="md-behavior-desc">Leave empty to disable goodbye messages</div>
+                <input type="text" class="md-input" id="wl-gmsg" placeholder="{member} has left {server}." />
+              </div>
             </div>
           </div>
+        </div>
+        <div data-wl-custom="goodbye" style="display:none;">
+          <button class="md-action-btn" data-edit-embed="goodbye" style="width:100%;justify-content:center;padding:0.5rem;margin-top:0.25rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
         </div>
       </div>
     </div>
@@ -105,16 +124,17 @@
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Auto Role</div>
+        <div class="md-section-title">Auto Roles</div>
         <div class="md-behavior-list">
           <div class="md-behavior-item">
             <div style="flex:1">
-              <div class="md-behavior-label">Role to assign</div>
-              <div class="md-behavior-desc">Given to every new member on join. Select "None" to disable.</div>
-              <div class="md-custom-select" id="wl-role-wrap">
-                <button class="md-custom-select-btn" id="wl-role-btn">Select role...</button>
-                <div class="md-custom-select-drop" id="wl-role-drop"></div>
+              <div class="md-behavior-label">Roles to assign</div>
+              <div class="md-behavior-desc">Every selected role is given to new members on join</div>
+              <div class="md-custom-select" id="wl-roles-wrap">
+                <button class="md-custom-select-btn" id="wl-roles-btn">Add role...</button>
+                <div class="md-custom-select-drop" id="wl-roles-drop"></div>
               </div>
+              <div style="margin-top:0.5rem;" id="wl-roles-list"><div class="wl-role-empty">No auto roles selected — new members won't get any role.</div></div>
             </div>
           </div>
         </div>
@@ -124,18 +144,86 @@
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div class="md-section-title">Placeholders</div>
-        <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-top:0.4rem;">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.35rem;margin-top:0.4rem;">
           <code class="wl-code">{member}</code><span class="wl-code-note">mentions the member</span>
-          <code class="wl-code">{member.name}</code><span class="wl-code-note">their username</span>
+          <code class="wl-code">{member.name}</code><span class="wl-code-note">username</span>
+          <code class="wl-code">{member.nick}</code><span class="wl-code-note">display name</span>
+          <code class="wl-code">{member.tag}</code><span class="wl-code-note">discriminator</span>
+          <code class="wl-code">{member.id}</code><span class="wl-code-note">user ID</span>
           <code class="wl-code">{server}</code><span class="wl-code-note">server name</span>
+          <code class="wl-code">{server.id}</code><span class="wl-code-note">server ID</span>
           <code class="wl-code">{count}</code><span class="wl-code-note">member count</span>
         </div>
-        <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.6;margin-top:0.75rem;">Use these in any welcome, goodbye, or DM message and they'll be filled in when a member joins or leaves.</div>
+        <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.6;margin-top:0.75rem;">Use these in any welcome, goodbye, DM message, or custom embed — they're filled in when a member joins or leaves. Custom embeds support them in the title, description, footer and author fields.</div>
       </div>
     </div>
 
   </div>
 
+</div>
+
+<div class="md-modal-overlay" id="wl-embed-modal">
+  <div class="md-modal" style="min-width:520px;max-width:560px;max-height:80vh;overflow-y:auto;">
+    <h3 id="wl-embed-title">Custom Embed</h3>
+    <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin:0.2rem 0 0.75rem;line-height:1.5;">Variables work in title, description, footer and author fields: <code>{member}</code> <code>{member.name}</code> <code>{member.nick}</code> <code>{member.tag}</code> <code>{member.id}</code> <code>{server}</code> <code>{server.id}</code> <code>{count}</code></div>
+    <div style="display:flex;flex-direction:column;gap:0.6rem;margin:0.75rem 0;">
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Title</div>
+        <input type="text" class="md-input" id="we-title" placeholder="👋 Welcome!" />
+      </div>
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Description</div>
+        <textarea class="md-input md-textarea" id="we-desc" rows="3" placeholder="Welcome {member} to {server}!"></textarea>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Color</div>
+          <div style="display:flex;align-items:center;gap:0.4rem;">
+            <input type="color" id="we-color" value="#57f287" style="width:36px;height:32px;border:none;background:none;cursor:pointer;" />
+            <input type="text" class="md-input" id="we-color-hex" value="#57f287" style="max-width:90px;" />
+          </div>
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">URL</div>
+          <input type="text" class="md-input" id="we-url" placeholder="https://..." />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Author Name</div>
+          <input type="text" class="md-input" id="we-author" placeholder="Author" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Author Icon URL</div>
+          <input type="text" class="md-input" id="we-author-icon" placeholder="https://...png" />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Footer Text</div>
+          <input type="text" class="md-input" id="we-footer" placeholder="Footer" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Footer Icon URL</div>
+          <input type="text" class="md-input" id="we-footer-icon" placeholder="https://...png" />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Image URL</div>
+          <input type="text" class="md-input" id="we-image" placeholder="https://...png" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Thumbnail URL</div>
+          <input type="text" class="md-input" id="we-thumbnail" placeholder="https://...png" />
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="md-action-btn" id="we-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save Embed</button>
+      <button class="md-action-btn" id="we-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button>
+    </div>
+  </div>
 </div>
 {% endblock %}
 {% block scripts %}
@@ -168,6 +256,31 @@ function updateDisabledState() {
   document.getElementById('welcomer-wrap').classList.toggle('is-disabled', !document.getElementById('wl-enabled').checked);
 }
 
+function setMessageMode(which, mode, dirty) {
+  document.querySelectorAll('[data-wl-mode="' + which + '"]').forEach(b => b.classList.toggle('is-active', b.dataset.wlModeval === mode));
+  const basic = document.querySelector('[data-wl-basic="' + which + '"]');
+  const custom = document.querySelector('[data-wl-custom="' + which + '"]');
+  if (basic) basic.style.display = mode === 'basic' ? '' : 'none';
+  if (custom) custom.style.display = mode === 'custom' ? '' : 'none';
+  if (dirty) markChanged(which + '_mode', mode);
+}
+
+function renderRoles() {
+  const el = document.getElementById('wl-roles-list');
+  const ids = SETTINGS_SNAPSHOT.auto_role_ids || [];
+  el.innerHTML = ids.length
+    ? ids.map(rid => {
+        const r = ROLES.find(x => String(x.id) === String(rid));
+        return '<span class="wl-role-tag">' + esc(r ? r.name : rid) + ' <button type="button" data-rm="' + rid + '" class="wl-role-rm">&times;</button></span>';
+      }).join('')
+    : '<div class="wl-role-empty">No auto roles selected — new members won\'t get any role.</div>';
+  el.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => {
+    const next = (SETTINGS_SNAPSHOT.auto_role_ids || []).filter(x => String(x) !== b.dataset.rm);
+    markChanged('auto_role_ids', next);
+    renderRoles();
+  }));
+}
+
 async function saveChanges() {
   const keys = Object.keys(pending);
   if (!keys.length) return;
@@ -194,6 +307,39 @@ async function saveChanges() {
   if (typeof showToast === 'function') showToast('Welcomer settings saved.', 'success');
 }
 
+// ── Custom embed editor ──
+let currentEmbedTarget = null;
+const weVal = id => document.getElementById(id)?.value ?? '';
+function loadEmbedEditor(which) {
+  currentEmbedTarget = which;
+  const e = SETTINGS_SNAPSHOT[which + '_embed_data'] || {};
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+  set('we-title', e.title); set('we-desc', e.description); set('we-url', e.url);
+  set('we-author', e.author_name); set('we-author-icon', e.author_icon);
+  set('we-footer', e.footer_text); set('we-footer-icon', e.footer_icon);
+  set('we-image', e.image_url); set('we-thumbnail', e.thumbnail_url);
+  const hex = (e.color && !/^#/.test(String(e.color))) ? '#' + e.color : (e.color || '#57f287');
+  set('we-color-hex', hex);
+  const ci = document.getElementById('we-color');
+  if (ci) ci.value = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#57f287';
+  document.getElementById('wl-embed-title').textContent = (which === 'welcome' ? 'Welcome' : 'Goodbye') + ' - Custom Embed';
+  document.getElementById('wl-embed-modal').classList.add('is-open');
+}
+function collectEmbed() {
+  const e = {
+    title: weVal('we-title'), description: weVal('we-desc'), url: weVal('we-url'),
+    color: weVal('we-color-hex'),
+    author_name: weVal('we-author'), author_icon: weVal('we-author-icon'),
+    footer_text: weVal('we-footer'), footer_icon: weVal('we-footer-icon'),
+    image_url: weVal('we-image'), thumbnail_url: weVal('we-thumbnail'),
+  };
+  for (const k of ['title','description','url','author_name','author_icon','footer_text','footer_icon','image_url','thumbnail_url']) {
+    if (!e[k]) delete e[k];
+  }
+  if (!e.color || e.color.toLowerCase() === '#57f287') delete e.color;
+  return e;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   Promise.all([
     api('/settings').catch(()=>({settings:{}})),
@@ -208,26 +354,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const enabled = document.getElementById('wl-enabled');
     enabled.checked = SETTINGS_SNAPSHOT.enabled === true;
     enabled.addEventListener('change', function(){ markChanged('enabled', this.checked); });
-
-    const wembed = document.getElementById('wl-wembed');
-    wembed.checked = SETTINGS_SNAPSHOT.welcome_embed !== false;
-    wembed.addEventListener('change', function(){ markChanged('welcome_embed', this.checked); });
-    const gembed = document.getElementById('wl-gembed');
-    gembed.checked = SETTINGS_SNAPSHOT.goodbye_embed !== false;
-    gembed.addEventListener('change', function(){ markChanged('goodbye_embed', this.checked); });
     const wdm = document.getElementById('wl-wdm');
     wdm.checked = SETTINGS_SNAPSHOT.welcome_dm === true;
     wdm.addEventListener('change', function(){ markChanged('welcome_dm', this.checked); });
 
-    const wmsg = document.getElementById('wl-wmsg');
-    wmsg.value = SETTINGS_SNAPSHOT.welcome_message || '';
-    wmsg.addEventListener('input', function(){ markChanged('welcome_message', this.value); });
-    const gmsg = document.getElementById('wl-gmsg');
-    gmsg.value = SETTINGS_SNAPSHOT.goodbye_message || '';
-    gmsg.addEventListener('input', function(){ markChanged('goodbye_message', this.value || ''); });
-    const wdmmsg = document.getElementById('wl-wdmmsg');
-    wdmmsg.value = SETTINGS_SNAPSHOT.welcome_dm_message || '';
-    wdmmsg.addEventListener('input', function(){ markChanged('welcome_dm_message', this.value); });
+    document.getElementById('wl-wmsg').value = SETTINGS_SNAPSHOT.welcome_message || '';
+    document.getElementById('wl-wmsg').addEventListener('input', function(){ markChanged('welcome_message', this.value); });
+    document.getElementById('wl-gmsg').value = SETTINGS_SNAPSHOT.goodbye_message || '';
+    document.getElementById('wl-gmsg').addEventListener('input', function(){ markChanged('goodbye_message', this.value || ''); });
+    document.getElementById('wl-wdmmsg').value = SETTINGS_SNAPSHOT.welcome_dm_message || '';
+    document.getElementById('wl-wdmmsg').addEventListener('input', function(){ markChanged('welcome_dm_message', this.value); });
+
+    // Default/Custom message modes
+    setMessageMode('welcome', SETTINGS_SNAPSHOT.welcome_mode === 'custom' ? 'custom' : 'basic', false);
+    setMessageMode('goodbye', SETTINGS_SNAPSHOT.goodbye_mode === 'custom' ? 'custom' : 'basic', false);
+    document.querySelectorAll('[data-wl-mode]').forEach(b => b.addEventListener('click', () => setMessageMode(b.dataset.wlMode, b.dataset.wlModeval, true)));
 
     // Channel dropdown
     const chBtn = document.getElementById('wl-channel-btn');
@@ -244,23 +385,52 @@ document.addEventListener('DOMContentLoaded', () => {
     }));
     document.addEventListener('click', (e) => { if (!e.target.closest('#wl-channel-wrap')) chDrop.classList.remove('is-open'); });
 
-    // Role dropdown
-    const rBtn = document.getElementById('wl-role-btn');
-    const rDrop = document.getElementById('wl-role-drop');
-    rDrop.innerHTML = '<button class="md-custom-opt" data-id="">None</button>' + ROLES.map(r => '<button class="md-custom-opt" data-id="' + r.id + '">' + esc(r.name) + '</button>').join('');
-    const curRole = SETTINGS_SNAPSHOT.auto_role_id;
-    const roleMatch = ROLES.find(r => String(r.id) === String(curRole));
-    if (roleMatch) rBtn.textContent = roleMatch.name;
-    rBtn.addEventListener('click', (e) => { e.stopPropagation(); rDrop.classList.toggle('is-open'); });
-    rDrop.querySelectorAll('.md-custom-opt').forEach(opt => opt.addEventListener('click', () => {
-      rBtn.textContent = opt.dataset.id ? opt.textContent : 'None';
-      markChanged('auto_role_id', opt.dataset.id || null);
-      rDrop.classList.remove('is-open');
-    }));
-    document.addEventListener('click', (e) => { if (!e.target.closest('#wl-role-wrap')) rDrop.classList.remove('is-open'); });
+    // Multi role selector
+    const rBtn = document.getElementById('wl-roles-btn');
+    const rDrop = document.getElementById('wl-roles-drop');
+    function renderRoleOptions() {
+      const selected = (SETTINGS_SNAPSHOT.auto_role_ids || []).map(x => String(x));
+      const avail = ROLES.filter(r => !selected.includes(String(r.id)));
+      rDrop.innerHTML = avail.length
+        ? avail.map(r => '<button class="md-custom-opt" data-id="' + r.id + '">' + esc(r.name) + '</button>').join('')
+        : '<div class="md-custom-opt" style="cursor:default;color:rgba(255,255,255,0.35);">All roles already added</div>';
+      rDrop.querySelectorAll('.md-custom-opt').forEach(opt => opt.addEventListener('click', () => {
+        if (!opt.dataset.id) return;
+        const next = [...(SETTINGS_SNAPSHOT.auto_role_ids || []), opt.dataset.id];
+        markChanged('auto_role_ids', next);
+        renderRoles();
+        renderRoleOptions();
+      }));
+    }
+    rBtn.addEventListener('click', (e) => { e.stopPropagation(); renderRoleOptions(); rDrop.classList.toggle('is-open'); });
+    document.addEventListener('click', (e) => { if (!e.target.closest('#wl-roles-wrap')) rDrop.classList.remove('is-open'); });
 
+    renderRoles();
     updateDisabledState();
   });
+
+  // Embed editor
+  document.querySelectorAll('[data-edit-embed]').forEach(b => b.addEventListener('click', () => loadEmbedEditor(b.dataset.editEmbed)));
+  document.getElementById('we-save').addEventListener('click', () => {
+    if (currentEmbedTarget) {
+      const e = collectEmbed();
+      if (Object.keys(e).length === 0) {
+        if (typeof showToast === 'function') showToast('The embed is empty - add a title, description or footer first.', 'warning', 5000);
+        return;
+      }
+      markChanged(currentEmbedTarget + '_embed_data', e);
+      if (typeof showToast === 'function') showToast('Custom embed updated — press Save to confirm.', 'success');
+    }
+    document.getElementById('wl-embed-modal').classList.remove('is-open');
+  });
+  document.getElementById('we-cancel').addEventListener('click', () => document.getElementById('wl-embed-modal').classList.remove('is-open'));
+  document.getElementById('wl-embed-modal').addEventListener('click', e => { if (e.target === document.getElementById('wl-embed-modal')) e.target.classList.remove('is-open'); });
+  const weHex = document.getElementById('we-color-hex');
+  const weColor = document.getElementById('we-color');
+  if (weHex && weColor) {
+    weHex.addEventListener('input', () => { if (/^#[0-9a-fA-F]{6}$/.test(weHex.value)) weColor.value = weHex.value; });
+    weColor.addEventListener('input', () => { weHex.value = weColor.value; });
+  }
 
   saveBtn.addEventListener('click', saveChanges);
   document.getElementById('discard-btn').addEventListener('click', () => {
@@ -272,18 +442,16 @@ document.addEventListener('DOMContentLoaded', () => {
     for (const key of Object.keys(original)) delete original[key];
     SETTINGS_SNAPSHOT = { ...reverted };
     document.getElementById('wl-enabled').checked = reverted.enabled === true;
-    document.getElementById('wl-wembed').checked = reverted.welcome_embed !== false;
-    document.getElementById('wl-gembed').checked = reverted.goodbye_embed !== false;
     document.getElementById('wl-wdm').checked = reverted.welcome_dm === true;
     document.getElementById('wl-wmsg').value = reverted.welcome_message || '';
     document.getElementById('wl-gmsg').value = reverted.goodbye_message || '';
     document.getElementById('wl-wdmmsg').value = reverted.welcome_dm_message || '';
+    setMessageMode('welcome', reverted.welcome_mode === 'custom' ? 'custom' : 'basic', false);
+    setMessageMode('goodbye', reverted.goodbye_mode === 'custom' ? 'custom' : 'basic', false);
     const chBtn = document.getElementById('wl-channel-btn');
     const m = CHANNELS.find(c => String(c.id) === String(reverted.channel_id));
     chBtn.textContent = m ? '#' + m.name : 'Select channel...';
-    const rBtn = document.getElementById('wl-role-btn');
-    const rm = ROLES.find(r => String(r.id) === String(reverted.auto_role_id));
-    rBtn.textContent = rm ? rm.name : 'Select role...';
+    renderRoles();
     updateDisabledState();
     saveBar.classList.add('is-closed');
   });

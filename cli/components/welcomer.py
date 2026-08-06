@@ -7,18 +7,21 @@ from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
+from components.moderation import build_embed
 
 
 WELCOME_DEFAULTS = {
     "enabled": False,
     "channel_id": None,
     "welcome_message": "Welcome {member} to {server}!",
+    "welcome_mode": "basic",
+    "welcome_embed_data": {},
     "goodbye_message": "{member} has left {server}.",
+    "goodbye_mode": "basic",
+    "goodbye_embed_data": {},
     "welcome_dm": False,
     "welcome_dm_message": "Welcome to **{server}**! Make sure to read the rules.",
-    "auto_role_id": None,
-    "welcome_embed": True,
-    "goodbye_embed": True,
+    "auto_role_ids": [],
 }
 
 
@@ -46,9 +49,21 @@ def render_welcome(template: str, member: discord.Member) -> str:
             .replace("{member}", member.mention)
             .replace("{member.name}", member.name)
             .replace("{member.tag}", member.discriminator if member.discriminator != "0" else "")
+            .replace("{member.nick}", member.display_name)
+            .replace("{member.id}", str(member.id))
             .replace("{server}", member.guild.name)
+            .replace("{server.id}", str(member.guild.id))
             .replace("{count}", str(member.guild.member_count))
             .replace("{server.membercount}", str(member.guild.member_count)))
+
+
+def render_welcome_embed(data: dict, member: discord.Member) -> dict:
+    """Render welcome placeholders inside a custom embed dict's text fields."""
+    out = dict(data or {})
+    for key in ("title", "description", "footer_text", "author_name", "url"):
+        if out.get(key):
+            out[key] = render_welcome(str(out[key]), member)
+    return out
 
 
 class Welcomer(commands.Cog, name="Welcomer"):
@@ -65,9 +80,17 @@ class Welcomer(commands.Cog, name="Welcomer"):
         if not channel or not isinstance(channel, discord.TextChannel):
             return
 
-        msg = render_welcome(settings.get("welcome_message", ""), member)
-        try:
-            if settings.get("welcome_embed", True):
+        # Custom embed mode renders the user-configured embed; otherwise the default styled embed
+        mode = settings.get("welcome_mode", "basic")
+        if mode == "custom" and settings.get("welcome_embed_data"):
+            try:
+                embed = build_embed(render_welcome_embed(settings["welcome_embed_data"], member))
+                await channel.send(embed=embed)
+            except Exception as e:
+                logger.warning(f"Failed to send custom welcome embed: {e}")
+        else:
+            msg = render_welcome(settings.get("welcome_message", ""), member)
+            try:
                 embed = (
                     EmbedBuilder()
                     .title("👋 Welcome!")
@@ -81,10 +104,8 @@ class Welcomer(commands.Cog, name="Welcomer"):
                     .build()
                 )
                 await channel.send(embed=embed)
-            else:
-                await channel.send(msg)
-        except Exception as e:
-            logger.warning(f"Failed to send welcome message: {e}")
+            except Exception as e:
+                logger.warning(f"Failed to send welcome message: {e}")
 
         if settings.get("welcome_dm"):
             dm_msg = render_welcome(settings.get("welcome_dm_message", "Welcome to **{server}**!"), member)
@@ -102,14 +123,17 @@ class Welcomer(commands.Cog, name="Welcomer"):
             except (discord.Forbidden, discord.HTTPException):
                 pass
 
-        auto_role_id = settings.get("auto_role_id")
-        if auto_role_id:
-            role = member.guild.get_role(int(auto_role_id))
+        # Auto-role: add every configured role (falls back to the old single-role key)
+        auto_roles = settings.get("auto_role_ids") or []
+        if not auto_roles and settings.get("auto_role_id"):
+            auto_roles = [settings["auto_role_id"]]
+        for rid in auto_roles:
+            role = member.guild.get_role(int(rid))
             if role:
                 try:
                     await member.add_roles(role, reason="Auto-role on join")
                 except Exception as e:
-                    logger.warning(f"Failed to add auto-role: {e}")
+                    logger.warning(f"Failed to add auto-role {rid}: {e}")
 
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):
@@ -122,8 +146,12 @@ class Welcomer(commands.Cog, name="Welcomer"):
         if not settings.get("goodbye_message"):
             return
         msg = render_welcome(settings.get("goodbye_message", ""), member)
+        mode = settings.get("goodbye_mode", "basic")
         try:
-            if settings.get("goodbye_embed", True):
+            if mode == "custom" and settings.get("goodbye_embed_data"):
+                embed = build_embed(render_welcome_embed(settings["goodbye_embed_data"], member))
+                await channel.send(embed=embed)
+            else:
                 embed = (
                     EmbedBuilder()
                     .title("👋 Goodbye")
@@ -136,8 +164,6 @@ class Welcomer(commands.Cog, name="Welcomer"):
                     .build()
                 )
                 await channel.send(embed=embed)
-            else:
-                await channel.send(msg)
         except Exception as e:
             logger.warning(f"Failed to send goodbye message: {e}")
 

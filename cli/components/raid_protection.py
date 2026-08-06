@@ -10,11 +10,21 @@ from components.moderation import get_mod_settings, save_mod_settings, perform_l
 
 RAID_DEFAULTS = {
     "enabled": False,
+    "mode": "switches",
     "join_threshold": 5,
     "join_window": 10,
     "join_action": "kick",
     "account_age_min": 0,
     "account_age_action": "kick",
+    "default_avatar_enabled": False,
+    "default_avatar_action": "kick",
+    "score_threshold": 3,
+    "score_action": "kick",
+    "score_window": 10,
+    "score_default_avatar": 2,
+    "score_new_account_min": 10,
+    "score_new_account": 2,
+    "score_join_burst": 1,
     "auto_recovery": True,
     "recovery_minutes": 30,
     "moderation_channel_id": None,
@@ -86,6 +96,48 @@ class RaidProtection(commands.Cog, name="RaidProtection"):
             return ok
         return False
 
+    async def _score_check(self, guild, settings, member, now):
+        """Score mode: sum points from each fulfilled criterion; act when the
+        threshold is reached."""
+        gid = guild.id
+        score = 0
+        parts = []
+
+        # Default avatar (raiders often use one)
+        pts = int(settings.get("score_default_avatar", 0) or 0)
+        if pts > 0 and member.avatar is None:
+            score += pts
+            parts.append(f"default avatar +{pts}")
+
+        # Newly-created account
+        min_age = int(settings.get("score_new_account_min", 0) or 0)
+        if min_age > 0:
+            pts = int(settings.get("score_new_account", 0) or 0)
+            age_min = (now - member.created_at.replace(tzinfo=None).timestamp()) / 60
+            if age_min < min_age and pts > 0:
+                score += pts
+                parts.append(f"account {int(age_min)}min old +{pts}")
+
+        # Join burst (part of a rapid wave of joins)
+        pts = int(settings.get("score_join_burst", 0) or 0)
+        window = int(settings.get("score_window", 10) or 10)
+        threshold = int(settings.get("join_threshold", 5) or 5)
+        self.recent_joins.setdefault(gid, []).append((now, member.id))
+        self.recent_joins[gid] = [(t, mid) for t, mid in self.recent_joins[gid] if now - t < window]
+        if pts > 0 and len(self.recent_joins[gid]) >= threshold:
+            score += pts
+            parts.append(f"join burst +{pts}")
+
+        min_score = int(settings.get("score_threshold", 3) or 3)
+        if score >= min_score:
+            action = settings.get("score_action", "kick")
+            reason = f"Raid score {score}/{min_score} ({', '.join(parts) or 'no criteria matched'})"
+            await self._apply_action(guild, settings, member, reason, action)
+            await self._log(guild, settings, "🚨 Raid Protection", f"{member.mention} (`{member}`) blocked — {reason}", "red")
+            if settings.get("auto_recovery") and action == "lockdown":
+                minutes = int(settings.get("recovery_minutes", 30) or 30)
+                asyncio.create_task(self._recover(guild.id, minutes))
+
     @commands.Cog.listener()
     async def on_member_join(self, member):
         if member.bot or not member.guild:
@@ -96,6 +148,18 @@ class RaidProtection(commands.Cog, name="RaidProtection"):
             return
         now = datetime.datetime.utcnow().timestamp()
         gid = guild.id
+
+        if settings.get("mode") == "score":
+            await self._score_check(guild, settings, member, now)
+            return
+
+        # ── Switches mode ──
+        # Default avatar recognition
+        if settings.get("default_avatar_enabled") and member.avatar is None:
+            reason = "Raid protection: using a default avatar"
+            await self._apply_action(guild, settings, member, reason, settings.get("default_avatar_action", "kick"))
+            await self._log(guild, settings, "🛡️ Raid Protection", f"{member.mention} (`{member}`) blocked — {reason}")
+            return
 
         # Account age filter
         min_age_min = int(settings.get("account_age_min", 0) or 0)

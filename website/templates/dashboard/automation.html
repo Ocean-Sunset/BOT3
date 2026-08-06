@@ -1,9 +1,13 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
 <style>
-#aut-canvas-wrap { position:relative; border:1px solid rgba(255,255,255,0.08); border-radius:6px; background:rgba(10,10,10,0.6); min-height:420px; overflow:hidden; }
-#aut-canvas { position:relative; width:2600px; height:1200px; }
-#aut-svg { position:absolute; inset:0; z-index:1; pointer-events:none; }
+#aut-canvas-wrap { position:relative; flex:1; border:1px solid rgba(255,255,255,0.08); border-radius:6px; background:rgba(10,10,10,0.6); overflow:auto; }
+#aut-canvas-wrap::-webkit-scrollbar { width:10px; height:10px; }
+#aut-canvas-wrap::-webkit-scrollbar-track { background:transparent; }
+#aut-canvas-wrap::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.12); border-radius:5px; }
+#aut-canvas-wrap::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,0.22); }
+#aut-canvas { position:relative; min-width:100%; min-height:100%; }
+#aut-svg { position:absolute; inset:0; z-index:1; pointer-events:none; width:100%; height:100%; }
 #aut-svg path.wire-vis { fill:none; stroke:rgba(96,165,250,0.5); stroke-width:2; stroke-linecap:round; }
 #aut-svg path.wire-hit { stroke:transparent; stroke-width:16; pointer-events:stroke; cursor:pointer; }
 #aut-svg .aut-wire:hover path.wire-vis { stroke:#60a5fa; stroke-width:2.5; }
@@ -15,25 +19,29 @@
 .aut-node .aut-node-title { font-size:0.75rem; font-weight:800; letter-spacing:-0.01em; margin-bottom:0.3rem; display:flex; align-items:center; gap:0.4rem; padding-right:22px; }
 .aut-node .aut-node-dot { position:absolute; width:12px; height:12px; border-radius:50%; border:2px solid rgba(255,255,255,0.3); background:#151822; z-index:3; cursor:crosshair; transition:all 0.15s; }
 .aut-node .aut-node-dot:hover { border-color:#60a5fa; background:#60a5fa; }
-.aut-node .aut-node-dot.in { left:50%; top:-7px; transform:translateX(-50%); }
-.aut-node .aut-node-dot.out { left:50%; bottom:-7px; transform:translateX(-50%); }
-.aut-node .aut-node-tag { font-size:0.62rem; font-weight:800; text-transform:uppercase; letter-spacing:0.03em; padding:0.1rem 0.4rem; border-radius:999px; display:inline-block; flex-shrink:0; }
+.aut-node .aut-node-dot.in, .aut-node .aut-node-dot.in-trig { left:50%; top:-7px; transform:translateX(-50%); }
+.aut-node .aut-node-dot.out, .aut-node .aut-node-dot.out-body, .aut-node .aut-node-dot.out-next { left:50%; bottom:-7px; transform:translateX(-50%); }
+.aut-node .aut-node-dot.out-body { left:calc(50% - 14px); }
+.aut-node .aut-node-dot.out-next { left:calc(50% + 14px); }
+.aut-node .aut-node-tag { font-size:0.62rem; font-weight:800; text-transform:uppercase; letter-spacing:0.03em; padding:0.1rem 0.4rem; border-radius:3px; display:inline-block; flex-shrink:0; }
 .aut-node .aut-node-tag.trigger { color:#60a5fa; background:rgba(96,165,250,0.1); border:1px solid rgba(96,165,250,0.2); }
 .aut-node .aut-node-tag.action { color:#34d399; background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.2); }
 .aut-node .aut-node-tag.var { color:#a78bfa; background:rgba(167,139,250,0.1); border:1px solid rgba(167,139,250,0.2); }
 .aut-node .aut-node-tag.list { color:#fbbf24; background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.2); }
 .aut-node .aut-node-summary { font-size:0.65rem; color:rgba(255,255,255,0.4); margin-top:0.25rem; line-height:1.45; word-break:break-word; }
 .aut-node .aut-node-varid { font-size:0.6rem; color:rgba(167,139,250,0.7); font-family:monospace; }
-.aut-node .aut-node-del { position:absolute; top:4px; right:6px; width:18px; height:18px; border-radius:50%; border:none; background:rgba(248,113,113,0.15); color:#f87171; font-size:0.7rem; cursor:pointer; display:none; align-items:center; justify-content:center; line-height:1; }
+.aut-node .aut-node-del { position:absolute; top:4px; right:6px; width:18px; height:18px; border-radius:3px; border:none; background:rgba(248,113,113,0.15); color:#f87171; font-size:0.7rem; cursor:pointer; display:none; align-items:center; justify-content:center; line-height:1; }
 .aut-node:hover .aut-node-del { display:flex; }
 .aut-node .aut-node-del:hover { background:#f87171; color:#fff; }
-.aut-palette { display:flex; gap:0.5rem; flex-wrap:nowrap; overflow-x:auto; margin-bottom:0.75rem; padding:0.65rem 0.75rem; border:1px solid rgba(255,255,255,0.06); border-radius:6px; background:rgba(255,255,255,0.015); }
-.aut-palette::-webkit-scrollbar { height:4px; }
-.aut-palette::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:2px; }
+.aut-palette { display:flex; gap:0.5rem; flex-wrap:nowrap; overflow-x:auto; margin-bottom:0.75rem; padding:0.65rem 0.75rem; border:1px solid rgba(255,255,255,0.06); border-radius:6px; background:rgba(255,255,255,0.015); align-items:center; }
+.aut-palette::-webkit-scrollbar { height:8px; }
+.aut-palette::-webkit-scrollbar-track { background:transparent; }
+.aut-palette::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:4px; }
+.aut-palette::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,0.25); }
 .aut-palette-block { padding:0.4rem 0.7rem; border-radius:4px; font-size:0.7rem; font-weight:700; cursor:grab; flex-shrink:0; user-select:none; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.03); color:rgba(255,255,255,0.7); transition:all 0.15s; white-space:nowrap; }
 .aut-palette-block:hover { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.2); }
 .aut-palette-block:active { cursor:grabbing; }
-.aut-palette-label { font-size:0.65rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:rgba(255,255,255,0.3); flex-shrink:0; margin-right:0.25rem; line-height:1.8; }
+.aut-palette-label { font-size:0.65rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:rgba(255,255,255,0.3); flex-shrink:0; margin-right:0.25rem; }
 .aut-toolbar { display:flex; gap:0.5rem; margin-bottom:0.75rem; }
 .aut-toolbar .md-action-btn { padding:0.45rem 1rem; font-size:0.75rem; border-radius:4px; }
 .aut-toolbar #aut-save-btn { background:#fff; color:#0a0a0a; border-color:#fff; }
@@ -48,11 +56,11 @@
 .aut-var-hint { font-size:0.62rem; color:rgba(255,255,255,0.3); margin-top:0.2rem; line-height:1.4; }
 </style>
 
-<div id="automation-wrap">
-  <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.5rem;">
+<div id="automation-wrap" style="display:flex;flex-direction:column;height:calc(100vh - 260px);">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.5rem;flex-shrink:0;">
     <div>
       <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Automation</h1>
-      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Drag blocks onto the board and connect them — drag between dots to wire</p>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Drag blocks onto the board — wire from an output dot to an input dot</p>
     </div>
     <div class="aut-toolbar">
       <button class="md-action-btn" id="aut-save-btn">Save</button>
@@ -60,7 +68,7 @@
     </div>
   </div>
 
-  <div class="aut-palette" id="aut-palette">
+  <div class="aut-palette" id="aut-palette" style="flex-shrink:0;">
     <span class="aut-palette-label">Triggers</span>
     <div class="aut-palette-block" data-palette="member_join" draggable="true">Member Joins</div>
     <div class="aut-palette-block" data-palette="member_leave" draggable="true">Member Leaves</div>
@@ -80,11 +88,15 @@
     <div class="aut-palette-block" data-palette="mute" draggable="true">Mute</div>
     <div class="aut-palette-block" data-palette="send_ticket" draggable="true">Open Ticket</div>
     <div class="aut-palette-block" data-palette="set_nickname" draggable="true">Set Nickname</div>
-    <span class="aut-palette-label" style="margin-left:0.75rem;">Variables</span>
-    <div class="aut-palette-block" data-palette="text_var" draggable="true">Text</div>
-    <div class="aut-palette-block" data-palette="number_var" draggable="true">Number</div>
-    <div class="aut-palette-block" data-palette="role_var" draggable="true">Role</div>
-    <div class="aut-palette-block" data-palette="channel_var" draggable="true">Channel</div>
+    <span class="aut-palette-label" style="margin-left:0.75rem;">Flow</span>
+    <div class="aut-palette-block" data-palette="repeat" draggable="true">Repeat Loop</div>
+    <span class="aut-palette-label" style="margin-left:0.75rem;">System</span>
+    <div class="aut-palette-block" data-palette="sys_text" draggable="true">Text (sys)</div>
+    <div class="aut-palette-block" data-palette="sys_number" draggable="true">Number (sys)</div>
+    <div class="aut-palette-block" data-palette="sys_role" draggable="true">Role (sys)</div>
+    <div class="aut-palette-block" data-palette="sys_channel" draggable="true">Channel (sys)</div>
+    <span class="aut-palette-label" style="margin-left:0.75rem;">Custom</span>
+    <div class="aut-palette-block" data-palette="custom_var" draggable="true">Variable</div>
     <span class="aut-palette-label" style="margin-left:0.75rem;">Lists</span>
     <div class="aut-palette-block" data-palette="list_members" draggable="true">Member List</div>
     <div class="aut-palette-block" data-palette="list_roles" draggable="true">Role List</div>
@@ -97,10 +109,8 @@
     </div>
   </div>
 
-  <div class="aut-hint">
-    Variables: set a value on a variable node, then reference it anywhere with <code>{var:&lt;node id&gt;}</code> (shown on the node).
-    In any text field use the <b>Insert Variable</b> menu for bot values like <code>{member}</code>, <code>{server.name}</code>, <code>{message}</code>.
-    Lists output every member / role / channel. Hover a wire and hit the <b style="color:#f87171;">&#10005;</b> to remove it.
+  <div class="aut-hint" style="flex-shrink:0;">
+    System variables read from the trigger context. Custom variables hold a value you set. Wire output dots to input dots only. Paths with no trigger connection will be flagged.
   </div>
 </div>
 {% endblock %}
@@ -125,124 +135,172 @@ const NODE_DEFS = {
   remove_role:     { label:'Remove Role', kind:'action', fields:[{key:'role_id', label:'Role', kind:'role'}] },
   kick:            { label:'Kick', kind:'action', fields:[{key:'text', label:'Reason', kind:'text'}] },
   ban:             { label:'Ban', kind:'action', fields:[{key:'text', label:'Reason', kind:'text'}] },
-  mute:            { label:'Mute', kind:'action', fields:[{key:'duration', label:'Duration (minutes)', kind:'number'}] },
+  mute:            { label:'Mute', kind:'action', fields:[{key:'duration', label:'Duration (min)', kind:'number'}] },
   set_nickname:    { label:'Set Nickname', kind:'action', fields:[{key:'text', label:'Nickname', kind:'text'}] },
   send_ticket:     { label:'Open Ticket', kind:'action', fields:[{key:'channel_id', label:'Category', kind:'channel'},{key:'text', label:'Reason', kind:'text'}] },
-  text_var:        { label:'Text', kind:'variable', fields:[{key:'text', label:'Value', kind:'text'}] },
-  number_var:      { label:'Number', kind:'variable', fields:[{key:'value', label:'Value', kind:'number'}] },
-  role_var:        { label:'Role', kind:'variable', fields:[{key:'role_id', label:'Role', kind:'role'}] },
-  channel_var:     { label:'Channel', kind:'variable', fields:[{key:'channel_id', label:'Channel', kind:'channel'}] },
+  repeat:          { label:'Repeat Loop', kind:'flow', fields:[{key:'count', label:'Times', kind:'number'}] },
+  sys_text:        { label:'Text (system)', kind:'variable', isSys:true },
+  sys_number:      { label:'Number (system)', kind:'variable', isSys:true },
+  sys_role:        { label:'Role (system)', kind:'variable', isSys:true },
+  sys_channel:     { label:'Channel (system)', kind:'variable', isSys:true },
+  custom_var:      { label:'Variable', kind:'variable', isCustom:true, fields:[{key:'name', label:'Variable Name', kind:'text'},{key:'varType', label:'Type', kind:'varType'},{key:'value', label:'Value', kind:'text'}] },
   list_members:    { label:'Member List', kind:'variable', isList:true },
   list_roles:      { label:'Role List', kind:'variable', isList:true },
   list_channels:   { label:'Channel List', kind:'variable', isList:true },
 };
-const KIND = n => NODE_DEFS[n.type] ? NODE_DEFS[n.type].kind : 'action';
+
+const CUSTOM_TYPES = ['Text','Number','Boolean','Constant','List'];
 
 const SYSTEM_VARS = [
   ['Member', '{member}'], ['Member Name', '{member.name}'], ['Member ID', '{member.id}'],
-  ['Member Mention', '{member.mention}'], ['Member Avatar', '{member.avatar}'],
-  ['Server', '{server}'], ['Server Name', '{server.name}'], ['Member Count', '{server.membercount}'],
-  ['Channel', '{channel}'], ['Channel Name', '{channel.name}'],
-  ['Message', '{message}'], ['Message Content', '{message.content}'], ['Message Link', '{message.link}'],
-  ['Role', '{role}'], ['Role Name', '{role.name}'], ['Reason', '{reason}'],
-  ['Time', '{time}'], ['Count', '{count}'],
+  ['Member Mention', '{member.mention}'], ['Server', '{server}'], ['Server Name', '{server.name}'],
+  ['Member Count', '{server.membercount}'], ['Channel', '{channel}'], ['Channel Name', '{channel.name}'],
+  ['Message', '{message}'], ['Message Content', '{message.content}'], ['Role', '{role}'],
+  ['Role Name', '{role.name}'], ['Reason', '{reason}'], ['Time', '{time}'], ['Count', '{count}'],
 ];
 
 let nodes=[]; let nextId=1; let connections=[];
 let CHANNELS=[], ROLES=[];
 let dragNode=null, dragOffX=0, dragOffY=0;
-let connOrigin=null, connOrigX=0, connOrigY=0;
+let connOrigin=null, connOrigDot='out', connOrigX=0, connOrigY=0;
+const CW = () => document.getElementById('aut-canvas-wrap');
+const CAN = () => document.getElementById('aut-canvas');
 
 function createNode(type,x,y) { return {id:nextId++,type,x,y,config:{}}; }
-function isVar(n) { return NODE_DEFS[n.type] && NODE_DEFS[n.type].kind === 'variable'; }
+function isVar(n) { const d=NODE_DEFS[n.type]; return d && d.kind==='variable'; }
+function isTrigger(n) { const d=NODE_DEFS[n.type]; return d && d.kind==='trigger'; }
+
+function varRef(n) {
+  if (n.type==='custom_var') return n.config.name ? '${var:'+esc(n.config.name)+'}' : '';
+  return '${var:'+n.id+'}';
+}
 
 function nodeSummary(n) {
-  const cfg = n.config||{};
-  switch (n.type) {
-    case 'send_message': case 'send_dm': return cfg.text ? '“'+cfg.text.slice(0,40)+'”' : '';
-    case 'add_role': case 'remove_role': return cfg.role_id ? (ROLES.find(r=>String(r.id)===String(cfg.role_id))||{}).name||'' : '';
-    case 'kick': case 'ban': return cfg.text ? '“'+cfg.text.slice(0,30)+'”' : '';
+  const cfg=n.config||{};
+  switch(n.type) {
+    case 'send_message': return (cfg.channel_id?'#'+((CHANNELS.find(c=>String(c.id)===String(cfg.channel_id))||{}).name||''):'')+' '+esc(cfg.text||'');
+    case 'send_dm': return esc(cfg.text||'');
+    case 'add_role': case 'remove_role': return cfg.role_id?(ROLES.find(r=>String(r.id)===String(cfg.role_id))||{}).name||'':'';
+    case 'kick': case 'ban': case 'send_ticket': return esc(cfg.text||'');
     case 'mute': return (cfg.duration||60)+' min';
-    case 'set_nickname': return cfg.text ? '“'+cfg.text.slice(0,30)+'”' : '';
-    case 'send_ticket': return cfg.text ? '“'+cfg.text.slice(0,30)+'”' : '';
-    case 'message_contains': case 'message_starts': return cfg.text ? '“'+cfg.text.slice(0,25)+'”' : '';
-    case 'text_var': return cfg.text ? '“'+cfg.text.slice(0,30)+'”' : '';
-    case 'number_var': return cfg.value != null ? String(cfg.value) : '';
-    case 'role_var': return cfg.role_id ? (ROLES.find(r=>String(r.id)===String(cfg.role_id))||{}).name||'' : '';
-    case 'channel_var': return cfg.channel_id ? '#'+((CHANNELS.find(c=>String(c.id)===String(cfg.channel_id))||{}).name||'') : '';
+    case 'set_nickname': return esc(cfg.text||'');
+    case 'message_contains': case 'message_starts': return esc(cfg.text||'');
+    case 'repeat': return 'x'+(cfg.count||1)+' times';
+    case 'custom_var': return (cfg.name||'unnamed')+' = '+esc(cfg.value||'…');
+    case 'sys_role': return 'role...';
+    case 'sys_channel': return 'channel...';
+    case 'sys_text': return 'text...';
+    case 'sys_number': return 'number...';
     default: return '';
   }
+}
+
+function renderNodeDots(n) {
+  const def = NODE_DEFS[n.type]||{};
+  const k = def.kind;
+  let dots = '';
+  if (n.type==='repeat') {
+    dots = '<div class="aut-node-dot in" data-connect="in"></div>';
+    dots += '<div class="aut-node-dot out-body" data-connect="out" title="Loop body"></div>';
+    dots += '<div class="aut-node-dot out-next" data-connect="out-next" title="After loop"></div>';
+  } else {
+    if (k==='action'||k==='flow'||k==='trigger') dots += '<div class="aut-node-dot in" data-connect="in"></div>';
+    if (k==='trigger'||k==='action'||k==='variable') dots += '<div class="aut-node-dot out" data-connect="out"></div>';
+  }
+  return dots;
 }
 
 function renderNode(n) {
   const def = NODE_DEFS[n.type]||{label:n.type,kind:'action'};
   const kind = def.kind;
   const tagClass = kind==='trigger'?'trigger':kind==='variable'?(def.isList?'list':'var'):'action';
-  const tagLabel = kind==='trigger'?'TRIGGER':kind==='variable'?(def.isList?'LIST':'VAR'):'ACTION';
+  const tagLabel = kind==='trigger'?'TRIGGER':kind==='variable'?(def.isList?'LIST':'VAR'):kind==='flow'?'LOOP':'ACTION';
   const sum = nodeSummary(n);
-  const varid = kind==='variable' ? `<div class="aut-node-varid">var#${n.id}</div>` : '';
+  const vid = isVar(n) ? `<div class="aut-node-varid">${varRef(n)}</div>` : '';
+  const dots = renderNodeDots(n);
   return `<div class="aut-node" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;">
     <div class="aut-node-title"><span class="aut-node-tag ${tagClass}">${tagLabel}</span>${def.label||n.type}</div>
-    ${sum ? `<div class="aut-node-summary">${esc(sum)}</div>` : ''}${varid}
-    ${(kind==='trigger'||kind==='variable')?'':'<div class="aut-node-dot in" data-connect="in"></div>'}
-    <div class="aut-node-dot out" data-connect="out"></div>
+    ${sum ? `<div class="aut-node-summary">${sum}</div>` : ''}${vid}
+    ${dots}
     <button class="aut-node-del" data-del="${n.id}" title="Delete block">&times;</button>
   </div>`;
 }
 
 function renderAll() {
-  const canvas = document.getElementById('aut-canvas');
+  const canvas = CAN();
   canvas.innerHTML = '<svg id="aut-svg"></svg>' + nodes.map(renderNode).join('');
+  updateSvgSize();
   drawConnections();
   bindNodes();
 }
 
-// Wire endpoints = exact center of the in/out dots (top-center / bottom-center of node)
+function updateSvgSize() {
+  const canvas = CAN();
+  const svg = document.getElementById('aut-svg');
+  const w = Math.max(canvas.scrollWidth, CW().clientWidth);
+  const h = Math.max(canvas.scrollHeight, CW().clientHeight);
+  canvas.style.width = w+'px'; canvas.style.height = h+'px';
+  svg.setAttribute('width', w); svg.setAttribute('height', h);
+}
+
 function getConnectPos(canvas, nodeId, which) {
   const el = canvas.querySelector(`[data-id="${nodeId}"]`);
   if (!el) return {x:0,y:0};
-  const cx = el.offsetLeft + el.offsetWidth / 2;
-  if (which === 'out') return {x: cx, y: el.offsetTop + el.offsetHeight + 7};
-  return {x: cx, y: el.offsetTop - 7};
+  const cx = el.offsetLeft + el.offsetWidth/2;
+  if (which==='in') return {x:cx, y:el.offsetTop - 7};
+  // out / out-body / out-next
+  const dot = el.querySelector(`[data-connect="${which}"]`);
+  if (dot) return {x:el.offsetLeft+dot.offsetLeft+6, y:el.offsetTop+dot.offsetTop+6};
+  return {x:cx, y:el.offsetTop+el.offsetHeight+7};
 }
 
 function drawConnections(ghostEnd) {
-  const canvas = document.getElementById('aut-canvas');
+  const canvas = CAN();
   const svg = document.getElementById('aut-svg');
-  svg.setAttribute('width', canvas.clientWidth+'px');
-  svg.setAttribute('height', canvas.clientHeight+'px');
+  if (!svg) return;
   svg.innerHTML = connections.map((c, idx) => {
     const fn=nodes.find(x=>x.id===c.from), tn=nodes.find(x=>x.id===c.to);
     if (!fn||!tn) return '';
-    const p1=getConnectPos(canvas,c.from,'out'), p2=getConnectPos(canvas,c.to,'in');
+    const fromDot = c.fromDot||'out';
+    const p1=getConnectPos(canvas,c.from,fromDot), p2=getConnectPos(canvas,c.to,'in');
     const midY = (p1.y+p2.y)/2;
-    const d = `M${p1.x} ${p1.y} C${p1.x} ${midY} ${p2.x} ${midY} ${p2.x} ${p2.y}`;
-    const mx = (p1.x+p2.x)/2, my = midY;
+    const y1 = p1.y, y2 = p2.y;
+    const cy = Math.max(Math.abs(y2-y1)*0.3, 20);
+    const d = `M${p1.x} ${y1} C${p1.x} ${y1+cy} ${p2.x} ${y2-cy} ${p2.x} ${y2}`;
+    const mx=(p1.x+p2.x)/2, my=(y1+y2)/2;
     return `<g class="aut-wire" data-wire="${idx}">
       <path class="wire-hit" d="${d}" />
       <path class="wire-vis" d="${d}" />
       <g class="aut-wire-x" data-wdel="${idx}" transform="translate(${mx},${my})">
-        <circle r="7" fill="#f87171" stroke="#0a0a0a" stroke-width="1.5" />
-        <path d="M-2.5 -2.5 L2.5 2.5 M2.5 -2.5 L-2.5 2.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round" />
+        <rect x="-6" y="-6" width="12" height="12" rx="2" fill="#f87171" stroke="#0a0a0a" stroke-width="1.2" />
+        <path d="M-2.5 -2.5 L2.5 2.5 M2.5 -2.5 L-2.5 2.5" stroke="#fff" stroke-width="1.4" stroke-linecap="round" />
       </g>
     </g>`;
   }).join('');
   if (ghostEnd) {
-    const midY = (ghostEnd.y+connOrigY)/2;
-    svg.innerHTML += `<path class="ghost" d="M${connOrigX} ${connOrigY} C${connOrigX} ${midY} ${ghostEnd.x} ${midY} ${ghostEnd.x} ${ghostEnd.y}" />`;
+    const cy = Math.max(Math.abs(ghostEnd.y-connOrigY)*0.3, 20);
+    svg.innerHTML += `<path class="ghost" d="M${connOrigX} ${connOrigY} C${connOrigX} ${connOrigY+cy} ${ghostEnd.x} ${ghostEnd.y-cy} ${ghostEnd.x} ${ghostEnd.y}" />`;
   }
 }
 
+function hasCircular(fromId, toId) {
+  const seen = new Set();
+  function upstream(id) {
+    if (id===fromId) return true;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return connections.filter(c=>c.to===id).some(c=>upstream(c.from));
+  }
+  return upstream(toId);
+}
+
 function bindNodes() {
-  const canvas = document.getElementById('aut-canvas');
+  const canvas = CAN();
   canvas.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', e => {
-    e.stopPropagation();
-    deleteNode(parseInt(b.dataset.del));
+    e.stopPropagation(); deleteNode(parseInt(b.dataset.del));
   }));
   canvas.querySelectorAll('[data-wdel]').forEach(g => g.addEventListener('click', e => {
-    e.stopPropagation();
-    connections.splice(parseInt(g.dataset.wdel), 1);
-    renderAll();
+    e.stopPropagation(); connections.splice(parseInt(g.dataset.wdel),1); renderAll();
   }));
   canvas.querySelectorAll('.aut-node').forEach(el => {
     const nid = parseInt(el.dataset.id);
@@ -251,19 +309,25 @@ function bindNodes() {
       dragNode = nodes.find(n=>n.id===nid);
       if (!dragNode) return;
       canvas.querySelectorAll('.aut-node').forEach(x=>x.classList.toggle('selected', parseInt(x.dataset.id)===nid));
-      dragOffX = e.clientX - dragNode.x;
-      dragOffY = e.clientY - dragNode.y;
+      const wrap = CW();
+      dragOffX = e.clientX + wrap.scrollLeft - dragNode.x;
+      dragOffY = e.clientY + wrap.scrollTop - dragNode.y;
       e.preventDefault();
     });
     el.addEventListener('mousedown', e => {
       const dot = e.target.closest('[data-connect]');
       if (!dot) return;
       e.stopPropagation(); e.preventDefault();
-      if (dot.dataset.connect === 'out' && !connOrigin) {
+      const isOut = dot.dataset.connect !== 'in';
+      if (isOut && !connOrigin) {
         connOrigin = nid;
-        const p = getConnectPos(canvas, nid, 'out');
+        connOrigDot = dot.dataset.connect || 'out';
+        const p = getConnectPos(canvas, nid, connOrigDot);
         connOrigX = p.x; connOrigY = p.y;
         drawConnections({x:p.x, y:p.y});
+      }
+      if (!isOut) {
+        if (typeof showToast === 'function') showToast('Connect from an output dot to an input dot.', 'warning', 4000);
       }
     });
   });
@@ -275,18 +339,47 @@ function deleteNode(id) {
   renderAll();
 }
 
+function validateGraph() {
+  const msgs = [];
+  // Out->in only (already enforced)
+  // Detect circular connections
+  const visited = new Set();
+  function walk(id, path) {
+    if (visited.has(id)) return;
+    visited.add(id);
+    const outs = connections.filter(c=>c.from===id);
+    for (const c of outs) {
+      if (path.has(c.to)) { msgs.push('Circular connection detected'); return; }
+      const next = new Set(path); next.add(c.to);
+      walk(c.to, next);
+    }
+  }
+  nodes.forEach(n => { if (isTrigger(n)) walk(n.id, new Set([n.id])); });
+  // Actions with no input path
+  nodes.forEach(n => {
+    if (n.type==='repeat') {
+      if (!connections.some(c=>c.to===n.id)) msgs.push(`Repeat #${n.id} has no input connection`);
+    }
+  });
+  if (msgs.length) {
+    if (typeof showToast === 'function') msgs.forEach(m => showToast(m, 'warning', 4000));
+    return false;
+  }
+  return true;
+}
+
 document.addEventListener('mousemove', e => {
-  const canvas = document.getElementById('aut-canvas');
+  const canvas = CAN(); const wrap = CW();
   if (dragNode) {
-    dragNode.x = Math.max(0, Math.min(2400, e.clientX - dragOffX));
-    dragNode.y = Math.max(0, Math.min(1000, e.clientY - dragOffY));
+    dragNode.x = Math.max(0, e.clientX + wrap.scrollLeft - dragOffX);
+    dragNode.y = Math.max(0, e.clientY + wrap.scrollTop - dragOffY);
     const el = canvas.querySelector(`.aut-node[data-id="${dragNode.id}"]`);
     if (el) { el.style.left = dragNode.x+'px'; el.style.top = dragNode.y+'px'; }
     drawConnections();
   }
   if (connOrigin) {
-    const rect = canvas.getBoundingClientRect();
-    drawConnections({x: e.clientX - rect.left + canvas.scrollLeft, y: e.clientY - rect.top + canvas.scrollTop});
+    const rect = wrap.getBoundingClientRect();
+    drawConnections({x: e.clientX - rect.left + wrap.scrollLeft, y: e.clientY - rect.top + wrap.scrollTop});
     canvas.querySelectorAll('.aut-node .in').forEach(d => d.style.borderColor = 'rgba(255,255,255,0.3)');
     const targetEl = document.elementFromPoint(e.clientX, e.clientY);
     if (targetEl) {
@@ -296,9 +389,9 @@ document.addEventListener('mousemove', e => {
   }
 });
 document.addEventListener('mouseup', e => {
-  if (dragNode) { dragNode = null; }
+  if (dragNode) { dragNode = null; updateSvgSize(); }
   if (connOrigin) {
-    const canvas = document.getElementById('aut-canvas');
+    const canvas = CAN();
     canvas.querySelectorAll('.aut-node .in').forEach(d => d.style.borderColor = 'rgba(255,255,255,0.3)');
     const targetEl = document.elementFromPoint(e.clientX, e.clientY);
     if (targetEl) {
@@ -306,10 +399,16 @@ document.addEventListener('mouseup', e => {
       const nodeEl = targetEl.closest('.aut-node');
       if (dot && nodeEl) {
         const toId = parseInt(nodeEl.dataset.id);
-        if (toId !== connOrigin) {
+        if (toId !== connOrigin && !hasCircular(connOrigin, toId)) {
           connections = connections.filter(c => c.to!==toId);
-          connections.push({from:connOrigin, to:toId});
+          connections.push({from:connOrigin, to:toId, fromDot:connOrigDot});
+        } else if (toId === connOrigin) {
+          if (typeof showToast === 'function') showToast("Can't connect a node to itself.", 'warning');
+        } else {
+          if (typeof showToast === 'function') showToast("That would create a circular loop.", 'warning');
         }
+      } else if (dot) {
+        if (typeof showToast === 'function') showToast('Connect from an output dot to an input dot.', 'warning', 4000);
       }
     }
     connOrigin = null;
@@ -317,7 +416,6 @@ document.addEventListener('mouseup', e => {
   }
 });
 
-// Double-click node to configure
 document.getElementById('aut-canvas-wrap').addEventListener('dblclick', e => {
   const el = e.target.closest('.aut-node');
   if (!el) return;
@@ -327,14 +425,14 @@ document.getElementById('aut-canvas-wrap').addEventListener('dblclick', e => {
 });
 
 function boardVarOptions() {
-  return nodes.filter(x => isVar(x)).map(x => ['var#'+x.id+' ('+x.id+')', '{var:'+x.id+'}']);
+  return nodes.filter(x => isVar(x)).map(x => [x.type+' #'+x.id, varRef(x)]);
 }
 
 function configureNode(n) {
   const def = NODE_DEFS[n.type]||{label:n.type,kind:'action'};
   const cfg = n.config||{};
-  const fields = def.fields || [];
-  const title = (def.kind==='variable' ? `var#${n.id} — ` : '') + def.label;
+  const fields = def.fields||[];
+  const title = (isVar(n) ? varRef(n) + ' — ' : '') + def.label;
 
   const body = document.createElement('div');
   body.style.display = 'flex'; body.style.flexDirection = 'column'; body.style.gap = '0.7rem';
@@ -347,112 +445,98 @@ function configureNode(n) {
     lbl.className = 'md-behavior-label'; lbl.style.marginBottom = '0.3rem';
     lbl.textContent = fd.label;
     wrap.appendChild(lbl);
+
     if (fd.kind === 'text') {
-      // Insert-variable dropdown + textarea
       const ins = document.createElement('div');
       ins.className = 'aut-var-insert';
-      const all = [{label:'System variables', opts:SYSTEM_VARS}, {label:'Board variables', opts:boardVarOptions()}];
+      const all = [{label:'System vars', opts:SYSTEM_VARS}, {label:'Board vars', opts:boardVarOptions()}];
       ins.innerHTML = '<div class="md-custom-select"><button class="md-custom-select-btn">Insert Variable...</button><div class="md-custom-select-drop"></div></div>';
       const btn = ins.querySelector('.md-custom-select-btn');
       const drop = ins.querySelector('.md-custom-select-drop');
       drop.innerHTML = all.map(g =>
-        (g.opts.length ? '<div style="font-size:0.6rem;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;color:rgba(255,255,255,0.3);padding:0.35rem 0.7rem 0.1rem;">'+g.label+'</div>' : '') +
-        g.opts.map(o => '<button class="md-custom-opt" data-val="'+esc(o[1])+'">'+esc(o[0])+'</button>').join('')
+        (g.opts.length?'<div style="font-size:0.6rem;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;color:rgba(255,255,255,0.3);padding:0.35rem 0.7rem 0.1rem;">'+g.label+'</div>':'')+
+        g.opts.map(o=>'<button class="md-custom-opt" data-val="'+esc(o[1])+'">'+esc(o[0])+'</button>').join('')
       ).join('');
-      btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
-      drop.querySelectorAll('.md-custom-opt').forEach(o => o.addEventListener('click', () => {
+      btn.addEventListener('click', e=>{e.stopPropagation();drop.classList.toggle('is-open');});
+      drop.querySelectorAll('.md-custom-opt').forEach(o=>o.addEventListener('click',()=>{
         const ta = wrap.querySelector('textarea');
         if (ta) ta.value += o.dataset.val;
         drop.classList.remove('is-open');
       }));
-      document.addEventListener('click', e => { if(!e.target.closest('.aut-var-insert')) drop.classList.remove('is-open'); });
       const ta = document.createElement('textarea');
-      ta.className = 'md-input md-textarea';
-      ta.rows = 2; ta.style.width = '100%'; ta.style.fontSize = '0.78rem';
-      ta.value = cfg[fd.key] || '';
-      ta.setAttribute('data-cfg', fd.key);
+      ta.className = 'md-input md-textarea'; ta.rows=3; ta.style.width='100%'; ta.style.fontSize='0.78rem';
+      ta.value = cfg[fd.key]||''; ta.setAttribute('data-cfg', fd.key);
       wrap.appendChild(ins); wrap.appendChild(ta);
       const hint = document.createElement('div');
       hint.className = 'aut-var-hint';
-      hint.innerHTML = 'Use <code>{var:&lt;id&gt;}</code> to pull a board variable, or pick from the menu for bot values.';
+      hint.innerHTML = 'Use <code>${var:name}</code> from a Variable node, or pick from the menu for bot values.';
       wrap.appendChild(hint);
     } else if (fd.kind === 'number') {
       const inp = document.createElement('input');
-      inp.type = 'number'; inp.className = 'md-input'; inp.style.width = '100%';
-      inp.value = cfg[fd.key] ?? ''; inp.setAttribute('data-cfg', fd.key);
+      inp.type='number'; inp.className='md-input'; inp.style.width='100%';
+      if (fd.key==='count') inp.min='1'; inp.value = cfg[fd.key]??''; inp.setAttribute('data-cfg',fd.key);
       wrap.appendChild(inp);
-    } else {
-      const list = fd.kind === 'role' ? ROLES : CHANNELS;
-      const pre = fd.kind === 'channel' ? '#' : '';
+    } else if (fd.kind === 'role'||fd.kind === 'channel') {
+      const list = fd.kind==='role' ? ROLES : CHANNELS;
+      const pre = fd.kind==='channel'?'#':'';
       const cur = cfg[fd.key] ? (list.find(x=>String(x.id)===String(cfg[fd.key]))||{}).name||'' : '';
-      const sel = document.createElement('div');
-      sel.className = 'md-custom-select';
-      sel.style.width = '100%';
-      sel.innerHTML = `<button class="md-custom-select-btn">${cur ? pre+esc(cur) : 'Select...'}</button><div class="md-custom-select-drop">${list.map(x=>'<button class="md-custom-opt" data-id="'+x.id+'">'+pre+esc(x.name)+'</button>').join('')}</div>`;
-      const btn = sel.querySelector('.md-custom-select-btn');
-      const drop = sel.querySelector('.md-custom-select-drop');
-      btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
-      drop.querySelectorAll('.md-custom-opt').forEach(o => o.addEventListener('click', () => {
-        btn.textContent = o.textContent; btn.dataset.pick = o.dataset.id; drop.classList.remove('is-open');
-      }));
-      document.addEventListener('click', e => { if(!e.target.closest('#'+sel.id)) drop.classList.remove('is-open'); });
-      wrap.appendChild(sel);
-      wrap.dataset.selKey = fd.key;
+      const sel = document.createElement('div'); sel.className='md-custom-select'; sel.style.width='100%';
+      sel.innerHTML = `<button class="md-custom-select-btn">${cur?pre+esc(cur):'Select...'}</button><div class="md-custom-select-drop">${list.map(x=>'<button class="md-custom-opt" data-id="'+x.id+'">'+pre+esc(x.name)+'</button>').join('')}</div>`;
+      const btn=sel.querySelector('.md-custom-select-btn'), drop2=sel.querySelector('.md-custom-select-drop');
+      btn.addEventListener('click',e=>{e.stopPropagation();drop2.classList.toggle('is-open');});
+      drop2.querySelectorAll('.md-custom-opt').forEach(o=>o.addEventListener('click',()=>{btn.textContent=o.textContent;btn.dataset.pick=o.dataset.id;drop2.classList.remove('is-open');}));
+      wrap.appendChild(sel); wrap.dataset.selKey=fd.key;
+    } else if (fd.kind === 'varType') {
+      const sel = document.createElement('div'); sel.className='md-custom-select'; sel.style.width='100%';
+      const cur = cfg.varType||'Text';
+      sel.innerHTML = `<button class="md-custom-select-btn">${cur}</button><div class="md-custom-select-drop">${CUSTOM_TYPES.map(t=>'<button class="md-custom-opt" data-id="'+t+'">'+t+'</button>').join('')}</div>`;
+      const btn=sel.querySelector('.md-custom-select-btn'), drop2=sel.querySelector('.md-custom-select-drop');
+      btn.addEventListener('click',e=>{e.stopPropagation();drop2.classList.toggle('is-open');});
+      drop2.querySelectorAll('.md-custom-opt').forEach(o=>o.addEventListener('click',()=>{btn.textContent=o.textContent;btn.dataset.pick=o.dataset.id;drop2.classList.remove('is-open');}));
+      wrap.appendChild(sel); wrap.dataset.selKey='varType';
     }
     body.appendChild(wrap);
   });
 
   const overlay = document.createElement('div');
-  overlay.className = 'md-modal-overlay'; overlay.style.zIndex = 200;
-  overlay.innerHTML = `<div class="md-modal" style="max-width:460px;max-height:80vh;overflow-y:auto;"><h3>Configure ${esc(title)}</h3><div id="cfg-fields"></div><div style="display:flex;gap:0.5rem;margin-top:0.9rem;"><button class="md-action-btn" id="cfg-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save</button><button class="md-action-btn" id="cfg-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button></div></div>`;
+  overlay.className = 'md-modal-overlay'; overlay.style.zIndex=200;
+  overlay.innerHTML = `<div class="md-modal" style="max-width:460px;max-height:80vh;overflow-y:auto;"><h3>${esc(title)}</h3><div id="cfg-fields"></div><div style="display:flex;gap:0.5rem;margin-top:0.9rem;"><button class="md-action-btn" id="cfg-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save</button><button class="md-action-btn" id="cfg-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button></div></div>`;
   overlay.querySelector('#cfg-fields').appendChild(body);
   document.body.appendChild(overlay);
   overlay.classList.add('is-open');
 
-  overlay.querySelector('#cfg-save').addEventListener('click', () => {
-    body.querySelectorAll('[data-cfg]').forEach(el => {
-      const k = el.dataset.cfg;
-      cfg[k] = el.type === 'number' ? (parseFloat(el.value)||0) : el.value;
-    });
-    body.querySelectorAll('[data-sel-key]').forEach(w => {
-      const btn = w.querySelector('.md-custom-select-btn');
-      if (btn && btn.dataset.pick) cfg[w.dataset.selKey] = btn.dataset.pick;
-    });
+  overlay.querySelector('#cfg-save').addEventListener('click',()=>{
+    body.querySelectorAll('[data-cfg]').forEach(el=>{cfg[el.dataset.cfg]=el.type==='number'?(parseFloat(el.value)||0):el.value;});
+    body.querySelectorAll('[data-sel-key]').forEach(w=>{const b=w.querySelector('.md-custom-select-btn');if(b&&b.dataset.pick)cfg[w.dataset.selKey]=b.dataset.pick;});
     overlay.remove(); renderAll();
   });
-  overlay.querySelector('#cfg-cancel').addEventListener('click', () => overlay.remove());
-  overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
+  overlay.querySelector('#cfg-cancel').addEventListener('click',()=>overlay.remove());
+  overlay.addEventListener('click', e=>{if(e.target===overlay) overlay.remove();});
 }
 
-// Palette drag → canvas
-document.querySelectorAll('.aut-palette-block').forEach(b => b.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', b.dataset.palette); }));
-const wrap = document.getElementById('aut-canvas-wrap');
-const canvas = document.getElementById('aut-canvas');
-[wrap, canvas].forEach(el => el.addEventListener('dragover', e => e.preventDefault()));
-canvas.addEventListener('drop', e => {
-  e.preventDefault();
+document.querySelectorAll('.aut-palette-block').forEach(b=>b.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',b.dataset.palette);}));
+const wrap2=CW(), canvas=CAN();
+[wrap2,canvas].forEach(el=>el.addEventListener('dragover',e=>e.preventDefault()));
+canvas.addEventListener('drop',e=>{e.preventDefault();
   const type = e.dataTransfer.getData('text/plain');
   if (!NODE_DEFS[type]) return;
-  const rect = wrap.getBoundingClientRect();
-  nodes.push(createNode(type, Math.max(0,e.clientX-rect.left-80), Math.max(0,e.clientY-rect.top-20)));
+  const rect = wrap2.getBoundingClientRect();
+  nodes.push(createNode(type, Math.max(0,e.clientX-rect.left+wrap2.scrollLeft-80), Math.max(0,e.clientY-rect.top+wrap2.scrollTop-20)));
   renderAll();
 });
-wrap.addEventListener('drop', e => { e.preventDefault(); });
+wrap2.addEventListener('drop',e=>e.preventDefault());
 
-// Palette auto-scroll on hover
-const palette = document.getElementById('aut-palette');
-let palTimer = null;
-palette.addEventListener('mousemove', e => {
-  const rect = palette.getBoundingClientRect();
-  const edge = 60, speed = 8;
+const palette=document.getElementById('aut-palette'); let palTimer=null;
+palette.addEventListener('mousemove',e=>{
+  const r=palette.getBoundingClientRect(); const edge=60,speed=8;
   clearInterval(palTimer);
-  if (e.clientX - rect.left < edge) palTimer = setInterval(() => palette.scrollLeft -= speed, 16);
-  else if (rect.right - e.clientX < edge) palTimer = setInterval(() => palette.scrollLeft += speed, 16);
+  if(e.clientX-r.left<edge) palTimer=setInterval(()=>palette.scrollLeft-=speed,16);
+  else if(r.right-e.clientX<edge) palTimer=setInterval(()=>palette.scrollLeft+=speed,16);
 });
-palette.addEventListener('mouseleave', () => clearInterval(palTimer));
+palette.addEventListener('mouseleave',()=>clearInterval(palTimer));
 
-// Save / Load
 async function saveGraph() {
+  if (!validateGraph()) return;
   const body = {nodes:nodes.map(n=>({...n})), connections:[...connections]};
   await api('/graph', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
   if(typeof showToast==='function') showToast('Graph saved.','success');
@@ -472,6 +556,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(!confirm('Clear everything?')) return;
     nodes=[]; connections=[]; nextId=1; renderAll();
   });
+  window.addEventListener('resize', () => updateSvgSize());
 });
 </script>
 {% endblock %}

@@ -146,7 +146,7 @@
         <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.7;">
           <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Kick</b> — removes each flagged new member.</div>
           <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Ban</b> — bans each flagged new member.</div>
-          <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Lockdown Server</b> — locks the server down: new members can't join and new members can't talk. Existing members are still handled by your moderation actions (kick / ban / mute) while it stays locked. Use Auto Recovery to re-open it.</div>
+          <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Lockdown Server</b> — locks the server down: active invites are deleted and everyone (new or existing) is blocked from sending messages and joining voice. Existing members are handled with your moderation actions (kick / ban / mute) while it stays locked. Use Auto Recovery to re-open it.</div>
           <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Require Verification</b> — locks the server and enables the verification panel so real members can prove they're human.</div>
         </div>
       </div>
@@ -303,7 +303,7 @@ function updateScoreSummary() {
   const msgs = {
     kick: 'New members whose score reaches ' + th + ' or more points are kicked on arrival.',
     ban: 'New members whose score reaches ' + th + ' or more points are banned on arrival.',
-    lockdown: 'When a new member\u2019s score reaches ' + th + ' or more points, the server is locked down to block the raid. Existing members are handled by your moderation actions while it stays locked.',
+    lockdown: 'When a new member\u2019s score reaches ' + th + ' or more points, the server is locked down: invites are deleted and everyone — new or existing — is blocked from sending messages and joining voice. Existing members are handled by your moderation actions while it stays locked.',
     verify: 'When a new member\u2019s score reaches ' + th + ' or more points, the server is locked down and verification is required.',
   };
   el.textContent = msgs[act] || msgs.kick;
@@ -311,15 +311,20 @@ function updateScoreSummary() {
 
 function setMode(mode, dirty) {
   document.querySelectorAll('[data-rp-mode]').forEach(b => b.classList.toggle('is-active', b.dataset.rpMode === mode));
-  // Class toggles trigger the masonry's MutationObserver (it watches 'class'
-  // on cards inside the row) so blocks reflow with uniform spacing.
   document.querySelectorAll('.rp-switch-block').forEach(el => el.classList.toggle('rp-hidden', mode !== 'switches'));
   document.querySelectorAll('.rp-score-block').forEach(el => el.classList.toggle('rp-hidden', mode !== 'score'));
   if (dirty) markChanged('mode', mode);
+  // Let the browser reflow, strip the masonry's inline positions (so hidden
+  // cards don't leave stale geometry behind), then rebuild the layout.
   requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      if (typeof window.relayoutMasonry === 'function') window.relayoutMasonry();
-    });
+    const row = document.querySelector('#raid-wrap .md-row');
+    if (row) {
+      Array.from(row.children).forEach(el => {
+        el.style.position = ''; el.style.top = ''; el.style.left = ''; el.style.width = '';
+      });
+      row.style.height = '';
+    }
+    if (typeof window.relayoutMasonry === 'function') window.relayoutMasonry();
   });
 }
 

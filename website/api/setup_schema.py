@@ -125,6 +125,12 @@ CREATE TABLE IF NOT EXISTS music_settings (
     updated_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
 );
 
+CREATE TABLE IF NOT EXISTS api_keys (
+    key_name    TEXT PRIMARY KEY,
+    value       TEXT NOT NULL DEFAULT '',
+    updated_at  DOUBLE PRECISION NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS welcome_settings (
     guild_id    TEXT PRIMARY KEY,
     settings    JSONB NOT NULL DEFAULT '{}',

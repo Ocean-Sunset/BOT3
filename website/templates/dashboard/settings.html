@@ -74,6 +74,14 @@
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">API Keys</div>
+        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:0.75rem;line-height:1.5;">Bot-level API keys — stored securely in the database. The bot reads them directly, <b>no Vercel env vars needed</b>.</p>
+        <div class="md-behavior-list" id="apikey-list"><div class="empty">Loading...</div></div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div class="md-section-title" style="color:#f87171;">Danger Zone</div>
         <div class="md-behavior-list">
           <div class="md-behavior-item" style="align-items:flex-start;">
@@ -138,6 +146,45 @@ document.addEventListener('DOMContentLoaded', () => {
       tag.textContent = 'Not linked';
       tag.className = 'set-tag off';
     }
+  }).catch(()=>{});
+
+  // ── API Keys ──
+  const KEY_LABELS = { openai:'OpenAI', groq:'Groq', openrouter:'OpenRouter' };
+  fetch('/api/v1/admin/api-keys').then(r=>r.json()).then(d => {
+    const el = document.getElementById('apikey-list');
+    const data = d.keys || {};
+    el.innerHTML = Object.keys(KEY_LABELS).map(k => {
+      const cur = data[k] || '';
+      const has = cur.length > 0;
+      return '<div class="md-behavior-item" style="align-items:flex-start;">' +
+        '<div style="flex:1">' +
+          '<div class="md-behavior-label">' + KEY_LABELS[k] + '</div>' +
+          '<div class="md-behavior-desc">' + (has ? '<code style="color:rgba(255,255,255,0.5);font-size:0.72rem;">' + data[k] + '</code>' : '<span style="color:rgba(255,255,255,0.25);">Not set</span>') + '</div>' +
+          '<div style="display:flex;gap:0.5rem;margin-top:0.5rem;">' +
+            '<input type="password" class="md-input" placeholder="sk-..." style="flex:1;" id="apikey-' + k + '" />' +
+            '<button type="button" class="md-action-btn" data-savekey="' + k + '" style="flex-shrink:0;padding:0.4rem 0.7rem;font-size:0.72rem;">' + (has ? 'Save' : 'Save') + '</button>' +
+            (has ? '<button type="button" class="md-action-btn danger" data-delkey="' + k + '" style="flex-shrink:0;padding:0.4rem 0.7rem;font-size:0.72rem;">Remove</button>' : '') +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    el.querySelectorAll('[data-savekey]').forEach(b => b.addEventListener('click', function(){
+      const k = this.dataset.savekey;
+      const v = document.getElementById('apikey-'+k).value.trim();
+      fetch('/api/v1/admin/api-keys', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key_name:k, value:v})})
+        .then(r=>r.json()).then(r => {
+          if (r.ok && showToast) showToast(KEY_LABELS[k]+' key '+(v?'saved.':'removed.'), 'success');
+          setTimeout(() => location.reload(), 600);
+        });
+    }));
+    el.querySelectorAll('[data-delkey]').forEach(b => b.addEventListener('click', function(){
+      const k = this.dataset.delkey;
+      fetch('/api/v1/admin/api-keys', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key_name:k, value:''})})
+        .then(r=>r.json()).then(r => {
+          if (r.ok && showToast) showToast(KEY_LABELS[k]+' key removed.', 'info');
+          setTimeout(() => location.reload(), 600);
+        });
+    }));
   }).catch(()=>{});
 
   const modal = document.getElementById('reset-modal');

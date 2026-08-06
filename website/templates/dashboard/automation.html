@@ -1,1 +1,296 @@
-{% extends "dashboard/base.html" %}{% block content %}<div style="padding:2rem 0;"><div style="margin-bottom:1.25rem;"><h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Automation</h1><p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Custom rules, triggers, and scheduled actions</p></div><div style="border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:1.25rem;background:rgba(255,255,255,0.015);text-align:center;"><p style="color:rgba(255,255,255,0.4);font-size:14px;font-weight:600;padding:4rem 0;">Coming soon.</p></div></div>{% endblock %}
+{% extends "dashboard/base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/moderation.css?v=16" />
+<style>
+.aut-rule { border:1px solid rgba(255,255,255,0.08); border-radius:4px; background:rgba(255,255,255,0.015); padding:0.9rem 1rem; margin-bottom:0.5rem; }
+.aut-rule-head { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; }
+.aut-rule-name { font-size:0.88rem; font-weight:800; letter-spacing:-0.01em; }
+.aut-rule-flow { display:flex; align-items:center; gap:0.4rem; font-size:0.72rem; color:rgba(255,255,255,0.4); margin-top:0.35rem; flex-wrap:wrap; }
+.aut-rule-flow .aut-tag { font-size:0.66rem; font-weight:800; text-transform:uppercase; letter-spacing:0.03em; padding:0.15rem 0.45rem; border-radius:999px; }
+.aut-rule-flow .aut-tag.trigger { color:#60a5fa; background:rgba(96,165,250,0.08); border:1px solid rgba(96,165,250,0.2); }
+.aut-rule-flow .aut-tag.action { color:#34d399; background:rgba(52,211,153,0.08); border:1px solid rgba(52,211,153,0.2); }
+.aut-rule-flow .aut-arrow { color:rgba(255,255,255,0.25); font-weight:700; }
+.aut-rule-actions { display:flex; gap:0.35rem; flex-shrink:0; }
+.aut-rule-actions button { padding:0.3rem 0.55rem; font-size:0.68rem; border-radius:4px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.6); cursor:pointer; font-family:inherit; font-weight:600; transition:all 0.15s; }
+.aut-rule-actions button:hover { color:#e9edf5; border-color:rgba(255,255,255,0.25); }
+.aut-rule-actions button.danger:hover { color:#f87171; border-color:rgba(248,113,113,0.3); }
+#welcomer-wrap.is-disabled .md-section:not(.am-master) { opacity:0.35; pointer-events:none; filter:grayscale(0.4); transition:opacity 0.25s ease, filter 0.25s ease; }
+#welcomer-wrap .md-section { transition:opacity 0.25s ease, filter 0.25s ease; }
+</style>
+<div id="automation-wrap">
+
+  <div style="margin-bottom:1rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+      <div>
+        <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Automation</h1>
+        <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Build custom automation rules — when X happens, do Y</p>
+      </div>
+      <button class="md-action-btn" id="aut-add-btn" style="padding:0.55rem 1rem;background:rgba(255,255,255,0.1);color:#e9edf5;justify-content:center;gap:0.5rem;"><i data-lucide="plus"></i> Add Rule</button>
+    </div>
+  </div>
+
+  <div class="md-row">
+
+    <div class="md-section" style="grid-column:1/-1;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Automation Rules</div>
+        <div id="aut-rules"><div class="empty">Loading...</div></div>
+        <div id="aut-empty" style="text-align:center;padding:2rem;color:rgba(255,255,255,0.25);font-size:0.8rem;display:none;">No rules yet — click Add Rule to create your first automation.</div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Feature Overrides</div>
+        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:0.75rem;line-height:1.5;">When you enable an override, the native feature page is disabled — edit it here instead.</p>
+        <div class="md-behavior-list" id="aut-overrides"><div class="empty">Loading...</div></div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">How Automation Works</div>
+        <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.7;">
+          <p style="margin-bottom:0.5rem;">Each rule has a <b style="color:rgba(255,255,255,0.65);">trigger</b> (something that happens) and an <b style="color:rgba(255,255,255,0.65);">action</b> (what Prowl does in response).</p>
+          <p style="margin-bottom:0.5rem;"><b style="color:#60a5fa;font-size:0.68rem;">Triggers:</b> Member Joins, Member Leaves, Message Contains, Message Starts With, Role Added, Role Removed.</p>
+          <p><b style="color:#34d399;font-size:0.68rem;">Actions:</b> Send Message, Send DM, Add Role, Remove Role, Kick, Ban, Timeout.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Rule editor modal -->
+<div class="md-modal-overlay" id="aut-modal">
+  <div class="md-modal" style="max-width:500px;max-height:85vh;overflow-y:auto;">
+    <h3 id="aut-modal-title">New Automation Rule</h3>
+    <div id="aut-form" style="display:flex;flex-direction:column;gap:0.75rem;margin:0.75rem 0;">
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Rule Name</div>
+        <input type="text" class="md-input" id="aut-name" placeholder="e.g. Welcome new members" />
+      </div>
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Trigger</div>
+        <div class="md-custom-select" id="aut-trigger-wrap">
+          <button class="md-custom-select-btn" id="aut-trigger-btn">Member Joins</button>
+          <div class="md-custom-select-drop" id="aut-trigger-drop"></div>
+        </div>
+      </div>
+      <div id="aut-trigger-cfg"></div>
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Action</div>
+        <div class="md-custom-select" id="aut-action-wrap">
+          <button class="md-custom-select-btn" id="aut-action-btn">Send Message</button>
+          <div class="md-custom-select-drop" id="aut-action-drop"></div>
+        </div>
+      </div>
+      <div id="aut-action-cfg"></div>
+    </div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="md-action-btn" id="aut-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save Rule</button>
+      <button class="md-action-btn" id="aut-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const GID = window.__GUILD_ID;
+const api = (path, opts={}) => fetch(`/api/v1/automation/${GID}${path}`, opts).then(r=>r.json());
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+
+const TRIGGERS = [
+  {value:'member_join', label:'Member Joins', cfg:'none'},
+  {value:'member_leave', label:'Member Leaves', cfg:'none'},
+  {value:'message_contains', label:'Message Contains', cfg:'text'},
+  {value:'message_starts', label:'Message Starts With', cfg:'text'},
+  {value:'role_added', label:'Role Added', cfg:'role'},
+  {value:'role_removed', label:'Role Removed', cfg:'role'},
+];
+const ACTIONS = [
+  {value:'send_message', label:'Send Message', cfg:'channel_text'},
+  {value:'send_dm', label:'Send DM', cfg:'text'},
+  {value:'add_role', label:'Add Role', cfg:'role'},
+  {value:'remove_role', label:'Remove Role', cfg:'role'},
+  {value:'kick', label:'Kick', cfg:'none'},
+  {value:'ban', label:'Ban', cfg:'none'},
+  {value:'mute', label:'Timeout', cfg:'duration'},
+];
+const OVERRIDES = [
+  {key:'welcomer', label:'Welcomer'},
+  {key:'verification', label:'Verification'},
+  {key:'leveling', label:'Leveling'},
+  {key:'moderation', label:'Auto-Mod Actions'},
+];
+
+let RULES = [], CHANNELS = [], ROLES = [], editingId = null;
+
+function triggerLabel(v) { return (TRIGGERS.find(x=>x.value===v)||{}).label||v; }
+function actionLabel(v) { return (ACTIONS.find(x=>x.value===v)||{}).label||v; }
+
+function field(label, id, placeholder, type='text') {
+  return '<div class="md-behavior-label" style="margin-bottom:0.25rem;margin-top:0.5rem;">'+label+'</div>' +
+    '<input type="'+type+'" class="md-input" id="'+id+'" placeholder="'+(placeholder||'')+'" style="width:100%;" />';
+}
+function selectField(label, id, opts) {
+  return '<div class="md-behavior-label" style="margin-bottom:0.25rem;margin-top:0.5rem;">'+label+'</div>' +
+    '<div class="md-custom-select" id="'+id+'-wrap"><button class="md-custom-select-btn" id="'+id+'-btn">Select...</button>' +
+    '<div class="md-custom-select-drop" id="'+id+'-drop">'+opts.map(o=>'<button class="md-custom-opt" data-id="'+o.id+'">'+esc(o.name)+'</button>').join('')+'</div></div>';
+}
+function bindSmallSelect(wrapId, btnId, dropId, onPick) {
+  const btn = document.getElementById(btnId), drop = document.getElementById(dropId);
+  if(!btn||!drop) return;
+  btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+  drop.querySelectorAll('.md-custom-opt').forEach(o => o.addEventListener('click', () => {
+    onPick(o); drop.classList.remove('is-open');
+  }));
+  document.addEventListener('click', e => { if(!e.target.closest('#'+wrapId)) drop.classList.remove('is-open'); });
+}
+
+function updateTriggerCfg() {
+  const v = document.getElementById('aut-trigger-btn').dataset.value || 'member_join';
+  const t = TRIGGERS.find(x=>x.value===v);
+  const el = document.getElementById('aut-trigger-cfg');
+  if (t && t.cfg==='text') el.innerHTML = field('Match Text','aut-tcfg-text','e.g. hello');
+  else if (t && t.cfg==='role') { el.innerHTML = selectField('Role','aut-tcfg-role',ROLES); bindSmallSelect('aut-tcfg-role-wrap','aut-tcfg-role-btn','aut-tcfg-role-drop', o => { document.getElementById('aut-tcfg-role-btn').textContent=o.textContent; document.getElementById('aut-tcfg-role-btn').dataset.id=o.dataset.id; }); }
+  else el.innerHTML = '';
+}
+
+function updateActionCfg() {
+  const v = document.getElementById('aut-action-btn').dataset.value || 'send_message';
+  const a = ACTIONS.find(x=>x.value===v);
+  const el = document.getElementById('aut-action-cfg');
+  if (a && a.cfg==='channel_text') el.innerHTML = selectField('Channel','aut-acfg-ch',CHANNELS) + field('Message','aut-acfg-text','e.g. Welcome {member}!');
+  else if (a && a.cfg==='text') el.innerHTML = field('Message','aut-acfg-text','e.g. Welcome!');
+  else if (a && a.cfg==='role') { el.innerHTML = selectField('Role','aut-acfg-role',ROLES); bindSmallSelect('aut-acfg-role-wrap','aut-acfg-role-btn','aut-acfg-role-drop', o => { document.getElementById('aut-acfg-role-btn').textContent=o.textContent; document.getElementById('aut-acfg-role-btn').dataset.id=o.dataset.id; }); }
+  else if (a && a.cfg==='duration') el.innerHTML = field('Duration (minutes)','aut-acfg-dur','60','number');
+  else el.innerHTML = '';
+  if (a && a.cfg==='channel_text') bindSmallSelect('aut-acfg-ch-wrap','aut-acfg-ch-btn','aut-acfg-ch-drop', o => { document.getElementById('aut-acfg-ch-btn').textContent='#'+o.textContent.replace(/^#/,''); document.getElementById('aut-acfg-ch-btn').dataset.id=o.dataset.id; });
+}
+
+function collectCfg() {
+  const triggerCfg = {}, actionCfg = {};
+  const tv = document.getElementById('aut-trigger-btn').dataset.value;
+  const av = document.getElementById('aut-action-btn').dataset.value;
+  const t = TRIGGERS.find(x=>x.value===tv), a = ACTIONS.find(x=>x.value===av);
+  if (t && t.cfg==='text') triggerCfg.text = document.getElementById('aut-tcfg-text')?.value||'';
+  if (t && t.cfg==='role') triggerCfg.role_id = document.getElementById('aut-tcfg-role-btn')?.dataset.id||'';
+  if (a && (a.cfg==='channel_text'||a.cfg==='text')) actionCfg.text = document.getElementById('aut-acfg-text')?.value||'';
+  if (a && a.cfg==='channel_text') actionCfg.channel_id = document.getElementById('aut-acfg-ch-btn')?.dataset.id||'';
+  if (a && a.cfg==='role') actionCfg.role_id = document.getElementById('aut-acfg-role-btn')?.dataset.id||'';
+  if (a && a.cfg==='duration') actionCfg.duration = parseInt(document.getElementById('aut-acfg-dur')?.value)||60;
+  return {trigger_cfg:triggerCfg, action_cfg:actionCfg};
+}
+
+function openEditor(id) {
+  editingId = id;
+  const existing = id ? RULES.find(r=>r.id===id) : null;
+  document.getElementById('aut-modal-title').textContent = existing ? 'Edit Rule' : 'New Rule';
+  document.getElementById('aut-name').value = existing ? (existing.name||'') : '';
+  document.getElementById('aut-trigger-btn').dataset.value = existing ? (existing.trigger_type||'member_join') : 'member_join';
+  document.getElementById('aut-trigger-btn').textContent = triggerLabel(existing ? existing.trigger_type : 'member_join');
+  document.getElementById('aut-action-btn').dataset.value = existing ? (existing.action_type||'send_message') : 'send_message';
+  document.getElementById('aut-action-btn').textContent = actionLabel(existing ? existing.action_type : 'send_message');
+  const tc = existing?.trigger_cfg||{}, ac = existing?.action_cfg||{};
+  updateTriggerCfg(); updateActionCfg();
+  setTimeout(() => {
+    if (tc.text) { const e=document.getElementById('aut-tcfg-text'); if(e) e.value=tc.text; }
+    if (tc.role_id) { const e=document.getElementById('aut-tcfg-role-btn'); if(e) { const r=ROLES.find(x=>String(x.id)===String(tc.role_id)); if(r) e.textContent=r.name; e.dataset.id=tc.role_id; } }
+    if (ac.text) { const e=document.getElementById('aut-acfg-text'); if(e) e.value=ac.text; }
+    if (ac.channel_id) { const e=document.getElementById('aut-acfg-ch-btn'); if(e) { const c=CHANNELS.find(x=>String(x.id)===String(ac.channel_id)); if(c) e.textContent='#'+c.name; e.dataset.id=ac.channel_id; } }
+    if (ac.role_id) { const e=document.getElementById('aut-acfg-role-btn'); if(e) { const r=ROLES.find(x=>String(x.id)===String(ac.role_id)); if(r) e.textContent=r.name; e.dataset.id=ac.role_id; } }
+    if (ac.duration) { const e=document.getElementById('aut-acfg-dur'); if(e) e.value=ac.duration; }
+  }, 50);
+  document.getElementById('aut-modal').classList.add('is-open');
+}
+
+function renderRules() {
+  const el = document.getElementById('aut-rules');
+  document.getElementById('aut-empty').style.display = RULES.length ? 'none' : '';
+  el.innerHTML = RULES.map(r => {
+    const cfg = (r.trigger_cfg||{});
+    const acfg = (r.action_cfg||{});
+    const tLabel = triggerLabel(r.trigger_type) + (cfg.text ? ' "'+cfg.text.slice(0,30)+'"' : '') + (cfg.role_id ? ' (role)' : '');
+    const aLabel = actionLabel(r.action_type) + (acfg.text ? ' "'+acfg.text.slice(0,30)+'"' : '') + (acfg.channel_id ? ' to #'+ (CHANNELS.find(c=>String(c.id)===String(acfg.channel_id))||{}).name||'' : '');
+    return '<div class="aut-rule"><div class="aut-rule-head"><div style="min-width:0;"><div class="aut-rule-name">'+esc(r.name||'Rule')+'</div>' +
+      '<div class="aut-rule-flow"><span class="aut-tag trigger">'+tLabel+'</span> <span class="aut-arrow">&rarr;</span> <span class="aut-tag action">'+aLabel+'</span></div></div>' +
+      '<div class="aut-rule-actions"><button onclick="openEditor('+r.id+')"><i data-lucide="pen-square"></i></button>' +
+      '<button class="danger" onclick="deleteRule('+r.id+')"><i data-lucide="trash-2"></i></button></div></div></div>';
+  }).join('') || '';
+  if(typeof lucide!=='undefined') lucide.createIcons();
+}
+
+async function deleteRule(id) {
+  if(!confirm('Delete this rule?')) return;
+  await api('/rules/'+id, {method:'DELETE'});
+  loadRules();
+}
+
+async function saveRule() {
+  const name = document.getElementById('aut-name').value.trim();
+  if (!name) { if(typeof showToast==='function') showToast('Name is required.','warning'); return; }
+  const trigger_type = document.getElementById('aut-trigger-btn').dataset.value;
+  const action_type = document.getElementById('aut-action-btn').dataset.value;
+  const {trigger_cfg, action_cfg} = collectCfg();
+  const body = {name, trigger_type, action_type, trigger_cfg, action_cfg};
+  if (editingId) {
+    await api('/rules/'+editingId, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  } else {
+    await api('/rules', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  }
+  document.getElementById('aut-modal').classList.remove('is-open');
+  loadRules();
+  if(typeof showToast==='function') showToast(editingId?'Rule updated.':'Rule created.','success');
+}
+
+function renderOverrides(ov) {
+  const el = document.getElementById('aut-overrides');
+  el.innerHTML = OVERRIDES.map(o => {
+    const on = ov && ov[o.key] === true;
+    return '<div class="md-behavior-item" style="justify-content:space-between;">' +
+      '<div><div class="md-behavior-label">'+o.label+'</div><div class="md-behavior-desc">Overrides the native '+o.label+' dashboard page</div></div>' +
+      '<label class="md-toggle"><input type="checkbox" data-ovr="'+o.key+'" '+(on?'checked':'')+' /><span class="md-toggle-slider"></span></label></div>';
+  }).join('');
+  el.querySelectorAll('[data-ovr]').forEach(cb => cb.addEventListener('change', function(){
+    const v = this.checked;
+    api('/overrides', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:this.dataset.ovr, value:v})});
+    if(typeof showToast==='function') showToast((OVERRIDES.find(x=>x.key===this.dataset.ovr)||{}).label+(v?' override enabled.':' override disabled.'), 'info');
+  }));
+}
+
+async function loadRules() {
+  await loadOverrides();
+  RULES = (await api('/rules')).rules||[];
+  CHANNELS = ((await api('/channels')).channels || []);
+  ROLES = ((await api('/roles')).roles || []);
+  renderRules();
+}
+async function loadOverrides() {
+  const d = (await api('/overrides')).overrides||{};
+  renderOverrides(d);
+}
+
+// Trigger / Action dropdowns
+function bindTypeSelect(wrapId, btnId, dropId, types, updateFn) {
+  const btn = document.getElementById(btnId), drop = document.getElementById(dropId);
+  drop.innerHTML = types.map(t => '<button class="md-custom-opt" data-value="'+t.value+'">'+t.label+'</button>').join('');
+  btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+  drop.querySelectorAll('.md-custom-opt').forEach(opt => opt.addEventListener('click', () => {
+    btn.textContent = opt.textContent; btn.dataset.value = opt.dataset.value;
+    drop.classList.remove('is-open'); updateFn();
+  }));
+  document.addEventListener('click', e => { if(!e.target.closest('#'+wrapId)) drop.classList.remove('is-open'); });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  bindTypeSelect('aut-trigger-wrap','aut-trigger-btn','aut-trigger-drop', TRIGGERS, updateTriggerCfg);
+  bindTypeSelect('aut-action-wrap','aut-action-btn','aut-action-drop', ACTIONS, updateActionCfg);
+  loadRules();
+  document.getElementById('aut-add-btn').addEventListener('click', () => openEditor(null));
+  document.getElementById('aut-save').addEventListener('click', saveRule);
+  document.getElementById('aut-cancel').addEventListener('click', () => document.getElementById('aut-modal').classList.remove('is-open'));
+  document.getElementById('aut-modal').addEventListener('click', e => { if(e.target===document.getElementById('aut-modal')) e.target.classList.remove('is-open'); });
+});
+</script>
+{% endblock %}

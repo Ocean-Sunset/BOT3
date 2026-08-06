@@ -3121,6 +3121,49 @@ async def server_reset(guild_id: str, request: Request):
 
 
 # ---------------------------------------------------------------------------
+#  API Keys (global — stored in DB, bot reads them, no Vercel needed)
+# ---------------------------------------------------------------------------
+
+_API_KEY_NAMES = ("openai", "groq", "openrouter")
+
+
+def _mask_key(v: str) -> str:
+    if not v:
+        return ""
+    return v[:4] + "\u2026" + v[-4:] if len(v) > 8 else "\u2026"
+
+
+@app.get("/api/v1/admin/api-keys")
+async def get_api_keys(request: Request):
+    await require_auth(request)
+    rows = await query("SELECT key_name, value FROM api_keys")
+    data = {r["key_name"]: _mask_key(r["value"]) for r in rows}
+    for k in _API_KEY_NAMES:
+        if k not in data:
+            data[k] = ""
+    return {"keys": data}
+
+
+@app.post("/api/v1/admin/api-keys")
+async def set_api_key(request: Request):
+    await require_auth(request)
+    body = await request.json()
+    key_name = body.get("key_name", "")
+    value = (body.get("value") or "").strip()
+    if key_name not in _API_KEY_NAMES:
+        return JSONResponse({"error": "invalid key_name"}, status_code=400)
+    if not value:
+        await execute("DELETE FROM api_keys WHERE key_name = $1", key_name)
+    else:
+        await execute(
+            "INSERT INTO api_keys (key_name, value, updated_at) VALUES ($1, $2, $3) "
+            "ON CONFLICT (key_name) DO UPDATE SET value = $2, updated_at = $3",
+            key_name, value, time.time(),
+        )
+    return {"ok": True, "key_name": key_name, "masked": _mask_key(value) if value else ""}
+
+
+# ---------------------------------------------------------------------------
 #  Music API v1
 # ---------------------------------------------------------------------------
 
@@ -3237,6 +3280,172 @@ async def ai_channels(guild_id: str, request: Request):
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
     return {"channels": []}
+
+
+# ---------------------------------------------------------------------------
+#  Automation API v1
+# ---------------------------------------------------------------------------
+
+_AUTOMATION_RULES_TABLE = """
+CREATE TABLE IF NOT EXISTS automation_rules (
+    id SERIAL PRIMARY KEY,
+    guild_id TEXT NOT NULL,
+    name TEXT NOT NULL DEFAULT '',
+    trigger_type TEXT NOT NULL DEFAULT 'member_join',
+    trigger_cfg JSONB NOT NULL DEFAULT '{}',
+    action_type TEXT NOT NULL DEFAULT 'send_message',
+    action_cfg JSONB NOT NULL DEFAULT '{}',
+    created_at DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+);
+CREATE INDEX IF NOT EXISTS idx_automation_rules_guild ON automation_rules (guild_id);
+"""
+
+_AUTOMATION_OVERRIDES_TABLE = """
+CREATE TABLE IF NOT EXISTS automation_overrides (
+    guild_id TEXT NOT NULL,
+    feature TEXT NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now())),
+    PRIMARY KEY (guild_id, feature)
+);
+"""
+
+VALID_TRIGGERS = ("member_join", "member_leave", "message_contains", "message_starts", "role_added", "role_removed")
+VALID_ACTIONS = ("send_message", "send_dm", "add_role", "remove_role", "kick", "ban", "mute")
+
+
+async def _ensure_automation_tables():
+    try:
+        await execute(_AUTOMATION_RULES_TABLE)
+    except Exception:
+        pass
+    try:
+        await execute(_AUTOMATION_OVERRIDES_TABLE)
+    except Exception:
+        pass
+
+
+@app.get("/api/v1/automation/{guild_id}/rules")
+async def automation_rules_get(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    rows = await query(
+        "SELECT id, name, trigger_type, trigger_cfg, action_type, action_cfg FROM automation_rules "
+        "WHERE guild_id = $1 ORDER BY created_at ASC",
+        str(guild_id),
+    )
+    rules = []
+    for r in rows:
+        rules.append({
+            "id": r["id"],
+            "name": r["name"],
+            "trigger_type": r["trigger_type"],
+            "trigger_cfg": r["trigger_cfg"] if isinstance(r["trigger_cfg"], dict) else json.loads(r["trigger_cfg"] or "{}"),
+            "action_type": r["action_type"],
+            "action_cfg": r["action_cfg"] if isinstance(r["action_cfg"], dict) else json.loads(r["action_cfg"] or "{}"),
+        })
+    return {"rules": rules}
+
+
+@app.post("/api/v1/automation/{guild_id}/rules")
+async def automation_rule_add(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    await _ensure_automation_tables()
+    body = await request.json()
+    name = str(body.get("name", "") or "").strip()[:100]
+    trigger_type = body.get("trigger_type", "")
+    action_type = body.get("action_type", "")
+    trigger_cfg = body.get("trigger_cfg", {})
+    action_cfg = body.get("action_cfg", {})
+    if not name or trigger_type not in VALID_TRIGGERS or action_type not in VALID_ACTIONS:
+        return JSONResponse({"error": "invalid name, trigger_type or action_type"}, status_code=400)
+    row = await query(
+        "INSERT INTO automation_rules (guild_id, name, trigger_type, trigger_cfg, action_type, action_cfg) "
+        "VALUES ($1,$2,$3,$4::jsonb,$5,$6::jsonb) RETURNING id",
+        str(guild_id), name, trigger_type, json.dumps(trigger_cfg), action_type, json.dumps(action_cfg),
+    )
+    return {"ok": True, "id": row[0]["id"] if row else None}
+
+
+@app.put("/api/v1/automation/{guild_id}/rules/{rule_id}")
+async def automation_rule_edit(guild_id: str, rule_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    await _ensure_automation_tables()
+    body = await request.json()
+    name = str(body.get("name", "") or "").strip()[:100]
+    trigger_type = body.get("trigger_type", "")
+    action_type = body.get("action_type", "")
+    trigger_cfg = body.get("trigger_cfg", {})
+    action_cfg = body.get("action_cfg", {})
+    if not name or trigger_type not in VALID_TRIGGERS or action_type not in VALID_ACTIONS:
+        return JSONResponse({"error": "invalid name, trigger_type or action_type"}, status_code=400)
+    try:
+        rid = int(rule_id)
+    except (TypeError, ValueError):
+        return JSONResponse({"error": "invalid id"}, status_code=400)
+    await execute(
+        "UPDATE automation_rules SET name=$1, trigger_type=$2, trigger_cfg=$3::jsonb, action_type=$4, action_cfg=$5::jsonb "
+        "WHERE id=$6 AND guild_id=$7",
+        name, trigger_type, json.dumps(trigger_cfg), action_type, json.dumps(action_cfg), rid, str(guild_id),
+    )
+    return {"ok": True}
+
+
+@app.delete("/api/v1/automation/{guild_id}/rules/{rule_id}")
+async def automation_rule_delete(guild_id: str, rule_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    try:
+        rid = int(rule_id)
+    except (TypeError, ValueError):
+        return JSONResponse({"error": "invalid id"}, status_code=400)
+    await execute("DELETE FROM automation_rules WHERE id=$1 AND guild_id=$2", rid, str(guild_id))
+    return {"ok": True}
+
+
+@app.get("/api/v1/automation/{guild_id}/overrides")
+async def automation_overrides_get(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    rows = await query(
+        "SELECT feature, enabled FROM automation_overrides WHERE guild_id = $1",
+        str(guild_id),
+    )
+    return {"overrides": {r["feature"]: r["enabled"] for r in rows}}
+
+
+@app.post("/api/v1/automation/{guild_id}/overrides")
+async def automation_overrides_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    await _ensure_automation_tables()
+    body = await request.json()
+    key = body.get("key", "")
+    value = bool(body.get("value"))
+    if not key:
+        return JSONResponse({"error": "missing key"}, status_code=400)
+    await execute(
+        "INSERT INTO automation_overrides (guild_id, feature, enabled, updated_at) "
+        "VALUES ($1, $2, $3, $4) ON CONFLICT (guild_id, feature) DO UPDATE SET enabled=$3, updated_at=$4",
+        str(guild_id), key, value, time.time(),
+    )
+    return {"ok": True}
+
+
+@app.get("/api/v1/automation/{guild_id}/channels")
+async def automation_channels(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "channels" in d:
+        return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
+    return {"channels": []}
+
+
+@app.get("/api/v1/automation/{guild_id}/roles")
+async def automation_roles(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "roles" in d:
+        return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
+    return {"roles": []}
 
 
 if __name__ == "__main__":

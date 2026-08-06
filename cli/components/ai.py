@@ -10,20 +10,31 @@ from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
-from Ediscord.variables import OPENAI_API_KEY
 
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 
-if OPENROUTER_API_KEY:
-    _api_key = OPENROUTER_API_KEY
-    _api_base = "https://openrouter.ai/api/v1"
-elif GROQ_API_KEY:
-    _api_key = GROQ_API_KEY
-    _api_base = "https://api.groq.com/openai/v1"
-else:
-    _api_key = OPENAI_API_KEY
-    _api_base = "https://api.openai.com/v1"
+async def _resolve_key():
+    """Pick the active API key: DB first, then env vars (openrouter > groq > openai)."""
+    for name in ("openrouter", "groq", "openai"):
+        try:
+            pool = await neon_db.get_pool()
+            if pool:
+                row = await pool.fetchrow("SELECT value FROM api_keys WHERE key_name = $1", name)
+                if row and row["value"]:
+                    return row["value"], name
+        except Exception:
+            pass
+        env = os.environ.get(f"{name.upper()}_API_KEY", "")
+        if env:
+            return env, name
+    return "", ""
+
+
+async def _resolve_base(provider):
+    if provider == "openrouter":
+        return "https://openrouter.ai/api/v1"
+    if provider == "groq":
+        return "https://api.groq.com/openai/v1"
+    return "https://api.openai.com/v1"
 
 
 AI_DEFAULTS = {
@@ -66,7 +77,8 @@ class AI(commands.Cog, name="AI"):
     @ai_group.command(name="chat", description="Chat with the AI")
     @app_commands.describe(prompt="What you want to say to the AI")
     async def chat(self, interaction: discord.Interaction, prompt: str):
-        if not _api_key:
+        api_key, provider = await _resolve_key()
+        if not api_key:
             return await interaction.response.send_message(
                 embed=EmbedBuilder().title("AI Not Configured").description("No API key set. Contact the bot owner.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
@@ -106,10 +118,11 @@ class AI(commands.Cog, name="AI"):
         messages = [{"role": "system", "content": system_prompt}] + self.sessions[guild_id][-20:]
 
         try:
+            api_base = await _resolve_base(provider)
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    _api_base + "/chat/completions",
-                    headers={"Authorization": f"Bearer {_api_key}", "Content-Type": "application/json"},
+                    api_base + "/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
                     json={"model": model, "messages": messages, "max_tokens": max_tokens, "temperature": temperature},
                 ) as resp:
                     if resp.status != 200:
@@ -156,7 +169,8 @@ class AI(commands.Cog, name="AI"):
     @ai_group.command(name="imagine", description="Generate an image from a text prompt")
     @app_commands.describe(prompt="Describe the image you want to generate")
     async def imagine(self, interaction: discord.Interaction, prompt: str):
-        if not _api_key:
+        api_key, _ = await _resolve_key()
+        if not api_key:
             return await interaction.response.send_message(
                 embed=EmbedBuilder().title("AI Not Configured").description("No API key set.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True

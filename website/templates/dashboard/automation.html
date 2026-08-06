@@ -90,13 +90,17 @@
     <div class="aut-palette-block" data-palette="set_nickname" draggable="true">Set Nickname</div>
     <span class="aut-palette-label" style="margin-left:0.75rem;">Flow</span>
     <div class="aut-palette-block" data-palette="repeat" draggable="true">Repeat Loop</div>
+    <div class="aut-palette-block" data-palette="wait_for" draggable="true">Wait For</div>
+    <div class="aut-palette-block" data-palette="end_block" draggable="true">End</div>
     <span class="aut-palette-label" style="margin-left:0.75rem;">System</span>
     <div class="aut-palette-block" data-palette="sys_text" draggable="true">Text (sys)</div>
     <div class="aut-palette-block" data-palette="sys_number" draggable="true">Number (sys)</div>
     <div class="aut-palette-block" data-palette="sys_role" draggable="true">Role (sys)</div>
     <div class="aut-palette-block" data-palette="sys_channel" draggable="true">Channel (sys)</div>
     <span class="aut-palette-label" style="margin-left:0.75rem;">Custom</span>
-    <div class="aut-palette-block" data-palette="custom_var" draggable="true">Variable</div>
+    <div class="aut-palette-block" data-palette="set_var" draggable="true">Set Variable</div>
+    <div class="aut-palette-block" data-palette="modify_var" draggable="true">Modify Variable</div>
+    <div class="aut-palette-block" data-palette="list_var" draggable="true">Custom List</div>
     <span class="aut-palette-label" style="margin-left:0.75rem;">Lists</span>
     <div class="aut-palette-block" data-palette="list_members" draggable="true">Member List</div>
     <div class="aut-palette-block" data-palette="list_roles" draggable="true">Role List</div>
@@ -139,11 +143,15 @@ const NODE_DEFS = {
   set_nickname:    { label:'Set Nickname', kind:'action', fields:[{key:'text', label:'Nickname', kind:'text'}] },
   send_ticket:     { label:'Open Ticket', kind:'action', fields:[{key:'channel_id', label:'Category', kind:'channel'},{key:'text', label:'Reason', kind:'text'}] },
   repeat:          { label:'Repeat Loop', kind:'flow', fields:[{key:'count', label:'Times', kind:'number'}] },
+  wait_for:        { label:'Wait For', kind:'flow', fields:[{key:'waitType', label:'Type', kind:'waitType'},{key:'duration', label:'Seconds', kind:'number'}] },
+  end_block:       { label:'End', kind:'flow' },
   sys_text:        { label:'Text (system)', kind:'variable', isSys:true },
   sys_number:      { label:'Number (system)', kind:'variable', isSys:true },
   sys_role:        { label:'Role (system)', kind:'variable', isSys:true },
   sys_channel:     { label:'Channel (system)', kind:'variable', isSys:true },
-  custom_var:      { label:'Variable', kind:'variable', isCustom:true, fields:[{key:'name', label:'Variable Name', kind:'text'},{key:'varType', label:'Type', kind:'varType'},{key:'value', label:'Value', kind:'text'}] },
+  set_var:         { label:'Set Variable', kind:'variable', isCustom:true, fields:[{key:'name', label:'Variable Name', kind:'text'},{key:'varType', label:'Type', kind:'varType'},{key:'value', label:'Value', kind:'text'}] },
+  modify_var:      { label:'Modify Variable', kind:'variable', isCustom:true, fields:[{key:'name', label:'Target Variable', kind:'text'},{key:'modOp', label:'Operation', kind:'modOp'},{key:'value', label:'Value', kind:'text'}] },
+  list_var:        { label:'Custom List', kind:'variable', isList:true, fields:[{key:'name', label:'List Name', kind:'text'},{key:'items', label:'Items (one per line)', kind:'text'}] },
   list_members:    { label:'Member List', kind:'variable', isList:true },
   list_roles:      { label:'Role List', kind:'variable', isList:true },
   list_channels:   { label:'Channel List', kind:'variable', isList:true },
@@ -166,14 +174,16 @@ let connOrigin=null, connOrigDot='out', connOrigX=0, connOrigY=0;
 const CW = () => document.getElementById('aut-canvas-wrap');
 const CAN = () => document.getElementById('aut-canvas');
 
-function createNode(type,x,y) { return {id:nextId++,type,x,y,config:{}}; }
-function isVar(n) { const d=NODE_DEFS[n.type]; return d && d.kind==='variable'; }
-function isTrigger(n) { const d=NODE_DEFS[n.type]; return d && d.kind==='trigger'; }
+function createNode(type,x,y) { return {id:nextId++,type:nodeType(type),x,y,config:{}}; }
+function isVar(n) { const d=NODE_DEFS[nodeType(n.type)]; return d && d.kind==='variable'; }
+function isTrigger(n) { const d=NODE_DEFS[nodeType(n.type)]; return d && d.kind==='trigger'; }
 
 function varRef(n) {
-  if (n.type==='custom_var') return n.config.name ? '${var:'+esc(n.config.name)+'}' : '';
+  if (n.type==='set_var'||n.type==='custom_var') return n.config.name ? '${var:'+n.config.name+'}' : '';
   return '${var:'+n.id+'}';
 }
+
+function nodeType(t) { const a={text_var:'sys_text',number_var:'sys_number',role_var:'sys_role',channel_var:'sys_channel',custom_var:'set_var'}; return a[t]||t; }
 
 function nodeSummary(n) {
   const cfg=n.config||{};
@@ -186,7 +196,11 @@ function nodeSummary(n) {
     case 'set_nickname': return esc(cfg.text||'');
     case 'message_contains': case 'message_starts': return esc(cfg.text||'');
     case 'repeat': return 'x'+(cfg.count||1)+' times';
-    case 'custom_var': return (cfg.name||'unnamed')+' = '+esc(cfg.value||'…');
+    case 'wait_for': return (cfg.waitType==='condition'?'Until true':(cfg.duration||5)+'s');
+    case 'end_block': return '—';
+    case 'set_var': case 'custom_var': return (cfg.name||'unnamed')+' = '+esc(cfg.value||'…');
+    case 'modify_var': return (cfg.name||'unnamed')+' '+(({set:'=',add:'+'})[cfg.modOp]||'?')+' '+esc(cfg.value||'…');
+    case 'list_var': return (cfg.name||'list')+' ('+((cfg.items||'').split('\n').filter(Boolean).length)+' items)';
     case 'sys_role': return 'role...';
     case 'sys_channel': return 'channel...';
     case 'sys_text': return 'text...';
@@ -196,7 +210,7 @@ function nodeSummary(n) {
 }
 
 function renderNodeDots(n) {
-  const def = NODE_DEFS[n.type]||{};
+  const def = NODE_DEFS[nodeType(n.type)]||{};
   const k = def.kind;
   let dots = '';
   if (n.type==='repeat') {
@@ -204,14 +218,15 @@ function renderNodeDots(n) {
     dots += '<div class="aut-node-dot out-body" data-connect="out" title="Loop body"></div>';
     dots += '<div class="aut-node-dot out-next" data-connect="out-next" title="After loop"></div>';
   } else {
-    if (k==='action'||k==='flow'||k==='trigger') dots += '<div class="aut-node-dot in" data-connect="in"></div>';
-    if (k==='trigger'||k==='action'||k==='variable') dots += '<div class="aut-node-dot out" data-connect="out"></div>';
+    if (n.type==='end_block') { dots = '<div class="aut-node-dot in" data-connect="in"></div>'; }
+    else if (k==='action'||k==='flow'||k==='trigger') dots += '<div class="aut-node-dot in" data-connect="in"></div>';
+    if (n.type!=='end_block'&&(k==='trigger'||k==='action'||k==='variable')) dots += '<div class="aut-node-dot out" data-connect="out"></div>';
   }
   return dots;
 }
 
 function renderNode(n) {
-  const def = NODE_DEFS[n.type]||{label:n.type,kind:'action'};
+  const def = NODE_DEFS[nodeType(n.type)]||{label:n.type,kind:'action'};
   const kind = def.kind;
   const tagClass = kind==='trigger'?'trigger':kind==='variable'?(def.isList?'list':'var'):'action';
   const tagLabel = kind==='trigger'?'TRIGGER':kind==='variable'?(def.isList?'LIST':'VAR'):kind==='flow'?'LOOP':'ACTION';
@@ -250,7 +265,7 @@ function getConnectPos(canvas, nodeId, which) {
   if (which==='in') return {x:cx, y:el.offsetTop - 7};
   // out / out-body / out-next
   const dot = el.querySelector(`[data-connect="${which}"]`);
-  if (dot) return {x:el.offsetLeft+dot.offsetLeft+6, y:el.offsetTop+dot.offsetTop+6};
+  if (dot) return {x:el.offsetLeft+dot.offsetLeft, y:el.offsetTop+dot.offsetTop+6};
   return {x:cx, y:el.offsetTop+el.offsetHeight+7};
 }
 
@@ -429,7 +444,8 @@ function boardVarOptions() {
 }
 
 function configureNode(n) {
-  const def = NODE_DEFS[n.type]||{label:n.type,kind:'action'};
+  const t = nodeType(n.type);
+  const def = NODE_DEFS[t]||{label:n.type,kind:'action'};
   const cfg = n.config||{};
   const fields = def.fields||[];
   const title = (isVar(n) ? varRef(n) + ' — ' : '') + def.label;
@@ -494,6 +510,24 @@ function configureNode(n) {
       btn.addEventListener('click',e=>{e.stopPropagation();drop2.classList.toggle('is-open');});
       drop2.querySelectorAll('.md-custom-opt').forEach(o=>o.addEventListener('click',()=>{btn.textContent=o.textContent;btn.dataset.pick=o.dataset.id;drop2.classList.remove('is-open');}));
       wrap.appendChild(sel); wrap.dataset.selKey='varType';
+    } else if (fd.kind === 'waitType') {
+      const opts=[['time','Timer (seconds)'],['condition','Condition']];
+      const sel=document.createElement('div');sel.className='md-custom-select';sel.style.width='100%';
+      const cur=cfg.waitType||'time';
+      sel.innerHTML=`<button class="md-custom-select-btn">${opts.find(o=>o[0]===cur)[1]}</button><div class="md-custom-select-drop">${opts.map(o=>'<button class="md-custom-opt" data-id="'+o[0]+'">'+o[1]+'</button>').join('')}</div>`;
+      const btn=sel.querySelector('.md-custom-select-btn'),drop2=sel.querySelector('.md-custom-select-drop');
+      btn.addEventListener('click',e=>{e.stopPropagation();drop2.classList.toggle('is-open');});
+      drop2.querySelectorAll('.md-custom-opt').forEach(o=>o.addEventListener('click',()=>{btn.textContent=opts.find(x=>x[0]===o.dataset.id)[1];btn.dataset.pick=o.dataset.id;drop2.classList.remove('is-open');}));
+      wrap.appendChild(sel);wrap.dataset.selKey='waitType';
+    } else if (fd.kind === 'modOp') {
+      const opts=[['set','Set'],['add','Add']];
+      const sel=document.createElement('div');sel.className='md-custom-select';sel.style.width='100%';
+      const cur=cfg.modOp||'set';
+      sel.innerHTML=`<button class="md-custom-select-btn">${opts.find(o=>o[0]===cur)[1]}</button><div class="md-custom-select-drop">${opts.map(o=>'<button class="md-custom-opt" data-id="'+o[0]+'">'+o[1]+'</button>').join('')}</div>`;
+      const btn=sel.querySelector('.md-custom-select-btn'),drop2=sel.querySelector('.md-custom-select-drop');
+      btn.addEventListener('click',e=>{e.stopPropagation();drop2.classList.toggle('is-open');});
+      drop2.querySelectorAll('.md-custom-opt').forEach(o=>o.addEventListener('click',()=>{btn.textContent=opts.find(x=>x[0]===o.dataset.id)[1];btn.dataset.pick=o.dataset.id;drop2.classList.remove('is-open');}));
+      wrap.appendChild(sel);wrap.dataset.selKey='modOp';
     }
     body.appendChild(wrap);
   });
@@ -544,7 +578,7 @@ async function saveGraph() {
 async function loadGraph() {
   try {
     const d = await api('/graph');
-    if (d.nodes&&d.nodes.length) { nodes = d.nodes; nextId = Math.max(...nodes.map(n=>n.id),0)+1; connections = d.connections||[]; renderAll(); }
+    if (d.nodes&&d.nodes.length) { nodes = d.nodes.map(n=>({...n,type:nodeType(n.type)})); nextId = Math.max(...nodes.map(n=>n.id),0)+1; connections = d.connections||[]; renderAll(); }
   } catch(e) {}
 }
 

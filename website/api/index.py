@@ -545,6 +545,11 @@ async def privacy(request: Request):
     return templates.TemplateResponse(request, "privacy.html", {"config": _cfg()})
 
 
+@app.get("/changelog", response_class=HTMLResponse)
+async def changelog(request: Request):
+    return templates.TemplateResponse(request, "changelog.html", {"config": _cfg()})
+
+
 @app.get("/status", response_class=HTMLResponse)
 async def status_page(request: Request):
     return templates.TemplateResponse(request, "status.html", {"config": _cfg()})
@@ -597,6 +602,27 @@ def _github_redirect_uri(request: Request) -> str:
     if not proto:
         proto = "https" if "prowlbot.xyz" in host else "http"
     return f"{proto}://{host}/callback/github"
+
+
+@app.get("/login/nerimity")
+async def login_nerimity():
+    """Nerimity OAuth sign-in — placeholder until the Nerimity backend is built."""
+    nerimity_id = os.environ.get("NERIMITY_CLIENT_ID", "")
+    if not nerimity_id:
+        return HTMLResponse(
+            "<html><body style='background:#0a0a0a;color:#e9edf5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;'>"
+            "<div style='text-align:center;'><h2>Nerimity sign-in is coming soon</h2>"
+            "<p style='color:#888;'>We're building the Nerimity backend — check back later!</p>"
+            "<p><a href='/' style='color:#a78bfa;'>← Back to Prowl</a></p></div></body></html>",
+            status_code=200,
+        )
+    redirect_uri = os.environ.get("NERIMITY_REDIRECT_URI", "http://localhost:8000/callback/nerimity")
+    params = urllib.parse.urlencode({
+        "client_id": nerimity_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+    })
+    return RedirectResponse(f"https://nerimity.com/oauth2/authorize?{params}")
 
 
 @app.get("/login/github")
@@ -3117,6 +3143,31 @@ async def server_reset(guild_id: str, request: Request):
             deleted += 1
         except Exception:
             pass
+    return {"ok": True, "tables_cleared": deleted}
+
+
+_ALL_REMOVE_TABLES = ALL_FEATURE_TABLES + (
+    "guild_data", "automation_graph", "guild_stats_history",
+    "automation_runs", "automation_logs", "captcha_codes",
+)
+
+
+@app.post("/api/v1/server/{guild_id}/remove")
+async def server_remove(guild_id: str, request: Request):
+    """Completely remove this server from Prowl: wipe every row + make the bot leave."""
+    user = await require_guild_access(request, guild_id)
+    deleted = 0
+    for table in _ALL_REMOVE_TABLES:
+        try:
+            await execute("DELETE FROM " + table + " WHERE guild_id = $1", str(guild_id))
+            deleted += 1
+        except Exception:
+            pass
+    # Queue Prowl to leave the server (same path as account deletion)
+    try:
+        await _queue_action(str(guild_id), "leave_guild", str(user.get("id")), user.get("username", "Unknown"), "Server removed from Prowl", None, "System")
+    except Exception:
+        pass
     return {"ok": True, "tables_cleared": deleted}
 
 

@@ -91,6 +91,13 @@
               <button class="md-action-btn danger" id="set-reset-btn" style="margin-top:0.5rem;justify-content:center;padding:0.5rem 1rem;"><i data-lucide="trash-2"></i> Reset Everything</button>
             </div>
           </div>
+          <div class="md-behavior-item" style="align-items:flex-start;">
+            <div style="flex:1">
+              <div class="md-behavior-label">Remove server from Prowl</div>
+              <div class="md-behavior-desc">Deletes every trace of this server from Prowl's database and makes the bot leave the server.</div>
+              <button class="md-action-btn danger" id="set-remove-btn" style="margin-top:0.5rem;justify-content:center;padding:0.5rem 1rem;"><i data-lucide="log-out"></i> Remove Server</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -108,6 +115,20 @@
     <div style="display:flex;flex-direction:column;gap:0.5rem;">
       <button class="md-action-btn danger" id="reset-confirm" style="width:100%;justify-content:center;padding:0.6rem;">Yes, reset everything</button>
       <button class="md-action-btn" id="reset-cancel" style="width:100%;justify-content:center;padding:0.6rem;color:rgba(255,255,255,0.4);">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="md-modal-overlay" id="remove-modal">
+  <div class="md-modal" style="max-width:440px;text-align:center;">
+    <div style="width:56px;height:56px;border-radius:50%;background:rgba(248,113,113,0.12);border:1px solid rgba(248,113,113,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 0.9rem;">
+      <i data-lucide="log-out" style="width:26px;height:26px;color:#f87171;"></i>
+    </div>
+    <h3 style="font-size:1.1rem;font-weight:900;letter-spacing:-0.02em;">Remove this server from Prowl?</h3>
+    <p style="font-size:0.8rem;color:rgba(255,255,255,0.5);margin:0.5rem 0 1rem;line-height:1.55;">This will <b style="color:rgba(255,255,255,0.8);">permanently delete every trace of this server</b> from Prowl's database and <b style="color:rgba(255,255,255,0.8);">Prowl will leave the server</b>. This action <b style="color:rgba(255,255,255,0.8);">cannot be undone</b>.</p>
+    <div style="display:flex;flex-direction:column;gap:0.5rem;">
+      <button class="md-action-btn" id="remove-cancel" style="width:100%;justify-content:center;padding:0.6rem;color:rgba(255,255,255,0.4);">Cancel</button>
+      <button class="md-action-btn danger" id="remove-confirm" style="width:100%;justify-content:center;padding:0.6rem;">Yes, remove this server</button>
     </div>
   </div>
 </div>
@@ -203,6 +224,26 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch(e) {}
     btn.disabled = false; btn.textContent = 'Yes, reset everything';
     modal.classList.remove('is-open');
+  });
+
+  const rmodal = document.getElementById('remove-modal');
+  document.getElementById('set-remove-btn').addEventListener('click', () => rmodal.classList.add('is-open'));
+  document.getElementById('remove-cancel').addEventListener('click', () => rmodal.classList.remove('is-open'));
+  rmodal.addEventListener('click', e => { if (e.target === rmodal) rmodal.classList.remove('is-open'); });
+  document.getElementById('remove-confirm').addEventListener('click', async () => {
+    const btn = document.getElementById('remove-confirm');
+    btn.disabled = true; btn.textContent = 'Removing...';
+    try {
+      const res = await fetch(`/api/v1/server/${GID}/remove`, {method:'POST'});
+      if (res.ok) {
+        if (typeof showToast === 'function') showToast('Server removed. Prowl is leaving it now.', 'success');
+        setTimeout(() => { window.location.href = '/servers'; }, 2000);
+      } else {
+        if (typeof showToast === 'function') showToast('Failed to remove the server.', 'error');
+      }
+    } catch(e) { if (typeof showToast === 'function') showToast('Network error.', 'error'); }
+    btn.disabled = false; btn.textContent = 'Yes, remove this server';
+    rmodal.classList.remove('is-open');
   });
 });
 </script>

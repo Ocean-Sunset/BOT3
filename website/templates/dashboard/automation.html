@@ -2,7 +2,7 @@
 {% block content %}
 <link rel="stylesheet" href="/static/moderation.css?v=15" />
 <style>
-#aut-canvas-wrap { position:relative; flex:1; border:1px solid rgba(255,255,255,0.08); border-radius:6px; background:rgba(10,10,10,0.6); overflow:auto; }
+#aut-canvas-wrap { position:relative; height:calc(100vh - 320px); min-height:380px; border:1px solid rgba(255,255,255,0.08); border-radius:6px; background:rgba(10,10,10,0.6); overflow:auto; }
 #aut-canvas-wrap::-webkit-scrollbar { width:10px; height:10px; }
 #aut-canvas-wrap::-webkit-scrollbar-track { background:transparent; }
 #aut-canvas-wrap::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.12); border-radius:5px; }
@@ -67,13 +67,17 @@
 #aut-search-drop::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:2px; }
 .aut-hintbox { font-size:0.68rem; color:rgba(255,255,255,0.45); background:rgba(96,165,250,0.08); border:1px solid rgba(96,165,250,0.2); border-radius:4px; padding:0.5rem 0.6rem; line-height:1.5; margin-bottom:0.5rem; }
 .aut-hintbox code { color:#60a5fa; background:rgba(96,165,250,0.12); padding:0.02rem 0.25rem; border-radius:3px; }
+.aut-warn { display:inline-flex; align-items:center; cursor:help; margin-left:0.25rem; }
+.aut-warn svg { flex-shrink:0; }
+.aut-search-wrap input:focus { border-color:rgba(255,255,255,0.3); }
+.aut-search-wrap input:-webkit-autofill { -webkit-box-shadow:0 0 0 1000px #151822 inset; -webkit-text-fill-color:#e9edf5; }
 </style>
 
-<div id="automation-wrap" style="display:flex;flex-direction:column;height:calc(100vh - 260px);">
+<div id="automation-wrap">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.5rem;flex-shrink:0;">
     <div>
       <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Automation</h1>
-      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Drag blocks onto the board — wire output → input. Double-click a block to edit.</p>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Drag blocks onto the board - Double-click a block to edit.</p>
     </div>
     <div class="aut-toolbar">
       <div class="aut-search-wrap">
@@ -105,12 +109,12 @@
     <div class="aut-palette-block" data-palette="mute" draggable="true">Mute</div>
     <div class="aut-palette-block" data-palette="send_ticket" draggable="true">Open Ticket</div>
     <div class="aut-palette-block" data-palette="set_nickname" draggable="true">Set Nickname</div>
+    <div class="aut-palette-block" data-palette="log_block" draggable="true">Log</div>
     <span class="aut-palette-label" style="margin-left:0.75rem;">Flow</span>
     <div class="aut-palette-block" data-palette="repeat" draggable="true">Repeat Loop</div>
     <div class="aut-palette-block" data-palette="wait_for" draggable="true">Wait For</div>
     <div class="aut-palette-block" data-palette="end_block" draggable="true">End</div>
     <span class="aut-palette-label" style="margin-left:0.75rem;">System</span>
-    <div class="aut-palette-block" data-palette="sys_text" draggable="true">Text (sys)</div>
     <div class="aut-palette-block" data-palette="sys_number" draggable="true">Number (sys)</div>
     <div class="aut-palette-block" data-palette="sys_role" draggable="true">Role (sys)</div>
     <div class="aut-palette-block" data-palette="sys_channel" draggable="true">Channel (sys)</div>
@@ -133,6 +137,24 @@
 
   <div class="aut-hint" style="flex-shrink:0;">
     System variables read from the trigger context. Custom variables hold a value you set. Wire output dots to input dots only. Paths with no trigger connection will be flagged.
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1.25rem;">
+    <div>
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.3);margin-bottom:0.75rem;">Usage (per hour)</h2>
+        <canvas id="aut-usage-chart" style="width:100%;height:170px;"></canvas>
+        <div style="color:rgba(255,255,255,0.25);font-size:12px;font-weight:600;text-align:center;padding:1rem 0;" id="aut-usage-empty">No automation runs yet.</div>
+      </div>
+    </div>
+    <div>
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.3);margin-bottom:0.75rem;">Automation Logs</h2>
+        <div id="aut-logs" style="display:flex;flex-direction:column;gap:0.4rem;max-height:260px;overflow-y:auto;">
+          <div style="color:rgba(255,255,255,0.25);font-size:12px;font-weight:600;text-align:center;padding:1rem 0;">No logs yet.</div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}
@@ -160,23 +182,23 @@ const NODE_DEFS = {
   mute:            { label:'Mute', kind:'action', fields:[{key:'duration', label:'Duration (min)', kind:'number'}] },
   set_nickname:    { label:'Set Nickname', kind:'action', fields:[{key:'text', label:'Nickname', kind:'text'}] },
   send_ticket:     { label:'Open Ticket', kind:'action', fields:[{key:'channel_id', label:'Category', kind:'channel'},{key:'title', label:'Ticket Title', kind:'text'},{key:'text', label:'Reason / Description', kind:'text'}] },
+  log_block:       { label:'Log Message', kind:'action', fields:[{key:'text', label:'Message to log', kind:'text'}] },
   repeat:          { label:'Repeat Loop', kind:'flow', hint:'The top dot is your input. The bottom-left dot repeats everything wired to it N times. The bottom-right dot runs after the loop finishes.', fields:[{key:'count', label:'Times', kind:'number'}] },
   wait_for:        { label:'Wait For', kind:'flow', fields:[{key:'waitType', label:'Type', kind:'waitType'},{key:'duration', label:'Seconds', kind:'number'},{key:'condition', label:'Condition Variable', kind:'text'}] },
   end_block:       { label:'End', kind:'flow' },
-  sys_text:        { label:'Text (system)', kind:'variable', isSys:true },
   sys_number:      { label:'Number (system)', kind:'variable', isSys:true },
   sys_role:        { label:'Role (system)', kind:'variable', isSys:true },
   sys_channel:     { label:'Channel (system)', kind:'variable', isSys:true },
-  set_var:         { label:'Set Variable', kind:'variable', isCustom:true, fields:[{key:'name', label:'Variable Name', kind:'text'},{key:'varType', label:'Type', kind:'varType'},{key:'value', label:'Value', kind:'text'}] },
-  modify_var:      { label:'Modify Variable', kind:'variable', isCustom:true, fields:[{key:'name', label:'Target Variable', kind:'text'},{key:'modOp', label:'Operation', kind:'modOp'},{key:'value', label:'Value', kind:'text'}] },
-  list_var:        { label:'Custom List', kind:'variable', isList:true, fields:[{key:'name', label:'List Name', kind:'text'},{key:'items', label:'Items (one per line)', kind:'text'}] },
-  modify_list:     { label:'Modify Custom List', kind:'variable', isList:true, fields:[{key:'name', label:'Target List', kind:'text'},{key:'listOp', label:'Operation', kind:'listOp'},{key:'value', label:'Item / Value', kind:'text'}] },
+  set_var:         { label:'Set Variable', kind:'variable', isCustom:true, fields:[{key:'name', label:'Variable Name', kind:'textPlain'},{key:'varType', label:'Type', kind:'varType'},{key:'value', label:'Value', kind:'varValue'}] },
+  modify_var:      { label:'Modify Variable', kind:'variable', isCustom:true, fields:[{key:'name', label:'Target Variable', kind:'textPlain'},{key:'modOp', label:'Operation', kind:'modOp'},{key:'value', label:'Value', kind:'text'}] },
+  list_var:        { label:'Custom List', kind:'variable', isList:true, fields:[{key:'name', label:'List Name', kind:'textPlain'},{key:'items', label:'Items (one per line)', kind:'text'}] },
+  modify_list:     { label:'Modify Custom List', kind:'variable', isList:true, fields:[{key:'name', label:'Target List', kind:'textPlain'},{key:'listOp', label:'Operation', kind:'listOp'},{key:'value', label:'Item / Value', kind:'text'}] },
   list_members:    { label:'Member List', kind:'variable', isList:true },
   list_roles:      { label:'Role List', kind:'variable', isList:true },
   list_channels:   { label:'Channel List', kind:'variable', isList:true },
 };
 
-const CUSTOM_TYPES = ['Text','Number','Boolean','Constant','List'];
+const CUSTOM_TYPES = ['Text','Number','Boolean','Constant'];
 
 const SYSTEM_VARS = [
   ['Member', '{member}'], ['Member Name', '{member.name}'], ['Member ID', '{member.id}'],
@@ -202,7 +224,7 @@ function varRef(n) {
   return '${var:'+n.id+'}';
 }
 
-function nodeType(t) { const a={text_var:'sys_text',number_var:'sys_number',role_var:'sys_role',channel_var:'sys_channel',custom_var:'set_var'}; return a[t]||t; }
+function nodeType(t) { const a={number_var:'sys_number',role_var:'sys_role',channel_var:'sys_channel',custom_var:'set_var'}; return a[t]||t; }
 
 // Open a custom-select dropdown; if it's inside a modal, escape it so it isn't clipped
 function openSelect(drop, btn) {
@@ -214,12 +236,27 @@ function openSelect(drop, btn) {
   drop.classList.toggle('is-open');
 }
 
-// Variables/lists may only feed triggers; they cannot be wired straight into actions
+function flashNode(id, color) {
+  const el = CAN().querySelector('.aut-node[data-id="'+id+'"]');
+  if (el) { el.style.boxShadow='0 0 0 2px '+color; setTimeout(()=>{ el.style.boxShadow=''; },2200); }
+}
+// Close any open dropdown when clicking outside it
+document.addEventListener('click', e => {
+  if (!e.target.closest('.md-custom-select')) document.querySelectorAll('.md-custom-select-drop.is-open').forEach(d=>d.classList.remove('is-open'));
+  const sd = document.getElementById('aut-search-drop');
+  if (sd && !e.target.closest('#aut-search-wrap')) sd.style.display='none';
+});
+
+// Variable outputs may ONLY feed triggers. They can never wire into other
+// variables, actions, or flow blocks.
 function canConnect(fromId, toId) {
   const fn=nodes.find(x=>x.id===fromId), tn=nodes.find(x=>x.id===toId);
   if (!fn||!tn) return {ok:true};
   const fk=(NODE_DEFS[nodeType(fn.type)]||{}).kind, tk=(NODE_DEFS[nodeType(tn.type)]||{}).kind;
-  if (fk==='variable' && (tk==='action'||tk==='flow')) return {ok:false, msg:'Variables / lists connect to triggers — reference them with ${var:name} inside action text.'};
+  if (fk==='variable') {
+    if (tk==='variable') return {ok:false, msg:'Variables cannot connect to other variables.'};
+    if (tk!=='trigger') return {ok:false, msg:'A variable block must be placed before a trigger — connect its output to a trigger input, then reference it with ${var:name}.'};
+  }
   return {ok:true};
 }
 
@@ -230,19 +267,23 @@ function nodeSummary(n) {
     case 'send_dm': return esc(cfg.text||'');
     case 'add_role': case 'remove_role': return cfg.role_id?(ROLES.find(r=>String(r.id)===String(cfg.role_id))||{}).name||'':'';
     case 'send_ticket': return (cfg.channel_id?'#'+((CHANNELS.find(c=>String(c.id)===String(cfg.channel_id))||{}).name||''):'')+' '+(cfg.title?esc(cfg.title):'')+' '+esc(cfg.text||'');
+    case 'log_block': return esc(cfg.text||'');
     case 'mute': return (cfg.duration||60)+' min';
     case 'set_nickname': return esc(cfg.text||'');
     case 'message_contains': case 'message_starts': return esc(cfg.text||'');
     case 'repeat': return 'x'+(cfg.count||1)+' times';
     case 'wait_for': return (cfg.waitType==='condition'?'until '+esc(cfg.condition||'…'):(cfg.duration||5)+'s');
     case 'end_block': return '—';
-    case 'set_var': case 'custom_var': return (cfg.name||'unnamed')+' = '+esc(cfg.value||'…');
+    case 'set_var': case 'custom_var': {
+      const v = cfg.value;
+      const vs = (v === undefined || v === null) ? '…' : (typeof v === 'boolean' ? (v ? 'true' : 'false') : String(v));
+      return (cfg.name||'unnamed')+' = '+esc(vs);
+    }
     case 'modify_var': return (cfg.name||'unnamed')+' '+(({set:'=',add:'+'})[cfg.modOp]||'?')+' '+esc(cfg.value||'…');
     case 'list_var': return (cfg.name||'list')+' ('+((cfg.items||'').split('\n').filter(Boolean).length)+' items)';
     case 'modify_list': return (cfg.name||'list')+' '+(({add:'+',remove:'-',clear:'clear',set:'='})[cfg.listOp]||'?')+' '+esc(cfg.value||'…');
     case 'sys_role': return 'role...';
     case 'sys_channel': return 'channel...';
-    case 'sys_text': return 'text...';
     case 'sys_number': return 'number...';
     default: return '';
   }
@@ -259,7 +300,7 @@ function renderNodeDots(n) {
   } else {
     if (n.type==='end_block') { dots = '<div class="aut-node-dot in" data-connect="in"></div>'; }
     else if (k==='action'||k==='flow'||k==='trigger') dots += '<div class="aut-node-dot in" data-connect="in"></div>';
-    else if (n.type==='modify_var'||n.type==='set_var'||n.type==='list_var'||n.type==='modify_list') dots += '<div class="aut-node-dot in" data-connect="in"></div>';
+    else if (n.type==='modify_var'||n.type==='modify_list') dots += '<div class="aut-node-dot in" data-connect="in"></div>';
     if (n.type!=='end_block'&&(k==='trigger'||k==='action'||k==='variable')) dots += '<div class="aut-node-dot out" data-connect="out"></div>';
   }
   return dots;
@@ -273,8 +314,9 @@ function renderNode(n) {
   const sum = nodeSummary(n);
   const vid = isVar(n) ? `<div class="aut-node-varid">${varRef(n)}</div>` : '';
   const dots = renderNodeDots(n);
+  const warn = n.type==='message_any' ? `<span class="aut-warn" data-tooltip="Using the Any message block will cause heavy ratelimiting, consider using other blocks if you don't want your automation to get temporarily restricted after the ratelimit is reached"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>` : '';
   return `<div class="aut-node" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;">
-    <div class="aut-node-title"><span class="aut-node-tag ${tagClass}">${tagLabel}</span>${def.label||n.type}</div>
+    <div class="aut-node-title"><span class="aut-node-tag ${tagClass}">${tagLabel}</span>${def.label||n.type}${warn}</div>
     ${sum ? `<div class="aut-node-summary">${sum}</div>` : ''}${vid}
     ${dots}
     <button class="aut-node-del" data-del="${n.id}" title="Delete block">&times;</button>
@@ -395,29 +437,27 @@ function deleteNode(id) {
 }
 
 function validateGraph() {
-  const msgs = [];
-  // Out->in only (already enforced)
-  // Detect circular connections
-  const visited = new Set();
+  const bad = new Set();
+  // Detect circular connections and mark every block in the loop
   function walk(id, path) {
-    if (visited.has(id)) return;
-    visited.add(id);
     const outs = connections.filter(c=>c.from===id);
     for (const c of outs) {
-      if (path.has(c.to)) { msgs.push('Circular connection detected'); return; }
+      if (path.has(c.to)) {
+        bad.add(id); bad.add(c.to); path.forEach(p=>bad.add(p));
+        continue;
+      }
       const next = new Set(path); next.add(c.to);
       walk(c.to, next);
     }
   }
   nodes.forEach(n => { if (isTrigger(n)) walk(n.id, new Set([n.id])); });
-  // Actions with no input path
+  // Repeat blocks with no input connection
   nodes.forEach(n => {
-    if (n.type==='repeat') {
-      if (!connections.some(c=>c.to===n.id)) msgs.push(`Repeat #${n.id} has no input connection`);
-    }
+    if (n.type==='repeat' && !connections.some(c=>c.to===n.id)) bad.add(n.id);
   });
-  if (msgs.length) {
-    if (typeof showToast === 'function') msgs.forEach(m => showToast(m, 'warning', 4000));
+  if (bad.size) {
+    bad.forEach(id => flashNode(id, '#f87171'));
+    if (typeof showToast === 'function') showToast('Graph has ' + bad.size + ' problem block(s) — they are highlighted in red.', 'error', 6000);
     return false;
   }
   return true;
@@ -511,7 +551,40 @@ function configureNode(n) {
     lbl.textContent = fd.label;
     wrap.appendChild(lbl);
 
-    if (fd.kind === 'text') {
+    if (fd.kind === 'textPlain') {
+      const inp = document.createElement('input');
+      inp.type='text'; inp.className='md-input'; inp.style.width='100%';
+      inp.value = cfg[fd.key]||''; inp.setAttribute('data-cfg', fd.key);
+      inp.setAttribute('autocomplete','off');
+      wrap.appendChild(inp);
+    } else if (fd.kind === 'varValue') {
+      const box = document.createElement('div');
+      box.dataset.cfgKey = fd.key;
+      let currentType = cfg.varType || 'Text';
+      const renderValue = (type, val) => {
+        currentType = type;
+        if (type === 'Boolean') {
+          const v = String(val === true || val === 'true');
+          box.innerHTML = '<div style="display:flex;gap:1rem;padding:0.2rem 0;">' +
+            '<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;color:rgba(255,255,255,0.75);cursor:pointer;"><input type="radio" name="varBool" value="true" '+(v==='true'?'checked':'')+' /> True</label>' +
+            '<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;color:rgba(255,255,255,0.75);cursor:pointer;"><input type="radio" name="varBool" value="false" '+(v==='false'?'checked':'')+' /> False</label></div>';
+        } else if (type === 'Number') {
+          box.innerHTML = '<input type="number" class="md-input" data-cfg="'+fd.key+'" value="'+esc(val ?? '')+'" style="width:100%;" />';
+        } else {
+          box.innerHTML = '<textarea class="md-input" data-cfg="'+fd.key+'" rows="2" style="width:100%;font-size:0.78rem;display:block;">'+esc(val ?? '')+'</textarea>';
+        }
+      };
+      renderValue(currentType, cfg[fd.key]);
+      box.dataset.read = () => {
+        if (currentType === 'Boolean') { const r=box.querySelector('input:checked'); return r ? (r.value==='true') : false; }
+        const el = box.querySelector('[data-cfg]');
+        return el ? (el.type==='number' ? (parseFloat(el.value)||0) : el.value) : '';
+      };
+      wrap._renderValue = (type) => { renderValue(type, box.dataset.read()); };
+      wrap.appendChild(box);
+      wrap.dataset.varValueBox = '1';
+      wrap.dataset.varValueKey = fd.key;
+    } else if (fd.kind === 'text') {
       const ins = document.createElement('div');
       ins.className = 'aut-var-insert';
       const all = [{label:'System vars', opts:SYSTEM_VARS}, {label:'Board vars', opts:boardVarOptions()}];
@@ -557,7 +630,11 @@ function configureNode(n) {
       sel.innerHTML = `<button class="md-custom-select-btn">${cur}</button><div class="md-custom-select-drop">${CUSTOM_TYPES.map(t=>'<button class="md-custom-opt" data-id="'+t+'">'+t+'</button>').join('')}</div>`;
       const btn=sel.querySelector('.md-custom-select-btn'), drop2=sel.querySelector('.md-custom-select-drop');
       btn.addEventListener('click',e=>{e.stopPropagation();openSelect(drop2,btn);});
-      drop2.querySelectorAll('.md-custom-opt').forEach(o=>o.addEventListener('click',()=>{btn.textContent=o.textContent;btn.dataset.pick=o.dataset.id;drop2.classList.remove('is-open');}));
+      drop2.querySelectorAll('.md-custom-opt').forEach(o=>o.addEventListener('click',()=>{
+        btn.textContent=o.textContent;btn.dataset.pick=o.dataset.id;drop2.classList.remove('is-open');
+        const vw = Array.from(body.children).find(w=>w._renderValue);
+        if (vw) vw._renderValue(o.dataset.id);
+      }));
       wrap.appendChild(sel); wrap.dataset.selKey='varType';
     } else if (fd.kind === 'waitType') {
       const opts=[['time','Timer (seconds)'],['condition','Condition']];
@@ -595,7 +672,7 @@ function configureNode(n) {
 
   const overlay = document.createElement('div');
   overlay.className = 'md-modal-overlay'; overlay.style.zIndex=200;
-  overlay.innerHTML = `<div class="md-modal" style="max-width:460px;max-height:80vh;overflow-y:auto;"><h3>${esc(title)}</h3><div id="cfg-fields"></div><div style="display:flex;gap:0.5rem;margin-top:0.9rem;"><button class="md-action-btn" id="cfg-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save</button><button class="md-action-btn" id="cfg-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button></div></div>`;
+  overlay.innerHTML = `<div class="md-modal" style="max-width:460px;max-height:80vh;overflow-y:auto;"><h3>${esc(title)}</h3><div id="cfg-fields"></div><div style="display:flex;gap:0.5rem;margin-top:0.9rem;"><button class="md-action-btn" id="cfg-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button><button class="md-action-btn" id="cfg-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save</button></div></div>`;
   overlay.querySelector('#cfg-fields').appendChild(body);
   document.body.appendChild(overlay);
   overlay.classList.add('is-open');
@@ -618,6 +695,11 @@ function configureNode(n) {
   overlay.querySelector('#cfg-save').addEventListener('click',()=>{
     body.querySelectorAll('[data-cfg]').forEach(el=>{cfg[el.dataset.cfg]=el.type==='number'?(parseFloat(el.value)||0):el.value;});
     body.querySelectorAll('[data-sel-key]').forEach(w=>{const b=w.querySelector('.md-custom-select-btn');if(b&&b.dataset.pick)cfg[w.dataset.selKey]=b.dataset.pick;});
+    Array.from(body.querySelectorAll('[data-var-value-box]')).forEach(w=>{
+      const box = w.querySelector('[data-cfg-key]');
+      const k = w.dataset.varValueKey;
+      if (k && box && box.dataset.read) cfg[k] = box.dataset.read();
+    });
     overlay.remove(); renderAll();
   });
   overlay.querySelector('#cfg-cancel').addEventListener('click',()=>overlay.remove());
@@ -703,6 +785,8 @@ async function loadGraph() {
 document.addEventListener('DOMContentLoaded', async () => {
   [CHANNELS, ROLES] = await Promise.all([api('/channels').then(d=>d.channels||[]), api('/roles').then(d=>d.roles||[])]);
   loadGraph();
+  loadUsage();
+  loadLogs();
   document.getElementById('aut-save-btn').addEventListener('click', saveGraph);
   document.getElementById('aut-clear-btn').addEventListener('click', () => {
     if(!confirm('Clear everything?')) return;
@@ -710,5 +794,44 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   window.addEventListener('resize', () => updateSvgSize());
 });
+
+// ── Usage chart + logs ──
+async function loadUsage() {
+  try {
+    const d = await api('/usage');
+    const pts = d.points || [];
+    const canvas = document.getElementById('aut-usage-chart');
+    const empty = document.getElementById('aut-usage-empty');
+    if (!pts.length || pts.every(p=>p.count===0)) { if (empty) empty.style.display='block'; return; }
+    if (empty) empty.style.display='none';
+    const dpr = window.devicePixelRatio||1;
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    canvas.width = w*dpr; canvas.height = h*dpr;
+    const ctx = canvas.getContext('2d'); ctx.scale(dpr,dpr);
+    const max = Math.max(1, ...pts.map(p=>p.count));
+    const stepX = pts.length>1 ? w/(pts.length-1) : w;
+    const y = c => h - (c/max)*(h-16) - 6;
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth=1;
+    for (let i=0;i<=4;i++){ const yy = h - (h-16)*(i/4) - 6; ctx.beginPath(); ctx.moveTo(0,yy); ctx.lineTo(w,yy); ctx.stroke(); }
+    ctx.beginPath(); ctx.strokeStyle='#60a5fa'; ctx.lineWidth=2; ctx.lineJoin='round';
+    pts.forEach((p,i)=>{ const x=i*stepX; if(i===0) ctx.moveTo(x,y(p.count)); else ctx.lineTo(x,y(p.count)); });
+    ctx.stroke();
+    ctx.fillStyle='rgba(96,165,250,0.15)';
+    ctx.lineTo(w,y(h)); ctx.lineTo(0,y(h)); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.font='600 9px Lexend,sans-serif'; ctx.textAlign='center';
+    for (let i=0;i<pts.length;i+=Math.ceil(pts.length/6)) {
+      const d2 = new Date(pts[i].t*1000);
+      ctx.fillText(String(d2.getUTCHours()).padStart(2,'0')+':00', i*stepX, h-2);
+    }
+  } catch(e) {}
+}
+async function loadLogs() {
+  try {
+    const d = await api('/logs');
+    const el = document.getElementById('aut-logs');
+    if (!d.logs || !d.logs.length) { el.innerHTML = '<div style="color:rgba(255,255,255,0.25);font-size:12px;font-weight:600;text-align:center;padding:1rem 0;">No logs yet.</div>'; return; }
+    el.innerHTML = d.logs.map(l => '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0.6rem;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:4px;font-size:0.75rem;"><span style="color:#60a5fa;flex-shrink:0;">▪</span><span style="color:rgba(255,255,255,0.7);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(l.message)+'</span><span style="color:rgba(255,255,255,0.3);margin-left:auto;flex-shrink:0;font-size:0.68rem;">'+esc(l.time)+'</span></div>').join('');
+  } catch(e) {}
+}
 </script>
 {% endblock %}

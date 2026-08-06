@@ -168,6 +168,20 @@ CREATE TABLE IF NOT EXISTS automation_settings (
     updated_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
 );
 
+CREATE TABLE IF NOT EXISTS automation_runs (
+    guild_id    TEXT NOT NULL,
+    bucket_ts   DOUBLE PRECISION NOT NULL,
+    count       INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (guild_id, bucket_ts)
+);
+
+CREATE TABLE IF NOT EXISTS automation_logs (
+    id          SERIAL PRIMARY KEY,
+    guild_id    TEXT NOT NULL,
+    message     TEXT NOT NULL DEFAULT '',
+    created_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+);
+
 CREATE TABLE IF NOT EXISTS automation_graph (
     guild_id    TEXT PRIMARY KEY,
     nodes       JSONB NOT NULL DEFAULT '[]',

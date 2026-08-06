@@ -3473,6 +3473,26 @@ async def automation_roles(guild_id: str, request: Request):
     return {"roles": []}
 
 
+_AUTO_SAVE_LIMIT = {}
+_AUTO_USAGE_SQL = """
+CREATE TABLE IF NOT EXISTS automation_runs (
+    guild_id    TEXT NOT NULL,
+    bucket_ts   DOUBLE PRECISION NOT NULL,
+    count       INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (guild_id, bucket_ts)
+);
+"""
+_AUTO_LOGS_SQL = """
+CREATE TABLE IF NOT EXISTS automation_logs (
+    id          SERIAL PRIMARY KEY,
+    guild_id    TEXT NOT NULL,
+    message     TEXT NOT NULL DEFAULT '',
+    created_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+);
+CREATE INDEX IF NOT EXISTS idx_automation_logs_guild ON automation_logs (guild_id, id DESC);
+"""
+
+
 @app.get("/api/v1/automation/{guild_id}/graph")
 async def automation_graph_get(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
@@ -3486,6 +3506,12 @@ async def automation_graph_get(guild_id: str, request: Request):
 @app.post("/api/v1/automation/{guild_id}/graph")
 async def automation_graph_save(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
+    # Rate-limit saves (5/min per guild) so the editor can't be spammed
+    now = time.time()
+    last = _AUTO_SAVE_LIMIT.get(str(guild_id), 0)
+    if now - last < 12:
+        return JSONResponse({"error": "Saving too quickly — try again in a moment."}, status_code=429)
+    _AUTO_SAVE_LIMIT[str(guild_id)] = now
     body = await request.json()
     nodes = body.get("nodes", [])
     connections = body.get("connections", [])
@@ -3495,6 +3521,34 @@ async def automation_graph_save(guild_id: str, request: Request):
         str(guild_id), json.dumps(nodes), json.dumps(connections), time.time(),
     )
     return {"ok": True}
+
+
+@app.get("/api/v1/automation/{guild_id}/usage")
+async def automation_usage(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    try:
+        await execute(_AUTO_USAGE_SQL)
+    except Exception:
+        pass
+    since = int(time.time() // 3600) * 3600 - 23 * 3600
+    rows = await query("SELECT bucket_ts, count FROM automation_runs WHERE guild_id = $1 AND bucket_ts >= $2 ORDER BY bucket_ts ASC", str(guild_id), since)
+    by = {int(r["bucket_ts"]): int(r["count"]) for r in rows}
+    points = []
+    for i in range(24):
+        b = since + i * 3600
+        points.append({"t": b, "count": by.get(b, 0)})
+    return {"points": points}
+
+
+@app.get("/api/v1/automation/{guild_id}/logs")
+async def automation_logs(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    try:
+        await execute(_AUTO_LOGS_SQL)
+    except Exception:
+        pass
+    rows = await query("SELECT id, message, created_at FROM automation_logs WHERE guild_id = $1 ORDER BY id DESC LIMIT 30", str(guild_id))
+    return {"logs": [{"id": r["id"], "message": r["message"], "time": _relative_time(r["created_at"])} for r in rows]}
 
 
 if __name__ == "__main__":

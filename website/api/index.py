@@ -586,12 +586,25 @@ async def auth_discord():
     return RedirectResponse(f"https://discord.com/api/oauth2/authorize?{params}")
 
 
+def _github_redirect_uri(request: Request) -> str:
+    """Callback URL for the current request. Uses GITHUB_REDIRECT_URI when set,
+    otherwise derives it from the request host so it's always correct in prod."""
+    env = os.environ.get("GITHUB_REDIRECT_URI", "")
+    if env:
+        return env
+    host = request.headers.get("host", "")
+    proto = request.headers.get("x-forwarded-proto", "")
+    if not proto:
+        proto = "https" if "prowlbot.xyz" in host else "http"
+    return f"{proto}://{host}/callback/github"
+
+
 @app.get("/login/github")
-async def login_github():
+async def login_github(request: Request):
     github_id = os.environ.get("GITHUB_CLIENT_ID", "")
     if not github_id:
         return HTMLResponse("GitHub OAuth not configured yet.", status_code=503)
-    redirect_uri = os.environ.get("GITHUB_REDIRECT_URI", "http://localhost:8000/callback/github")
+    redirect_uri = _github_redirect_uri(request)
     params = urllib.parse.urlencode({
         "client_id": github_id,
         "redirect_uri": redirect_uri,
@@ -642,7 +655,7 @@ async def callback_github(request: Request, code: str = None):
         return RedirectResponse("/login")
     github_id = os.environ.get("GITHUB_CLIENT_ID", "")
     github_secret = os.environ.get("GITHUB_CLIENT_SECRET", "")
-    redirect_uri = os.environ.get("GITHUB_REDIRECT_URI", "http://localhost:8000/callback/github")
+    redirect_uri = _github_redirect_uri(request)
     if not github_id or not github_secret:
         return RedirectResponse("/login")
 

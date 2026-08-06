@@ -32,6 +32,8 @@
 .aut-node .aut-node-tag.action { color:#34d399; background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.2); }
 .aut-node .aut-node-tag.var { color:#a78bfa; background:rgba(167,139,250,0.1); border:1px solid rgba(167,139,250,0.2); }
 .aut-node .aut-node-tag.list { color:#fbbf24; background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.2); }
+.aut-node .aut-node-tag.flow { color:#22d3ee; background:rgba(34,211,238,0.1); border:1px solid rgba(34,211,238,0.25); }
+.aut-node .aut-node-tag.end { color:#f87171; background:rgba(248,113,113,0.12); border:1px solid rgba(248,113,113,0.3); }
 .aut-node .aut-node-summary { font-size:0.65rem; color:rgba(255,255,255,0.4); margin-top:0.25rem; line-height:1.45; word-break:break-word; }
 .aut-node .aut-node-varid { font-size:0.6rem; color:rgba(167,139,250,0.7); font-family:monospace; }
 .aut-node .aut-node-del { position:absolute; top:4px; right:6px; width:18px; height:18px; border-radius:3px; border:none; background:rgba(248,113,113,0.15); color:#f87171; font-size:0.7rem; cursor:pointer; display:none; align-items:center; justify-content:center; line-height:1; }
@@ -96,6 +98,7 @@
     <div class="aut-palette-block" data-palette="message_any" draggable="true">Any Message</div>
     <div class="aut-palette-block" data-palette="message_contains" draggable="true">Message Contains</div>
     <div class="aut-palette-block" data-palette="message_starts" draggable="true">Message Starts With</div>
+    <div class="aut-palette-block" data-palette="message_ends" draggable="true">Message Ends With</div>
     <div class="aut-palette-block" data-palette="role_added" draggable="true">Role Added</div>
     <div class="aut-palette-block" data-palette="role_removed" draggable="true">Role Removed</div>
     <div class="aut-palette-block" data-palette="channel_message" draggable="true">Message in Channel</div>
@@ -109,7 +112,8 @@
     <div class="aut-palette-block" data-palette="mute" draggable="true">Mute</div>
     <div class="aut-palette-block" data-palette="send_ticket" draggable="true">Open Ticket</div>
     <div class="aut-palette-block" data-palette="set_nickname" draggable="true">Set Nickname</div>
-    <div class="aut-palette-block" data-palette="log_block" draggable="true">Log</div>
+    <div class="aut-palette-block" data-palette="log_block" draggable="true">Log (sys)</div>
+    <div class="aut-palette-block" data-palette="log_channel" draggable="true">Log to Channel</div>
     <span class="aut-palette-label" style="margin-left:0.75rem;">Flow</span>
     <div class="aut-palette-block" data-palette="repeat" draggable="true">Repeat Loop</div>
     <div class="aut-palette-block" data-palette="wait_for" draggable="true">Wait For</div>
@@ -170,6 +174,7 @@ const NODE_DEFS = {
   message_any:     { label:'Any Message', kind:'trigger' },
   message_contains:{ label:'Message Contains', kind:'trigger', fields:[{key:'text', label:'Text', kind:'text'}] },
   message_starts:  { label:'Message Starts With', kind:'trigger', fields:[{key:'text', label:'Text', kind:'text'}] },
+  message_ends:    { label:'Message Ends With', kind:'trigger', fields:[{key:'text', label:'Text', kind:'text'}] },
   role_added:      { label:'Role Added', kind:'trigger', fields:[{key:'role_id', label:'Role', kind:'role'}] },
   role_removed:    { label:'Role Removed', kind:'trigger', fields:[{key:'role_id', label:'Role', kind:'role'}] },
   channel_message: { label:'Message in Channel', kind:'trigger', fields:[{key:'channel_id', label:'Channel', kind:'channel'}] },
@@ -182,7 +187,8 @@ const NODE_DEFS = {
   mute:            { label:'Mute', kind:'action', fields:[{key:'duration', label:'Duration (min)', kind:'number'}] },
   set_nickname:    { label:'Set Nickname', kind:'action', fields:[{key:'text', label:'Nickname', kind:'text'}] },
   send_ticket:     { label:'Open Ticket', kind:'action', fields:[{key:'channel_id', label:'Category', kind:'channel'},{key:'title', label:'Ticket Title', kind:'text'},{key:'text', label:'Reason / Description', kind:'text'}] },
-  log_block:       { label:'Log Message', kind:'action', fields:[{key:'text', label:'Message to log', kind:'text'}] },
+  log_block:       { label:'Log (system)', kind:'action', fields:[{key:'text', label:'Message to log', kind:'text'}] },
+  log_channel:     { label:'Log to Channel', kind:'action', fields:[{key:'channel_id', label:'Channel', kind:'channel'},{key:'text', label:'Message', kind:'text'}] },
   repeat:          { label:'Repeat Loop', kind:'flow', hint:'The top dot is your input. The bottom-left dot repeats everything wired to it N times. The bottom-right dot runs after the loop finishes.', fields:[{key:'count', label:'Times', kind:'number'}] },
   wait_for:        { label:'Wait For', kind:'flow', fields:[{key:'waitType', label:'Type', kind:'waitType'},{key:'duration', label:'Seconds', kind:'number'},{key:'condition', label:'Condition Variable', kind:'text'}] },
   end_block:       { label:'End', kind:'flow' },
@@ -268,9 +274,10 @@ function nodeSummary(n) {
     case 'add_role': case 'remove_role': return cfg.role_id?(ROLES.find(r=>String(r.id)===String(cfg.role_id))||{}).name||'':'';
     case 'send_ticket': return (cfg.channel_id?'#'+((CHANNELS.find(c=>String(c.id)===String(cfg.channel_id))||{}).name||''):'')+' '+(cfg.title?esc(cfg.title):'')+' '+esc(cfg.text||'');
     case 'log_block': return esc(cfg.text||'');
+    case 'log_channel': return (cfg.channel_id?'#'+((CHANNELS.find(c=>String(c.id)===String(cfg.channel_id))||{}).name||''):'')+' '+esc(cfg.text||'');
     case 'mute': return (cfg.duration||60)+' min';
     case 'set_nickname': return esc(cfg.text||'');
-    case 'message_contains': case 'message_starts': return esc(cfg.text||'');
+    case 'message_contains': case 'message_starts': case 'message_ends': return esc(cfg.text||'');
     case 'repeat': return 'x'+(cfg.count||1)+' times';
     case 'wait_for': return (cfg.waitType==='condition'?'until '+esc(cfg.condition||'…'):(cfg.duration||5)+'s');
     case 'end_block': return '—';
@@ -301,7 +308,7 @@ function renderNodeDots(n) {
     if (n.type==='end_block') { dots = '<div class="aut-node-dot in" data-connect="in"></div>'; }
     else if (k==='action'||k==='flow'||k==='trigger') dots += '<div class="aut-node-dot in" data-connect="in"></div>';
     else if (n.type==='modify_var'||n.type==='modify_list') dots += '<div class="aut-node-dot in" data-connect="in"></div>';
-    if (n.type!=='end_block'&&(k==='trigger'||k==='action'||k==='variable')) dots += '<div class="aut-node-dot out" data-connect="out"></div>';
+    if (n.type!=='end_block'&&(k==='trigger'||k==='action'||k==='variable'||k==='flow')) dots += '<div class="aut-node-dot out" data-connect="out"></div>';
   }
   return dots;
 }
@@ -309,8 +316,11 @@ function renderNodeDots(n) {
 function renderNode(n) {
   const def = NODE_DEFS[nodeType(n.type)]||{label:n.type,kind:'action'};
   const kind = def.kind;
-  const tagClass = kind==='trigger'?'trigger':kind==='variable'?(def.isList?'list':'var'):'action';
-  const tagLabel = kind==='trigger'?'TRIGGER':kind==='variable'?(def.isList?'LIST':'VAR'):kind==='flow'?'LOOP':'ACTION';
+  let tagClass, tagLabel;
+  if (kind==='trigger') { tagClass='trigger'; tagLabel='TRIGGER'; }
+  else if (kind==='variable') { tagClass = def.isList?'list':'var'; tagLabel = def.isList?'LIST':'VAR'; }
+  else if (kind==='flow') { tagClass = n.type==='end_block'?'end':'flow'; tagLabel = n.type==='end_block'?'END':(n.type==='wait_for'?'WAIT':'LOOP'); }
+  else { tagClass='action'; tagLabel='ACTION'; }
   const sum = nodeSummary(n);
   const vid = isVar(n) ? `<div class="aut-node-varid">${varRef(n)}</div>` : '';
   const dots = renderNodeDots(n);
@@ -410,6 +420,10 @@ function bindNodes() {
       dragOffX = e.clientX + wrap.scrollLeft - dragNode.x;
       dragOffY = e.clientY + wrap.scrollTop - dragNode.y;
       e.preventDefault();
+    });
+    el.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      deleteNode(nid);
     });
     el.addEventListener('mousedown', e => {
       const dot = e.target.closest('[data-connect]');
@@ -617,13 +631,24 @@ function configureNode(n) {
     } else if (fd.kind === 'role'||fd.kind === 'channel') {
       const list = fd.kind==='role' ? ROLES : CHANNELS;
       const pre = fd.kind==='channel'?'#':'';
-      const cur = cfg[fd.key] ? (list.find(x=>String(x.id)===String(cfg[fd.key]))||{}).name||'' : '';
-      const sel = document.createElement('div'); sel.className='md-custom-select'; sel.style.width='100%';
-      sel.innerHTML = `<button class="md-custom-select-btn">${cur?pre+esc(cur):'Select...'}</button><div class="md-custom-select-drop">${list.map(x=>'<button class="md-custom-opt" data-id="'+x.id+'">'+pre+esc(x.name)+'</button>').join('')}</div>`;
+      const curVal = cfg[fd.key] || '';
+      const isVar = String(curVal).startsWith('${var:');
+      const shown = isVar ? curVal : (curVal ? (pre+((list.find(x=>String(x.id)===String(curVal))||{}).name||curVal)) : '');
+      const sel = document.createElement('div'); sel.className='md-custom-select'; sel.style.width='100%'; sel.style.marginBottom='0.35rem';
+      sel.innerHTML = `<button class="md-custom-select-btn">${shown||'Select...'}</button><div class="md-custom-select-drop">${list.map(x=>'<button class="md-custom-opt" data-id="'+x.id+'">'+pre+esc(x.name)+'</button>').join('')}</div>`;
       const btn=sel.querySelector('.md-custom-select-btn'), drop2=sel.querySelector('.md-custom-select-drop');
       btn.addEventListener('click',e=>{e.stopPropagation();openSelect(drop2,btn);});
-      drop2.querySelectorAll('.md-custom-opt').forEach(o=>o.addEventListener('click',()=>{btn.textContent=o.textContent;btn.dataset.pick=o.dataset.id;drop2.classList.remove('is-open');}));
-      wrap.appendChild(sel); wrap.dataset.selKey=fd.key;
+      drop2.querySelectorAll('.md-custom-opt').forEach(o=>o.addEventListener('click',()=>{
+        btn.textContent=o.textContent; btn.dataset.pick=o.dataset.id; drop2.classList.remove('is-open');
+        const inp = wrap.querySelector('[data-cfg="'+fd.key+'"]');
+        if (inp) inp.value = o.dataset.id;
+      }));
+      wrap.appendChild(sel);
+      const inp = document.createElement('input');
+      inp.type='text'; inp.className='md-input'; inp.style.width='100%'; inp.setAttribute('autocomplete','off');
+      inp.placeholder = '...or type ${var:name}';
+      inp.value = cfg[fd.key] || ''; inp.setAttribute('data-cfg', fd.key);
+      wrap.appendChild(inp);
     } else if (fd.kind === 'varType') {
       const sel = document.createElement('div'); sel.className='md-custom-select'; sel.style.width='100%';
       const cur = cfg.varType||'Text';

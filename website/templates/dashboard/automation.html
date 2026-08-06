@@ -38,8 +38,8 @@
       <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Drag blocks onto the board and connect them — drag between dots to wire</p>
     </div>
     <div class="aut-toolbar">
-      <button class="md-action-btn" id="aut-save-btn" style="background:rgba(255,255,255,0.1);color:#e9edf5;display:flex;align-items:center;gap:0.4rem;padding:0.5rem 0.9rem;font-size:0.8rem;">Save</button>
-      <button class="md-action-btn" id="aut-clear-btn" style="color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:0.4rem;padding:0.5rem 0.9rem;font-size:0.8rem;">Clear</button>
+      <button class="md-action-btn" id="aut-save-btn" style="background:rgba(96,165,250,0.12);border-color:rgba(96,165,250,0.2);color:#60a5fa;">Save</button>
+      <button class="md-action-btn" id="aut-clear-btn">Clear</button>
     </div>
   </div>
 
@@ -325,8 +325,9 @@ function configureNode(n) {
 // Palette drag → canvas
 document.querySelectorAll('.aut-palette-block').forEach(b => b.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', b.dataset.palette); }));
 const wrap = document.getElementById('aut-canvas-wrap');
-wrap.addEventListener('dragover', e => e.preventDefault());
-wrap.addEventListener('drop', e => {
+const canvas = document.getElementById('aut-canvas');
+[wrap, canvas].forEach(el => el.addEventListener('dragover', e => e.preventDefault()));
+canvas.addEventListener('drop', e => {
   e.preventDefault();
   const type = e.dataTransfer.getData('text/plain');
   if (!TYPE_LABELS[type]) return;
@@ -334,6 +335,19 @@ wrap.addEventListener('drop', e => {
   nodes.push(createNode(type, Math.max(0,e.clientX-rect.left-80), Math.max(0,e.clientY-rect.top-20)));
   renderAll();
 });
+wrap.addEventListener('drop', e => { e.preventDefault(); }); // swallow duplicates
+
+// Palette auto-scroll on hover
+const palette = document.querySelector('.aut-palette');
+let palTimer = null;
+palette.addEventListener('mousemove', e => {
+  const rect = palette.getBoundingClientRect();
+  const edge = 60, speed = 8;
+  clearInterval(palTimer);
+  if (e.clientX - rect.left < edge) palTimer = setInterval(() => palette.scrollLeft -= speed, 16);
+  else if (rect.right - e.clientX < edge) palTimer = setInterval(() => palette.scrollLeft += speed, 16);
+});
+palette.addEventListener('mouseleave', () => clearInterval(palTimer));
 
 // Save / Load
 async function saveGraph() {

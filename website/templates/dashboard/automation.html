@@ -15,7 +15,10 @@
 #aut-svg .ghost { stroke:#60a5fa; stroke-dasharray:6 4; fill:none; stroke-width:2; }
 #aut-svg .aut-wire-x { display:none; cursor:pointer; pointer-events:all; }
 #aut-svg .aut-wire:hover .aut-wire-x { display:block; }
-.aut-node { position:absolute; z-index:2; min-width:170px; border-radius:6px; background:#151822; border:1px solid rgba(255,255,255,0.12); padding:0.65rem 0.85rem; cursor:move; user-select:none; overflow:visible; }
+#aut-svg .aut-wire-x rect { fill:#f87171; stroke:#0a0a0a; stroke-width:1.5; }
+#aut-svg .aut-wire-x path { stroke:#fff; stroke-width:1.6; stroke-linecap:round; }
+#aut-svg .aut-wire-x:hover rect { fill:#ef4444; }
+.aut-node { position:absolute; z-index:2; min-width:200px; border-radius:6px; background:#151822; border:1px solid rgba(255,255,255,0.12); padding:0.65rem 0.85rem; cursor:move; user-select:none; overflow:visible; }
 .aut-node:hover { box-shadow:0 0 0 1px rgba(96,165,250,0.3); }
 .aut-node .aut-node-title { font-size:0.75rem; font-weight:800; letter-spacing:-0.01em; margin-bottom:0.3rem; display:flex; align-items:center; gap:0.4rem; padding-right:22px; }
 .aut-node .aut-node-dot { position:absolute; width:12px; height:12px; border-radius:50%; border:2px solid rgba(255,255,255,0.3); background:#151822; z-index:3; cursor:crosshair; transition:all 0.15s; }
@@ -55,15 +58,28 @@
 .aut-var-insert .md-custom-select { min-width:150px; }
 .aut-var-insert .md-custom-select-btn { font-size:0.7rem; padding:0.35rem 1.6rem 0.35rem 0.5rem; }
 .aut-var-hint { font-size:0.62rem; color:rgba(255,255,255,0.3); margin-top:0.2rem; line-height:1.4; }
+.aut-search-wrap { position:relative; }
+.aut-search-wrap input { width:190px; padding:0.45rem 0.7rem; font-size:0.75rem; font-family:inherit; font-weight:600; color:#e9edf5; border-radius:4px; border:1px solid rgba(255,255,255,0.1); background:#151822; outline:none; }
+.aut-search-wrap input::placeholder { color:rgba(255,255,255,0.3); }
+.aut-search-wrap input:focus { border-color:rgba(96,165,250,0.5); }
+#aut-search-drop { position:absolute; top:calc(100% + 4px); right:0; min-width:200px; background:#1a1a1a; border:1px solid rgba(255,255,255,0.1); border-radius:4px; z-index:300; max-height:240px; overflow-y:auto; display:none; }
+#aut-search-drop::-webkit-scrollbar { width:4px; }
+#aut-search-drop::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:2px; }
+.aut-hintbox { font-size:0.68rem; color:rgba(255,255,255,0.45); background:rgba(96,165,250,0.08); border:1px solid rgba(96,165,250,0.2); border-radius:4px; padding:0.5rem 0.6rem; line-height:1.5; margin-bottom:0.5rem; }
+.aut-hintbox code { color:#60a5fa; background:rgba(96,165,250,0.12); padding:0.02rem 0.25rem; border-radius:3px; }
 </style>
 
 <div id="automation-wrap" style="display:flex;flex-direction:column;height:calc(100vh - 260px);">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.5rem;flex-shrink:0;">
     <div>
       <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Automation</h1>
-      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Drag blocks onto the board — wire from an output dot to an input dot</p>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Drag blocks onto the board — wire output → input. Double-click a block to edit.</p>
     </div>
     <div class="aut-toolbar">
+      <div class="aut-search-wrap">
+        <input id="aut-search" placeholder="Search blocks (Ctrl+F)..." autocomplete="off" />
+        <div id="aut-search-drop"></div>
+      </div>
       <button class="md-action-btn" id="aut-save-btn">Save</button>
       <button class="md-action-btn" id="aut-clear-btn">Clear</button>
     </div>
@@ -102,6 +118,7 @@
     <div class="aut-palette-block" data-palette="set_var" draggable="true">Set Variable</div>
     <div class="aut-palette-block" data-palette="modify_var" draggable="true">Modify Variable</div>
     <div class="aut-palette-block" data-palette="list_var" draggable="true">Custom List</div>
+    <div class="aut-palette-block" data-palette="modify_list" draggable="true">Modify Custom List</div>
     <span class="aut-palette-label" style="margin-left:0.75rem;">Lists</span>
     <div class="aut-palette-block" data-palette="list_members" draggable="true">Member List</div>
     <div class="aut-palette-block" data-palette="list_roles" draggable="true">Role List</div>
@@ -142,9 +159,9 @@ const NODE_DEFS = {
   ban:             { label:'Ban', kind:'action', fields:[{key:'text', label:'Reason', kind:'text'}] },
   mute:            { label:'Mute', kind:'action', fields:[{key:'duration', label:'Duration (min)', kind:'number'}] },
   set_nickname:    { label:'Set Nickname', kind:'action', fields:[{key:'text', label:'Nickname', kind:'text'}] },
-  send_ticket:     { label:'Open Ticket', kind:'action', fields:[{key:'channel_id', label:'Category', kind:'channel'},{key:'text', label:'Reason', kind:'text'}] },
-  repeat:          { label:'Repeat Loop', kind:'flow', fields:[{key:'count', label:'Times', kind:'number'}] },
-  wait_for:        { label:'Wait For', kind:'flow', fields:[{key:'waitType', label:'Type', kind:'waitType'},{key:'duration', label:'Seconds', kind:'number'}] },
+  send_ticket:     { label:'Open Ticket', kind:'action', fields:[{key:'channel_id', label:'Category', kind:'channel'},{key:'title', label:'Ticket Title', kind:'text'},{key:'text', label:'Reason / Description', kind:'text'}] },
+  repeat:          { label:'Repeat Loop', kind:'flow', hint:'The top dot is your input. The bottom-left dot repeats everything wired to it N times. The bottom-right dot runs after the loop finishes.', fields:[{key:'count', label:'Times', kind:'number'}] },
+  wait_for:        { label:'Wait For', kind:'flow', fields:[{key:'waitType', label:'Type', kind:'waitType'},{key:'duration', label:'Seconds', kind:'number'},{key:'condition', label:'Condition Variable', kind:'text'}] },
   end_block:       { label:'End', kind:'flow' },
   sys_text:        { label:'Text (system)', kind:'variable', isSys:true },
   sys_number:      { label:'Number (system)', kind:'variable', isSys:true },
@@ -153,6 +170,7 @@ const NODE_DEFS = {
   set_var:         { label:'Set Variable', kind:'variable', isCustom:true, fields:[{key:'name', label:'Variable Name', kind:'text'},{key:'varType', label:'Type', kind:'varType'},{key:'value', label:'Value', kind:'text'}] },
   modify_var:      { label:'Modify Variable', kind:'variable', isCustom:true, fields:[{key:'name', label:'Target Variable', kind:'text'},{key:'modOp', label:'Operation', kind:'modOp'},{key:'value', label:'Value', kind:'text'}] },
   list_var:        { label:'Custom List', kind:'variable', isList:true, fields:[{key:'name', label:'List Name', kind:'text'},{key:'items', label:'Items (one per line)', kind:'text'}] },
+  modify_list:     { label:'Modify Custom List', kind:'variable', isList:true, fields:[{key:'name', label:'Target List', kind:'text'},{key:'listOp', label:'Operation', kind:'listOp'},{key:'value', label:'Item / Value', kind:'text'}] },
   list_members:    { label:'Member List', kind:'variable', isList:true },
   list_roles:      { label:'Role List', kind:'variable', isList:true },
   list_channels:   { label:'Channel List', kind:'variable', isList:true },
@@ -186,22 +204,42 @@ function varRef(n) {
 
 function nodeType(t) { const a={text_var:'sys_text',number_var:'sys_number',role_var:'sys_role',channel_var:'sys_channel',custom_var:'set_var'}; return a[t]||t; }
 
+// Open a custom-select dropdown; if it's inside a modal, escape it so it isn't clipped
+function openSelect(drop, btn) {
+  const modal = drop.closest('.md-modal');
+  if (modal) {
+    const r = btn.getBoundingClientRect();
+    drop.style.position='fixed'; drop.style.left=r.left+'px'; drop.style.top=(r.bottom+2)+'px'; drop.style.width=Math.max(r.width,220)+'px'; drop.style.zIndex=300;
+  }
+  drop.classList.toggle('is-open');
+}
+
+// Variables/lists may only feed triggers; they cannot be wired straight into actions
+function canConnect(fromId, toId) {
+  const fn=nodes.find(x=>x.id===fromId), tn=nodes.find(x=>x.id===toId);
+  if (!fn||!tn) return {ok:true};
+  const fk=(NODE_DEFS[nodeType(fn.type)]||{}).kind, tk=(NODE_DEFS[nodeType(tn.type)]||{}).kind;
+  if (fk==='variable' && (tk==='action'||tk==='flow')) return {ok:false, msg:'Variables / lists connect to triggers — reference them with ${var:name} inside action text.'};
+  return {ok:true};
+}
+
 function nodeSummary(n) {
   const cfg=n.config||{};
   switch(n.type) {
     case 'send_message': return (cfg.channel_id?'#'+((CHANNELS.find(c=>String(c.id)===String(cfg.channel_id))||{}).name||''):'')+' '+esc(cfg.text||'');
     case 'send_dm': return esc(cfg.text||'');
     case 'add_role': case 'remove_role': return cfg.role_id?(ROLES.find(r=>String(r.id)===String(cfg.role_id))||{}).name||'':'';
-    case 'kick': case 'ban': case 'send_ticket': return esc(cfg.text||'');
+    case 'send_ticket': return (cfg.channel_id?'#'+((CHANNELS.find(c=>String(c.id)===String(cfg.channel_id))||{}).name||''):'')+' '+(cfg.title?esc(cfg.title):'')+' '+esc(cfg.text||'');
     case 'mute': return (cfg.duration||60)+' min';
     case 'set_nickname': return esc(cfg.text||'');
     case 'message_contains': case 'message_starts': return esc(cfg.text||'');
     case 'repeat': return 'x'+(cfg.count||1)+' times';
-    case 'wait_for': return (cfg.waitType==='condition'?'Until true':(cfg.duration||5)+'s');
+    case 'wait_for': return (cfg.waitType==='condition'?'until '+esc(cfg.condition||'…'):(cfg.duration||5)+'s');
     case 'end_block': return '—';
     case 'set_var': case 'custom_var': return (cfg.name||'unnamed')+' = '+esc(cfg.value||'…');
     case 'modify_var': return (cfg.name||'unnamed')+' '+(({set:'=',add:'+'})[cfg.modOp]||'?')+' '+esc(cfg.value||'…');
     case 'list_var': return (cfg.name||'list')+' ('+((cfg.items||'').split('\n').filter(Boolean).length)+' items)';
+    case 'modify_list': return (cfg.name||'list')+' '+(({add:'+',remove:'-',clear:'clear',set:'='})[cfg.listOp]||'?')+' '+esc(cfg.value||'…');
     case 'sys_role': return 'role...';
     case 'sys_channel': return 'channel...';
     case 'sys_text': return 'text...';
@@ -221,6 +259,7 @@ function renderNodeDots(n) {
   } else {
     if (n.type==='end_block') { dots = '<div class="aut-node-dot in" data-connect="in"></div>'; }
     else if (k==='action'||k==='flow'||k==='trigger') dots += '<div class="aut-node-dot in" data-connect="in"></div>';
+    else if (n.type==='modify_var'||n.type==='set_var'||n.type==='list_var'||n.type==='modify_list') dots += '<div class="aut-node-dot in" data-connect="in"></div>';
     if (n.type!=='end_block'&&(k==='trigger'||k==='action'||k==='variable')) dots += '<div class="aut-node-dot out" data-connect="out"></div>';
   }
   return dots;
@@ -415,13 +454,16 @@ document.addEventListener('mouseup', e => {
       const nodeEl = targetEl.closest('.aut-node');
       if (dot && nodeEl) {
         const toId = parseInt(nodeEl.dataset.id);
-        if (toId !== connOrigin && !hasCircular(connOrigin, toId)) {
-          connections = connections.filter(c => c.to!==toId);
-          connections.push({from:connOrigin, to:toId, fromDot:connOrigDot});
+        const cc = canConnect(connOrigin, toId);
+        if (!cc.ok) {
+          if (typeof showToast === 'function') showToast(cc.msg, 'warning', 5000);
         } else if (toId === connOrigin) {
           if (typeof showToast === 'function') showToast("Can't connect a node to itself.", 'warning');
-        } else {
+        } else if (hasCircular(connOrigin, toId)) {
           if (typeof showToast === 'function') showToast("That would create a circular loop.", 'warning');
+        } else {
+          connections = connections.filter(c => c.to!==toId);
+          connections.push({from:connOrigin, to:toId, fromDot:connOrigDot});
         }
       } else if (dot) {
         if (typeof showToast === 'function') showToast('Connect from an output dot to an input dot.', 'warning', 4000);
@@ -456,6 +498,12 @@ function configureNode(n) {
   if (!fields.length) {
     body.innerHTML = '<p style="color:rgba(255,255,255,0.4);font-size:0.8rem;">No configuration needed.</p>';
   }
+  if (def.hint) {
+    const h = document.createElement('div');
+    h.className = 'aut-hintbox';
+    h.innerHTML = def.hint.replace(/\$\{var/g, '<code>${var').replace(/\}/g, '}</code>');
+    body.insertBefore(h, body.firstChild);
+  }
   fields.forEach(fd => {
     const wrap = document.createElement('div');
     const lbl = document.createElement('div');
@@ -474,7 +522,7 @@ function configureNode(n) {
         (g.opts.length?'<div style="font-size:0.6rem;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;color:rgba(255,255,255,0.3);padding:0.35rem 0.7rem 0.1rem;">'+g.label+'</div>':'')+
         g.opts.map(o=>'<button class="md-custom-opt" data-val="'+esc(o[1])+'">'+esc(o[0])+'</button>').join('')
       ).join('');
-      btn.addEventListener('click', e=>{e.stopPropagation();drop.classList.toggle('is-open');});
+      btn.addEventListener('click', e=>{e.stopPropagation();openSelect(drop,btn);});
       drop.querySelectorAll('.md-custom-opt').forEach(o=>o.addEventListener('click',()=>{
         const ta = wrap.querySelector('textarea');
         if (ta) ta.value += o.dataset.val;
@@ -500,7 +548,7 @@ function configureNode(n) {
       const sel = document.createElement('div'); sel.className='md-custom-select'; sel.style.width='100%';
       sel.innerHTML = `<button class="md-custom-select-btn">${cur?pre+esc(cur):'Select...'}</button><div class="md-custom-select-drop">${list.map(x=>'<button class="md-custom-opt" data-id="'+x.id+'">'+pre+esc(x.name)+'</button>').join('')}</div>`;
       const btn=sel.querySelector('.md-custom-select-btn'), drop2=sel.querySelector('.md-custom-select-drop');
-      btn.addEventListener('click',e=>{e.stopPropagation();drop2.classList.toggle('is-open');});
+      btn.addEventListener('click',e=>{e.stopPropagation();openSelect(drop2,btn);});
       drop2.querySelectorAll('.md-custom-opt').forEach(o=>o.addEventListener('click',()=>{btn.textContent=o.textContent;btn.dataset.pick=o.dataset.id;drop2.classList.remove('is-open');}));
       wrap.appendChild(sel); wrap.dataset.selKey=fd.key;
     } else if (fd.kind === 'varType') {
@@ -508,7 +556,7 @@ function configureNode(n) {
       const cur = cfg.varType||'Text';
       sel.innerHTML = `<button class="md-custom-select-btn">${cur}</button><div class="md-custom-select-drop">${CUSTOM_TYPES.map(t=>'<button class="md-custom-opt" data-id="'+t+'">'+t+'</button>').join('')}</div>`;
       const btn=sel.querySelector('.md-custom-select-btn'), drop2=sel.querySelector('.md-custom-select-drop');
-      btn.addEventListener('click',e=>{e.stopPropagation();drop2.classList.toggle('is-open');});
+      btn.addEventListener('click',e=>{e.stopPropagation();openSelect(drop2,btn);});
       drop2.querySelectorAll('.md-custom-opt').forEach(o=>o.addEventListener('click',()=>{btn.textContent=o.textContent;btn.dataset.pick=o.dataset.id;drop2.classList.remove('is-open');}));
       wrap.appendChild(sel); wrap.dataset.selKey='varType';
     } else if (fd.kind === 'waitType') {
@@ -517,8 +565,11 @@ function configureNode(n) {
       const cur=cfg.waitType||'time';
       sel.innerHTML=`<button class="md-custom-select-btn">${opts.find(o=>o[0]===cur)[1]}</button><div class="md-custom-select-drop">${opts.map(o=>'<button class="md-custom-opt" data-id="'+o[0]+'">'+o[1]+'</button>').join('')}</div>`;
       const btn=sel.querySelector('.md-custom-select-btn'),drop2=sel.querySelector('.md-custom-select-drop');
-      btn.addEventListener('click',e=>{e.stopPropagation();drop2.classList.toggle('is-open');});
-      drop2.querySelectorAll('.md-custom-opt').forEach(o=>o.addEventListener('click',()=>{btn.textContent=opts.find(x=>x[0]===o.dataset.id)[1];btn.dataset.pick=o.dataset.id;drop2.classList.remove('is-open');}));
+      btn.addEventListener('click',e=>{e.stopPropagation();openSelect(drop2,btn);});
+      drop2.querySelectorAll('.md-custom-opt').forEach(o=>o.addEventListener('click',()=>{
+        btn.textContent=opts.find(x=>x[0]===o.dataset.id)[1];btn.dataset.pick=o.dataset.id;drop2.classList.remove('is-open');
+        if (typeof syncWaitFields==='function') syncWaitFields();
+      }));
       wrap.appendChild(sel);wrap.dataset.selKey='waitType';
     } else if (fd.kind === 'modOp') {
       const opts=[['set','Set'],['add','Add']];
@@ -526,9 +577,18 @@ function configureNode(n) {
       const cur=cfg.modOp||'set';
       sel.innerHTML=`<button class="md-custom-select-btn">${opts.find(o=>o[0]===cur)[1]}</button><div class="md-custom-select-drop">${opts.map(o=>'<button class="md-custom-opt" data-id="'+o[0]+'">'+o[1]+'</button>').join('')}</div>`;
       const btn=sel.querySelector('.md-custom-select-btn'),drop2=sel.querySelector('.md-custom-select-drop');
-      btn.addEventListener('click',e=>{e.stopPropagation();drop2.classList.toggle('is-open');});
+      btn.addEventListener('click',e=>{e.stopPropagation();openSelect(drop2,btn);});
       drop2.querySelectorAll('.md-custom-opt').forEach(o=>o.addEventListener('click',()=>{btn.textContent=opts.find(x=>x[0]===o.dataset.id)[1];btn.dataset.pick=o.dataset.id;drop2.classList.remove('is-open');}));
       wrap.appendChild(sel);wrap.dataset.selKey='modOp';
+    } else if (fd.kind === 'listOp') {
+      const opts=[['add','Add Item'],['remove','Remove Item'],['clear','Clear List'],['set','Set List']];
+      const sel=document.createElement('div');sel.className='md-custom-select';sel.style.width='100%';
+      const cur=cfg.listOp||'add';
+      sel.innerHTML=`<button class="md-custom-select-btn">${opts.find(o=>o[0]===cur)[1]}</button><div class="md-custom-select-drop">${opts.map(o=>'<button class="md-custom-opt" data-id="'+o[0]+'">'+o[1]+'</button>').join('')}</div>`;
+      const btn=sel.querySelector('.md-custom-select-btn'),drop2=sel.querySelector('.md-custom-select-drop');
+      btn.addEventListener('click',e=>{e.stopPropagation();openSelect(drop2,btn);});
+      drop2.querySelectorAll('.md-custom-opt').forEach(o=>o.addEventListener('click',()=>{btn.textContent=opts.find(x=>x[0]===o.dataset.id)[1];btn.dataset.pick=o.dataset.id;drop2.classList.remove('is-open');}));
+      wrap.appendChild(sel);wrap.dataset.selKey='listOp';
     }
     body.appendChild(wrap);
   });
@@ -541,6 +601,19 @@ function configureNode(n) {
   overlay.classList.add('is-open');
   // Force focus on the first editable field
   setTimeout(() => { const f = overlay.querySelector('textarea, input[type="text"], input[type="number"]'); if (f) f.focus(); }, 50);
+
+  if (n.type === 'wait_for') {
+    function syncWaitFields() {
+      const wb = overlay.querySelector('[data-sel-key="waitType"] .md-custom-select-btn');
+      const wt = wb ? (wb.dataset.pick || cfg.waitType || 'time') : (cfg.waitType || 'time');
+      Array.from(body.children).forEach(w => {
+        if (w.querySelector('[data-cfg="duration"]')) w.style.display = wt === 'condition' ? 'none' : '';
+        if (w.querySelector('[data-cfg="condition"]')) w.style.display = wt === 'condition' ? '' : 'none';
+      });
+    }
+    window.syncWaitFields = syncWaitFields;
+    syncWaitFields();
+  }
 
   overlay.querySelector('#cfg-save').addEventListener('click',()=>{
     body.querySelectorAll('[data-cfg]').forEach(el=>{cfg[el.dataset.cfg]=el.type==='number'?(parseFloat(el.value)||0):el.value;});
@@ -571,6 +644,48 @@ palette.addEventListener('mousemove',e=>{
   else if(r.right-e.clientX<edge) palTimer=setInterval(()=>palette.scrollLeft+=speed,16);
 });
 palette.addEventListener('mouseleave',()=>clearInterval(palTimer));
+
+// ── Block search (Ctrl+F or "/") ──
+const SEARCH_INDEX = Object.entries(NODE_DEFS).map(([type,def])=>({type,label:def.label}));
+const searchInput=document.getElementById('aut-search'), searchDrop=document.getElementById('aut-search-drop');
+function blockScore(q,label){ const l=label.toLowerCase(); if(l===q)return 100; if(l.startsWith(q))return 60; if(l.includes(q))return 30; return 0; }
+function addBlockAtCenter(type){
+  const wrap=CW(); const r=wrap.getBoundingClientRect();
+  nodes.push(createNode(type, Math.max(0,wrap.scrollLeft+r.width/2-100), Math.max(0,wrap.scrollTop+r.height/2-25)));
+  renderAll();
+  const id=nodes[nodes.length-1].id;
+  const el=CAN().querySelector('.aut-node[data-id="'+id+'"]');
+  if(el){ el.style.boxShadow='0 0 0 2px #60a5fa'; setTimeout(()=>{ el.style.boxShadow=''; },1600); }
+}
+searchInput.addEventListener('input',()=>{
+  const q=searchInput.value.trim().toLowerCase();
+  if(!q){ searchDrop.style.display='none'; return; }
+  const m=SEARCH_INDEX.map(x=>({...x,s:blockScore(q,x.label)})).filter(x=>x.s>0).sort((a,b)=>b.s-a.s).slice(0,6);
+  searchDrop.innerHTML=m.map(x=>'<button class="md-custom-opt" data-type="'+x.type+'">'+esc(x.label)+'</button>').join('');
+  searchDrop.style.display=m.length?'block':'none';
+});
+searchInput.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){
+    e.preventDefault();
+    const first=searchDrop.querySelector('.md-custom-opt[data-type]');
+    if(first) addBlockAtCenter(first.dataset.type);
+    else {
+      const q=searchInput.value.trim().toLowerCase();
+      const best=SEARCH_INDEX.filter(x=>x.label.toLowerCase().includes(q)).sort((a,b)=>a.label.length-b.label.length)[0];
+      if(best) addBlockAtCenter(best.type);
+    }
+    searchDrop.style.display='none'; searchInput.value='';
+  }
+  if(e.key==='Escape'){ searchDrop.style.display='none'; searchInput.blur(); }
+});
+searchDrop.addEventListener('click',e=>{
+  const b=e.target.closest('.md-custom-opt[data-type]');
+  if(b){ addBlockAtCenter(b.dataset.type); searchDrop.style.display='none'; searchInput.value=''; }
+});
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&(e.key==='f'||e.key==='F')){ e.preventDefault(); searchInput.focus(); searchInput.select(); }
+  else if(e.key==='/'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){ e.preventDefault(); searchInput.focus(); }
+});
 
 async function saveGraph() {
   if (!validateGraph()) return;

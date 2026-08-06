@@ -511,7 +511,7 @@ class Moderation(commands.Cog, name="Moderation"):
             await self.send_confirm(interaction, settings, "kick", "👢 Member Kicked", "red", member, reason)
 
             log_embed = (
-                EmbedBuilder().title("👢 Member Kicked")
+                EmbedBuilder().title("Member Kicked")
                 .description(f"{member.mention} (`{member.id}`)")
                 .color("red")
                 .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
@@ -561,7 +561,7 @@ class Moderation(commands.Cog, name="Moderation"):
             await self.send_confirm(interaction, settings, "ban", "🔨 Member Banned", "red", member, reason)
 
             log_embed = (
-                EmbedBuilder().title("🔨 Member Banned")
+                EmbedBuilder().title("Member Banned")
                 .description(f"{member.mention} (`{member.id}`)")
                 .color("red")
                 .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
@@ -614,7 +614,7 @@ class Moderation(commands.Cog, name="Moderation"):
             await self.send_confirm(interaction, settings, "tempban", "⏳ Member Temp-Banned", "red", member, reason, format_duration(duration))
 
             log_embed = (
-                EmbedBuilder().title("⏳ Member Temp-Banned")
+                EmbedBuilder().title("Member Temp-Banned")
                 .description(f"{member.mention} (`{member.id}`)")
                 .color("red")
                 .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
@@ -748,7 +748,7 @@ class Moderation(commands.Cog, name="Moderation"):
                 if not msg:
                     msg = f"{member.mention} has been timed out."
                 embed = (
-                    EmbedBuilder().title("🔇 Member Muted")
+                    EmbedBuilder().title("Member Muted")
                     .description(msg)
                     .color("orange")
                     .field("Duration", format_duration(duration))
@@ -759,7 +759,7 @@ class Moderation(commands.Cog, name="Moderation"):
                 )
                 await interaction.response.send_message(embed=embed)
         else:
-            await interaction.response.send_message(embed=EmbedBuilder().title("🔇 Member Muted").description("Done.").color("orange").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await interaction.response.send_message(embed=EmbedBuilder().title("Member Muted").description("Done.").color("orange").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
         if settings.get("dm_on_action", True) and settings.get("mute_dm", True):
             dm_embed = self._user_dm_embed(
@@ -770,7 +770,7 @@ class Moderation(commands.Cog, name="Moderation"):
             await safe_dm(member, embed=dm_embed)
 
         log_embed = (
-            EmbedBuilder().title("🔇 Member Muted")
+            EmbedBuilder().title("Member Muted")
             .description(f"{member.mention} (`{member.id}`)")
             .color("orange")
             .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
@@ -810,7 +810,7 @@ class Moderation(commands.Cog, name="Moderation"):
 
         if not settings.get("silent_mod"):
             embed = (
-                EmbedBuilder().title("🔊 Member Unmuted")
+                EmbedBuilder().title("Member Unmuted")
                 .description(f"{member.mention}'s mute has been removed.")
                 .color("green")
                 .field("Reason", reason)
@@ -820,7 +820,7 @@ class Moderation(commands.Cog, name="Moderation"):
             )
             await interaction.response.send_message(embed=embed)
         else:
-            await interaction.response.send_message(embed=EmbedBuilder().title("🔊 Member Unmuted").description("Done.").color("green").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await interaction.response.send_message(embed=EmbedBuilder().title("Member Unmuted").description("Done.").color("green").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
         if settings.get("dm_on_action", True) and settings.get("mute_dm", True):
             dm_embed = self._user_dm_embed(
@@ -831,7 +831,7 @@ class Moderation(commands.Cog, name="Moderation"):
             await safe_dm(member, embed=dm_embed)
 
         log_embed = (
-            EmbedBuilder().title("🔊 Member Unmuted")
+            EmbedBuilder().title("Member Unmuted")
             .description(f"{member.mention} (`{member.id}`)")
             .color("green")
             .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
@@ -921,7 +921,7 @@ class Moderation(commands.Cog, name="Moderation"):
             return await interaction.response.send_message(embed=_error_embed(f"Failed to purge: {e}"), ephemeral=True)
 
         embed = (
-            EmbedBuilder().title("🧹 Messages Purged")
+            EmbedBuilder().title("Messages Purged")
             .description(f"Deleted {len(deleted)} messages.")
             .color("blue")
             .field("Channel", interaction.channel.mention)
@@ -932,7 +932,7 @@ class Moderation(commands.Cog, name="Moderation"):
         await interaction.response.send_message(embed=embed, delete_after=5)
 
         log_embed = (
-            EmbedBuilder().title("🧹 Messages Purged")
+            EmbedBuilder().title("Messages Purged")
             .description(f"Deleted **{len(deleted)}** messages in {interaction.channel.mention} (`{str(interaction.channel.id)}`)")
             .color("blue")
             .field("Moderator", f"{interaction.user.mention} (`{str(interaction.user.id)}`)")
@@ -960,7 +960,7 @@ class Moderation(commands.Cog, name="Moderation"):
         mod_roles = settings.get("mod_roles", []) or []
         embed = (
             EmbedBuilder()
-            .title("⚙️ Moderation Settings")
+            .title("Moderation Settings")
             .color("blue")
             .field("General", "\u200b", inline=False)
             .field("DM on Action", b(settings.get("dm_on_action")))

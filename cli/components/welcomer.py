@@ -93,7 +93,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
             try:
                 embed = (
                     EmbedBuilder()
-                    .title("👋 Welcome!")
+                    .title("Welcome!")
                     .description(msg)
                     .color("green")
                     .thumbnail(member.display_avatar.url)
@@ -154,7 +154,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
             else:
                 embed = (
                     EmbedBuilder()
-                    .title("👋 Goodbye")
+                    .title("Goodbye")
                     .description(msg)
                     .color("red")
                     .thumbnail(member.display_avatar.url)
@@ -182,7 +182,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
         status = "enabled" if settings["enabled"] else "disabled"
         color = "green" if settings["enabled"] else "red"
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("⚙️ Welcomer Toggled").description(f"Welcome messages **{status}**.").color(color).timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title("Welcomer Toggled").description(f"Welcome messages **{status}**.").color(color).timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -287,7 +287,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
         if settings.get("welcome_embed", True):
             embed = (
                 EmbedBuilder()
-                .title("👋 Welcome! (Test)")
+                .title("Welcome! (Test)")
                 .description(msg)
                 .color("green")
                 .thumbnail(interaction.user.display_avatar.url)
@@ -300,7 +300,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title("👋 Welcome! (Test)").description(msg).color("green").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title("Welcome! (Test)").description(msg).color("green").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
 
@@ -318,7 +318,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
         auto_role = interaction.guild.get_role(int(auto_role_id)) if auto_role_id else None
         embed = (
             EmbedBuilder()
-            .title("⚙️ Welcomer Configuration")
+            .title("Welcomer Configuration")
             .color("blue")
             .field("Enabled", "Yes" if settings.get("enabled") else "No")
             .field("Channel", channel.mention if channel else "Not set")

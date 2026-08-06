@@ -99,7 +99,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
                 await record_invite(member.guild.id, str(inviter.id), used.code)
             embed = (
                 EmbedBuilder()
-                .title("👋 Member Joined")
+                .title("Member Joined")
                 .description(f"{member.mention} was invited by {inviter_name}")
                 .color("green")
                 .field("Invite Code", used.code)
@@ -113,7 +113,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
         else:
             embed = (
                 EmbedBuilder()
-                .title("👋 Member Joined")
+                .title("Member Joined")
                 .description(f"{member.mention} joined (no invite tracked)")
                 .color("green")
                 .field("Account Age", discord.utils.format_dt(member.created_at, style="R"))
@@ -139,7 +139,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
         status = "enabled" if settings["enabled"] else "disabled"
         color = "green" if settings["enabled"] else "red"
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("📊 Invite Tracking").description(f"Invite tracking **{status}**.").color(color).timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title("Invite Tracking").description(f"Invite tracking **{status}**.").color(color).timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -173,7 +173,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
         )
         if not rows:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("📊 Invite Stats").description("No invite data yet.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title("Invite Stats").description("No invite data yet.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         lines = []
@@ -184,7 +184,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
             lines.append(f"{medal} {name} - {row['total_uses']} invites")
         embed = (
             EmbedBuilder()
-            .title("📊 Invite Leaderboard")
+            .title("Invite Leaderboard")
             .description("\n".join(lines))
             .color("gold")
             .timestamp(datetime.datetime.utcnow())
@@ -207,7 +207,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
         )
         if not rows:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("📊 Invite Stats").description(f"{user.mention} has no recorded invites.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title("Invite Stats").description(f"{user.mention} has no recorded invites.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         total = sum(r["uses"] for r in rows)

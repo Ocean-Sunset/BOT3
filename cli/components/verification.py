@@ -74,7 +74,7 @@ async def _verify_done(interaction: discord.Interaction, role_id, role_label="ve
         return
     if role in interaction.user.roles:
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("ℹAlready Verified").description("You are already verified.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title("Already Verified").description("You are already verified.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
         return

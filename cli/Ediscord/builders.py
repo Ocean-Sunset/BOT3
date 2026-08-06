@@ -29,6 +29,26 @@ from Ediscord import variables
 
 
 # ==================================================================================================
+#                                        UNIFIED BRAND / SEMANTIC COLORS
+# ==================================================================================================
+
+# Prowl brand palette — every embed should use one of these.
+BRAND   = 0x8B5CF6   # violet — default / neutral
+SUCCESS = 0x22C55E   # green  — actions that succeeded
+ERROR   = 0xEF4444   # red    — failures / denied
+WARN    = 0xF59E0B   # amber  — cautions / warnings
+INFO    = 0x3B82F6   # blue   — informational
+
+_SEMANTIC = {
+    "brand": BRAND, "violet": BRAND, "purple": BRAND,
+    "success": SUCCESS, "green": SUCCESS, "ok": SUCCESS,
+    "error": ERROR, "danger": ERROR, "red": ERROR,
+    "warn": WARN, "warning": WARN, "yellow": WARN, "amber": WARN, "orange": WARN,
+    "info": INFO, "blue": INFO, "blurple": 0x5865F2,
+}
+
+
+# ==================================================================================================
 #                                            EMBED BUILDER
 # ==================================================================================================
 
@@ -38,6 +58,12 @@ class EmbedBuilder:
 
     All setter methods return ``self`` so calls can be chained.
     Call :meth:`build` to get the final ``discord.Embed``.
+
+    Semantic shortcuts keep embeds consistent:
+        EmbedBuilder().success("Member Muted")              # green, title only
+        EmbedBuilder().error("Missing permissions")         # red, title only
+        EmbedBuilder().info("Leaderboard").field("1.", "User")  # blue + fields
+        EmbedBuilder().warn("Rate limited", "Try again later.")  # amber + description
     """
 
     def __init__(self):
@@ -52,6 +78,23 @@ class EmbedBuilder:
         self._thumbnail: Optional[str] = None
         self._fields: list = []
 
+    # --- semantic shortcuts ---------------------------------------------------
+
+    def success(self, title: str, description: str = None) -> "EmbedBuilder":
+        return self.title(title).color("success").description(description or "")
+
+    def error(self, title: str, description: str = None) -> "EmbedBuilder":
+        return self.title(title).color("error").description(description or "")
+
+    def warn(self, title: str, description: str = None) -> "EmbedBuilder":
+        return self.title(title).color("warn").description(description or "")
+
+    def info(self, title: str, description: str = None) -> "EmbedBuilder":
+        return self.title(title).color("info").description(description or "")
+
+    def brand(self, title: str, description: str = None) -> "EmbedBuilder":
+        return self.title(title).color("brand").description(description or "")
+
     # --- core setters ----------------------------------------------------------
 
     def title(self, text: str) -> "EmbedBuilder":
@@ -59,12 +102,15 @@ class EmbedBuilder:
         return self
 
     def description(self, text: str) -> "EmbedBuilder":
-        self._description = text[:4096]
+        self._description = text[:4096] if text else None
         return self
 
     def color(self, value: Union[str, int, discord.Color]) -> "EmbedBuilder":
         if isinstance(value, str):
-            self._color = discord.Color(variables.COLOR_MAP.get(value.lower(), 0x5865F2))
+            resolved = _SEMANTIC.get(value.lower())
+            if resolved is None:
+                resolved = variables.COLOR_MAP.get(value.lower(), BRAND)
+            self._color = discord.Color(resolved)
         elif isinstance(value, int):
             self._color = discord.Color(value)
         elif isinstance(value, discord.Color):
@@ -485,21 +531,23 @@ class ModalBuilder:
 # ==================================================================================================
 
 
-def quick_embed(title: str, description: str = None, color: str = "blurple") -> discord.Embed:
-    """One-liner embed shortcut."""
-    return EmbedBuilder().title(title).description(description or "").color(color).build()
+def quick_embed(title: str, description: str = None, color: str = "brand") -> discord.Embed:
+    """One-liner embed shortcut (title-first, optional description)."""
+    eb = EmbedBuilder()
+    getattr(eb, color if color in ("success", "error", "warn", "info", "brand") else "brand")(title, description)
+    return eb.build()
 
 
 def success_embed(title: str, description: str = None) -> discord.Embed:
-    """Green success embed."""
-    return quick_embed(title, description, "success")
+    """Green success embed — title only unless a description is given."""
+    return EmbedBuilder().success(title, description).build()
 
 
 def error_embed(title: str, description: str = None) -> discord.Embed:
     """Red error embed."""
-    return quick_embed(title, description, "danger")
+    return EmbedBuilder().error(title, description).build()
 
 
 def info_embed(title: str, description: str = None) -> discord.Embed:
     """Blue info embed."""
-    return quick_embed(title, description, "blue")
+    return EmbedBuilder().info(title, description).build()

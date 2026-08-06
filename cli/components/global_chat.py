@@ -77,7 +77,7 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
         await self.set_linked_channel(str(interaction.channel_id))
         embed = (
             EmbedBuilder()
-            .title("🌐 Global Chat Linked")
+            .title("Global Chat Linked")
             .description(f"This channel ({interaction.channel.mention}) is now linked to the global chat!")
             .color("green")
             .field("Channel ID", str(interaction.channel_id))
@@ -95,7 +95,7 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
             )
         await self.set_linked_channel("0")
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("🌐 Global Chat Unlinked").description("This channel has been unlinked from global chat.").color("orange").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title("Global Chat Unlinked").description("This channel has been unlinked from global chat.").color("orange").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -106,7 +106,7 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
             channel = self.bot.get_channel(int(hub_channel_id))
             embed = (
                 EmbedBuilder()
-                .title("🌐 Global Chat Status")
+                .title("Global Chat Status")
                 .description(f"Global chat is linked to {channel.mention if channel else f'<#{hub_channel_id}>'}")
                 .color("green")
                 .field("Channel ID", str(hub_channel_id))
@@ -116,7 +116,7 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
         else:
             embed = (
                 EmbedBuilder()
-                .title("🌐 Global Chat Status")
+                .title("Global Chat Status")
                 .description("Global chat is not set up yet.")
                 .color("red")
                 .timestamp(datetime.datetime.utcnow())

@@ -105,7 +105,7 @@ class TicketView(discord.ui.View):
                 if log_channel:
                     log_embed = (
                         EmbedBuilder()
-                        .title("🔒 Ticket Closed")
+                        .title("Ticket Closed")
                         .description(f"Ticket {i.channel.mention} has been closed.")
                         .color("red")
                         .field("Closed By", interaction.user.mention)
@@ -133,7 +133,7 @@ class TicketView(discord.ui.View):
         confirm_view.add_item(confirm_btn)
         confirm_view.add_item(cancel_btn)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("🔒 Close Ticket?").description("Are you sure you want to close this ticket?").color("orange").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title("Close Ticket?").description("Are you sure you want to close this ticket?").color("orange").timestamp(datetime.datetime.utcnow()).build(),
             view=confirm_view,
             ephemeral=True
         )
@@ -216,7 +216,7 @@ class Tickets(commands.Cog, name="Tickets"):
             welcome = settings.get("welcome_message", "Support will be with you shortly.")
             embed = (
                 EmbedBuilder()
-                .title("🎫 Ticket Created")
+                .title("Ticket Created")
                 .description(welcome)
                 .color("blue")
                 .field("User", interaction.user.mention)
@@ -281,7 +281,7 @@ class Tickets(commands.Cog, name="Tickets"):
         await save_ticket_settings(interaction.guild_id, settings)
         embed = (
             EmbedBuilder()
-            .title("🎫 Support Tickets")
+            .title("Support Tickets")
             .description("Click the button below to create a support ticket.")
             .color("blue")
             .field("Category", category.mention)
@@ -306,7 +306,7 @@ class Tickets(commands.Cog, name="Tickets"):
             )
         embed = (
             EmbedBuilder()
-            .title("🎫 Support Tickets")
+            .title("Support Tickets")
             .description("Click below to create a ticket.")
             .color("blue")
             .timestamp(datetime.datetime.utcnow())
@@ -330,7 +330,7 @@ class Tickets(commands.Cog, name="Tickets"):
         await interaction.channel.set_permissions(user, read_messages=True, send_messages=True)
         embed = (
             EmbedBuilder()
-            .title("👤 User Added")
+            .title("User Added")
             .description(f"{user.mention} has been added to this ticket.")
             .color("green")
             .field("Added By", interaction.user.mention)
@@ -350,7 +350,7 @@ class Tickets(commands.Cog, name="Tickets"):
         await interaction.channel.set_permissions(user, overwrite=None)
         embed = (
             EmbedBuilder()
-            .title("👤 User Removed")
+            .title("User Removed")
             .description(f"{user.mention} has been removed from this ticket.")
             .color("orange")
             .field("Removed By", interaction.user.mention)
@@ -376,7 +376,7 @@ class Tickets(commands.Cog, name="Tickets"):
         await interaction.channel.edit(name=new_name, reason=f"Ticket renamed by {interaction.user}")
         embed = (
             EmbedBuilder()
-            .title("✏️ Ticket Renamed")
+            .title("Ticket Renamed")
             .description(f"Ticket renamed to **{new_name}**")
             .color("blue")
             .field("Renamed By", interaction.user.mention)
@@ -403,7 +403,7 @@ class Tickets(commands.Cog, name="Tickets"):
             closed_count = row["count"] if row else 0
         embed = (
             EmbedBuilder()
-            .title("📊 Ticket Statistics")
+            .title("Ticket Statistics")
             .color("blue")
             .field("Open Tickets", str(len(ticket_channels)))
             .field("Closed Tickets", str(closed_count))

@@ -19,7 +19,7 @@ class General(commands.Cog):
         latency = round(self.bot.latency * 1000)
         embed = (
             EmbedBuilder()
-            .title("🏓 Pong!")
+            .title("Pong!")
             .description(f"**Latency:** {latency}ms\n**API Latency:** {round(self.bot.latency * 1000)}ms")
             .color("green")
             .footer(f"Prowl v{variables.__version__}")
@@ -33,7 +33,7 @@ class General(commands.Cog):
         uptime = utils.get_uptime()
         embed = (
             EmbedBuilder()
-            .title("🐾 Prowl")
+            .title("Prowl")
             .description("A silly little cat bot with a ton of abilities.")
             .color("blurple")
             .field("Servers", str(len(self.bot.guilds)))

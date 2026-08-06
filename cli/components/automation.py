@@ -173,7 +173,7 @@ class Automation(commands.Cog, name="Automation"):
         color = "green" if enabled else "red"
         embed = (
             EmbedBuilder()
-            .title("🛡️ Anti-Raid Updated")
+            .title("Anti-Raid Updated")
             .description(f"Anti-raid protection **{status}**.")
             .color(color)
             .field("Threshold", f"{threshold} joins")
@@ -224,7 +224,7 @@ class Automation(commands.Cog, name="Automation"):
         status = "enabled" if enabled else "disabled"
         color = "green" if enabled else "red"
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("🔇 Mute Evasion Updated").description(f"Mute evasion detection **{status}**.").color(color).timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title("Mute Evasion Updated").description(f"Mute evasion detection **{status}**.").color(color).timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -267,7 +267,7 @@ class Automation(commands.Cog, name="Automation"):
         bot_role = interaction.guild.get_role(int(bot_role_id)) if bot_role_id else None
         embed = (
             EmbedBuilder()
-            .title("⚙️ Automation Settings")
+            .title("Automation Settings")
             .color("blue")
             .field("Auto-Roles", ", ".join(role_mentions) or "None")
             .field("Bot Role", bot_role.mention if bot_role else "None")

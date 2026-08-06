@@ -243,7 +243,7 @@ class Leveling(commands.Cog, name="Leveling"):
                         )
                         embed = (
                             EmbedBuilder()
-                            .title("🎉 Level Up!")
+                            .title("Level Up!")
                             .description(msg)
                             .color("green")
                             .field("New Level", str(new_level))
@@ -307,7 +307,7 @@ class Leveling(commands.Cog, name="Leveling"):
         total_pages = math.ceil(total_users / 10) if total_users > 0 else 1
         if not rows:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("📊 Leaderboard").description("No leveling data yet.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title("Leaderboard").description("No leveling data yet.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         lines = []
@@ -319,7 +319,7 @@ class Leveling(commands.Cog, name="Leveling"):
             lines.append(f"{medal} {name} - Level {lvl} ({row['xp']:,} XP)")
         embed = (
             EmbedBuilder()
-            .title("📊 XP Leaderboard")
+            .title("XP Leaderboard")
             .description("\n".join(lines))
             .color("gold")
             .footer(f"Page {page}/{total_pages} | Total: {total_users} users")
@@ -342,7 +342,7 @@ class Leveling(commands.Cog, name="Leveling"):
         color = "green" if settings["enabled"] else "red"
         embed = (
             EmbedBuilder()
-            .title("⚙️ XP System Toggled")
+            .title("XP System Toggled")
             .description(f"XP system is now **{status}**.")
             .color(color)
             .timestamp(datetime.datetime.utcnow())
@@ -389,7 +389,7 @@ class Leveling(commands.Cog, name="Leveling"):
         await set_user_xp(interaction.guild_id, member.id, 0)
         embed = (
             EmbedBuilder()
-            .title("🔄 XP Reset")
+            .title("XP Reset")
             .description(f"Reset {member.mention}'s XP to 0")
             .color("orange")
             .field("Moderator", interaction.user.mention)
@@ -413,7 +413,7 @@ class Leveling(commands.Cog, name="Leveling"):
         roles_str = "\n".join([f"Level {lvl}: <@&{rid}>" for lvl, rid in level_roles.items()]) if level_roles else "None configured"
         embed = (
             EmbedBuilder()
-            .title("⚙️ Leveling Configuration")
+            .title("Leveling Configuration")
             .color("blue")
             .field("Enabled", "Yes" if settings.get("enabled") else "No")
             .field("XP Rate", f"{settings.get('xp_rate', 1.0)}x")

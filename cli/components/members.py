@@ -28,7 +28,7 @@ class Members(commands.Cog, name="Members"):
         members = [m for m in interaction.guild.members if role in m.roles]
         if not members:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("ℹ️ No Members").description(f"No members with {role.mention}.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title("No Members").description(f"No members with {role.mention}.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         chunks = [members[i:i+20] for i in range(0, len(members), 20)]
@@ -99,7 +99,7 @@ class Members(commands.Cog, name="Members"):
         with open(notes_file, "w") as f:
             json.dump(notes, f, indent=2)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("📝 Note Added").description(f"Note added for {member.mention}.").color("green").field("Note", note[:1024]).timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title("Note Added").description(f"Note added for {member.mention}.").color("green").field("Note", note[:1024]).timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 

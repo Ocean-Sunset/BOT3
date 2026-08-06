@@ -480,7 +480,7 @@ function configureNode(n) {
         drop.classList.remove('is-open');
       }));
       const ta = document.createElement('textarea');
-      ta.className = 'md-input md-textarea'; ta.rows=3; ta.style.width='100%'; ta.style.fontSize='0.78rem';
+      ta.className = 'md-input'; ta.setAttribute('rows','3'); ta.style.width='100%'; ta.style.fontSize='0.78rem'; ta.style.display='block';
       ta.value = cfg[fd.key]||''; ta.setAttribute('data-cfg', fd.key);
       wrap.appendChild(ins); wrap.appendChild(ta);
       const hint = document.createElement('div');
@@ -538,6 +538,8 @@ function configureNode(n) {
   overlay.querySelector('#cfg-fields').appendChild(body);
   document.body.appendChild(overlay);
   overlay.classList.add('is-open');
+  // Force focus on the first editable field
+  setTimeout(() => { const f = overlay.querySelector('textarea, input[type="text"], input[type="number"]'); if (f) f.focus(); }, 50);
 
   overlay.querySelector('#cfg-save').addEventListener('click',()=>{
     body.querySelectorAll('[data-cfg]').forEach(el=>{cfg[el.dataset.cfg]=el.type==='number'?(parseFloat(el.value)||0):el.value;});

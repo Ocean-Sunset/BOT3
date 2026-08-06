@@ -3049,6 +3049,197 @@ async def gc_channels(guild_id: str, request: Request):
     return {"channels": []}
 
 
+# ---------------------------------------------------------------------------
+#  Server Settings API v1
+# ---------------------------------------------------------------------------
+
+SERVER_DEFAULTS = {
+    "language": "en",
+    "timezone": "UTC",
+}
+
+ALL_FEATURE_TABLES = (
+    "guild_settings", "mod_settings", "mod_log", "muted_users",
+    "leveling_settings", "leveling_data", "automod_settings", "ai_settings",
+    "raid_settings", "autoresponder", "social_settings", "welcome_settings",
+    "verify_settings", "ticket_settings", "ticket_logs", "logging_settings",
+    "invite_settings", "automation_settings",
+)
+
+
+async def _get_server_settings(guild_id: str):
+    row = await fetchrow("SELECT settings FROM guild_settings WHERE guild_id = $1", str(guild_id))
+    if row:
+        settings = row["settings"]
+        if isinstance(settings, str):
+            try: settings = json.loads(settings)
+            except: return dict(SERVER_DEFAULTS)
+        if isinstance(settings, dict):
+            return {**SERVER_DEFAULTS, **settings}
+    return dict(SERVER_DEFAULTS)
+
+
+@app.get("/api/v1/server/{guild_id}/settings")
+async def server_settings_get(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    return {"settings": await _get_server_settings(guild_id)}
+
+
+@app.get("/api/v1/server/{guild_id}/info")
+async def server_info(guild_id: str, request: Request):
+    """Quick summary of the server + feature activation states (read-only)."""
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    features = {}
+    for table in ALL_FEATURE_TABLES:
+        if table in ("mod_log", "mod_actions", "ticket_logs", "captcha_codes", "guild_stats_history", "member_history", "message_history"):
+            continue
+        try:
+            cnt = await fetchval("SELECT COUNT(*) FROM " + table + " WHERE guild_id = $1", str(guild_id))
+            features[table] = (cnt > 0) if cnt is not None else False
+        except Exception:
+            features[table] = False
+    return {
+        "server": d,
+        "features": features,
+    }
+
+
+@app.post("/api/v1/server/{guild_id}/reset")
+async def server_reset(guild_id: str, request: Request):
+    """Wipe all Prowl data for this guild."""
+    await require_guild_access(request, guild_id)
+    deleted = 0
+    for table in ALL_FEATURE_TABLES:
+        try:
+            await execute("DELETE FROM " + table + " WHERE guild_id = $1", str(guild_id))
+            deleted += 1
+        except Exception:
+            pass
+    return {"ok": True, "tables_cleared": deleted}
+
+
+# ---------------------------------------------------------------------------
+#  Music API v1
+# ---------------------------------------------------------------------------
+
+MUSIC_DEFAULTS = {
+    "enabled": False,
+    "dj_role_id": None,
+    "default_volume": 50,
+    "announce_channel_id": None,
+}
+
+
+async def _get_music_settings(guild_id: str):
+    row = await fetchrow("SELECT settings FROM music_settings WHERE guild_id = $1", str(guild_id))
+    if row:
+        settings = row["settings"]
+        if isinstance(settings, str):
+            try: settings = json.loads(settings)
+            except: return dict(MUSIC_DEFAULTS)
+        if isinstance(settings, dict):
+            return {**MUSIC_DEFAULTS, **settings}
+    return dict(MUSIC_DEFAULTS)
+
+
+@app.get("/api/v1/music/{guild_id}/settings")
+async def music_settings_get(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    return {"settings": await _get_music_settings(guild_id)}
+
+
+@app.post("/api/v1/music/{guild_id}/settings")
+async def music_settings_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    key = body.get("key")
+    value = body.get("value")
+    if not key:
+        return JSONResponse({"error": "missing key"}, status_code=400)
+    err = await _save_settings("music_settings", str(guild_id), key, value, MUSIC_DEFAULTS)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    return {"ok": True}
+
+
+@app.get("/api/v1/music/{guild_id}/roles")
+async def music_roles(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "roles" in d:
+        return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
+    return {"roles": []}
+
+
+@app.get("/api/v1/music/{guild_id}/channels")
+async def music_channels(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "channels" in d:
+        return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
+    return {"channels": []}
+
+
+# ---------------------------------------------------------------------------
+#  AI API v1
+# ---------------------------------------------------------------------------
+
+AI_DEFAULTS = {
+    "enabled": True,
+    "channel_id": None,
+    "model": "gpt-3.5-turbo",
+    "system_prompt": "You are a helpful Discord bot named Prowl. Be concise and friendly.",
+    "max_tokens": 500,
+    "temperature": 0.7,
+}
+
+
+async def _get_ai_settings(guild_id: str):
+    row = await fetchrow("SELECT settings FROM ai_settings WHERE guild_id = $1", str(guild_id))
+    if row:
+        settings = row["settings"]
+        if isinstance(settings, str):
+            try: settings = json.loads(settings)
+            except: return dict(AI_DEFAULTS)
+        if isinstance(settings, dict):
+            return {**AI_DEFAULTS, **settings}
+    return dict(AI_DEFAULTS)
+
+
+@app.get("/api/v1/ai/{guild_id}/settings")
+async def ai_settings_get(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    return {"settings": await _get_ai_settings(guild_id)}
+
+
+@app.post("/api/v1/ai/{guild_id}/settings")
+async def ai_settings_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    key = body.get("key")
+    value = body.get("value")
+    if not key:
+        return JSONResponse({"error": "missing key"}, status_code=400)
+    err = await _save_settings("ai_settings", str(guild_id), key, value, AI_DEFAULTS)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    return {"ok": True}
+
+
+@app.get("/api/v1/ai/{guild_id}/channels")
+async def ai_channels(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    d = _parse_guild_data(row)
+    if d and "channels" in d:
+        return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
+    return {"channels": []}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("api.index:app", host="127.0.0.1", port=8000, reload=True)

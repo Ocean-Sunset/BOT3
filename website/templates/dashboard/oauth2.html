@@ -1,1 +1,126 @@
-{% extends "dashboard/base.html" %}{% block content %}<div style="padding:2rem 0;"><div style="margin-bottom:1.25rem;"><h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">OAuth2</h1><p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Manage authorization and API connections</p></div><div style="border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:1.25rem;background:rgba(255,255,255,0.015);text-align:center;"><p style="color:rgba(255,255,255,0.4);font-size:14px;font-weight:600;padding:4rem 0;">Coming soon.</p></div></div>{% endblock %}
+{% extends "dashboard/base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/moderation.css?v=16" />
+<style>
+.oa-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; align-items:start; }
+.oa-grid > .md-section { margin-bottom:0; }
+@media (max-width:900px) { .oa-grid { grid-template-columns:1fr; } }
+.oa-code { font-size:0.72rem; font-family:monospace; color:rgba(255,255,255,0.7); background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:4px; padding:0.35rem 0.55rem; word-break:break-all; }
+.oa-scopes { display:flex; flex-wrap:wrap; gap:0.35rem; }
+.oa-scope { font-size:0.68rem; font-weight:700; color:rgba(255,255,255,0.5); background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:999px; padding:0.2rem 0.6rem; }
+</style>
+
+<div id="oauth2-wrap">
+  <div style="margin-bottom:1.25rem;">
+    <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">OAuth2</h1>
+    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Manage authorization, API connections and bot invite</p>
+  </div>
+
+  <div class="oa-grid">
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Application</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Client ID</div>
+              <div class="md-behavior-desc">Your bot's unique Discord application ID</div>
+              <div class="oa-code" style="margin-top:0.3rem;">{{ config.get('CLIENT_ID', 'Not configured') }}</div>
+            </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Redirect URI</div>
+              <div class="md-behavior-desc">Where Discord sends the user after authorizing</div>
+              <div class="oa-code" style="margin-top:0.3rem;">https://prowlbot.xyz/callback</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Scopes</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item" style="align-items:flex-start;">
+            <div style="flex:1">
+              <div class="md-behavior-label">Requested Permissions</div>
+              <div class="md-behavior-desc">What Prowl accesses through Discord OAuth</div>
+              <div class="oa-scopes" style="margin-top:0.4rem;">
+                <span class="oa-scope">identify</span>
+                <span class="oa-scope">guilds</span>
+                <span class="oa-scope">bot</span>
+              </div>
+              <div style="font-size:0.68rem;color:rgba(255,255,255,0.3);margin-top:0.5rem;line-height:1.5;">
+                <b>identify</b> — read your Discord username, avatar and ID<br/>
+                <b>guilds</b> — list the servers you manage<br/>
+                <b>bot</b> — add Prowl as a bot to your server
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">API Access</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">API Endpoint</div>
+              <div class="md-behavior-desc">Use this base URL to call Prowl's REST API</div>
+              <div class="oa-code" style="margin-top:0.3rem;">https://api.prowlbot.xyz</div>
+            </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Authentication</div>
+              <div class="md-behavior-desc">API requests use Discord bearer tokens for user sessions</div>
+              <div style="margin-top:0.3rem;font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.5;">The API uses cookie-based authentication via the dashboard. No API keys are issued yet.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Generate Invite Link</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item" style="align-items:flex-start;">
+            <div style="flex:1">
+              <div class="md-behavior-label">Permissions</div>
+              <div class="md-behavior-desc">Select what the bot can do when invited</div>
+              <div class="md-segmented" style="margin-top:0.5rem;margin-bottom:0.5rem;" id="perms-tabs">
+                <button type="button" class="extra-tab is-active" data-perms="8">Administrator</button>
+                <button type="button" class="extra-tab" data-perms="1101927311351">Recommended</button>
+                <button type="button" class="extra-tab" data-perms="0">None</button>
+              </div>
+              <div class="oa-code" id="invite-link" style="display:block;margin-top:0.5rem;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const CLIENT_ID = '{{ config.get("CLIENT_ID", "") }}';
+const perms = document.getElementById('perms-tabs');
+const link = document.getElementById('invite-link');
+function genLink(p) {
+  link.textContent = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&permissions=${p}&scope=bot%20applications.commands`;
+}
+genLink(8);
+perms.querySelectorAll('[data-perms]').forEach(b => b.addEventListener('click', () => {
+  perms.querySelectorAll('[data-perms]').forEach(x => x.classList.toggle('is-active', x === b));
+  genLink(b.dataset.perms);
+}));
+</script>
+{% endblock %}

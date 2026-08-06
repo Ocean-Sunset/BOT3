@@ -119,6 +119,12 @@ CREATE TABLE IF NOT EXISTS ai_settings (
     updated_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
 );
 
+CREATE TABLE IF NOT EXISTS music_settings (
+    guild_id    TEXT PRIMARY KEY,
+    settings    JSONB NOT NULL DEFAULT '{}',
+    updated_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+);
+
 CREATE TABLE IF NOT EXISTS welcome_settings (
     guild_id    TEXT PRIMARY KEY,
     settings    JSONB NOT NULL DEFAULT '{}',

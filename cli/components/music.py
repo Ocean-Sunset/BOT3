@@ -10,6 +10,23 @@ import datetime
 from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
+from Ediscord import db as neon_db
+
+
+MUSIC_DEFAULTS = {
+    "enabled": False,
+    "dj_role_id": None,
+    "default_volume": 50,
+    "announce_channel_id": None,
+}
+
+
+async def get_music_settings(guild_id: int):
+    pool = await neon_db.get_pool()
+    if not pool:
+        return dict(MUSIC_DEFAULTS)
+    row = await pool.fetchrow("SELECT settings FROM music_settings WHERE guild_id = $1", str(guild_id))
+    return neon_db.parse_settings(row["settings"], MUSIC_DEFAULTS) if row else dict(MUSIC_DEFAULTS)
 
 
 URL_REGEX = re.compile(r"https?://(?:www\.)?.+")

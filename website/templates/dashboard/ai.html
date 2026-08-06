@@ -1,12 +1,234 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
-<div style="padding:2rem 0;">
+<link rel="stylesheet" href="/static/moderation.css?v=16" />
+<style>
+.ai-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; align-items:start; }
+.ai-grid > .md-section { margin-bottom:0; }
+#ai-wrap.is-disabled .md-section:not(.am-master) { opacity:0.35; pointer-events:none; filter:grayscale(0.4); transition:opacity 0.25s ease, filter 0.25s ease; }
+#ai-wrap .md-section { transition:opacity 0.25s ease, filter 0.25s ease; }
+@media (max-width:900px) { .ai-grid { grid-template-columns:1fr; } }
+.ai-slider-wrap { display:flex; align-items:center; gap:0.75rem; }
+.ai-slider-wrap input[type=range] { flex:1; accent-color:#60a5fa; }
+.ai-slider-val { font-size:0.82rem; font-weight:700; color:#e9edf5; min-width:36px; text-align:right; }
+</style>
+<div id="ai-wrap">
+
   <div style="margin-bottom:1.25rem;">
     <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">AI</h1>
-    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Configure AI-powered features</p>
+    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Configure AI chat, image generation and moderation features</p>
   </div>
-  <div style="border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:1.25rem;background:rgba(255,255,255,0.015);text-align:center;">
-    <p style="color:rgba(255,255,255,0.4);font-size:14px;font-weight:600;padding:4rem 0;">Coming soon.</p>
+
+  <div class="ai-grid">
+
+    <div class="md-section am-master">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">AI Chat</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <label class="md-toggle"><input type="checkbox" id="ai-enabled" /><span class="md-toggle-slider"></span></label>
+            <div><div class="md-behavior-label">Enable AI</div><div class="md-behavior-desc">Let members chat with the AI in the configured channel</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Channel &amp; Model</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">AI Channel</div>
+              <div class="md-behavior-desc">Where the bot responds to AI chat commands</div>
+              <div class="md-custom-select" id="ai-ch-wrap">
+                <button class="md-custom-select-btn" id="ai-ch-btn">None</button>
+                <div class="md-custom-select-drop" id="ai-ch-drop"></div>
+              </div>
+            </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Model</div>
+              <div class="md-behavior-desc">The AI model used for chat completions</div>
+              <div class="md-custom-select" id="ai-model-wrap">
+                <button class="md-custom-select-btn" id="ai-model-btn">gpt-3.5-turbo</button>
+                <div class="md-custom-select-drop" id="ai-model-drop"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Behavior &amp; Personality</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item" style="align-items:flex-start;">
+            <div style="flex:1">
+              <div class="md-behavior-label">System Prompt</div>
+              <div class="md-behavior-desc">Instructions given to the AI. Defines how it behaves and responds.</div>
+              <textarea class="md-input md-textarea" data-key="system_prompt" rows="4" placeholder="You are a helpful Discord bot named Prowl. Be concise and friendly."></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Generation Controls</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Max Tokens</div>
+              <div class="md-behavior-desc">Maximum length of the AI's response (100 - 2000)</div>
+              <input type="number" class="md-input" data-key="max_tokens" min="100" max="2000" placeholder="500" />
+            </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Temperature</div>
+              <div class="md-behavior-desc">Creativity level — 0 is strict/factual, 2 is very creative/random</div>
+              <div class="ai-slider-wrap">
+                <input type="range" min="0" max="2" step="0.1" value="0.7" data-key="temperature" />
+                <span class="ai-slider-val" id="temp-val">0.7</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Commands &amp; Usage</div>
+        <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.7;">
+          <div style="margin-bottom:0.6rem;"><b style="color:rgba(255,255,255,0.65);">Slash commands:</b></div>
+          <code style="color:#e9edf5;font-size:0.72rem;">/ask</code> <span style="color:rgba(255,255,255,0.35);font-size:0.68rem;">— ask the AI a question</span><br/>
+          <code style="color:#e9edf5;font-size:0.72rem;">/imagine</code> <span style="color:rgba(255,255,255,0.35);font-size:0.68rem;">— generate an AI image</span><br/>
+          <div style="margin-top:0.6rem; font-size:0.68rem;color:rgba(255,255,255,0.3);line-height:1.6;">
+            <b>Note:</b> AI features rely on an external provider (OpenAI-compatible API). Content you submit to the AI is transmitted to this provider for processing. Avoid sharing personal or sensitive information with the AI.
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+const GID = window.__GUILD_ID;
+const api = (path, opts) => fetch(`/api/v1/ai/${GID}${path}`, opts||{}).then(r=>r.json());
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+const pending = {}, original = {};
+let SETTINGS_SNAPSHOT = {}, LOADED = {}, CHANNELS = [];
+const saveBar = document.getElementById('save-bar'), saveBtn = document.getElementById('save-btn');
+let saveTimer = null;
+
+const MODELS = [
+  {value:'gpt-3.5-turbo', label:'GPT-3.5 Turbo (fast, affordable)'},
+  {value:'gpt-4', label:'GPT-4 (high quality)'},
+  {value:'gpt-4-turbo', label:'GPT-4 Turbo (fast, powerful)'},
+  {value:'gpt-4o', label:'GPT-4o (latest, multimodal)'},
+  {value:'gpt-4o-mini', label:'GPT-4o Mini (lightweight)'},
+];
+
+function markChanged(key, value) {
+  if (!(key in original)) original[key] = (key in SETTINGS_SNAPSHOT) ? SETTINGS_SNAPSHOT[key] : !value;
+  pending[key] = value; SETTINGS_SNAPSHOT[key] = value;
+  saveBar.classList.remove('is-closed'); clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
+  updateDisabledState();
+}
+function updateDisabledState() {
+  document.getElementById('ai-wrap').classList.toggle('is-disabled', !document.getElementById('ai-enabled').checked);
+}
+async function saveChanges() {
+  const keys = Object.keys(pending); if (!keys.length) return;
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving...';
+  for (const key of keys) {
+    try {
+      const res = await fetch(`/api/v1/ai/${GID}/settings`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]})});
+      if (!res.ok) { let d=''; try{d=(await res.json()).error||''}catch{} if(showToast)showToast(d||'Save failed.','error'); return; }
+    } catch(e) { if(showToast)showToast('Network error.','error'); return; }
+  }
+  for (const key of keys) { LOADED[key]=pending[key]; delete original[key]; delete pending[key]; }
+  saveBar.classList.add('is-closed'); saveBtn.disabled=false; saveBtn.textContent='Save';
+  if(showToast)showToast('AI settings saved.','success');
+}
+document.addEventListener('DOMContentLoaded', () => {
+  Promise.all([api('/settings'), api('/channels')]).then(([sd, cd]) => {
+    SETTINGS_SNAPSHOT = {...(sd.settings||{})}; LOADED = {...SETTINGS_SNAPSHOT}; CHANNELS = cd.channels||[];
+    const en = document.getElementById('ai-enabled'); en.checked = SETTINGS_SNAPSHOT.enabled !== false;
+    en.addEventListener('change', function(){ markChanged('enabled', this.checked); });
+
+    const tarea = document.querySelector('[data-key="system_prompt"]');
+    tarea.value = SETTINGS_SNAPSHOT.system_prompt || 'You are a helpful Discord bot named Prowl. Be concise and friendly.';
+    tarea.addEventListener('input', function(){ markChanged('system_prompt', this.value); });
+
+    const tok = document.querySelector('[data-key="max_tokens"]');
+    tok.value = SETTINGS_SNAPSHOT.max_tokens ?? 500;
+    tok.addEventListener('input', function(){ markChanged('max_tokens', parseInt(this.value)||0); });
+
+    const temp = document.querySelector('[data-key="temperature"]');
+    const tv = document.getElementById('temp-val');
+    temp.value = SETTINGS_SNAPSHOT.temperature ?? 0.7;
+    tv.textContent = parseFloat(temp.value).toFixed(1);
+    temp.addEventListener('input', function(){ tv.textContent = parseFloat(this.value).toFixed(1); markChanged('temperature', parseFloat(this.value)); });
+
+    // Channel dropdown
+    (function() {
+      const btn = document.getElementById('ai-ch-btn'), drop = document.getElementById('ai-ch-drop');
+      drop.innerHTML = '<button class="md-custom-opt" data-id="">None</button>' + CHANNELS.map(c => '<button class="md-custom-opt" data-id="' + c.id + '">#' + esc(c.name) + '</button>').join('');
+      const cur = SETTINGS_SNAPSHOT.channel_id;
+      const match = CHANNELS.find(c => String(c.id) === String(cur));
+      if (match) btn.textContent = '#' + match.name;
+      btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+      drop.querySelectorAll('.md-custom-opt').forEach(opt => opt.addEventListener('click', () => {
+        btn.textContent = opt.dataset.id ? '#' + opt.textContent.replace(/^#/,'') : 'None';
+        markChanged('channel_id', opt.dataset.id || null); drop.classList.remove('is-open');
+      }));
+      document.addEventListener('click', e => { if(!e.target.closest('#ai-ch-wrap')) drop.classList.remove('is-open'); });
+    })();
+
+    // Model dropdown
+    (function() {
+      const btn = document.getElementById('ai-model-btn'), drop = document.getElementById('ai-model-drop');
+      drop.innerHTML = MODELS.map(m => '<button class="md-custom-opt" data-id="' + m.value + '">' + m.label + '</button>').join('');
+      const cur = SETTINGS_SNAPSHOT.model || 'gpt-3.5-turbo';
+      const m = MODELS.find(x => x.value === cur);
+      if (m) btn.textContent = m.label;
+      btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+      drop.querySelectorAll('.md-custom-opt').forEach(opt => opt.addEventListener('click', () => {
+        btn.textContent = opt.textContent;
+        markChanged('model', opt.dataset.id); drop.classList.remove('is-open');
+      }));
+      document.addEventListener('click', e => { if(!e.target.closest('#ai-model-wrap')) drop.classList.remove('is-open'); });
+    })();
+
+    updateDisabledState();
+  });
+  saveBtn.addEventListener('click', saveChanges);
+  document.getElementById('discard-btn').addEventListener('click', () => {
+    const reverted = {...LOADED}; for(const k of Object.keys(pending)){ if(k in original) reverted[k] = original[k]; delete original[k]; }
+    for(const k of Object.keys(pending)) delete pending[k];
+    SETTINGS_SNAPSHOT = {...reverted};
+    document.getElementById('ai-enabled').checked = reverted.enabled !== false;
+    document.querySelector('[data-key="system_prompt"]').value = reverted.system_prompt || 'You are a helpful Discord bot named Prowl. Be concise and friendly.';
+    document.querySelector('[data-key="max_tokens"]').value = reverted.max_tokens ?? 500;
+    const temp = document.querySelector('[data-key="temperature"]');
+    temp.value = reverted.temperature ?? 0.7;
+    document.getElementById('temp-val').textContent = parseFloat(temp.value).toFixed(1);
+    const chBtn = document.getElementById('ai-ch-btn');
+    const ch = CHANNELS.find(c => String(c.id) === String(reverted.channel_id));
+    if (chBtn) chBtn.textContent = ch ? '#' + ch.name : 'None';
+    const mBtn = document.getElementById('ai-model-btn');
+    const mm = MODELS.find(x => x.value === (reverted.model || 'gpt-3.5-turbo'));
+    if (mBtn) mBtn.textContent = mm ? mm.label : 'gpt-3.5-turbo';
+    updateDisabledState(); saveBar.classList.add('is-closed');
+  });
+});
+</script>
 {% endblock %}

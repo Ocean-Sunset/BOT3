@@ -1,1 +1,174 @@
-{% extends "dashboard/base.html" %}{% block content %}<div style="padding:2rem 0;"><div style="margin-bottom:1.25rem;"><h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Music</h1><p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Configure music playback and queues</p></div><div style="border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:1.25rem;background:rgba(255,255,255,0.015);text-align:center;"><p style="color:rgba(255,255,255,0.4);font-size:14px;font-weight:600;padding:4rem 0;">Coming soon.</p></div></div>{% endblock %}
+{% extends "dashboard/base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/moderation.css?v=16" />
+<style>
+.mu-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; align-items:start; }
+.mu-grid > .md-section { margin-bottom:0; }
+#music-wrap.is-disabled .md-section:not(.am-master) { opacity:0.35; pointer-events:none; filter:grayscale(0.4); transition:opacity 0.25s ease, filter 0.25s ease; }
+#music-wrap .md-section { transition:opacity 0.25s ease, filter 0.25s ease; }
+@media (max-width:900px) { .mu-grid { grid-template-columns:1fr; } }
+</style>
+<div id="music-wrap">
+
+  <div style="margin-bottom:1.25rem;">
+    <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Music</h1>
+    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Configure music playback, DJ permissions and default settings</p>
+  </div>
+
+  <div class="mu-grid">
+
+    <div class="md-section am-master">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Music</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <label class="md-toggle"><input type="checkbox" id="mu-enabled" /><span class="md-toggle-slider"></span></label>
+            <div><div class="md-behavior-label">Enable Music</div><div class="md-behavior-desc">Let members play music in voice channels</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">DJ Permissions</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">DJ Role</div>
+              <div class="md-behavior-desc">Members with this role can control the music queue. Leave empty to let anyone control it.</div>
+              <div class="md-custom-select" id="mu-role-wrap">
+                <button class="md-custom-select-btn" id="mu-role-btn">None (anyone can control)</button>
+                <div class="md-custom-select-drop" id="mu-role-drop"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Default Settings</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Default Volume (0 - 100)</div>
+              <div class="md-behavior-desc">Starting volume when the bot joins a voice channel</div>
+              <input type="number" class="md-input" data-key="default_volume" min="0" max="100" placeholder="50" />
+            </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Announce Channel</div>
+              <div class="md-behavior-desc">Where the bot announces now-playing tracks</div>
+              <div class="md-custom-select" id="mu-ch-wrap">
+                <button class="md-custom-select-btn" id="mu-ch-btn">None</button>
+                <div class="md-custom-select-drop" id="mu-ch-drop"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Music Commands</div>
+        <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.7;">
+          <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+            <div style="flex:1;min-width:180px;">
+              <code style="color:#e9edf5;font-size:0.72rem;">/play</code> <span style="color:rgba(255,255,255,0.35);font-size:0.68rem;">— queue a song / playlist</span><br/>
+              <code style="color:#e9edf5;font-size:0.72rem;">/pause / /resume</code> <span style="color:rgba(255,255,255,0.35);font-size:0.68rem;">— pause or resume</span><br/>
+              <code style="color:#e9edf5;font-size:0.72rem;">/skip</code> <span style="color:rgba(255,255,255,0.35);font-size:0.68rem;">— skip the current track</span>
+            </div>
+            <div style="flex:1;min-width:180px;">
+              <code style="color:#e9edf5;font-size:0.72rem;">/queue</code> <span style="color:rgba(255,255,255,0.35);font-size:0.68rem;">— view the queue</span><br/>
+              <code style="color:#e9edf5;font-size:0.72rem;">/loop / /shuffle</code> <span style="color:rgba(255,255,255,0.35);font-size:0.68rem;">— loop or shuffle</span><br/>
+              <code style="color:#e9edf5;font-size:0.72rem;">/stop</code> <span style="color:rgba(255,255,255,0.35);font-size:0.68rem;">— leave and clear the queue</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const GID = window.__GUILD_ID;
+const api = (path, opts) => fetch(`/api/v1/music/${GID}${path}`, opts||{}).then(r=>r.json());
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+const pending = {}, original = {};
+let SETTINGS_SNAPSHOT = {}, LOADED = {}, ROLES = [], CHANNELS = [];
+const saveBar = document.getElementById('save-bar'), saveBtn = document.getElementById('save-btn');
+let saveTimer = null;
+
+function markChanged(key, value) {
+  if (!(key in original)) original[key] = (key in SETTINGS_SNAPSHOT) ? SETTINGS_SNAPSHOT[key] : !value;
+  pending[key] = value; SETTINGS_SNAPSHOT[key] = value;
+  saveBar.classList.remove('is-closed'); clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
+  updateDisabledState();
+}
+function updateDisabledState() {
+  document.getElementById('music-wrap').classList.toggle('is-disabled', !document.getElementById('mu-enabled').checked);
+}
+async function saveChanges() {
+  const keys = Object.keys(pending); if (!keys.length) return;
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving...';
+  for (const key of keys) {
+    try {
+      const res = await fetch(`/api/v1/music/${GID}/settings`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]})});
+      if (!res.ok) { let d=''; try{d=(await res.json()).error||''}catch{} if(showToast)showToast(d||'Save failed.','error'); return; }
+    } catch(e) { if(showToast)showToast('Network error.','error'); return; }
+  }
+  for (const key of keys) { LOADED[key]=pending[key]; delete original[key]; delete pending[key]; }
+  saveBar.classList.add('is-closed'); saveBtn.disabled=false; saveBtn.textContent='Save';
+  if(showToast)showToast('Music saved.','success');
+}
+document.addEventListener('DOMContentLoaded', () => {
+  Promise.all([api('/settings'), api('/roles'), api('/channels')]).then(([sd, rd, cd]) => {
+    SETTINGS_SNAPSHOT = {...(sd.settings||{})}; LOADED = {...SETTINGS_SNAPSHOT}; ROLES = rd.roles||[]; CHANNELS = cd.channels||[];
+    const en = document.getElementById('mu-enabled'); en.checked = SETTINGS_SNAPSHOT.enabled === true;
+    en.addEventListener('change', function(){ markChanged('enabled', this.checked); });
+    const vol = document.querySelector('[data-key="default_volume"]');
+    vol.value = SETTINGS_SNAPSHOT.default_volume ?? 50;
+    vol.addEventListener('input', function(){ markChanged('default_volume', parseInt(this.value)||0); });
+
+    function bindDrop(wrapId, btnId, dropId, key, opts, noneLabel) {
+      const btn = document.getElementById(btnId), drop = document.getElementById(dropId);
+      drop.innerHTML = `<button class="md-custom-opt" data-id="">${noneLabel}</button>` + opts.map(o => `<button class="md-custom-opt" data-id="${o.id}">${esc(o.name)}</button>`).join('');
+      const cur = SETTINGS_SNAPSHOT[key];
+      const match = opts.find(o => String(o.id) === String(cur));
+      if (match) btn.textContent = match.name;
+      btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+      drop.querySelectorAll('.md-custom-opt').forEach(opt => opt.addEventListener('click', () => {
+        btn.textContent = opt.dataset.id ? opt.textContent : noneLabel;
+        markChanged(key, opt.dataset.id || null); drop.classList.remove('is-open');
+      }));
+      document.addEventListener('click', e => { if(!e.target.closest('#'+wrapId)) drop.classList.remove('is-open'); });
+    }
+    bindDrop('mu-role-wrap', 'mu-role-btn', 'mu-role-drop', 'dj_role_id', ROLES, 'None (anyone can control)');
+    bindDrop('mu-ch-wrap', 'mu-ch-btn', 'mu-ch-drop', 'announce_channel_id', CHANNELS, 'None');
+
+    updateDisabledState();
+  });
+  saveBtn.addEventListener('click', saveChanges);
+  document.getElementById('discard-btn').addEventListener('click', () => {
+    const reverted = {...LOADED}; for(const k of Object.keys(pending)){ if(k in original) reverted[k] = original[k]; delete original[k]; }
+    for(const k of Object.keys(pending)) delete pending[k];
+    SETTINGS_SNAPSHOT = {...reverted};
+    document.getElementById('mu-enabled').checked = reverted.enabled === true;
+    document.querySelector('[data-key="default_volume"]').value = reverted.default_volume ?? 50;
+    ['mu-role-btn','mu-ch-btn'].forEach((bid,i) => {
+      const btn = document.getElementById(bid), key = i===0?'dj_role_id':'announce_channel_id';
+      const opts = i===0?ROLES:CHANNELS, match = opts.find(o => String(o.id) === String(reverted[key]));
+      btn.textContent = match ? match.name : (i===0?'None (anyone can control)':'None');
+    });
+    updateDisabledState(); saveBar.classList.add('is-closed');
+  });
+});
+</script>
+{% endblock %}

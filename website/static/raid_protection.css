@@ -10,9 +10,24 @@
   transition: opacity 0.25s ease, filter 0.25s ease;
 }
 
+/* Uniform 2-column grid (matches the 2-per-row style, no masonry timing bugs) */
+.rp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+.rp-grid > .md-section {
+  margin-bottom: 0;
+}
+
 .rp-hidden { display: none !important; }
 
 .rp-select .md-custom-select-btn {
   text-align: left;
   color: rgba(255,255,255,0.6);
+}
+
+@media (max-width: 900px) {
+  .rp-grid { grid-template-columns: 1fr; }
 }

@@ -822,7 +822,8 @@
 .md-behavior-desc {
   font-size: 0.7rem;
   color: rgba(255,255,255,0.3);
-  margin-top: 0.1rem;
+  margin-top: 0.35rem;
+  line-height: 1.5;
 }
 
 /* ── Command toggle grid ── */

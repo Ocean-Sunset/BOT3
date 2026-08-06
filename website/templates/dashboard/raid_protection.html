@@ -1,7 +1,7 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
-<link rel="stylesheet" href="/static/moderation.css?v=15" />
-<link rel="stylesheet" href="/static/raid_protection.css?v=5" />
+<link rel="stylesheet" href="/static/moderation.css?v=16" />
+<link rel="stylesheet" href="/static/raid_protection.css?v=6" />
 <div id="raid-wrap">
 
   <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem;">
@@ -15,7 +15,7 @@
     </div>
   </div>
 
-  <div class="md-row">
+  <div class="rp-grid">
 
     <div class="md-section am-master">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
@@ -311,21 +311,10 @@ function updateScoreSummary() {
 
 function setMode(mode, dirty) {
   document.querySelectorAll('[data-rp-mode]').forEach(b => b.classList.toggle('is-active', b.dataset.rpMode === mode));
+  // CSS grid handles reflow automatically when cards are shown/hidden.
   document.querySelectorAll('.rp-switch-block').forEach(el => el.classList.toggle('rp-hidden', mode !== 'switches'));
   document.querySelectorAll('.rp-score-block').forEach(el => el.classList.toggle('rp-hidden', mode !== 'score'));
   if (dirty) markChanged('mode', mode);
-  // Let the browser reflow, strip the masonry's inline positions (so hidden
-  // cards don't leave stale geometry behind), then rebuild the layout.
-  requestAnimationFrame(() => {
-    const row = document.querySelector('#raid-wrap .md-row');
-    if (row) {
-      Array.from(row.children).forEach(el => {
-        el.style.position = ''; el.style.top = ''; el.style.left = ''; el.style.width = '';
-      });
-      row.style.height = '';
-    }
-    if (typeof window.relayoutMasonry === 'function') window.relayoutMasonry();
-  });
 }
 
 function bindActionSelect(prefix, key) {

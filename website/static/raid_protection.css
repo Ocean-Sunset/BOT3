@@ -10,11 +10,6 @@
   transition: opacity 0.25s ease, filter 0.25s ease;
 }
 
-/* Consistent vertical spacing between masonry rows (matches other pages) */
-#raid-wrap .md-row {
-  margin-bottom: 1.5rem;
-}
-
 .rp-select .md-custom-select-btn {
   text-align: left;
   color: rgba(255,255,255,0.6);

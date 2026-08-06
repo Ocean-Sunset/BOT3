@@ -1,7 +1,7 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
 <link rel="stylesheet" href="/static/moderation.css?v=15" />
-<link rel="stylesheet" href="/static/raid_protection.css?v=3" />
+<link rel="stylesheet" href="/static/raid_protection.css?v=4" />
 <div id="raid-wrap">
 
   <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem;">
@@ -16,6 +16,7 @@
   </div>
 
   <div class="md-row">
+
     <div class="md-section am-master">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div class="md-section-title">Raid Protection</div>
@@ -59,61 +60,32 @@
         </div>
       </div>
     </div>
-  </div>
 
-  <div id="raid-switches">
-    <div class="md-row">
-      <div class="md-section">
-        <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-          <div class="md-section-title">Join Burst Detection</div>
-          <div class="md-behavior-list">
-            <div class="md-behavior-item">
-              <div style="flex:1">
-                <div class="md-behavior-label">Join Threshold</div>
-                <div class="md-behavior-desc">How many new joins within the window counts as a raid</div>
-                <input type="number" class="md-input" data-key="join_threshold" min="2" placeholder="5" />
-              </div>
-            </div>
-            <div class="md-behavior-item">
-              <div style="flex:1">
-                <div class="md-behavior-label">Window (seconds)</div>
-                <div class="md-behavior-desc">The time span the threshold applies to</div>
-                <input type="number" class="md-input" data-key="join_window" min="1" placeholder="10" />
-              </div>
-            </div>
-            <div class="md-behavior-item">
-              <div style="flex:1">
-                <div class="md-behavior-label">When a raid is detected</div>
-                <div class="md-behavior-desc" id="rp-action-hint">What Prowl does to stop it</div>
-                <div class="md-custom-select rp-select" id="rp-joinaction-wrap">
-                  <button class="md-custom-select-btn" id="rp-joinaction-btn">Kick</button>
-                  <div class="md-custom-select-drop" id="rp-joinaction-drop"></div>
-                </div>
-              </div>
+    <div class="md-section rp-switch-block">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Join Burst Detection</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Join Threshold</div>
+              <div class="md-behavior-desc">How many new joins within the window counts as a raid</div>
+              <input type="number" class="md-input" data-key="join_threshold" min="2" placeholder="5" />
             </div>
           </div>
-        </div>
-      </div>
-
-      <div class="md-section">
-        <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-          <div class="md-section-title">Account Age Filter</div>
-          <div class="md-behavior-list">
-            <div class="md-behavior-item">
-              <div style="flex:1">
-                <div class="md-behavior-label">Minimum Account Age (minutes)</div>
-                <div class="md-behavior-desc">Block members whose Discord account is younger than this. 0 = disabled.</div>
-                <input type="number" class="md-input" data-key="account_age_min" min="0" placeholder="0" />
-              </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Window (seconds)</div>
+              <div class="md-behavior-desc">The time span the threshold applies to</div>
+              <input type="number" class="md-input" data-key="join_window" min="1" placeholder="10" />
             </div>
-            <div class="md-behavior-item">
-              <div style="flex:1">
-                <div class="md-behavior-label">Action</div>
-                <div class="md-behavior-desc">Applied to members failing the age check</div>
-                <div class="md-custom-select rp-select" id="rp-ageaction-wrap">
-                  <button class="md-custom-select-btn" id="rp-ageaction-btn">Kick</button>
-                  <div class="md-custom-select-drop" id="rp-ageaction-drop"></div>
-                </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">When a raid is detected</div>
+              <div class="md-behavior-desc" id="rp-action-hint">What Prowl does to stop it</div>
+              <div class="md-custom-select rp-select" id="rp-joinaction-wrap">
+                <button class="md-custom-select-btn" id="rp-joinaction-btn">Kick</button>
+                <div class="md-custom-select-drop" id="rp-joinaction-drop"></div>
               </div>
             </div>
           </div>
@@ -121,94 +93,24 @@
       </div>
     </div>
 
-    <div class="md-row">
-      <div class="md-section">
-        <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-          <div class="md-section-title">Default Avatar Recognition</div>
-          <div class="md-behavior-list">
-            <div class="md-behavior-item">
-              <label class="md-toggle"><input type="checkbox" id="rp-avatar-enabled" /><span class="md-toggle-slider"></span></label>
-              <div><div class="md-behavior-label">Block Default Avatars</div><div class="md-behavior-desc">Act on members still using Discord's default avatar — a common raider trait</div></div>
-            </div>
-            <div class="md-behavior-item">
-              <div style="flex:1">
-                <div class="md-behavior-label">Action</div>
-                <div class="md-behavior-desc">Applied to members with a default avatar</div>
-                <div class="md-custom-select rp-select" id="rp-avataraction-wrap">
-                  <button class="md-custom-select-btn" id="rp-avataraction-btn">Kick</button>
-                  <div class="md-custom-select-drop" id="rp-avataraction-drop"></div>
-                </div>
-              </div>
+    <div class="md-section rp-switch-block">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Account Age Filter</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Minimum Account Age (minutes)</div>
+              <div class="md-behavior-desc">Block members whose Discord account is younger than this. 0 = disabled.</div>
+              <input type="number" class="md-input" data-key="account_age_min" min="0" placeholder="0" />
             </div>
           </div>
-        </div>
-      </div>
-
-      <div class="md-section">
-        <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-          <div class="md-section-title">Actions Explained</div>
-          <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.7;">
-            <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Kick</b> — removes each flagged new member.</div>
-            <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Ban</b> — bans each flagged new member.</div>
-            <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Lockdown Server</b> — locks the server down (uses the Moderation lockdown feature) so nobody can join or message until it's lifted. Use Auto Recovery to re-open it.</div>
-            <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Require Verification</b> — locks the server and enables the verification panel so real members can prove they're human.</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="raid-score" style="display:none;">
-    <div class="md-row">
-      <div class="md-section">
-        <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-          <div class="md-section-title">Score Threshold</div>
-          <div class="md-behavior-list">
-            <div class="md-behavior-item">
-              <div style="flex:1">
-                <div class="md-behavior-label">Threshold (points)</div>
-                <div class="md-behavior-desc">Members are acted on when their score reaches this value or more</div>
-                <input type="number" class="md-input" data-key="score_threshold" min="1" placeholder="3" />
-              </div>
-            </div>
-            <div class="md-behavior-item">
-              <div style="font-size:0.8rem;color:#fbbf24;line-height:1.6;padding:0.2rem 0;"><span id="score-summary">—</span></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="md-section">
-        <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-          <div class="md-section-title">Scoring Criteria</div>
-          <div class="md-behavior-list">
-            <div class="md-behavior-item">
-              <div style="flex:1">
-                <div class="md-behavior-label">Default Avatar</div>
-                <div class="md-behavior-desc">Points added when the member uses Discord's default avatar. 0 = off.</div>
-                <input type="number" class="md-input" data-key="score_default_avatar" min="0" placeholder="2" />
-              </div>
-            </div>
-            <div class="md-behavior-item">
-              <div style="flex:1">
-                <div class="md-behavior-label">New Account</div>
-                <div class="md-behavior-desc">Points when the account is younger than the minimum age. 0 = off.</div>
-                <div style="display:flex;gap:0.5rem;">
-                  <input type="number" class="md-input" data-key="score_new_account" min="0" placeholder="2" style="flex:1;" />
-                  <input type="number" class="md-input" data-key="score_new_account_min" min="0" placeholder="10" style="flex:1;" />
-                </div>
-                <div style="font-size:0.66rem;color:rgba(255,255,255,0.35);margin-top:0.25rem;">points · min account age in minutes</div>
-              </div>
-            </div>
-            <div class="md-behavior-item">
-              <div style="flex:1">
-                <div class="md-behavior-label">Join Burst</div>
-                <div class="md-behavior-desc">Points when this join is part of a wave of the join threshold in the window. 0 = off.</div>
-                <div style="display:flex;gap:0.5rem;">
-                  <input type="number" class="md-input" data-key="score_join_burst" min="0" placeholder="1" style="flex:1;" />
-                  <input type="number" class="md-input" data-key="score_window" min="1" placeholder="10" style="flex:1;" />
-                </div>
-                <div style="font-size:0.66rem;color:rgba(255,255,255,0.35);margin-top:0.25rem;">points · window in seconds (uses the join threshold above for burst size)</div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Action</div>
+              <div class="md-behavior-desc">Applied to members failing the age check</div>
+              <div class="md-custom-select rp-select" id="rp-ageaction-wrap">
+                <button class="md-custom-select-btn" id="rp-ageaction-btn">Kick</button>
+                <div class="md-custom-select-drop" id="rp-ageaction-drop"></div>
               </div>
             </div>
           </div>
@@ -216,38 +118,126 @@
       </div>
     </div>
 
-    <div class="md-row">
-      <div class="md-section">
-        <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-          <div class="md-section-title">When the Threshold Is Reached</div>
-          <div class="md-behavior-list">
-            <div class="md-behavior-item">
-              <div style="flex:1">
-                <div class="md-behavior-label">Action</div>
-                <div class="md-behavior-desc">What happens to a member who reaches the threshold</div>
-                <div class="md-custom-select rp-select" id="rp-scoreaction-wrap">
-                  <button class="md-custom-select-btn" id="rp-scoreaction-btn">Kick</button>
-                  <div class="md-custom-select-drop" id="rp-scoreaction-drop"></div>
-                </div>
+    <div class="md-section rp-switch-block">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Default Avatar Recognition</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <label class="md-toggle"><input type="checkbox" id="rp-avatar-enabled" /><span class="md-toggle-slider"></span></label>
+            <div><div class="md-behavior-label">Block Default Avatars</div><div class="md-behavior-desc">Act on members still using Discord's default avatar — a common raider trait</div></div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Action</div>
+              <div class="md-behavior-desc">Applied to members with a default avatar</div>
+              <div class="md-custom-select rp-select" id="rp-avataraction-wrap">
+                <button class="md-custom-select-btn" id="rp-avataraction-btn">Kick</button>
+                <div class="md-custom-select-drop" id="rp-avataraction-drop"></div>
               </div>
             </div>
-            <div class="md-behavior-item">
-              <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.6;padding-top:0.25rem;">Lockdown Server / Require Verification also lock the server down — combine with Auto Recovery to unlock automatically.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="md-section">
-        <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-          <div class="md-section-title">How Scoring Works</div>
-          <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.7;">
-            <p style="padding:0.3rem 0;">Every new member starts at <b style="color:rgba(255,255,255,0.65);">0 points</b>. Each criterion they match adds its points. If the total reaches the <b style="color:rgba(255,255,255,0.65);">threshold</b>, the action above is applied immediately.</p>
-            <p style="padding:0.3rem 0;">Example: default avatar (+2) + young account (+2) + join burst (+1) = 5. With a threshold of 3, they're kicked on arrival.</p>
           </div>
         </div>
       </div>
     </div>
+
+    <div class="md-section rp-switch-block">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Actions Explained</div>
+        <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.7;">
+          <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Kick</b> — removes each flagged new member.</div>
+          <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Ban</b> — bans each flagged new member.</div>
+          <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Lockdown Server</b> — locks the server down (uses the Moderation lockdown feature) so nobody can join or message until it's lifted. Use Auto Recovery to re-open it.</div>
+          <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Require Verification</b> — locks the server and enables the verification panel so real members can prove they're human.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section rp-score-block" style="display:none;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Score Threshold</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Threshold (points)</div>
+              <div class="md-behavior-desc">Members are acted on when their score reaches this value or more</div>
+              <input type="number" class="md-input" data-key="score_threshold" min="1" placeholder="3" />
+            </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="font-size:0.8rem;color:#fbbf24;line-height:1.6;padding:0.2rem 0;"><span id="score-summary">—</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section rp-score-block" style="display:none;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Scoring Criteria</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Default Avatar</div>
+              <div class="md-behavior-desc">Points added when the member uses Discord's default avatar. 0 = off.</div>
+              <input type="number" class="md-input" data-key="score_default_avatar" min="0" placeholder="2" />
+            </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">New Account</div>
+              <div class="md-behavior-desc">Points when the account is younger than the minimum age. 0 = off.</div>
+              <div style="display:flex;gap:0.5rem;">
+                <input type="number" class="md-input" data-key="score_new_account" min="0" placeholder="2" style="flex:1;" />
+                <input type="number" class="md-input" data-key="score_new_account_min" min="0" placeholder="10" style="flex:1;" />
+              </div>
+              <div style="font-size:0.66rem;color:rgba(255,255,255,0.35);margin-top:0.25rem;">points · min account age in minutes</div>
+            </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Join Burst</div>
+              <div class="md-behavior-desc">Points when this join is part of a wave of the join threshold in the window. 0 = off.</div>
+              <div style="display:flex;gap:0.5rem;">
+                <input type="number" class="md-input" data-key="score_join_burst" min="0" placeholder="1" style="flex:1;" />
+                <input type="number" class="md-input" data-key="score_window" min="1" placeholder="10" style="flex:1;" />
+              </div>
+              <div style="font-size:0.66rem;color:rgba(255,255,255,0.35);margin-top:0.25rem;">points · window in seconds (uses the join threshold above for burst size)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section rp-score-block" style="display:none;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">When the Threshold Is Reached</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <div style="flex:1">
+              <div class="md-behavior-label">Action</div>
+              <div class="md-behavior-desc">What happens to a member who reaches the threshold</div>
+              <div class="md-custom-select rp-select" id="rp-scoreaction-wrap">
+                <button class="md-custom-select-btn" id="rp-scoreaction-btn">Kick</button>
+                <div class="md-custom-select-drop" id="rp-scoreaction-drop"></div>
+              </div>
+            </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.6;padding-top:0.25rem;">Lockdown Server / Require Verification also lock the server down — combine with Auto Recovery to unlock automatically.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section rp-score-block" style="display:none;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">How Scoring Works</div>
+        <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.7;">
+          <p style="padding:0.3rem 0;">Every new member starts at <b style="color:rgba(255,255,255,0.65);">0 points</b>. Each criterion they match adds its points. If the total reaches the <b style="color:rgba(255,255,255,0.65);">threshold</b>, the action above is applied immediately.</p>
+          <p style="padding:0.3rem 0;">Example: default avatar (+2) + young account (+2) + join burst (+1) = 5. With a threshold of 3, they're kicked on arrival.</p>
+        </div>
+      </div>
+    </div>
+
   </div>
 
 </div>
@@ -314,8 +304,8 @@ function updateScoreSummary() {
 
 function setMode(mode, dirty) {
   document.querySelectorAll('[data-rp-mode]').forEach(b => b.classList.toggle('is-active', b.dataset.rpMode === mode));
-  document.getElementById('raid-switches').style.display = mode === 'switches' ? '' : 'none';
-  document.getElementById('raid-score').style.display = mode === 'score' ? '' : 'none';
+  document.querySelectorAll('.rp-switch-block').forEach(el => el.style.display = mode === 'switches' ? '' : 'none');
+  document.querySelectorAll('.rp-score-block').forEach(el => el.style.display = mode === 'score' ? '' : 'none');
   if (dirty) markChanged('mode', mode);
   if (typeof window.relayoutMasonry === 'function') window.relayoutMasonry();
 }
@@ -395,17 +385,14 @@ document.addEventListener('DOMContentLoaded', () => {
       markChanged(this.dataset.key, parseInt(this.value) || 0);
     }));
 
-    // Mode selector
     setMode(SETTINGS_SNAPSHOT.mode === 'score' ? 'score' : 'switches', false);
     document.querySelectorAll('[data-rp-mode]').forEach(b => b.addEventListener('click', () => setMode(b.dataset.rpMode, true)));
 
-    // Action dropdowns
     populateActionSelect('rp-joinaction', 'join_action');
     populateActionSelect('rp-ageaction', 'account_age_action');
     populateActionSelect('rp-avataraction', 'default_avatar_action');
     populateActionSelect('rp-scoreaction', 'score_action');
 
-    // Moderation channel
     const mBtn = document.getElementById('rp-modchannel-btn');
     const mDrop = document.getElementById('rp-modchannel-drop');
     mDrop.innerHTML = '<button class="md-custom-opt" data-id="">None</button>' + CHANNELS.map(c => '<button class="md-custom-opt" data-id="' + c.id + '">#' + esc(c.name) + '</button>').join('');

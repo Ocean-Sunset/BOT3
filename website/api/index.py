@@ -3237,6 +3237,7 @@ AI_DEFAULTS = {
     "system_prompt": "You are a helpful Discord bot named Prowl. Be concise and friendly.",
     "max_tokens": 500,
     "temperature": 0.7,
+    "api_keys": {},
 }
 
 
@@ -3255,7 +3256,14 @@ async def _get_ai_settings(guild_id: str):
 @app.get("/api/v1/ai/{guild_id}/settings")
 async def ai_settings_get(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    return {"settings": await _get_ai_settings(guild_id)}
+    s = await _get_ai_settings(guild_id)
+    # Mask API keys so they're never exposed in plaintext
+    if s.get("api_keys") and isinstance(s["api_keys"], dict):
+        masked = {}
+        for k, v in s["api_keys"].items():
+            masked[k] = _mask_key(v) if v else ""
+        s["api_keys"] = masked
+    return {"settings": s}
 
 
 @app.post("/api/v1/ai/{guild_id}/settings")
@@ -3266,6 +3274,23 @@ async def ai_settings_set(guild_id: str, request: Request):
     value = body.get("value")
     if not key:
         return JSONResponse({"error": "missing key"}, status_code=400)
+    if key == "api_keys":
+        # Server-side API keys dict — merge with existing, mask on save
+        if not isinstance(value, dict):
+            return JSONResponse({"error": "api_keys must be an object"}, status_code=400)
+        current = await _get_ai_settings(guild_id)
+        existing = current.get("api_keys", {})
+        if not isinstance(existing, dict):
+            existing = {}
+        for k, v in value.items():
+            if k not in ("openai", "groq", "openrouter"):
+                continue
+            v_str = (v or "").strip()
+            if v_str:
+                existing[k] = v_str
+            else:
+                existing.pop(k, None)
+        value = existing
     err = await _save_settings("ai_settings", str(guild_id), key, value, AI_DEFAULTS)
     if err:
         return JSONResponse({"error": err}, status_code=400)

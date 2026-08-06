@@ -89,23 +89,9 @@
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Provider &amp; API Key</div>
-        <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.7;">
-          <p style="margin-bottom:0.6rem;">Prowl supports two OpenAI-compatible providers out of the box:</p>
-          <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:0.5rem;">
-            <div style="flex:1;min-width:220px;border:1px solid rgba(255,255,255,0.06);border-radius:4px;padding:0.6rem;background:rgba(255,255,255,0.015);">
-              <b style="color:rgba(255,255,255,0.7);">Groq</b>
-              <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-top:0.2rem;">Free tier — fastest inference. Works with Llama, Mixtral.</div>
-              <div style="margin-top:0.35rem;font-size:0.66rem;color:rgba(255,255,255,0.3);">1. Go to <a href="https://console.groq.com" target="_blank" rel="noopener" style="color:#60a5fa;">console.groq.com</a><br/>2. Create API key<br/>3. Set <code style="color:rgba(255,255,255,0.5);">GROQ_API_KEY</code> in Vercel env</div>
-            </div>
-            <div style="flex:1;min-width:220px;border:1px solid rgba(255,255,255,0.06);border-radius:4px;padding:0.6rem;background:rgba(255,255,255,0.015);">
-              <b style="color:rgba(255,255,255,0.7);">OpenRouter</b>
-              <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-top:0.2rem;">Multi-model gateway — Claude, GPT, Llama &amp; more.</div>
-              <div style="margin-top:0.35rem;font-size:0.66rem;color:rgba(255,255,255,0.3);">1. Go to <a href="https://openrouter.ai" target="_blank" rel="noopener" style="color:#60a5fa;">openrouter.ai</a><br/>2. Create API key<br/>3. Set <code style="color:rgba(255,255,255,0.5);">OPENROUTER_API_KEY</code> in Vercel env</div>
-            </div>
-          </div>
-          <p style="font-size:0.68rem;color:rgba(255,255,255,0.3);margin-top:0.5rem;"><b>Rate limits:</b> 1 minute cooldown per user, 5 second global cooldown across all servers. AI responses are ephemeral (only visible to the person who ran the command).</p>
-        </div>
+        <div class="md-section-title">API Keys (this server)</div>
+        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:0.75rem;line-height:1.5;">Provide your own key and Prowl uses it — <b>no rate limits apply</b>. Keys you set here are never shown in full. Leave empty to use the global bot key (rate-limited).<br/>Get a free key at <a href="https://console.groq.com" target="_blank" rel="noopener" style="color:#60a5fa;">console.groq.com</a> or <a href="https://openrouter.ai" target="_blank" rel="noopener" style="color:#60a5fa;">openrouter.ai</a>.</p>
+        <div class="md-behavior-list" id="aikey-list"><div class="empty">Loading...</div></div>
       </div>
     </div>
 
@@ -192,8 +178,44 @@ document.addEventListener('DOMContentLoaded', () => {
     })();
 
     updateDisabledState();
+    renderAiKeys();
   });
   saveBtn.addEventListener('click', saveChanges);
+
+  // ── Per-server API keys ──
+  const AIKEY_LABELS = {openai:'OpenAI', groq:'Groq', openrouter:'OpenRouter'};
+  function renderAiKeys() {
+    const el = document.getElementById('aikey-list');
+    const cur = (SETTINGS_SNAPSHOT.api_keys||{});
+    el.innerHTML = Object.keys(AIKEY_LABELS).map(k => {
+      const has = !!(cur[k]);
+      return '<div class="md-behavior-item" style="align-items:flex-start;"><div style="flex:1">' +
+        '<div class="md-behavior-label">'+AIKEY_LABELS[k]+'</div>' +
+        '<div class="md-behavior-desc">'+(has ? '<code style="color:rgba(255,255,255,0.5);font-size:0.72rem;">'+esc(cur[k])+'</code>' : '<span style="color:rgba(255,255,255,0.25);">Not set</span>')+'</div>' +
+        '<div style="display:flex;gap:0.5rem;margin-top:0.5rem;">' +
+          '<input type="password" class="md-input" placeholder="sk-..." style="flex:1;" id="aikey-'+k+'" />' +
+          '<button type="button" class="md-action-btn" data-aikey="'+k+'" style="flex-shrink:0;padding:0.4rem 0.7rem;font-size:0.72rem;">Save</button>' +
+          (has ? '<button type="button" class="md-action-btn danger" data-aildel="'+k+'" style="flex-shrink:0;padding:0.4rem 0.7rem;font-size:0.72rem;">Remove</button>' : '') +
+        '</div></div></div>';
+    }).join('');
+    el.querySelectorAll('[data-aikey]').forEach(b => b.addEventListener('click', async function(){
+      const k = this.dataset.aikey, v = document.getElementById('aikey-'+k).value.trim();
+      const next = {...(SETTINGS_SNAPSHOT.api_keys||{})};
+      if (v) next[k] = v; else delete next[k];
+      try {
+        const res = await fetch(`/api/v1/ai/${GID}/settings`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:'api_keys', value:next})});
+        if (res.ok) { if(showToast)showToast(AIKEY_LABELS[k]+' key '+(v?'saved.':'removed.'),'success'); setTimeout(()=>location.reload(),600); }
+      } catch(e) {}
+    }));
+    el.querySelectorAll('[data-aildel]').forEach(b => b.addEventListener('click', async function(){
+      const k = this.dataset.aildel;
+      const next = {...(SETTINGS_SNAPSHOT.api_keys||{})}; delete next[k];
+      try {
+        const res = await fetch(`/api/v1/ai/${GID}/settings`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:'api_keys', value:next})});
+        if (res.ok) { if(showToast)showToast(AIKEY_LABELS[k]+' key removed.','info'); setTimeout(()=>location.reload(),600); }
+      } catch(e) {}
+    }));
+  }
   document.getElementById('discard-btn').addEventListener('click', () => {
     const reverted = {...LOADED}; for(const k of Object.keys(pending)){ if(k in original) reverted[k] = original[k]; delete original[k]; }
     for(const k of Object.keys(pending)) delete pending[k];

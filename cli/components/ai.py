@@ -12,21 +12,33 @@ from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
 
 
-async def _resolve_key():
-    """Pick the active API key: DB first, then env vars (openrouter > groq > openai)."""
+async def _resolve_key(guild_id):
+    """Pick the active API key: per-guild first (no rate limit), then global DB, then env."""
+    own = None
+    # Per-guild key (stored in ai_settings)
+    try:
+        s = await get_ai_settings(int(guild_id))
+        keys = s.get("api_keys", {})
+        if isinstance(keys, dict):
+            for name in ("openrouter", "groq", "openai"):
+                if keys.get(name):
+                    return keys[name], name, True  # own key — no rate limit
+    except Exception:
+        pass
+    # Global/admin key from DB
     for name in ("openrouter", "groq", "openai"):
         try:
             pool = await neon_db.get_pool()
             if pool:
                 row = await pool.fetchrow("SELECT value FROM api_keys WHERE key_name = $1", name)
                 if row and row["value"]:
-                    return row["value"], name
+                    return row["value"], name, False
         except Exception:
             pass
         env = os.environ.get(f"{name.upper()}_API_KEY", "")
         if env:
-            return env, name
-    return "", ""
+            return env, name, False
+    return "", "", False
 
 
 async def _resolve_base(provider):
@@ -77,31 +89,32 @@ class AI(commands.Cog, name="AI"):
     @ai_group.command(name="chat", description="Chat with the AI")
     @app_commands.describe(prompt="What you want to say to the AI")
     async def chat(self, interaction: discord.Interaction, prompt: str):
-        api_key, provider = await _resolve_key()
+        api_key, provider, own_key = await _resolve_key(str(interaction.guild_id))
         if not api_key:
             return await interaction.response.send_message(
                 embed=EmbedBuilder().title("AI Not Configured").description("No API key set. Contact the bot owner.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
 
-        # Rate limits: 5s global, 1min per user
+        # Rate limits: only when using the global bot key (not the server's own key)
         now = time.time()
-        if now - self._last_global < 5:
-            wait = int(5 - (now - self._last_global))
-            return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Slow Down").description(f"Global cooldown — try again in {wait}s.").color("orange").timestamp(datetime.datetime.utcnow()).build(),
-                ephemeral=True
-            )
-        uid = str(interaction.user.id)
-        last = self._last_user.get(uid, 0)
-        if now - last < 60:
-            wait = int(60 - (now - last))
-            return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Cooldown").description(f"You can use AI again in {wait}s.").color("orange").timestamp(datetime.datetime.utcnow()).build(),
-                ephemeral=True
-            )
-        self._last_global = now
-        self._last_user[uid] = now
+        if not own_key:
+            if now - self._last_global < 5:
+                wait = int(5 - (now - self._last_global))
+                return await interaction.response.send_message(
+                    embed=EmbedBuilder().title("Slow Down").description(f"Global cooldown — try again in {wait}s. Provide your own AI key on the dashboard to skip rate limits.").color("orange").timestamp(datetime.datetime.utcnow()).build(),
+                    ephemeral=True
+                )
+            uid = str(interaction.user.id)
+            last = self._last_user.get(uid, 0)
+            if now - last < 60:
+                wait = int(60 - (now - last))
+                return await interaction.response.send_message(
+                    embed=EmbedBuilder().title("Cooldown").description(f"You can use AI again in {wait}s. Provide your own AI key on the dashboard to skip rate limits.").color("orange").timestamp(datetime.datetime.utcnow()).build(),
+                    ephemeral=True
+                )
+            self._last_global = now
+            self._last_user[uid] = now
 
         await interaction.response.defer(ephemeral=True)
         guild_id = str(interaction.guild_id)

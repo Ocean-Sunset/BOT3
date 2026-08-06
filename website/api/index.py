@@ -3190,7 +3190,6 @@ async def music_channels(guild_id: str, request: Request):
 
 AI_DEFAULTS = {
     "enabled": True,
-    "channel_id": None,
     "model": "gpt-3.5-turbo",
     "system_prompt": "You are a helpful Discord bot named Prowl. Be concise and friendly.",
     "max_tokens": 500,

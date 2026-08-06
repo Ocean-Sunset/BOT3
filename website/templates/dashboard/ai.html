@@ -31,22 +31,12 @@
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Channel &amp; Model</div>
+        <div class="md-section-title">Model</div>
         <div class="md-behavior-list">
           <div class="md-behavior-item">
             <div style="flex:1">
-              <div class="md-behavior-label">AI Channel</div>
-              <div class="md-behavior-desc">Where the bot responds to AI chat commands</div>
-              <div class="md-custom-select" id="ai-ch-wrap">
-                <button class="md-custom-select-btn" id="ai-ch-btn">None</button>
-                <div class="md-custom-select-drop" id="ai-ch-drop"></div>
-              </div>
-            </div>
-          </div>
-          <div class="md-behavior-item">
-            <div style="flex:1">
-              <div class="md-behavior-label">Model</div>
-              <div class="md-behavior-desc">The AI model used for chat completions</div>
+              <div class="md-behavior-label">AI Model</div>
+              <div class="md-behavior-desc">The model used for chat completions. Works with any OpenAI-compatible provider.</div>
               <div class="md-custom-select" id="ai-model-wrap">
                 <button class="md-custom-select-btn" id="ai-model-btn">gpt-3.5-turbo</button>
                 <div class="md-custom-select-drop" id="ai-model-drop"></div>
@@ -99,14 +89,22 @@
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Commands &amp; Usage</div>
+        <div class="md-section-title">Provider &amp; API Key</div>
         <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.7;">
-          <div style="margin-bottom:0.6rem;"><b style="color:rgba(255,255,255,0.65);">Slash commands:</b></div>
-          <code style="color:#e9edf5;font-size:0.72rem;">/ask</code> <span style="color:rgba(255,255,255,0.35);font-size:0.68rem;">— ask the AI a question</span><br/>
-          <code style="color:#e9edf5;font-size:0.72rem;">/imagine</code> <span style="color:rgba(255,255,255,0.35);font-size:0.68rem;">— generate an AI image</span><br/>
-          <div style="margin-top:0.6rem; font-size:0.68rem;color:rgba(255,255,255,0.3);line-height:1.6;">
-            <b>Note:</b> AI features rely on an external provider (OpenAI-compatible API). Content you submit to the AI is transmitted to this provider for processing. Avoid sharing personal or sensitive information with the AI.
+          <p style="margin-bottom:0.6rem;">Prowl supports two OpenAI-compatible providers out of the box:</p>
+          <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:0.5rem;">
+            <div style="flex:1;min-width:220px;border:1px solid rgba(255,255,255,0.06);border-radius:4px;padding:0.6rem;background:rgba(255,255,255,0.015);">
+              <b style="color:rgba(255,255,255,0.7);">Groq</b>
+              <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-top:0.2rem;">Free tier — fastest inference. Works with Llama, Mixtral.</div>
+              <div style="margin-top:0.35rem;font-size:0.66rem;color:rgba(255,255,255,0.3);">1. Go to <a href="https://console.groq.com" target="_blank" rel="noopener" style="color:#60a5fa;">console.groq.com</a><br/>2. Create API key<br/>3. Set <code style="color:rgba(255,255,255,0.5);">GROQ_API_KEY</code> in Vercel env</div>
+            </div>
+            <div style="flex:1;min-width:220px;border:1px solid rgba(255,255,255,0.06);border-radius:4px;padding:0.6rem;background:rgba(255,255,255,0.015);">
+              <b style="color:rgba(255,255,255,0.7);">OpenRouter</b>
+              <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-top:0.2rem;">Multi-model gateway — Claude, GPT, Llama &amp; more.</div>
+              <div style="margin-top:0.35rem;font-size:0.66rem;color:rgba(255,255,255,0.3);">1. Go to <a href="https://openrouter.ai" target="_blank" rel="noopener" style="color:#60a5fa;">openrouter.ai</a><br/>2. Create API key<br/>3. Set <code style="color:rgba(255,255,255,0.5);">OPENROUTER_API_KEY</code> in Vercel env</div>
+            </div>
           </div>
+          <p style="font-size:0.68rem;color:rgba(255,255,255,0.3);margin-top:0.5rem;"><b>Rate limits:</b> 1 minute cooldown per user, 5 second global cooldown across all servers. AI responses are ephemeral (only visible to the person who ran the command).</p>
         </div>
       </div>
     </div>
@@ -120,16 +118,19 @@ const GID = window.__GUILD_ID;
 const api = (path, opts) => fetch(`/api/v1/ai/${GID}${path}`, opts||{}).then(r=>r.json());
 const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
 const pending = {}, original = {};
-let SETTINGS_SNAPSHOT = {}, LOADED = {}, CHANNELS = [];
+let SETTINGS_SNAPSHOT = {}, LOADED = {};
 const saveBar = document.getElementById('save-bar'), saveBtn = document.getElementById('save-btn');
 let saveTimer = null;
 
 const MODELS = [
-  {value:'gpt-3.5-turbo', label:'GPT-3.5 Turbo (fast, affordable)'},
-  {value:'gpt-4', label:'GPT-4 (high quality)'},
-  {value:'gpt-4-turbo', label:'GPT-4 Turbo (fast, powerful)'},
-  {value:'gpt-4o', label:'GPT-4o (latest, multimodal)'},
-  {value:'gpt-4o-mini', label:'GPT-4o Mini (lightweight)'},
+  {value:'gpt-3.5-turbo', label:'GPT-3.5 Turbo (OpenAI)'},
+  {value:'gpt-4', label:'GPT-4 (OpenAI)'},
+  {value:'gpt-4-turbo', label:'GPT-4 Turbo (OpenAI)'},
+  {value:'gpt-4o', label:'GPT-4o (OpenAI)'},
+  {value:'gpt-4o-mini', label:'GPT-4o Mini (OpenAI)'},
+  {value:'llama-3.3-70b-versatile', label:'Llama 3.3 70B (Groq)'},
+  {value:'mixtral-8x7b-32768', label:'Mixtral 8x7B (Groq)'},
+  {value:'gemma2-9b-it', label:'Gemma 2 9B (Groq)'},
 ];
 
 function markChanged(key, value) {
@@ -156,8 +157,8 @@ async function saveChanges() {
   if(showToast)showToast('AI settings saved.','success');
 }
 document.addEventListener('DOMContentLoaded', () => {
-  Promise.all([api('/settings'), api('/channels')]).then(([sd, cd]) => {
-    SETTINGS_SNAPSHOT = {...(sd.settings||{})}; LOADED = {...SETTINGS_SNAPSHOT}; CHANNELS = cd.channels||[];
+  api('/settings').then(sd => {
+    SETTINGS_SNAPSHOT = {...(sd.settings||{})}; LOADED = {...SETTINGS_SNAPSHOT};
     const en = document.getElementById('ai-enabled'); en.checked = SETTINGS_SNAPSHOT.enabled !== false;
     en.addEventListener('change', function(){ markChanged('enabled', this.checked); });
 
@@ -174,21 +175,6 @@ document.addEventListener('DOMContentLoaded', () => {
     temp.value = SETTINGS_SNAPSHOT.temperature ?? 0.7;
     tv.textContent = parseFloat(temp.value).toFixed(1);
     temp.addEventListener('input', function(){ tv.textContent = parseFloat(this.value).toFixed(1); markChanged('temperature', parseFloat(this.value)); });
-
-    // Channel dropdown
-    (function() {
-      const btn = document.getElementById('ai-ch-btn'), drop = document.getElementById('ai-ch-drop');
-      drop.innerHTML = '<button class="md-custom-opt" data-id="">None</button>' + CHANNELS.map(c => '<button class="md-custom-opt" data-id="' + c.id + '">#' + esc(c.name) + '</button>').join('');
-      const cur = SETTINGS_SNAPSHOT.channel_id;
-      const match = CHANNELS.find(c => String(c.id) === String(cur));
-      if (match) btn.textContent = '#' + match.name;
-      btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
-      drop.querySelectorAll('.md-custom-opt').forEach(opt => opt.addEventListener('click', () => {
-        btn.textContent = opt.dataset.id ? '#' + opt.textContent.replace(/^#/,'') : 'None';
-        markChanged('channel_id', opt.dataset.id || null); drop.classList.remove('is-open');
-      }));
-      document.addEventListener('click', e => { if(!e.target.closest('#ai-ch-wrap')) drop.classList.remove('is-open'); });
-    })();
 
     // Model dropdown
     (function() {
@@ -218,9 +204,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const temp = document.querySelector('[data-key="temperature"]');
     temp.value = reverted.temperature ?? 0.7;
     document.getElementById('temp-val').textContent = parseFloat(temp.value).toFixed(1);
-    const chBtn = document.getElementById('ai-ch-btn');
-    const ch = CHANNELS.find(c => String(c.id) === String(reverted.channel_id));
-    if (chBtn) chBtn.textContent = ch ? '#' + ch.name : 'None';
     const mBtn = document.getElementById('ai-model-btn');
     const mm = MODELS.find(x => x.value === (reverted.model || 'gpt-3.5-turbo'));
     if (mBtn) mBtn.textContent = mm ? mm.label : 'gpt-3.5-turbo';

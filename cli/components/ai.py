@@ -3,6 +3,8 @@ from discord.ext import commands
 from discord import app_commands
 import aiohttp
 import json
+import os
+import time
 import datetime
 from typing import Optional
 
@@ -10,10 +12,22 @@ from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
 from Ediscord.variables import OPENAI_API_KEY
 
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+
+if OPENROUTER_API_KEY:
+    _api_key = OPENROUTER_API_KEY
+    _api_base = "https://openrouter.ai/api/v1"
+elif GROQ_API_KEY:
+    _api_key = GROQ_API_KEY
+    _api_base = "https://api.groq.com/openai/v1"
+else:
+    _api_key = OPENAI_API_KEY
+    _api_base = "https://api.openai.com/v1"
+
 
 AI_DEFAULTS = {
     "enabled": True,
-    "channel_id": None,
     "model": "gpt-3.5-turbo",
     "system_prompt": "You are a helpful Discord bot named Prowl. Be concise and friendly.",
     "max_tokens": 500,
@@ -44,19 +58,40 @@ class AI(commands.Cog, name="AI"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.sessions = {}
+        self._last_global = 0
+        self._last_user = {}
 
     ai_group = app_commands.Group(name="ai", description="AI-powered features")
 
     @ai_group.command(name="chat", description="Chat with the AI")
     @app_commands.describe(prompt="What you want to say to the AI")
     async def chat(self, interaction: discord.Interaction, prompt: str):
-        if not OPENAI_API_KEY or OPENAI_API_KEY == "":
+        if not _api_key:
             return await interaction.response.send_message(
                 embed=EmbedBuilder().title("AI Not Configured").description("No API key set. Contact the bot owner.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
 
-        await interaction.response.defer()
+        # Rate limits: 5s global, 1min per user
+        now = time.time()
+        if now - self._last_global < 5:
+            wait = int(5 - (now - self._last_global))
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Slow Down").description(f"Global cooldown — try again in {wait}s.").color("orange").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        uid = str(interaction.user.id)
+        last = self._last_user.get(uid, 0)
+        if now - last < 60:
+            wait = int(60 - (now - last))
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title("Cooldown").description(f"You can use AI again in {wait}s.").color("orange").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        self._last_global = now
+        self._last_user[uid] = now
+
+        await interaction.response.defer(ephemeral=True)
         guild_id = str(interaction.guild_id)
         if guild_id not in self.sessions:
             self.sessions[guild_id] = []
@@ -73,8 +108,8 @@ class AI(commands.Cog, name="AI"):
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"},
+                    _api_base + "/chat/completions",
+                    headers={"Authorization": f"Bearer {_api_key}", "Content-Type": "application/json"},
                     json={"model": model, "messages": messages, "max_tokens": max_tokens, "temperature": temperature},
                 ) as resp:
                     if resp.status != 200:
@@ -121,7 +156,7 @@ class AI(commands.Cog, name="AI"):
     @ai_group.command(name="imagine", description="Generate an image from a text prompt")
     @app_commands.describe(prompt="Describe the image you want to generate")
     async def imagine(self, interaction: discord.Interaction, prompt: str):
-        if not OPENAI_API_KEY:
+        if not _api_key:
             return await interaction.response.send_message(
                 embed=EmbedBuilder().title("AI Not Configured").description("No API key set.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True

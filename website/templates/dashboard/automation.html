@@ -1,23 +1,29 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
 <style>
-#aut-canvas-wrap { position:relative; border:1px solid rgba(255,255,255,0.08); border-radius:6px; background:rgba(10,10,10,0.6); min-height:400px; overflow:hidden; }
-#aut-canvas { position:relative; width:2400px; height:1200px; }
-#aut-svg { position:absolute; inset:0; pointer-events:none; z-index:1; }
-#aut-svg path { fill:none; stroke:rgba(96,165,250,0.5); stroke-width:2; stroke-linecap:round; }
-#aut-svg .ghost { stroke:#60a5fa; stroke-dasharray:6 4; }
-.aut-node { position:absolute; z-index:2; min-width:160px; border-radius:6px; background:#151822; border:1px solid rgba(255,255,255,0.12); padding:0.65rem 0.85rem; cursor:move; user-select:none; overflow:visible; }
+#aut-canvas-wrap { position:relative; border:1px solid rgba(255,255,255,0.08); border-radius:6px; background:rgba(10,10,10,0.6); min-height:420px; overflow:hidden; }
+#aut-canvas { position:relative; width:2600px; height:1200px; }
+#aut-svg { position:absolute; inset:0; z-index:1; pointer-events:none; }
+#aut-svg path.wire-vis { fill:none; stroke:rgba(96,165,250,0.5); stroke-width:2; stroke-linecap:round; }
+#aut-svg path.wire-hit { stroke:transparent; stroke-width:16; pointer-events:stroke; cursor:pointer; }
+#aut-svg .aut-wire:hover path.wire-vis { stroke:#60a5fa; stroke-width:2.5; }
+#aut-svg .ghost { stroke:#60a5fa; stroke-dasharray:6 4; fill:none; stroke-width:2; }
+#aut-svg .aut-wire-x { display:none; cursor:pointer; pointer-events:all; }
+#aut-svg .aut-wire:hover .aut-wire-x { display:block; }
+.aut-node { position:absolute; z-index:2; min-width:170px; border-radius:6px; background:#151822; border:1px solid rgba(255,255,255,0.12); padding:0.65rem 0.85rem; cursor:move; user-select:none; overflow:visible; }
 .aut-node:hover { box-shadow:0 0 0 1px rgba(96,165,250,0.3); }
-.aut-node .aut-node-title { font-size:0.75rem; font-weight:800; letter-spacing:-0.01em; margin-bottom:0.3rem; display:flex; align-items:center; gap:0.4rem; }
+.aut-node .aut-node-title { font-size:0.75rem; font-weight:800; letter-spacing:-0.01em; margin-bottom:0.3rem; display:flex; align-items:center; gap:0.4rem; padding-right:22px; }
 .aut-node .aut-node-dot { position:absolute; width:12px; height:12px; border-radius:50%; border:2px solid rgba(255,255,255,0.3); background:#151822; z-index:3; cursor:crosshair; transition:all 0.15s; }
 .aut-node .aut-node-dot:hover { border-color:#60a5fa; background:#60a5fa; }
 .aut-node .aut-node-dot.in { left:50%; top:-7px; transform:translateX(-50%); }
 .aut-node .aut-node-dot.out { left:50%; bottom:-7px; transform:translateX(-50%); }
-.aut-node .aut-node-tag { font-size:0.62rem; font-weight:800; text-transform:uppercase; letter-spacing:0.03em; padding:0.1rem 0.4rem; border-radius:999px; display:inline-block; }
+.aut-node .aut-node-tag { font-size:0.62rem; font-weight:800; text-transform:uppercase; letter-spacing:0.03em; padding:0.1rem 0.4rem; border-radius:999px; display:inline-block; flex-shrink:0; }
 .aut-node .aut-node-tag.trigger { color:#60a5fa; background:rgba(96,165,250,0.1); border:1px solid rgba(96,165,250,0.2); }
 .aut-node .aut-node-tag.action { color:#34d399; background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.2); }
 .aut-node .aut-node-tag.var { color:#a78bfa; background:rgba(167,139,250,0.1); border:1px solid rgba(167,139,250,0.2); }
-.aut-node .aut-node-summary { font-size:0.65rem; color:rgba(255,255,255,0.35); margin-top:0.25rem; line-height:1.4; }
+.aut-node .aut-node-tag.list { color:#fbbf24; background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.2); }
+.aut-node .aut-node-summary { font-size:0.65rem; color:rgba(255,255,255,0.4); margin-top:0.25rem; line-height:1.45; word-break:break-word; }
+.aut-node .aut-node-varid { font-size:0.6rem; color:rgba(167,139,250,0.7); font-family:monospace; }
 .aut-node .aut-node-del { position:absolute; top:4px; right:6px; width:18px; height:18px; border-radius:50%; border:none; background:rgba(248,113,113,0.15); color:#f87171; font-size:0.7rem; cursor:pointer; display:none; align-items:center; justify-content:center; line-height:1; }
 .aut-node:hover .aut-node-del { display:flex; }
 .aut-node .aut-node-del:hover { background:#f87171; color:#fff; }
@@ -34,6 +40,12 @@
 .aut-toolbar #aut-save-btn:hover { background:#e9edf5; color:#0a0a0a; }
 .aut-toolbar #aut-clear-btn { background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.5); border-color:rgba(255,255,255,0.12); }
 .aut-toolbar #aut-clear-btn:hover { background:rgba(255,255,255,0.09); color:#e9edf5; }
+.aut-hint { font-size:0.72rem; color:rgba(255,255,255,0.35); margin-top:0.5rem; line-height:1.5; }
+.aut-hint code { color:#a78bfa; background:rgba(167,139,250,0.1); padding:0.05rem 0.3rem; border-radius:3px; font-size:0.68rem; }
+.aut-var-insert { display:flex; gap:0.35rem; margin-bottom:0.3rem; }
+.aut-var-insert .md-custom-select { min-width:150px; }
+.aut-var-insert .md-custom-select-btn { font-size:0.7rem; padding:0.35rem 1.6rem 0.35rem 0.5rem; }
+.aut-var-hint { font-size:0.62rem; color:rgba(255,255,255,0.3); margin-top:0.2rem; line-height:1.4; }
 </style>
 
 <div id="automation-wrap">
@@ -48,10 +60,11 @@
     </div>
   </div>
 
-  <div class="aut-palette">
+  <div class="aut-palette" id="aut-palette">
     <span class="aut-palette-label">Triggers</span>
     <div class="aut-palette-block" data-palette="member_join" draggable="true">Member Joins</div>
     <div class="aut-palette-block" data-palette="member_leave" draggable="true">Member Leaves</div>
+    <div class="aut-palette-block" data-palette="message_any" draggable="true">Any Message</div>
     <div class="aut-palette-block" data-palette="message_contains" draggable="true">Message Contains</div>
     <div class="aut-palette-block" data-palette="message_starts" draggable="true">Message Starts With</div>
     <div class="aut-palette-block" data-palette="role_added" draggable="true">Role Added</div>
@@ -64,20 +77,30 @@
     <div class="aut-palette-block" data-palette="remove_role" draggable="true">Remove Role</div>
     <div class="aut-palette-block" data-palette="kick" draggable="true">Kick</div>
     <div class="aut-palette-block" data-palette="ban" draggable="true">Ban</div>
-    <div class="aut-palette-block" data-palette="mute" draggable="true">Timeout</div>
+    <div class="aut-palette-block" data-palette="mute" draggable="true">Mute</div>
     <div class="aut-palette-block" data-palette="send_ticket" draggable="true">Open Ticket</div>
     <div class="aut-palette-block" data-palette="set_nickname" draggable="true">Set Nickname</div>
     <span class="aut-palette-label" style="margin-left:0.75rem;">Variables</span>
     <div class="aut-palette-block" data-palette="text_var" draggable="true">Text</div>
-    <div class="aut-palette-block" data-palette="role_var" draggable="true">Role Picker</div>
-    <div class="aut-palette-block" data-palette="channel_var" draggable="true">Channel Picker</div>
     <div class="aut-palette-block" data-palette="number_var" draggable="true">Number</div>
+    <div class="aut-palette-block" data-palette="role_var" draggable="true">Role</div>
+    <div class="aut-palette-block" data-palette="channel_var" draggable="true">Channel</div>
+    <span class="aut-palette-label" style="margin-left:0.75rem;">Lists</span>
+    <div class="aut-palette-block" data-palette="list_members" draggable="true">Member List</div>
+    <div class="aut-palette-block" data-palette="list_roles" draggable="true">Role List</div>
+    <div class="aut-palette-block" data-palette="list_channels" draggable="true">Channel List</div>
   </div>
 
   <div id="aut-canvas-wrap">
     <div id="aut-canvas">
       <svg id="aut-svg"></svg>
     </div>
+  </div>
+
+  <div class="aut-hint">
+    Variables: set a value on a variable node, then reference it anywhere with <code>{var:&lt;node id&gt;}</code> (shown on the node).
+    In any text field use the <b>Insert Variable</b> menu for bot values like <code>{member}</code>, <code>{server.name}</code>, <code>{message}</code>.
+    Lists output every member / role / channel. Hover a wire and hit the <b style="color:#f87171;">&#10005;</b> to remove it.
   </div>
 </div>
 {% endblock %}
@@ -87,47 +110,83 @@ const GID = window.__GUILD_ID;
 const api = (p,o={}) => fetch(`/api/v1/automation/${GID}${p}`,o).then(r=>r.json());
 const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
 
-const TYPE_LABELS = {
-  member_join:'Member Joins', member_leave:'Member Leaves', message_contains:'Message Contains',
-  message_starts:'Message Starts With', role_added:'Role Added', role_removed:'Role Removed',
-  channel_message:'Message in Channel',
-  send_message:'Send Message', send_dm:'Send DM', add_role:'Add Role', remove_role:'Remove Role',
-  kick:'Kick', ban:'Ban', mute:'Timeout', send_ticket:'Open Ticket', set_nickname:'Set Nickname',
-  text_var:'Text', role_var:'Role', channel_var:'Channel', number_var:'Number'
+const NODE_DEFS = {
+  member_join:     { label:'Member Joins', kind:'trigger' },
+  member_leave:    { label:'Member Leaves', kind:'trigger' },
+  message_any:     { label:'Any Message', kind:'trigger' },
+  message_contains:{ label:'Message Contains', kind:'trigger', fields:[{key:'text', label:'Text', kind:'text'}] },
+  message_starts:  { label:'Message Starts With', kind:'trigger', fields:[{key:'text', label:'Text', kind:'text'}] },
+  role_added:      { label:'Role Added', kind:'trigger', fields:[{key:'role_id', label:'Role', kind:'role'}] },
+  role_removed:    { label:'Role Removed', kind:'trigger', fields:[{key:'role_id', label:'Role', kind:'role'}] },
+  channel_message: { label:'Message in Channel', kind:'trigger', fields:[{key:'channel_id', label:'Channel', kind:'channel'}] },
+  send_message:    { label:'Send Message', kind:'action', fields:[{key:'channel_id', label:'Channel', kind:'channel'},{key:'text', label:'Message', kind:'text'}] },
+  send_dm:         { label:'Send DM', kind:'action', fields:[{key:'text', label:'DM Message', kind:'text'}] },
+  add_role:        { label:'Add Role', kind:'action', fields:[{key:'role_id', label:'Role', kind:'role'}] },
+  remove_role:     { label:'Remove Role', kind:'action', fields:[{key:'role_id', label:'Role', kind:'role'}] },
+  kick:            { label:'Kick', kind:'action', fields:[{key:'text', label:'Reason', kind:'text'}] },
+  ban:             { label:'Ban', kind:'action', fields:[{key:'text', label:'Reason', kind:'text'}] },
+  mute:            { label:'Mute', kind:'action', fields:[{key:'duration', label:'Duration (minutes)', kind:'number'}] },
+  set_nickname:    { label:'Set Nickname', kind:'action', fields:[{key:'text', label:'Nickname', kind:'text'}] },
+  send_ticket:     { label:'Open Ticket', kind:'action', fields:[{key:'channel_id', label:'Category', kind:'channel'},{key:'text', label:'Reason', kind:'text'}] },
+  text_var:        { label:'Text', kind:'variable', fields:[{key:'text', label:'Value', kind:'text'}] },
+  number_var:      { label:'Number', kind:'variable', fields:[{key:'value', label:'Value', kind:'number'}] },
+  role_var:        { label:'Role', kind:'variable', fields:[{key:'role_id', label:'Role', kind:'role'}] },
+  channel_var:     { label:'Channel', kind:'variable', fields:[{key:'channel_id', label:'Channel', kind:'channel'}] },
+  list_members:    { label:'Member List', kind:'variable', isList:true },
+  list_roles:      { label:'Role List', kind:'variable', isList:true },
+  list_channels:   { label:'Channel List', kind:'variable', isList:true },
 };
-const TRIGGERS = new Set(['member_join','member_leave','message_contains','message_starts','role_added','role_removed','channel_message']);
-const ACTIONS = new Set(['send_message','send_dm','add_role','remove_role','kick','ban','mute','send_ticket','set_nickname']);
-const VARIABLES = new Set(['text_var','role_var','channel_var','number_var']);
+const KIND = n => NODE_DEFS[n.type] ? NODE_DEFS[n.type].kind : 'action';
+
+const SYSTEM_VARS = [
+  ['Member', '{member}'], ['Member Name', '{member.name}'], ['Member ID', '{member.id}'],
+  ['Member Mention', '{member.mention}'], ['Member Avatar', '{member.avatar}'],
+  ['Server', '{server}'], ['Server Name', '{server.name}'], ['Member Count', '{server.membercount}'],
+  ['Channel', '{channel}'], ['Channel Name', '{channel.name}'],
+  ['Message', '{message}'], ['Message Content', '{message.content}'], ['Message Link', '{message.link}'],
+  ['Role', '{role}'], ['Role Name', '{role.name}'], ['Reason', '{reason}'],
+  ['Time', '{time}'], ['Count', '{count}'],
+];
 
 let nodes=[]; let nextId=1; let connections=[];
 let CHANNELS=[], ROLES=[];
 let dragNode=null, dragOffX=0, dragOffY=0;
-let connOrigin=null, connOrigX=0, connOrigY=0, mouseX=0, mouseY=0;
+let connOrigin=null, connOrigX=0, connOrigY=0;
 
 function createNode(type,x,y) { return {id:nextId++,type,x,y,config:{}}; }
-function isTrigger(n) { return TRIGGERS.has(n.type); }
-function isVar(n) { return VARIABLES.has(n.type); }
+function isVar(n) { return NODE_DEFS[n.type] && NODE_DEFS[n.type].kind === 'variable'; }
+
+function nodeSummary(n) {
+  const cfg = n.config||{};
+  switch (n.type) {
+    case 'send_message': case 'send_dm': return cfg.text ? '“'+cfg.text.slice(0,40)+'”' : '';
+    case 'add_role': case 'remove_role': return cfg.role_id ? (ROLES.find(r=>String(r.id)===String(cfg.role_id))||{}).name||'' : '';
+    case 'kick': case 'ban': return cfg.text ? '“'+cfg.text.slice(0,30)+'”' : '';
+    case 'mute': return (cfg.duration||60)+' min';
+    case 'set_nickname': return cfg.text ? '“'+cfg.text.slice(0,30)+'”' : '';
+    case 'send_ticket': return cfg.text ? '“'+cfg.text.slice(0,30)+'”' : '';
+    case 'message_contains': case 'message_starts': return cfg.text ? '“'+cfg.text.slice(0,25)+'”' : '';
+    case 'text_var': return cfg.text ? '“'+cfg.text.slice(0,30)+'”' : '';
+    case 'number_var': return cfg.value != null ? String(cfg.value) : '';
+    case 'role_var': return cfg.role_id ? (ROLES.find(r=>String(r.id)===String(cfg.role_id))||{}).name||'' : '';
+    case 'channel_var': return cfg.channel_id ? '#'+((CHANNELS.find(c=>String(c.id)===String(cfg.channel_id))||{}).name||'') : '';
+    default: return '';
+  }
+}
 
 function renderNode(n) {
-  const trig = isTrigger(n), v = isVar(n);
-  const cfg = n.config||{};
-  let summary = '';
-  if (n.type==='send_message'||n.type==='send_dm') summary = cfg.text ? '"'+cfg.text.slice(0,30)+'"' : '';
-  else if (n.type==='add_role'||n.type==='remove_role') summary = cfg.role_id ? (ROLES.find(r=>String(r.id)===String(cfg.role_id))||{}).name||'' : '';
-  else if (n.type==='mute') summary = (cfg.duration||60)+'min';
-  else if (n.type==='message_contains'||n.type==='message_starts') summary = cfg.text ? '"'+cfg.text.slice(0,25)+'"' : '';
-  else if (n.type==='set_nickname') summary = cfg.text ? '"'+cfg.text.slice(0,25)+'"' : '';
-  else if (n.type==='text_var') summary = cfg.text||'';
-  else if (n.type==='number_var') summary = cfg.value!=null ? cfg.value : '';
-  const tagClass = trig?'trigger':v?'var':'action';
-  const tagLabel = trig?'TRIGGER':v?'VAR':'ACTION';
-  const sumHtml = summary ? `<div class="aut-node-summary">${esc(summary)}</div>` : '';
+  const def = NODE_DEFS[n.type]||{label:n.type,kind:'action'};
+  const kind = def.kind;
+  const tagClass = kind==='trigger'?'trigger':kind==='variable'?(def.isList?'list':'var'):'action';
+  const tagLabel = kind==='trigger'?'TRIGGER':kind==='variable'?(def.isList?'LIST':'VAR'):'ACTION';
+  const sum = nodeSummary(n);
+  const varid = kind==='variable' ? `<div class="aut-node-varid">var#${n.id}</div>` : '';
   return `<div class="aut-node" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;">
-    <div class="aut-node-title"><span class="aut-node-tag ${tagClass}">${tagLabel}</span>${TYPE_LABELS[n.type]||n.type}</div>
-    ${sumHtml}
-    ${(trig||v)?'':'<div class="aut-node-dot in" data-connect="in"></div>'}
+    <div class="aut-node-title"><span class="aut-node-tag ${tagClass}">${tagLabel}</span>${def.label||n.type}</div>
+    ${sum ? `<div class="aut-node-summary">${esc(sum)}</div>` : ''}${varid}
+    ${(kind==='trigger'||kind==='variable')?'':'<div class="aut-node-dot in" data-connect="in"></div>'}
     <div class="aut-node-dot out" data-connect="out"></div>
-    <button class="aut-node-del" data-del="${n.id}">&times;</button>
+    <button class="aut-node-del" data-del="${n.id}" title="Delete block">&times;</button>
   </div>`;
 }
 
@@ -138,12 +197,13 @@ function renderAll() {
   bindNodes();
 }
 
+// Wire endpoints = exact center of the in/out dots (top-center / bottom-center of node)
 function getConnectPos(canvas, nodeId, which) {
   const el = canvas.querySelector(`[data-id="${nodeId}"]`);
   if (!el) return {x:0,y:0};
-  const dot = el.querySelector(which==='out'?'.out':'.in');
-  if (dot) return {x:el.offsetLeft+dot.offsetLeft+6, y:el.offsetTop+dot.offsetTop+6};
-  return {x:el.offsetLeft+el.offsetWidth/2, y:el.offsetTop+(which==='out'?el.offsetHeight:0)};
+  const cx = el.offsetLeft + el.offsetWidth / 2;
+  if (which === 'out') return {x: cx, y: el.offsetTop + el.offsetHeight + 7};
+  return {x: cx, y: el.offsetTop - 7};
 }
 
 function drawConnections(ghostEnd) {
@@ -151,18 +211,25 @@ function drawConnections(ghostEnd) {
   const svg = document.getElementById('aut-svg');
   svg.setAttribute('width', canvas.clientWidth+'px');
   svg.setAttribute('height', canvas.clientHeight+'px');
-  svg.innerHTML = connections.map(c => {
+  svg.innerHTML = connections.map((c, idx) => {
     const fn=nodes.find(x=>x.id===c.from), tn=nodes.find(x=>x.id===c.to);
     if (!fn||!tn) return '';
-    const elF=canvas.querySelector(`[data-id="${c.from}"]`), elT=canvas.querySelector(`[data-id="${c.to}"]`);
-    if (!elF||!elT) return '';
     const p1=getConnectPos(canvas,c.from,'out'), p2=getConnectPos(canvas,c.to,'in');
-    const dy=Math.abs(p2.y-p1.y)*0.4;
-    return `<path d="M${p1.x} ${p1.y} C${p1.x} ${p1.y+dy} ${p2.x} ${p2.y-dy} ${p2.x} ${p2.y}" />`;
+    const midY = (p1.y+p2.y)/2;
+    const d = `M${p1.x} ${p1.y} C${p1.x} ${midY} ${p2.x} ${midY} ${p2.x} ${p2.y}`;
+    const mx = (p1.x+p2.x)/2, my = midY;
+    return `<g class="aut-wire" data-wire="${idx}">
+      <path class="wire-hit" d="${d}" />
+      <path class="wire-vis" d="${d}" />
+      <g class="aut-wire-x" data-wdel="${idx}" transform="translate(${mx},${my})">
+        <circle r="7" fill="#f87171" stroke="#0a0a0a" stroke-width="1.5" />
+        <path d="M-2.5 -2.5 L2.5 2.5 M2.5 -2.5 L-2.5 2.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round" />
+      </g>
+    </g>`;
   }).join('');
   if (ghostEnd) {
-    const dy = Math.abs(ghostEnd.y - connOrigY)*0.4;
-    svg.innerHTML += `<path class="ghost" d="M${connOrigX} ${connOrigY} C${connOrigX} ${connOrigY+dy} ${ghostEnd.x} ${ghostEnd.y-dy} ${ghostEnd.x} ${ghostEnd.y}" />`;
+    const midY = (ghostEnd.y+connOrigY)/2;
+    svg.innerHTML += `<path class="ghost" d="M${connOrigX} ${connOrigY} C${connOrigX} ${midY} ${ghostEnd.x} ${midY} ${ghostEnd.x} ${ghostEnd.y}" />`;
   }
 }
 
@@ -172,10 +239,13 @@ function bindNodes() {
     e.stopPropagation();
     deleteNode(parseInt(b.dataset.del));
   }));
-  // Drag-to-connect on dots (mousedown on dot, mousemove draws ghost, mouseup on target)
+  canvas.querySelectorAll('[data-wdel]').forEach(g => g.addEventListener('click', e => {
+    e.stopPropagation();
+    connections.splice(parseInt(g.dataset.wdel), 1);
+    renderAll();
+  }));
   canvas.querySelectorAll('.aut-node').forEach(el => {
     const nid = parseInt(el.dataset.id);
-    // Node dragging
     el.addEventListener('mousedown', e => {
       if (e.target.closest('[data-del]')||e.target.closest('[data-connect]')) return;
       dragNode = nodes.find(n=>n.id===nid);
@@ -185,18 +255,15 @@ function bindNodes() {
       dragOffY = e.clientY - dragNode.y;
       e.preventDefault();
     });
-    // Dot connection start
     el.addEventListener('mousedown', e => {
       const dot = e.target.closest('[data-connect]');
       if (!dot) return;
       e.stopPropagation(); e.preventDefault();
-      const isOut = dot.dataset.connect === 'out';
-      if (isOut&&!connOrigin) {
+      if (dot.dataset.connect === 'out' && !connOrigin) {
         connOrigin = nid;
         const p = getConnectPos(canvas, nid, 'out');
         connOrigX = p.x; connOrigY = p.y;
-        mouseX = p.x; mouseY = p.y;
-        drawConnections({x:connOrigX, y:connOrigY});
+        drawConnections({x:p.x, y:p.y});
       }
     });
   });
@@ -211,17 +278,15 @@ function deleteNode(id) {
 document.addEventListener('mousemove', e => {
   const canvas = document.getElementById('aut-canvas');
   if (dragNode) {
-    dragNode.x = Math.max(0, Math.min(2200, e.clientX - dragOffX));
+    dragNode.x = Math.max(0, Math.min(2400, e.clientX - dragOffX));
     dragNode.y = Math.max(0, Math.min(1000, e.clientY - dragOffY));
     const el = canvas.querySelector(`.aut-node[data-id="${dragNode.id}"]`);
     if (el) { el.style.left = dragNode.x+'px'; el.style.top = dragNode.y+'px'; }
     drawConnections();
   }
   if (connOrigin) {
-    mouseX = e.clientX; mouseY = e.clientY;
     const rect = canvas.getBoundingClientRect();
     drawConnections({x: e.clientX - rect.left + canvas.scrollLeft, y: e.clientY - rect.top + canvas.scrollTop});
-    // Highlight closest input dot
     canvas.querySelectorAll('.aut-node .in').forEach(d => d.style.borderColor = 'rgba(255,255,255,0.3)');
     const targetEl = document.elementFromPoint(e.clientX, e.clientY);
     if (targetEl) {
@@ -242,8 +307,7 @@ document.addEventListener('mouseup', e => {
       if (dot && nodeEl) {
         const toId = parseInt(nodeEl.dataset.id);
         if (toId !== connOrigin) {
-          const existing = connections.find(c => c.to===toId);
-          if (existing) connections = connections.filter(c => c.to!==toId);
+          connections = connections.filter(c => c.to!==toId);
           connections.push({from:connOrigin, to:toId});
         }
       }
@@ -259,72 +323,105 @@ document.getElementById('aut-canvas-wrap').addEventListener('dblclick', e => {
   if (!el) return;
   const id = parseInt(el.dataset.id);
   const n = nodes.find(x=>x.id===id);
-  if (!n) return;
-  configureNode(n);
+  if (n) configureNode(n);
 });
 
-function configureNode(n) {
-  const label = TYPE_LABELS[n.type]||n.type;
-  const cfg = n.config||{};
-  let fields = '';
-  const f = (lbl,pid,ph,t='text') => `<div style="margin-bottom:0.6rem;"><div class="md-behavior-label" style="margin-bottom:0.25rem;">${lbl}</div><input type="${t}" class="md-input" id="${pid}" placeholder="${ph||''}" style="width:100%;" /></div>`;
-  const s = (lbl,pid,opts,cur) => `<div style="margin-bottom:0.6rem;"><div class="md-behavior-label" style="margin-bottom:0.25rem;">${lbl}</div><div class="md-custom-select" id="${pid}-wrap"><button class="md-custom-select-btn" id="${pid}-btn">${cur||'Select...'}</button><div class="md-custom-select-drop" id="${pid}-drop">${opts.map(o=>'<button class="md-custom-opt" data-id="'+o.id+'">'+esc(o.name)+'</button>').join('')}</div></div></div>`;
+function boardVarOptions() {
+  return nodes.filter(x => isVar(x)).map(x => ['var#'+x.id+' ('+x.id+')', '{var:'+x.id+'}']);
+}
 
-  if (n.type==='send_message') fields = s('Channel','cfg-ch',CHANNELS,(CHANNELS.find(c=>String(c.id)===String(cfg.channel_id))||{}).name? '#'+(CHANNELS.find(c=>String(c.id)===String(cfg.channel_id))||{}).name:'Select...') + f('Message','cfg-text','Write your message here. Use {member} etc.');
-  else if (n.type==='send_dm') fields = f('DM Message','cfg-text','Write your DM here.');
-  else if (n.type==='add_role'||n.type==='remove_role') fields = s('Role','cfg-role',ROLES,(ROLES.find(r=>String(r.id)===String(cfg.role_id))||{}).name||'Select...');
-  else if (n.type==='mute') fields = f('Duration (minutes)','cfg-dur','60','number');
-  else if (n.type==='set_nickname') fields = f('Nickname','cfg-text','{member.name}');
-  else if (n.type==='message_contains'||n.type==='message_starts') fields = f('Match Text','cfg-text','hello');
-  else if (n.type==='channel_message') fields = s('Channel','cfg-ch',CHANNELS,(CHANNELS.find(c=>String(c.id)===String(cfg.channel_id))||{}).name? '#'+(CHANNELS.find(c=>String(c.id)===String(cfg.channel_id))||{}).name:'Select...');
-  else if (n.type==='text_var') fields = f('Value','cfg-text','e.g. Hello World');
-  else if (n.type==='number_var') fields = f('Number','cfg-val','0','number');
-  else if (n.type==='role_var') fields = s('Role','cfg-role',ROLES,(ROLES.find(r=>String(r.id)===String(cfg.role_id))||{}).name||'Select...');
-  else if (n.type==='channel_var') fields = s('Channel','cfg-ch',CHANNELS,(CHANNELS.find(c=>String(c.id)===String(cfg.channel_id))||{}).name? '#'+(CHANNELS.find(c=>String(c.id)===String(cfg.channel_id))||{}).name:'Select...');
+function configureNode(n) {
+  const def = NODE_DEFS[n.type]||{label:n.type,kind:'action'};
+  const cfg = n.config||{};
+  const fields = def.fields || [];
+  const title = (def.kind==='variable' ? `var#${n.id} — ` : '') + def.label;
+
+  const body = document.createElement('div');
+  body.style.display = 'flex'; body.style.flexDirection = 'column'; body.style.gap = '0.7rem';
+  if (!fields.length) {
+    body.innerHTML = '<p style="color:rgba(255,255,255,0.4);font-size:0.8rem;">No configuration needed.</p>';
+  }
+  fields.forEach(fd => {
+    const wrap = document.createElement('div');
+    const lbl = document.createElement('div');
+    lbl.className = 'md-behavior-label'; lbl.style.marginBottom = '0.3rem';
+    lbl.textContent = fd.label;
+    wrap.appendChild(lbl);
+    if (fd.kind === 'text') {
+      // Insert-variable dropdown + textarea
+      const ins = document.createElement('div');
+      ins.className = 'aut-var-insert';
+      const all = [{label:'System variables', opts:SYSTEM_VARS}, {label:'Board variables', opts:boardVarOptions()}];
+      ins.innerHTML = '<div class="md-custom-select"><button class="md-custom-select-btn">Insert Variable...</button><div class="md-custom-select-drop"></div></div>';
+      const btn = ins.querySelector('.md-custom-select-btn');
+      const drop = ins.querySelector('.md-custom-select-drop');
+      drop.innerHTML = all.map(g =>
+        (g.opts.length ? '<div style="font-size:0.6rem;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;color:rgba(255,255,255,0.3);padding:0.35rem 0.7rem 0.1rem;">'+g.label+'</div>' : '') +
+        g.opts.map(o => '<button class="md-custom-opt" data-val="'+esc(o[1])+'">'+esc(o[0])+'</button>').join('')
+      ).join('');
+      btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+      drop.querySelectorAll('.md-custom-opt').forEach(o => o.addEventListener('click', () => {
+        const ta = wrap.querySelector('textarea');
+        if (ta) ta.value += o.dataset.val;
+        drop.classList.remove('is-open');
+      }));
+      document.addEventListener('click', e => { if(!e.target.closest('.aut-var-insert')) drop.classList.remove('is-open'); });
+      const ta = document.createElement('textarea');
+      ta.className = 'md-input md-textarea';
+      ta.rows = 2; ta.style.width = '100%'; ta.style.fontSize = '0.78rem';
+      ta.value = cfg[fd.key] || '';
+      ta.setAttribute('data-cfg', fd.key);
+      wrap.appendChild(ins); wrap.appendChild(ta);
+      const hint = document.createElement('div');
+      hint.className = 'aut-var-hint';
+      hint.innerHTML = 'Use <code>{var:&lt;id&gt;}</code> to pull a board variable, or pick from the menu for bot values.';
+      wrap.appendChild(hint);
+    } else if (fd.kind === 'number') {
+      const inp = document.createElement('input');
+      inp.type = 'number'; inp.className = 'md-input'; inp.style.width = '100%';
+      inp.value = cfg[fd.key] ?? ''; inp.setAttribute('data-cfg', fd.key);
+      wrap.appendChild(inp);
+    } else {
+      const list = fd.kind === 'role' ? ROLES : CHANNELS;
+      const pre = fd.kind === 'channel' ? '#' : '';
+      const cur = cfg[fd.key] ? (list.find(x=>String(x.id)===String(cfg[fd.key]))||{}).name||'' : '';
+      const sel = document.createElement('div');
+      sel.className = 'md-custom-select';
+      sel.style.width = '100%';
+      sel.innerHTML = `<button class="md-custom-select-btn">${cur ? pre+esc(cur) : 'Select...'}</button><div class="md-custom-select-drop">${list.map(x=>'<button class="md-custom-opt" data-id="'+x.id+'">'+pre+esc(x.name)+'</button>').join('')}</div>`;
+      const btn = sel.querySelector('.md-custom-select-btn');
+      const drop = sel.querySelector('.md-custom-select-drop');
+      btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+      drop.querySelectorAll('.md-custom-opt').forEach(o => o.addEventListener('click', () => {
+        btn.textContent = o.textContent; btn.dataset.pick = o.dataset.id; drop.classList.remove('is-open');
+      }));
+      document.addEventListener('click', e => { if(!e.target.closest('#'+sel.id)) drop.classList.remove('is-open'); });
+      wrap.appendChild(sel);
+      wrap.dataset.selKey = fd.key;
+    }
+    body.appendChild(wrap);
+  });
 
   const overlay = document.createElement('div');
-  overlay.className = 'md-modal-overlay'; overlay.style.zIndex=200;
-  overlay.innerHTML = `<div class="md-modal" style="max-width:440px;max-height:80vh;overflow-y:auto;"><h3>Configure ${label}</h3><div style="margin:0.75rem 0;">${fields||'<p style="color:rgba(255,255,255,0.4);font-size:0.8rem;">No configuration needed.</p>'}</div><div style="display:flex;gap:0.5rem;"><button class="md-action-btn" id="cfg-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save</button><button class="md-action-btn" id="cfg-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button></div></div>`;
+  overlay.className = 'md-modal-overlay'; overlay.style.zIndex = 200;
+  overlay.innerHTML = `<div class="md-modal" style="max-width:460px;max-height:80vh;overflow-y:auto;"><h3>Configure ${esc(title)}</h3><div id="cfg-fields"></div><div style="display:flex;gap:0.5rem;margin-top:0.9rem;"><button class="md-action-btn" id="cfg-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save</button><button class="md-action-btn" id="cfg-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button></div></div>`;
+  overlay.querySelector('#cfg-fields').appendChild(body);
   document.body.appendChild(overlay);
   overlay.classList.add('is-open');
 
-  const bindDrop = (wrapId, opts, key, pre) => {
-    const btn=document.getElementById(wrapId+'-btn'),drop=document.getElementById(wrapId+'-drop');
-    if(!btn||!drop) return;
-    if (!opts.filter(o=>String(o.id)===String(cfg[key])).length && btn.dataset.pick) btn.textContent='Select...';
-    btn.addEventListener('click',e=>{e.stopPropagation();drop.classList.toggle('is-open');});
-    drop.querySelectorAll('.md-custom-opt').forEach(o=>o.addEventListener('click',()=>{
-      btn.textContent=(pre||'')+o.textContent.replace(/^#/,'').replace(/^ /,''); btn.dataset.pick=o.dataset.id; drop.classList.remove('is-open');
-    }));
-    document.addEventListener('click',e=>{if(!e.target.closest('#'+wrapId+'-wrap')) drop.classList.remove('is-open');});
-  };
-
-  if (n.type==='send_message'||n.type==='channel_message'||n.type==='channel_var') {
-    bindDrop('cfg-ch',CHANNELS,'channel_id','#');
-    if (cfg.channel_id) { const m=CHANNELS.find(c=>String(c.id)===String(cfg.channel_id)); if(m) { const b=document.getElementById('cfg-ch-btn'); if(b) b.textContent='#'+m.name; b.dataset.pick=m.id; } }
-  }
-  if (n.type==='add_role'||n.type==='remove_role'||n.type==='role_var') {
-    bindDrop('cfg-role',ROLES,'role_id','');
-    if (cfg.role_id) { const m=ROLES.find(r=>String(r.id)===String(cfg.role_id)); if(m) { const b=document.getElementById('cfg-role-btn'); if(b) b.textContent=m.name; b.dataset.pick=m.id; } }
-  }
-  if (cfg.text) setTimeout(()=>{const e=document.getElementById('cfg-text');if(e)e.value=cfg.text;},10);
-  if (cfg.duration) setTimeout(()=>{const e=document.getElementById('cfg-dur');if(e)e.value=cfg.duration;},10);
-  if (n.type==='number_var'&&cfg.value!=null) setTimeout(()=>{const e=document.getElementById('cfg-val');if(e)e.value=cfg.value;},10);
-
   overlay.querySelector('#cfg-save').addEventListener('click', () => {
-    if (n.type==='send_message') { const b=document.getElementById('cfg-ch-btn'); cfg.channel_id=b?.dataset?.pick||''; cfg.text=document.getElementById('cfg-text')?.value||''; }
-    else if (n.type==='send_dm'||n.type==='set_nickname') cfg.text=document.getElementById('cfg-text')?.value||'';
-    else if (n.type==='add_role'||n.type==='remove_role') { const b=document.getElementById('cfg-role-btn'); cfg.role_id=b?.dataset?.pick||''; }
-    else if (n.type==='mute') cfg.duration=parseInt(document.getElementById('cfg-dur')?.value)||60;
-    else if (n.type==='message_contains'||n.type==='message_starts'||n.type==='text_var') cfg.text=document.getElementById('cfg-text')?.value||'';
-    else if (n.type==='number_var') cfg.value=parseFloat(document.getElementById('cfg-val')?.value)||0;
-    else if (n.type==='channel_message') { const b=document.getElementById('cfg-ch-btn'); cfg.channel_id=b?.dataset?.pick||''; }
-    else if (n.type==='role_var') { const b=document.getElementById('cfg-role-btn'); cfg.role_id=b?.dataset?.pick||''; }
-    else if (n.type==='channel_var') { const b=document.getElementById('cfg-ch-btn'); cfg.channel_id=b?.dataset?.pick||''; }
+    body.querySelectorAll('[data-cfg]').forEach(el => {
+      const k = el.dataset.cfg;
+      cfg[k] = el.type === 'number' ? (parseFloat(el.value)||0) : el.value;
+    });
+    body.querySelectorAll('[data-sel-key]').forEach(w => {
+      const btn = w.querySelector('.md-custom-select-btn');
+      if (btn && btn.dataset.pick) cfg[w.dataset.selKey] = btn.dataset.pick;
+    });
     overlay.remove(); renderAll();
   });
-  overlay.querySelector('#cfg-cancel').addEventListener('click', ()=>overlay.remove());
-  overlay.addEventListener('click', e=>{if(e.target===overlay) overlay.remove();});
+  overlay.querySelector('#cfg-cancel').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
 }
 
 // Palette drag → canvas
@@ -335,15 +432,15 @@ const canvas = document.getElementById('aut-canvas');
 canvas.addEventListener('drop', e => {
   e.preventDefault();
   const type = e.dataTransfer.getData('text/plain');
-  if (!TYPE_LABELS[type]) return;
+  if (!NODE_DEFS[type]) return;
   const rect = wrap.getBoundingClientRect();
   nodes.push(createNode(type, Math.max(0,e.clientX-rect.left-80), Math.max(0,e.clientY-rect.top-20)));
   renderAll();
 });
-wrap.addEventListener('drop', e => { e.preventDefault(); }); // swallow duplicates
+wrap.addEventListener('drop', e => { e.preventDefault(); });
 
 // Palette auto-scroll on hover
-const palette = document.querySelector('.aut-palette');
+const palette = document.getElementById('aut-palette');
 let palTimer = null;
 palette.addEventListener('mousemove', e => {
   const rect = palette.getBoundingClientRect();

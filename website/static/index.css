@@ -461,11 +461,11 @@ section {
   align-items: center;
   justify-content: center;
   padding: 0.65rem 1.5rem;
-  background: #140f2b;
-  border-bottom: 1px solid rgba(139, 92, 246, 0.35);
+  background: #1a1503;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.35);
   font-size: 0.8rem;
   font-weight: 600;
-  color: #c4b5fd;
+  color: #fbbf24;
   letter-spacing: 0.01em;
 }
 #wbanner-close {

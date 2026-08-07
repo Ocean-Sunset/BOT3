@@ -179,7 +179,7 @@ class EmbedBuilder:
         embed = discord.Embed(
             title=self._title,
             description=self._description,
-            color=self._color or discord.Color.blurple(),
+            color=self._color or discord.Color(BRAND),
             url=self._url,
             timestamp=self._timestamp,
         )
@@ -193,6 +193,9 @@ class EmbedBuilder:
             embed.set_thumbnail(url=self._thumbnail)
         for f in self._fields:
             embed.add_field(**f)
+        # Discord rejects embeds with no content at all
+        if not (embed.title or embed.description or embed.fields or embed.author or embed.footer or embed.image or embed.thumbnail):
+            embed.description = "\u200b"
         return embed
 
     async def send(self, channel, content: str = None, **kwargs) -> discord.Message:

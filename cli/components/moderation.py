@@ -102,6 +102,11 @@ def build_embed(data: dict) -> discord.Embed:
     for f in (data.get("fields") or []):
         if isinstance(f, dict) and f.get("name"):
             embed.add_field(name=f["name"][:256], value=(f.get("value") or "\u200b")[:1024], inline=bool(f.get("inline")))
+    # Discord rejects embeds with no content at all — fall back so the action
+    # still works even when a custom embed is configured but empty.
+    if not (embed.title or embed.description or embed.fields or embed.author or embed.footer or embed.image or embed.thumbnail):
+        embed.title = "Action Completed"
+        embed.description = "\u200b"
     return embed
 
 

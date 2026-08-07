@@ -110,6 +110,22 @@ def build_embed(data: dict) -> discord.Embed:
     return embed
 
 
+def custom_action_embed(action: str, settings: dict, member: discord.Member,
+                        reason: str = "", msg_count: int = 0, time_str: str = "") -> Optional[discord.Embed]:
+    """Return the dashboard-configured custom embed for an action, or None when
+    the action isn't in custom mode or the embed is empty (caller falls back to basic)."""
+    if settings.get(f"{action}_message_mode", "basic") != "custom":
+        return None
+    data = settings.get(f"{action}_embed") or {}
+    if not isinstance(data, dict):
+        return None
+    if not (data.get("title") or data.get("description") or data.get("fields")
+            or data.get("footer_text") or data.get("author_name")
+            or data.get("thumbnail_url") or data.get("image_url")):
+        return None
+    return build_embed(render_embed_data(data, member, reason, msg_count, time_str))
+
+
 def render_embed_data(data: dict, member: discord.Member, reason: str = "", msg_count: int = 0, time_str: str = "") -> dict:
     """Render template variables inside an embed dict's text fields."""
     out = dict(data)
@@ -321,11 +337,9 @@ class Moderation(commands.Cog, name="Moderation"):
                 pass
             return
         msg_count = self.get_msg_count(interaction.guild_id, member.id)
-        mode = settings.get(f"{action}_message_mode", "basic")
         try:
-            if mode == "custom":
-                data = render_embed_data(settings.get(f"{action}_embed") or {}, member, reason, msg_count, time_str)
-                embed = build_embed(data)
+            embed = custom_action_embed(action, settings, member, reason, msg_count, time_str)
+            if embed is not None:
                 await interaction.channel.send(embed=embed)
             else:
                 msg = render_template(settings.get(f"{action}_message", ""), member, reason, msg_count, time_str)
@@ -744,9 +758,8 @@ class Moderation(commands.Cog, name="Moderation"):
 
         if not settings.get("silent_mod") and settings.get("mute_message_enabled", True):
             msg_count = self.get_msg_count(interaction.guild_id, member.id)
-            if settings.get("mute_message_mode", "basic") == "custom":
-                data = render_embed_data(settings.get("mute_embed") or {}, member, reason, msg_count, format_duration(duration))
-                embed = build_embed(data)
+            embed = custom_action_embed("mute", settings, member, reason, msg_count, format_duration(duration))
+            if embed is not None:
                 await interaction.response.send_message(embed=embed)
             else:
                 msg = render_template(settings.get("mute_message", ""), member, reason, msg_count, format_duration(duration))
@@ -864,9 +877,8 @@ class Moderation(commands.Cog, name="Moderation"):
 
         if not settings.get("silent_mod") and settings.get("warn_message_enabled", True):
             msg_count = self.get_msg_count(interaction.guild_id, member.id)
-            if settings.get("warn_message_mode", "basic") == "custom":
-                data = render_embed_data(settings.get("warn_embed") or {}, member, reason, msg_count)
-                embed = build_embed(data)
+            embed = custom_action_embed("warn", settings, member, reason, msg_count)
+            if embed is not None:
                 await interaction.response.send_message(embed=embed)
             else:
                 msg = render_template(settings.get("warn_message", ""), member, reason, msg_count)

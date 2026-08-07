@@ -483,10 +483,21 @@ async function saveChanges() {
   saveBtn.textContent = 'Saving...';
   for (const key of keys) {
     try {
-      await api('/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]}) });
-    } catch {}
+      const res = await fetch(`/api/v1/mod/${GID}/settings`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]}) });
+      if (!res.ok) {
+        let detail = 'Save failed';
+        try { const j = await res.json(); detail = j.detail || j.error || detail; } catch {}
+        if (typeof showToast === 'function') showToast(detail, 'error', 6000);
+        saveBtn.disabled = false; saveBtn.textContent = 'Save';
+        return;
+      }
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('Network error saving.', 'error', 6000);
+      saveBtn.disabled = false; saveBtn.textContent = 'Save';
+      return;
+    }
   }
-  for (const key of keys) delete pending[key];
+  for (const key of keys) { LOADED[key] = pending[key]; delete original[key]; delete pending[key]; }
   saveBar.classList.add('is-closed');
   saveBtn.disabled = false;
   saveBtn.textContent = 'Save';

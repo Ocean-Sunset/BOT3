@@ -627,23 +627,27 @@ async def login_nerimity():
 
 @app.get("/login/github")
 async def login_github(request: Request):
-    """Start GitHub OAuth. GitHub is only ever linked to an existing Prowl
-    account, never used as a standalone sign-in, so this only works while a
-    session is active (profile page 'Connect GitHub')."""
-    user = get_user(request)
-    if not user or not user.get("id"):
-        return RedirectResponse("/login")
+    """Start GitHub OAuth. Adds a fresh state param (unique authorize URL, so
+    GitHub can't serve a stale 304) and marks the redirect no-store so neither
+    the browser nor Vercel's edge caches the OAuth hop."""
     github_id = os.environ.get("GITHUB_CLIENT_ID", "")
     if not github_id:
         return HTMLResponse("GitHub OAuth not configured yet.", status_code=503)
     redirect_uri = _github_redirect_uri(request)
+    state = secrets.token_urlsafe(16)
+    request.session["github_oauth_state"] = state
     params = urllib.parse.urlencode({
         "client_id": github_id,
         "redirect_uri": redirect_uri,
         "scope": "read:user user:email",
         "allow_signup": "true",
+        "state": state,
     })
-    return RedirectResponse(f"https://github.com/login/oauth/authorize?{params}")
+    return RedirectResponse(
+        f"https://github.com/login/oauth/authorize?{params}",
+        status_code=302,
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/callback")
@@ -680,10 +684,16 @@ async def callback(request: Request, code: str = None):
 
 
 @app.get("/callback/github")
-async def callback_github(request: Request, code: str = None):
-    """Complete GitHub OAuth. If a dashboard user is logged in, link the GitHub
-    account to their Prowl account. Otherwise redirect to the login page."""
+async def callback_github(request: Request, code: str = None, state: str = None):
+    """Complete GitHub OAuth. A logged-in dashboard user gets their GitHub
+    account linked to their Prowl account. Otherwise the GitHub account is
+    used to sign in, which only works if it's already connected (has a
+    matching github_id in the users table)."""
     if not code:
+        return RedirectResponse("/login")
+    expected_state = request.session.get("github_oauth_state")
+    request.session.pop("github_oauth_state", None)
+    if not expected_state or not state or state != expected_state:
         return RedirectResponse("/login")
     github_id = os.environ.get("GITHUB_CLIENT_ID", "")
     github_secret = os.environ.get("GITHUB_CLIENT_SECRET", "")
@@ -733,6 +743,20 @@ async def callback_github(request: Request, code: str = None):
         except Exception as e:
             logger.error("GitHub account link failed: %s", e)
         return RedirectResponse("/guild/profile")
+
+    # Sign-in via GitHub: only works if the account already has this GitHub
+    # connection linked.
+    row = await fetchrow(
+        "SELECT id, username, global_name, avatar, email FROM users WHERE github_id = $1",
+        gid,
+    )
+    if row:
+        request.session["user"] = dict(row)
+        try:
+            await execute("UPDATE users SET last_login = $1 WHERE id = $2", time.time(), str(row["id"]))
+        except Exception as e:
+            logger.error("GitHub login last_login update failed: %s", e)
+        return RedirectResponse("/dashboard")
     return RedirectResponse("/login")
 
 

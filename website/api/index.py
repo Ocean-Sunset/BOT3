@@ -627,6 +627,12 @@ async def login_nerimity():
 
 @app.get("/login/github")
 async def login_github(request: Request):
+    """Start GitHub OAuth. GitHub is only ever linked to an existing Prowl
+    account, never used as a standalone sign-in, so this only works while a
+    session is active (profile page 'Connect GitHub')."""
+    user = get_user(request)
+    if not user or not user.get("id"):
+        return RedirectResponse("/login")
     github_id = os.environ.get("GITHUB_CLIENT_ID", "")
     if not github_id:
         return HTMLResponse("GitHub OAuth not configured yet.", status_code=503)

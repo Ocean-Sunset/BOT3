@@ -15,12 +15,13 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-__version__ = "1.6.3"
-__author__ = "th3_t1sm"
-
 # Import order matters: `variables` has no Ediscord deps, and both
 # `builders` and `utils` import it. Import it first to avoid circular imports.
 from Ediscord import variables
+
+__version__ = variables.__version__
+__author__ = "th3_t1sm"
+
 from Ediscord import db
 from Ediscord import utils
 from Ediscord import builders

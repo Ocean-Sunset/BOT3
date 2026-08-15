@@ -239,10 +239,10 @@ function openAddRole(m) {
 function queueAction(payload) {
   fetch(`/api/v1/mod/${GID}/action`, { method:'POST', headers:{'Content-Type':'application/json'},
     body:JSON.stringify({ action: payload.action, user_id: payload.user_id, user_name: payload.user_name, reason: payload.reason||'', duration: payload.duration||null, target: payload.target||null }) })
-    .then(r => r.json()).then(() => {
-      if (typeof showToast==='function') showToast('Queued for the bot.','info');
+    .then(r => r.json()).then(j => {
+      if (typeof showToast==='function') showToast(j.direct ? 'Action completed.' : 'Queued for the bot.', j.direct ? 'success' : 'info');
       window.dispatchEvent(new CustomEvent('prowl:action-queued'));
-      setTimeout(refreshMembers, 8000);
+      setTimeout(refreshMembers, 3000);
     })
     .catch(() => { if (typeof showToast==='function') showToast('Failed to queue.','error'); });
 }
@@ -256,7 +256,7 @@ function sendAction(action, duration) {
 }
 
 function refreshMembers() {
-  api('/members').then(d => {
+  return prowlCachedJson('members', 60000, `/api/v1/mod/${GID}/members`).then(d => {
     const next = d.members || [];
     // Cheap signature: ids + display names only (avoid stringifying all roles)
     let sig = '';
@@ -273,8 +273,7 @@ let lastSig = '';
 setInterval(() => { if (!document.hidden) refreshMembers(); }, 30000);
 
 document.addEventListener('DOMContentLoaded', () => {
-  Promise.all([api('/members'), memApi('/roles'), memApi('/bot')]).then(([md, rd, bd]) => {
-    MEMBERS = md.members || [];
+  Promise.all([refreshMembers().then(() => MEMBERS), memApi('/roles'), memApi('/bot')]).then(([md, rd, bd]) => {
     (rd.roles||[]).forEach(r => { ROLE_MAP[r.id] = r.name; ROLE_POS[r.id] = r.position||0; ROLE_MANAGED[r.id] = !!r.managed; });
     BOT = { bot_top_role_position: bd.bot_top_role_position||0, can_manage_nicknames: !!bd.can_manage_nicknames, can_manage_roles: !!bd.can_manage_roles };
     renderMembers();

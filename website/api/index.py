@@ -55,6 +55,16 @@ def _cfg():
     return {"CLIENT_ID": os.environ.get("CLIENT_ID", "")}
 
 
+# ── Direct bot HTTP bridge ──
+# The dashboard used to route every moderation action through the DB queue,
+# which the bot polls every ~3s -> 5s+ latency for bans/mutes/etc. When these
+# are configured the API calls the bot's aiohttp bridge directly (token is
+# server-side only, never exposed to the browser) and falls back to the queue.
+BOT_SERVER_URL = os.environ.get("BOT_SERVER_URL", "")
+BOT_HTTP_TOKEN = os.environ.get("BOT_HTTP_TOKEN", "")
+DIRECT_ACTIONS = ("mute", "unmute", "kick", "ban", "add_role", "remove_role", "nickname")
+
+
 def _parse_guild_data(row):
     """Safely extract guild data dict from a DB row (handles TEXT vs JSONB)."""
     if not row:
@@ -170,7 +180,8 @@ CSP = (
     "font-src 'self' https://fonts.gstatic.com data:; "
     "img-src 'self' data: https://cdn.discordapp.com https://img.itch.zone; "
     "connect-src 'self' https://api.prowlbot.xyz https://discord.com "
-    "https://www.google.com https://www.gstatic.com https://challenges.cloudflare.com; "
+    "https://www.google.com https://www.gstatic.com https://challenges.cloudflare.com "
+    "https://unpkg.com; "
     "frame-src https://www.google.com https://www.gstatic.com https://challenges.cloudflare.com; "
     "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
 )
@@ -847,7 +858,7 @@ async def dashboard(request: Request, guild_id: str, panel: str = "overview"):
 
     valid_panels = [
         "overview", "welcomer", "ai", "moderation", "members", "logs", "automod",
-        "oauth2", "music", "leveling", "verification", "automation",
+        "music", "leveling", "verification", "automation",
         "social_alerts", "invite_tracker", "tickets", "global_chat",
         "autoresponder", "settings", "raid_protection", "profile",
     ]
@@ -1595,6 +1606,38 @@ async def _consume_captcha_code(code: str, provider: str):
     return info
 
 
+async def _call_bot_direct(guild_id, action, user_id, user_name="", reason="", duration=None, moderator="", target=None):
+    """Send a moderation quick-action straight to the bot's HTTP bridge.
+
+    Returns (ok: bool, message: str). Falls back is handled by the caller
+    (the DB queue). The auth token never leaves the server."""
+    if action not in DIRECT_ACTIONS or not BOT_SERVER_URL or not BOT_HTTP_TOKEN:
+        return False, "bridge not configured"
+    try:
+        payload = {
+            "action": action,
+            "guild_id": str(guild_id),
+            "user_id": str(user_id),
+            "user_name": user_name,
+            "reason": reason,
+            "duration": duration,
+            "moderator": moderator,
+        }
+        if target:
+            payload["target"] = target
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post(
+                BOT_SERVER_URL.rstrip("/") + "/api/action",
+                json=payload,
+                headers={"X-Prowl-Token": BOT_HTTP_TOKEN},
+            )
+            if r.status_code == 200:
+                return True, (r.json().get("message") or "ok")
+            return False, f"bot responded {r.status_code}"
+    except Exception as e:
+        return False, str(e)
+
+
 async def _queue_action(guild_id, action, target_id, target_name="", reason="", duration=None, moderator=""):
     try:
         duration_int = int(duration) if duration is not None and duration != "" else None
@@ -1949,7 +1992,8 @@ async def mod_actions_list(guild_id: str, request: Request):
 
 @app.post("/api/v1/mod/{guild_id}/action")
 async def mod_action(guild_id: str, request: Request):
-    """Queue a moderation action for the bot to process."""
+    """Execute a moderation action. Tries the bot's direct HTTP bridge first
+    (instant), falls back to the DB queue if the bridge is down/not configured."""
     await require_guild_access(request, guild_id)
     body = await request.json()
     action = body.get("action")
@@ -1963,8 +2007,16 @@ async def mod_action(guild_id: str, request: Request):
     moderator = session_user.get("username", "Unknown")
     # For role/nickname actions, target_name carries the role ID or new nickname
     target_name = body.get("target") if action in ("add_role", "remove_role", "nickname") else user_name
+
+    ok, message = await _call_bot_direct(
+        guild_id, action, user_id, user_name, reason, duration, moderator, body.get("target"),
+    )
+    if ok:
+        return {"ok": True, "direct": True}
+
+    # Bridge unavailable - fall back to the DB queue so actions never get lost.
     await _queue_action(guild_id, action, user_id, target_name, reason, duration, moderator)
-    return {"ok": True, "queued": True}
+    return {"ok": True, "queued": True, "direct": False, "fallback": message}
 
 
 # ---------------------------------------------------------------------------

@@ -533,12 +533,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     return `${esc(e.user)} ${(e.action||'').toLowerCase()}${e.moderator ? ' by ' + esc(e.moderator) : ''}`;
   }
   function loadFeed() {
-    api('/feed?scope=mod').then(d => {
+    const render = d => {
       const el = document.getElementById('activity-feed');
       if (!d.events?.length) { el.innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No recent activity.</div>'; return; }
       const fp = JSON.stringify(d.events.map(e => [e.time, e.user, e.action, e.reason, e.moderator]));
-      if (fp === loadFeed._fp) return;
-      loadFeed._fp = fp;
+      if (fp === render._fp) return;
+      render._fp = fp;
       const existing = new Set(Array.from(el.querySelectorAll('.md-feed-item')).map(i => i.dataset.key));
       const html = d.events.map(e => {
         const key = e.time + '|' + e.user + '|' + e.action + '|' + (e.reason||'');
@@ -549,14 +549,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       }).join('');
       el.innerHTML = html;
       if (typeof lucide !== 'undefined') lucide.createIcons();
-    }).catch(() => {});
+    };
+    prowlCachedJson('feed', 15000, `/api/v1/mod/${GID}/feed?scope=mod`, render).then(render);
   }
   loadFeed();
   setInterval(() => { if (!document.hidden) loadFeed(); }, 30000);
 
-  api('/members').then(d => {
+  prowlCachedJson('members', 60000, `/api/v1/mod/${GID}/members`).then(d => {
     const w = document.querySelector('.md-member-table-wrap');
-    if (!d.members?.length) { w.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No members loaded.</div>'; return; }
+    if (!d.members?.length) { if (w) w.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No members loaded.</div>'; return; }
     const members = d.members;
     const shown = members.slice(0, 30);
     const overflow = members.length - shown.length;
@@ -594,7 +595,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       overlay.classList.remove('is-open');
       try {
-        const res = await fetch(`/api/v1/mod/${GID}/action`, { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action, user_id: activeMember.id, user_name: activeMember.name, reason, duration: duration || null}) });
+        const res = await fetch(`/api/v1/mod/${GID}/action`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action, user_id: activeMember.id, user_name: activeMember.name, reason, duration: duration || null}) });
         if (!res.ok) {
           let detail = 'Action failed';
           try { const j = await res.json(); if (j && j.detail) detail = String(j.detail); else if (j && j.error) detail = String(j.error); } catch {}
@@ -602,7 +603,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (typeof showToast === 'function') showToast(detail.slice(0, 120), 'error', 6000);
           return;
         }
-        if (typeof showToast === 'function') showToast('Action queued for the bot.', 'info');
+        const _j = await res.json().catch(() => ({}));
+        const _done = !!_j.direct;
+        if (typeof showToast === 'function') showToast(_done ? 'Action completed.' : 'Action queued for the bot.', _done ? 'success' : 'info');
         window.dispatchEvent(new CustomEvent('prowl:action-queued'));
       } catch (e) {
         if (typeof showToast === 'function') showToast('Network error: ' + String(e).slice(0, 120), 'error', 6000);
@@ -611,7 +614,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     overlay.querySelectorAll('[data-dur]').forEach(b => b.addEventListener('click', () => sendAction('mute', b.dataset.dur)));
     document.getElementById('pop-kick')?.addEventListener('click', () => sendAction('kick'));
     document.getElementById('pop-ban')?.addEventListener('click', () => sendAction('ban'));
-  }).catch(() => w.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load.</div>');
+  }).catch(() => { const w = document.querySelector('.md-member-table-wrap'); if (w) w.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Failed to load.</div>'; });
 
   // ── Channels ──
   api('/channels').then(d => {
@@ -647,9 +650,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           btn.innerHTML = '<i data-lucide="loader" class="spin"></i>...';
           lucide.createIcons();
           try {
-            const res = await fetch(`/api/v1/mod/${GID}/action`, { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'unmute', user_id: uid, user_name: name, reason:'Unmuted from dashboard'}) });
+            const res = await fetch(`/api/v1/mod/${GID}/action`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'unmute', user_id: uid, user_name: name, reason:'Unmuted from dashboard'}) });
             if (!res.ok) throw new Error('bad status');
-            if (typeof showToast === 'function') showToast('Unmute queued for the bot.', 'info');
+            const _j = await res.json().catch(() => ({}));
+            if (typeof showToast === 'function') showToast(_j.direct ? 'Unmuted.' : 'Unmute queued for the bot.', _j.direct ? 'success' : 'info');
             window.dispatchEvent(new CustomEvent('prowl:action-queued'));
             // List refresh + success toast happen when the bot marks the action completed.
           } catch (e) {

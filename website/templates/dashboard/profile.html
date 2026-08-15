@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.disabled = true;
     btn.textContent = 'Deleting...';
     try {
-      const res = await fetch('/api/v1/account/delete', { method:'POST', credentials:'same-origin' });
+      const res = await fetch('/api/v1/account/delete', { method:'POST' });
       if (res.ok) {
         window.location.href = '/';
       } else {

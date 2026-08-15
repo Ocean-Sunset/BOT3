@@ -16,6 +16,7 @@ import json
 from discord.ext.commands import CooldownMapping, BucketType
 
 # --------------------- CONSTANT VARIABLES --------------------
+__version__ = "1.6.3"
 SPAM_THRESHOLD = 4
 TIME_WINDOW = 5
 

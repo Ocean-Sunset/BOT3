@@ -479,6 +479,12 @@ button, .save-btn, .discard-btn {
 .toast.is-visible {
   opacity: 1;
   transform: translateX(0);
+  animation: toast-in 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+}
+
+@keyframes toast-in {
+  0%   { opacity: 0; transform: translateX(24px) scale(0.95); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
 }
 
 .toast-success {

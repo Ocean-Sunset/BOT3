@@ -23,6 +23,7 @@ import datetime
 
 from Ediscord import variables, logger, utils, __version__
 from Ediscord import db as neon_db
+from Ediscord import http_bridge
 
 
 COGS_DIR = Path(__file__).parent / "components"
@@ -50,6 +51,9 @@ class ProwlBot(commands.Bot):
         self.loop.create_task(self._member_sync())
         self.loop.create_task(self._mod_settings_poller())
         self.loop.create_task(self._mod_action_processor())
+        # Direct HTTP bridge so the dashboard can skip the ~5s DB queue poll.
+        http_bridge.set_bot(self)
+        self.loop.create_task(http_bridge.start_http_server())
         logger.info("Setup hook complete.")
 
     async def _initial_neon_push(self):
@@ -217,149 +221,168 @@ class ProwlBot(commands.Bot):
             if actions:
                 logger.info(f"Mod action processor: {len(actions)} pending action(s).")
             for a in actions:
+                act = a["action"]
                 guild = self.get_guild(int(a["guild_id"]))
                 if not guild:
                     await neon_db.complete_action(a["id"], "skipped")
                     logger.warning(f"Action {a['id']} skipped: guild not found.")
                     continue
-                member = None
-                try:
-                    member = await guild.fetch_member(int(a["target_id"]))
-                except Exception:
-                    member = None
-                act = a["action"]
-                reason = a.get("reason") or "No reason provided"
-                duration = a.get("duration")
-                moderator = a.get("moderator") or "Dashboard"
-                skip_log = False
-                try:
-                    if act in ("emergency_lock", "emergency_unlock"):
-                        from components.moderation import get_mod_settings, save_mod_settings, perform_lockdown
-                        lock = act == "emergency_lock"
-                        settings = await get_mod_settings(int(a["guild_id"]))
-                        ok, detail = await perform_lockdown(guild, lock, settings, save_mod_settings)
-                        if not ok:
-                            raise Exception(detail)
-                        reason = detail
-                    elif act == "kick":
-                        if member:
-                            await member.kick(reason=reason)
-                        else:
-                            raise Exception("member not in guild")
-                    elif act == "ban":
-                        if member:
-                            await member.ban(reason=reason)
-                        else:
-                            await guild.ban(discord.Object(id=int(a["target_id"])), reason=reason)
-                    elif act == "mute":
-                        if not member:
-                            raise Exception("member not in guild")
-                        minutes = int(duration or 60)
-                        until = discord.utils.utcnow() + datetime.timedelta(minutes=minutes)
-                        await member.timeout(until, reason=reason)
-                        await neon_db.set_muted_user(a["guild_id"], a["target_id"], member.name, reason, until.timestamp())
-                    elif act == "unmute":
-                        if not member:
-                            raise Exception("member not in guild")
-                        await member.timeout(None, reason=reason)
-                        await neon_db.remove_muted_user(a["guild_id"], a["target_id"])
-                    elif act == "purge":
-                        channel = guild.get_channel(int(a["target_id"]))
-                        if not isinstance(channel, discord.TextChannel):
-                            raise Exception("channel not found")
-                        deleted = await channel.purge(limit=int(duration or 10))
-                        reason = f"Purged {len(deleted)} messages in #{channel.name}"
-                    elif act == "panel_send":
-                        from components.tickets import Tickets
-                        cog = self.get_cog("Tickets")
-                        if not cog:
-                            raise Exception("Tickets cog not loaded")
-                        if not await cog._send_panel(guild, a["target_id"]):
-                            raise Exception("panel send failed")
-                        reason = "Ticket panel sent"
-                    elif act == "verify_panel":
-                        from components.verification import Verification
-                        cog = self.get_cog("Verification")
-                        if not cog:
-                            raise Exception("Verification cog not loaded")
-                        settings = await get_verify_settings(guild.id)
-                        if not await cog._send_panel(guild, settings):
-                            raise Exception("verify panel send failed")
-                        reason = "Verification panel deployed"
-                    elif act == "verify_panel_remove":
-                        from components.verification import Verification
-                        cog = self.get_cog("Verification")
-                        if not cog:
-                            raise Exception("Verification cog not loaded")
-                        await cog._delete_panel(guild)
-                        reason = "Verification panel removed"
-                        skip_log = True
-                    elif act == "verify_user":
-                        target = guild.get_member(int(a["target_id"]))
-                        if not target:
-                            raise Exception("member not in guild")
-                        settings = await get_verify_settings(guild.id)
-                        role_id = settings.get("verified_role_id")
-                        if not role_id:
-                            raise Exception("verified role not configured")
-                        role = guild.get_role(int(role_id))
-                        if not role:
-                            raise Exception("verified role not found")
-                        if role not in target.roles:
-                            await target.add_roles(role, reason="Verified via captcha")
-                        reason = f"Verified {target.name}"
-                    elif act in ("add_role", "remove_role"):
-                        role = guild.get_role(int(a["target_name"]))
-                        if not role:
-                            raise Exception("role not found")
-                        if not member:
-                            raise Exception("member not in guild")
-                        if act == "add_role":
-                            await member.add_roles(role, reason="Prowl dashboard")
-                        else:
-                            await member.remove_roles(role, reason="Prowl dashboard")
-                        reason = f"{'Added' if act=='add_role' else 'Removed'} role {role.name}"
-                    elif act == "nickname":
-                        if not member:
-                            raise Exception("member not in guild")
-                        await member.edit(nick=a["target_name"], reason="Prowl dashboard")
-                        reason = f"Nickname set to {a['target_name']}"
-                    elif act == "leave_guild":
-                        # Account deletion: leave the server entirely
-                        await guild.leave()
-                        reason = "Account deletion — leaving server"
-                        skip_log = True
+                ok, message = await self.execute_action(
+                    a["guild_id"], act, a["target_id"], a.get("target_name") or "",
+                    a.get("reason") or "", a.get("duration"), a.get("moderator") or "Dashboard",
+                )
+                if ok:
                     await neon_db.complete_action(a["id"], "completed")
-                    logger.info(f"Processed action {a['id']}: {act} -> {a['target_id']} in {a['guild_id']} ({reason})")
-                    # Log to mod_log only on actual success (skip for guild-leave)
-                    if not skip_log:
-                        member_name = member.display_name if member else (a.get("target_name") or str(a["target_id"]))
-                        log_user = member_name
-                        log_reason = reason
-                        if act == "purge":
-                            channel = guild.get_channel(int(a["target_id"]))
-                            log_user = f"#{channel.name}" if channel else a["target_id"]
-                        elif act in ("add_role", "remove_role"):
-                            role = guild.get_role(int(a["target_name"]))
-                            log_reason = f"{'Added' if act=='add_role' else 'Removed'} role {role.name if role else a['target_name']} on @{member_name}"
-                        elif act == "nickname":
-                            log_reason = f"Changed nickname to '{a['target_name']}'"
-                        elif act == "verify_panel":
-                            log_user = "Verification"
-                            log_reason = "Verification panel deployed"
-                        elif act == "verify_user":
-                            log_reason = "Verified via captcha"
-                        await neon_db.push_mod_event(a["guild_id"], a["target_id"], log_user, act, log_reason, moderator)
-                    # Push member data immediately so the dashboard reflects the change fast
-                    if act in ("add_role", "remove_role", "nickname"):
-                        self.loop.create_task(self._sync_guild_members(guild))
-                except Exception as e:
-                    logger.error(f"Action {a['id']} ({act} on {a['target_id']}) failed: {e}")
-                    await neon_db.complete_action(a["id"], "failed", str(e)[:500])
+                    logger.info(f"Processed action {a['id']}: {act} -> {a['target_id']} in {a['guild_id']} ({message})")
+                else:
+                    await neon_db.complete_action(a["id"], "failed", message)
+                    logger.error(f"Action {a['id']} ({act} on {a['target_id']}) failed: {message}")
         except Exception as e:
             logger.error(f"Mod action processor failed: {e}")
         finally:
             self._processing_actions = False
+
+    async def execute_action(self, guild_id, action, target_id, target_name="",
+                             reason="No reason provided", duration=None, moderator="Dashboard"):
+        """Execute a single dashboard/moderation action immediately.
+
+        Returns (ok: bool, message: str). Shared by the DB action processor and
+        the direct HTTP bridge so dashboard actions complete instantly instead
+        of waiting on the queue poll."""
+        guild = self.get_guild(int(guild_id))
+        if not guild:
+            return False, "guild not found"
+        member = None
+        try:
+            member = await guild.fetch_member(int(target_id))
+        except Exception:
+            member = None
+        act = action
+        reason = reason or "No reason provided"
+        skip_log = False
+        try:
+            if act in ("emergency_lock", "emergency_unlock"):
+                from components.moderation import get_mod_settings, save_mod_settings, perform_lockdown
+                lock = act == "emergency_lock"
+                settings = await get_mod_settings(int(guild_id))
+                ok, detail = await perform_lockdown(guild, lock, settings, save_mod_settings)
+                if not ok:
+                    raise Exception(detail)
+                reason = detail
+            elif act == "kick":
+                if member:
+                    await member.kick(reason=reason)
+                else:
+                    raise Exception("member not in guild")
+            elif act == "ban":
+                if member:
+                    await member.ban(reason=reason)
+                else:
+                    await guild.ban(discord.Object(id=int(target_id)), reason=reason)
+            elif act == "mute":
+                if not member:
+                    raise Exception("member not in guild")
+                minutes = int(duration or 60)
+                until = discord.utils.utcnow() + datetime.timedelta(minutes=minutes)
+                await member.timeout(until, reason=reason)
+                await neon_db.set_muted_user(guild_id, target_id, member.name, reason, until.timestamp())
+            elif act == "unmute":
+                if not member:
+                    raise Exception("member not in guild")
+                await member.timeout(None, reason=reason)
+                await neon_db.remove_muted_user(guild_id, target_id)
+            elif act == "purge":
+                channel = guild.get_channel(int(target_id))
+                if not isinstance(channel, discord.TextChannel):
+                    raise Exception("channel not found")
+                deleted = await channel.purge(limit=int(duration or 10))
+                reason = f"Purged {len(deleted)} messages in #{channel.name}"
+            elif act == "panel_send":
+                from components.tickets import Tickets
+                cog = self.get_cog("Tickets")
+                if not cog:
+                    raise Exception("Tickets cog not loaded")
+                if not await cog._send_panel(guild, target_id):
+                    raise Exception("panel send failed")
+                reason = "Ticket panel sent"
+            elif act == "verify_panel":
+                from components.verification import Verification, get_verify_settings
+                cog = self.get_cog("Verification")
+                if not cog:
+                    raise Exception("Verification cog not loaded")
+                settings = await get_verify_settings(guild.id)
+                if not await cog._send_panel(guild, settings):
+                    raise Exception("verify panel send failed")
+                reason = "Verification panel deployed"
+            elif act == "verify_panel_remove":
+                from components.verification import Verification
+                cog = self.get_cog("Verification")
+                if not cog:
+                    raise Exception("Verification cog not loaded")
+                await cog._delete_panel(guild)
+                reason = "Verification panel removed"
+                skip_log = True
+            elif act == "verify_user":
+                target = guild.get_member(int(target_id))
+                if not target:
+                    raise Exception("member not in guild")
+                settings = await get_verify_settings(guild.id)
+                role_id = settings.get("verified_role_id")
+                if not role_id:
+                    raise Exception("verified role not configured")
+                role = guild.get_role(int(role_id))
+                if not role:
+                    raise Exception("verified role not found")
+                if role not in target.roles:
+                    await target.add_roles(role, reason="Verified via captcha")
+                reason = f"Verified {target.name}"
+            elif act in ("add_role", "remove_role"):
+                role = guild.get_role(int(target_name))
+                if not role:
+                    raise Exception("role not found")
+                if not member:
+                    raise Exception("member not in guild")
+                if act == "add_role":
+                    await member.add_roles(role, reason="Prowl dashboard")
+                else:
+                    await member.remove_roles(role, reason="Prowl dashboard")
+                reason = f"{'Added' if act=='add_role' else 'Removed'} role {role.name}"
+            elif act == "nickname":
+                if not member:
+                    raise Exception("member not in guild")
+                await member.edit(nick=target_name, reason="Prowl dashboard")
+                reason = f"Nickname set to {target_name}"
+            elif act == "leave_guild":
+                await guild.leave()
+                reason = "Account deletion — leaving server"
+                skip_log = True
+            else:
+                return False, f"unknown action: {act}"
+        except Exception as e:
+            return False, str(e)[:500]
+        # Log to mod_log only on actual success (skip for guild-leave)
+        if not skip_log:
+            member_name = member.display_name if member else (target_name or str(target_id))
+            log_user = member_name
+            log_reason = reason
+            if act == "purge":
+                channel = guild.get_channel(int(target_id))
+                log_user = f"#{channel.name}" if channel else target_id
+            elif act in ("add_role", "remove_role"):
+                role = guild.get_role(int(target_name))
+                log_reason = f"{'Added' if act=='add_role' else 'Removed'} role {role.name if role else target_name} on @{member_name}"
+            elif act == "nickname":
+                log_reason = f"Changed nickname to '{target_name}'"
+            elif act == "verify_panel":
+                log_user = "Verification"
+                log_reason = "Verification panel deployed"
+            elif act == "verify_user":
+                log_reason = "Verified via captcha"
+            await neon_db.push_mod_event(guild_id, target_id, log_user, act, log_reason, moderator)
+        # Push member data immediately so the dashboard reflects the change fast
+        if act in ("add_role", "remove_role", "nickname"):
+            self.loop.create_task(self._sync_guild_members(guild))
+        return True, reason
 
     async def _build_stats(self):
         """Build the lightweight bot_stats dict (used by the fast + full syncs)."""

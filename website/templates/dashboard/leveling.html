@@ -1,7 +1,7 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
 <link rel="stylesheet" href="/static/moderation.css?v=16" />
-<link rel="stylesheet" href="/static/leveling.css?v=2" />
+<link rel="stylesheet" href="/static/leveling.css?v=3" />
 <div id="leveling-wrap">
 
   <div style="margin-bottom:1rem;animation-delay:.05s;">
@@ -11,12 +11,12 @@
 
   <div class="md-row">
 
-    <div class="md-section">
+    <div class="md-section am-master">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div class="md-section-title">Leveling</div>
         <div class="md-behavior-list">
           <div class="md-behavior-item">
-            <label class="md-toggle"><input type="checkbox" id="lvl-enabled" /><span class="md-toggle-slider"></span></label>
+            <label class="md-toggle md-toggle-xl"><input type="checkbox" id="lvl-enabled" /><span class="md-toggle-slider"></span></label>
             <div><div class="md-behavior-label">Enable Leveling</div><div class="md-behavior-desc">Members earn XP by chatting and level up as they go</div></div>
           </div>
         </div>

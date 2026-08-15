@@ -350,7 +350,7 @@ function feedLabel(e) {
   return `${esc(e.user)} ${(e.action||'').toLowerCase()}${e.moderator ? ' by ' + esc(e.moderator) : ''}`;
 }
 function loadFeed() {
-  api('/feed').then(d => {
+  const render = d => {
     const el = document.getElementById('activity-feed');
     if (!d.events?.length) { el.textContent = 'No recent activity.'; return; }
     el.innerHTML = d.events.slice(0, 20).map(e => {
@@ -362,7 +362,8 @@ function loadFeed() {
       </div>`;
     }).join('');
     if (typeof lucide !== 'undefined') lucide.createIcons();
-  }).catch(() => {});
+  };
+  prowlCachedJson('feed', 15000, `/api/v1/mod/${GID}/feed`, render).then(render);
 }
 loadFeed();
 setInterval(loadFeed, 5000);

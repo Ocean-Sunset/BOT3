@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="preload" href="https://unpkg.com/lucide@latest" as="script" />
-  <link rel="stylesheet" href="/static/dashboard.css?v=6" />
+  <link rel="stylesheet" href="/static/dashboard.css?v=7" />
   <script>
     // API subdomain routing: production calls go to api.prowlbot.xyz with cookies,
     // localhost keeps same-origin relative paths.
@@ -136,7 +136,6 @@
 
         <div class="nav-section">
           <div class="nav-group-label nav-label">Configuration</div>
-          {{ nav_item('oauth2', 'key', 'OAuth2') }}
           {{ nav_item('settings', 'settings', 'Settings') }}
         </div>
 
@@ -151,14 +150,14 @@
               {{ user.username[0] | upper if user else '?' }}
             {% endif %}
           </div>
-          <div class="user-name sidebar-label">{{ user.username if user else 'User' }}</div>
+          <div class="user-name sidebar-label">{{ (user.global_name or user.username) if user else 'User' }}</div>
           <i data-lucide="chevron-up" class="user-chevron sidebar-label"></i>
         </button>
 
         <div id="user-popover" class="user-popover hidden">
           <div class="popover-header">
             <div class="popover-label">Signed in as</div>
-            <div class="popover-user">{{ user.username if user else 'User' }}</div>
+            <div class="popover-user">{{ (user.global_name or user.username) if user else 'User' }}</div>
           </div>
           <a href="/guild/profile" class="popover-item"><i data-lucide="user"></i> Profile</a>
           <a href="/changelog" class="popover-item"><i data-lucide="history"></i> Changelog</a>
@@ -183,6 +182,56 @@
     window.__ACTIVE_PANEL = "{{ active_panel }}";
     window.__USER = {{ user | tojson }};
     window.__GUILD = {{ guild | tojson }};
+  </script>
+  <script>
+    // ── Lightweight per-guild data cache (member list + activity feed) ──
+    // Sub-pages render instantly from localStorage instead of refetching the
+    // full member list / feed on every navigation. One background refresh fires
+    // shortly after each page load; later polls within the TTL hit the cache.
+    // Invalidate on prowl:action-queued so fresh data shows up right away.
+    (function() {
+      const TTL = { members: 60000, feed: 15000 };
+      window._prowlRefreshed = {};
+      window.prowlCache = {
+        _mem: {},
+        _read(key) {
+          try { const raw = localStorage.getItem(key); if (raw) return JSON.parse(raw); } catch (e) {}
+          return this._mem[key];
+        },
+        _write(key, val) {
+          this._mem[key] = val;
+          try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+        },
+        _key(name) { return 'prowl_cache_' + (window.__GUILD_ID || 'g') + '_' + name; },
+        get(name) {
+          const e = this._read(this._key(name));
+          return (e && Date.now() - e.ts < (e.ttl || 0)) ? e.data : undefined;
+        },
+        set(name, data, ttl) { this._write(this._key(name), { ts: Date.now(), ttl: ttl || TTL[name] || 30000, data: data }); },
+        invalidate(name) {
+          if (name) { this._write(this._key(name), { ts: 0, ttl: -1, data: undefined }); return; }
+          Object.keys(TTL).forEach(n => this._write(this._key(n), { ts: 0, ttl: -1, data: undefined }));
+        }
+      };
+      window.prowlCachedJson = function(name, ttl, url, onChange) {
+        const cached = window.prowlCache.get(name);
+        const fetchFresh = () => fetch(url, { credentials: 'include' }).then(r => r.json()).then(d => {
+          window.prowlCache.set(name, d, ttl);
+          if (onChange) onChange(d);
+          return d;
+        }).catch(() => cached !== undefined ? cached : {});
+        if (cached !== undefined) {
+          if (!window._prowlRefreshed[name]) {
+            window._prowlRefreshed[name] = true;
+            fetchFresh();
+          }
+          return Promise.resolve(cached);
+        }
+        window._prowlRefreshed[name] = true;
+        return fetchFresh();
+      };
+      window.addEventListener('prowl:action-queued', () => { if (window.prowlCache) window.prowlCache.invalidate(); });
+    })();
   </script>
   <script>
     // ── Guild context persistence ──

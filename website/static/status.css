@@ -80,10 +80,11 @@ body {
   margin: 0 auto;
   padding: 1rem 4vw 4rem;
 }
-#services-panel { grid-column: 1; grid-row: 1; }
-#graph-panel    { grid-column: 2; grid-row: 1; }
-#shards-panel   { grid-column: 1; grid-row: 2; }
-#incidents-panel{ grid-column: 2; grid-row: 2; }
+#services-panel        { grid-column: 1; grid-row: 1; }
+#graph-panel           { grid-column: 2; grid-row: 1; }
+#actions-graph-panel   { grid-column: 1; grid-row: 2; }
+#shards-panel          { grid-column: 2; grid-row: 2; }
+#incidents-panel       { grid-column: 1 / -1; grid-row: 3; }
 
 .panel {
   border: 1px solid rgba(255,255,255,0.08);
@@ -121,7 +122,7 @@ body {
 
 /* ── Graph ── */
 .graph-wrap { position: relative; height: 190px; }
-#requests-chart { width: 100%; height: 100%; display: block; }
+#requests-chart, #actions-chart { width: 100%; height: 100%; display: block; }
 .graph-meta { margin-top: 0.75rem; font-size: 0.75rem; color: rgba(255,255,255,0.4); font-weight: 600; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 
 /* ── Shards ── */
@@ -219,10 +220,11 @@ body {
 
 @media (max-width: 900px) {
   .status-grid { grid-template-columns: 1fr; }
-  #services-panel { grid-column: 1; grid-row: 1; }
-  #graph-panel    { grid-column: 1; grid-row: 2; }
-  #shards-panel   { grid-column: 1; grid-row: 3; }
-  #incidents-panel{ grid-column: 1; grid-row: 4; }
+  #services-panel        { grid-column: 1; grid-row: 1; }
+  #graph-panel           { grid-column: 1; grid-row: 2; }
+  #actions-graph-panel   { grid-column: 1; grid-row: 3; }
+  #shards-panel          { grid-column: 1; grid-row: 4; }
+  #incidents-panel       { grid-column: 1; grid-row: 5; }
   .status-stats { gap: 1.5rem; }
   .status-nav { padding: 0.75rem 1.25rem; }
   .status-hero { padding: 3rem 1.25rem 1.5rem; }

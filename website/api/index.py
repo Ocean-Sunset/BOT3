@@ -1072,6 +1072,30 @@ async def _ensure_incidents():
         logger.error("incidents table failed: %s", e)
 
 
+async def _fetch_bot_action_stats():
+    """Pull the bot server's hourly dashboard-action counts for the status page.
+
+    Returns a list of {"t": ts, "count": n} hourly buckets (last 24h), or []
+    when the bridge is unreachable/not configured - never raises."""
+    if not BOT_SERVER_URL or not BOT_HTTP_TOKEN:
+        return []
+    try:
+        async with httpx.AsyncClient(timeout=4) as client:
+            r = await client.get(
+                BOT_SERVER_URL.rstrip("/") + "/api/stats/actions",
+                headers={"X-Prowl-Token": BOT_HTTP_TOKEN},
+            )
+            if r.status_code != 200:
+                return []
+            data = r.json()
+            if not isinstance(data, dict):
+                return []
+            acts = data.get("actions", [])
+            return [a for a in acts if isinstance(a, dict) and "t" in a and "count" in a] if isinstance(acts, list) else []
+    except Exception:
+        return []
+
+
 @app.get("/api/v1/status/summary")
 async def status_summary(request: Request):
     t0_all = time.perf_counter()
@@ -1201,6 +1225,8 @@ async def status_summary(request: Request):
     except Exception:
         pass
 
+    actions = await _fetch_bot_action_stats()
+
     web_ms = int((time.perf_counter() - t0_all) * 1000)
     for s in services:
         if s["id"] == "web":
@@ -1228,6 +1254,7 @@ async def status_summary(request: Request):
         "shards": shards,
         "incidents": incidents,
         "requests": requests,
+        "actions": actions,
     }
 
 

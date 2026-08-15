@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="icon" href="/static/favicon.png" />
-  <link rel="stylesheet" href="/static/status.css?v=4" />
+  <link rel="stylesheet" href="/static/status.css?v=5" />
 </head>
 <body>
 
@@ -45,6 +45,14 @@
         <canvas id="requests-chart"></canvas>
       </div>
       <div class="graph-meta" id="graph-meta"><span>Loading…</span></div>
+    </section>
+
+    <section class="panel" id="actions-graph-panel">
+      <h2 class="panel-title">Bot Actions <span class="panel-sub">last 24 hours</span></h2>
+      <div class="graph-wrap">
+        <canvas id="actions-chart"></canvas>
+      </div>
+      <div class="graph-meta" id="actions-graph-meta"><span>Loading…</span></div>
     </section>
 
     <section class="panel" id="shards-panel">
@@ -196,8 +204,8 @@
       ).join('');
     }
 
-    function renderGraph(points) {
-      const canvas = document.getElementById('requests-chart');
+    function renderGraph(points, canvasId, metaId, lineColor, fillTop) {
+      const canvas = document.getElementById(canvasId);
       const wrap = canvas.parentElement;
       const dpr = window.devicePixelRatio || 1;
       const w = wrap.clientWidth;
@@ -231,15 +239,15 @@
       ctx.lineTo(pts[pts.length - 1][0], h - padB);
       ctx.closePath();
       const grad = ctx.createLinearGradient(0, padT, 0, h - padB);
-      grad.addColorStop(0, 'rgba(87,242,135,0.35)');
-      grad.addColorStop(1, 'rgba(87,242,135,0)');
+      grad.addColorStop(0, fillTop);
+      grad.addColorStop(1, fillTop.replace(/,[\d.]+\)$/, ',0)'));
       ctx.fillStyle = grad;
       ctx.fill();
 
       ctx.beginPath();
       ctx.moveTo(pts[0][0], pts[0][1]);
       pts.forEach(p => ctx.lineTo(p[0], p[1]));
-      ctx.strokeStyle = '#57f287';
+      ctx.strokeStyle = lineColor;
       ctx.lineWidth = 2;
       ctx.stroke();
 
@@ -252,8 +260,8 @@
       }
 
       const total = points.reduce((a, p) => a + p.count, 0);
-      document.getElementById('graph-meta').innerHTML =
-        '<span>Total requests: ' + total.toLocaleString() + '</span>' +
+      document.getElementById(metaId).innerHTML =
+        '<span>Total: ' + total.toLocaleString() + '</span>' +
         '<span>Peak: ' + max.toLocaleString() + '/hr</span>';
     }
 
@@ -309,7 +317,8 @@
         renderStats(data.stats);
         renderShards(data.shards || [], data.stats && data.stats.shards);
         renderIncidents(data.incidents || []);
-        renderGraph(data.requests || []);
+        renderGraph(data.requests || [], 'requests-chart', 'graph-meta', '#ffffff', 'rgba(255,255,255,0.35)');
+        renderGraph(data.actions || [], 'actions-chart', 'actions-graph-meta', '#ffffff', 'rgba(255,255,255,0.35)');
       } catch (e) {
         document.getElementById('services-list').innerHTML = '<div class="empty">Failed to load status data.</div>';
         const label = document.getElementById('overall-label');

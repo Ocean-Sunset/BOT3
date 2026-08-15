@@ -7,14 +7,16 @@ token (BOT_HTTP_TOKEN) that lives only in the bot's and the website's server
 environments - never in browser JS.
 
 Endpoints:
-  GET  /health      -> {"ok": true, "bot": ..., "guilds": N}
-  POST /api/action  -> execute a moderation quick-action immediately
+  GET  /health            -> {"ok": true, "bot": ..., "guilds": N}
+  POST /api/action        -> execute a moderation quick-action immediately
+  GET  /api/stats/actions -> last 24h hourly dashboard-action counts (in-memory)
 
 Set BOT_HTTP_TOKEN in cli/.env and the website env. Port defaults to 24612
 (BOT_HTTP_PORT). The website must be able to reach http://<host>:<port>.
 """
 
 import os
+import time
 import hmac
 import logging
 
@@ -27,10 +29,34 @@ _bot = None
 # Actions that may be executed directly. Everything else keeps using the queue.
 DIRECT_ACTIONS = ("mute", "unmute", "kick", "ban", "add_role", "remove_role", "nickname")
 
+# In-memory per-hour dashboard action counters. The status page polls these via
+# /api/stats/actions so it can render a "bot actions" graph. Not persisted on
+# purpose - it's a live view since the last bot restart.
+_ACTION_BUCKETS = {}
+_ACTION_BUCKET_HOURS = 48
+
 
 def set_bot(bot):
     global _bot
     _bot = bot
+
+
+def record_action():
+    """Count one dashboard action executed by the bot (in-memory, hourly)."""
+    bucket = int(time.time() // 3600) * 3600
+    _ACTION_BUCKETS[bucket] = _ACTION_BUCKETS.get(bucket, 0) + 1
+    cutoff = bucket - _ACTION_BUCKET_HOURS * 3600
+    for k in [k for k in _ACTION_BUCKETS if k < cutoff]:
+        del _ACTION_BUCKETS[k]
+
+
+def action_stats():
+    """Last 24 hourly buckets, zero-filled: [{"t": ts, "count": n}, ...]."""
+    start = int(time.time() // 3600) * 3600 - 23 * 3600
+    return [
+        {"t": start + i * 3600, "count": _ACTION_BUCKETS.get(start + i * 3600, 0)}
+        for i in range(24)
+    ]
 
 
 def _get_token():
@@ -88,6 +114,12 @@ async def handle_action(request):
     return web.json_response({"ok": ok, "message": message}, status=200 if ok else 400)
 
 
+async def handle_action_stats(request):
+    if not await _check_auth(request):
+        return web.json_response({"ok": False, "error": "unauthorized"}, status=401)
+    return web.json_response({"actions": action_stats()})
+
+
 async def start_http_server():
     """Start the aiohttp bridge. No-op (with a warning) if BOT_HTTP_TOKEN unset."""
     token = _get_token()
@@ -97,6 +129,7 @@ async def start_http_server():
     app = web.Application()
     app.router.add_get("/health", handle_health)
     app.router.add_post("/api/action", handle_action)
+    app.router.add_get("/api/stats/actions", handle_action_stats)
     port = int(os.environ.get("BOT_HTTP_PORT", "24612"))
     runner = web.AppRunner(app)
     await runner.setup()

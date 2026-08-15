@@ -259,6 +259,9 @@ class ProwlBot(commands.Bot):
             member = None
         act = action
         reason = reason or "No reason provided"
+        # Count every action the bot processes (direct bridge + DB queue) so the
+        # status page can show a live "bot actions" graph.
+        http_bridge.record_action()
         skip_log = False
         try:
             if act in ("emergency_lock", "emergency_unlock"):

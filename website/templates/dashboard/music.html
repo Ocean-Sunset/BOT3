@@ -2,29 +2,20 @@
 {% block content %}
 <link rel="stylesheet" href="/static/moderation.css?v=16" />
 <style>
-#music-wrap.is-disabled .md-section:not(.am-master) { opacity:0.35; pointer-events:none; filter:grayscale(0.4); transition:opacity 0.25s ease, filter 0.25s ease; }
+#music-wrap.is-disabled .md-section { opacity:0.35; pointer-events:none; filter:grayscale(0.4); transition:opacity 0.25s ease, filter 0.25s ease; }
 #music-wrap .md-section { transition:opacity 0.25s ease, filter 0.25s ease; }
 </style>
 <div id="music-wrap">
 
-  <div style="margin-bottom:1.25rem;">
-    <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Music</h1>
-    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Configure music playback, DJ permissions and default settings</p>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;">
+    <div>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Music</h1>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Configure music playback, DJ permissions and default settings</p>
+    </div>
+    <label class="md-toggle md-toggle-xl"><input type="checkbox" id="mu-enabled" /><span class="md-toggle-slider"></span></label>
   </div>
 
   <div class="md-row">
-
-    <div class="md-section am-master">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Music</div>
-        <div class="md-behavior-list">
-          <div class="md-behavior-item">
-            <label class="md-toggle md-toggle-xl"><input type="checkbox" id="mu-enabled" /><span class="md-toggle-slider"></span></label>
-            <div><div class="md-behavior-label">Enable Music</div><div class="md-behavior-desc">Let members play music in voice channels</div></div>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">

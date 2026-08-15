@@ -1,27 +1,18 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
 <link rel="stylesheet" href="/static/moderation.css?v=16" />
-<link rel="stylesheet" href="/static/leveling.css?v=3" />
+<link rel="stylesheet" href="/static/leveling.css?v=4" />
 <div id="leveling-wrap">
 
-  <div style="margin-bottom:1rem;animation-delay:.05s;">
-    <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Leveling</h1>
-    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">XP, ranks, and leaderboard configuration</p>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;animation-delay:.05s;">
+    <div>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Leveling</h1>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">XP, ranks, and leaderboard configuration</p>
+    </div>
+    <label class="md-toggle md-toggle-xl"><input type="checkbox" id="lvl-enabled" /><span class="md-toggle-slider"></span></label>
   </div>
 
   <div class="md-row">
-
-    <div class="md-section am-master">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Leveling</div>
-        <div class="md-behavior-list">
-          <div class="md-behavior-item">
-            <label class="md-toggle md-toggle-xl"><input type="checkbox" id="lvl-enabled" /><span class="md-toggle-slider"></span></label>
-            <div><div class="md-behavior-label">Enable Leveling</div><div class="md-behavior-desc">Members earn XP by chatting and level up as they go</div></div>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">

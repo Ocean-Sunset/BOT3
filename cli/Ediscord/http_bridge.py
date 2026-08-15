@@ -18,25 +18,11 @@ Set BOT_HTTP_TOKEN in cli/.env and the website env. Port defaults to 24612
 import os
 import time
 import hmac
-import hashlib
 import logging
 
 from aiohttp import web
 
 logger = logging.getLogger(__name__)
-
-BRIDGE_BUILD = 3
-
-# Kept for diagnostics so /health can report the registered routes.
-_APP = None
-
-
-def _source_sha():
-    try:
-        with open(__file__, "rb") as f:
-            return hashlib.sha256(f.read()).hexdigest()[:12]
-    except Exception:
-        return "unknown"
 
 _bot = None
 
@@ -88,12 +74,8 @@ async def _check_auth(request) -> bool:
 async def handle_health(request):
     if not await _check_auth(request):
         return web.json_response({"ok": False, "error": "unauthorized"}, status=401)
-    routes = sorted({r.resource.canonical for r in _APP.router.routes()}) if _APP else []
     return web.json_response({
         "ok": True,
-        "build": BRIDGE_BUILD,
-        "sha": _source_sha(),
-        "routes": routes,
         "bot": _bot.user.name if _bot and _bot.user else None,
         "guilds": len(_bot.guilds) if _bot else 0,
         "ready": bool(_bot and _bot.is_ready()),
@@ -148,8 +130,6 @@ async def start_http_server():
     app.router.add_get("/health", handle_health)
     app.router.add_post("/api/action", handle_action)
     app.router.add_get("/api/stats/actions", handle_action_stats)
-    global _APP
-    _APP = app
     port = int(os.environ.get("BOT_HTTP_PORT", "24612"))
     runner = web.AppRunner(app)
     await runner.setup()

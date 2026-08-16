@@ -1076,9 +1076,7 @@ async def turnstile_verify(request: Request):
     if scope_session is not None:
         scope_session["_turnstile_ts"] = int(time.time())
 
-    # Redirect to the page the user was trying to reach (or /)
-    redirect_to = body.get("redirect", "/")
-    return RedirectResponse(redirect_to, status_code=302)
+    return {"ok": True}
 
 
 @app.get("/api/v1/db-test")

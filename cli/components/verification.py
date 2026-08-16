@@ -69,13 +69,13 @@ async def _verify_done(interaction: discord.Interaction, role_id, role_label="ve
     role = interaction.guild.get_role(role_id)
     if not role:
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("Error").description("Verification role not found.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title(emoji_title("error", "Error")).description("Verification role not found.").color("error").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
         return
     if role in interaction.user.roles:
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("Already Verified").description("You are already verified.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title(emoji_title("verify", "Already Verified")).description("You are already verified.").color("info").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
         return
@@ -109,7 +109,7 @@ class CaptchaModal(discord.ui.Modal, title="Verification"):
     async def on_submit(self, interaction: discord.Interaction):
         if self.children[0].value.strip().upper() != self.code:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title("Failed").description("Incorrect code. Try again.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("verify_fail", "Failed")).description("Incorrect code. Try again.").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
             return
@@ -196,7 +196,7 @@ class Verification(commands.Cog, name="Verification"):
         if pe.get("title"):
             embed.title = pe["title"]
         else:
-            embed.title = "🔐 Verification"
+            embed.title = emoji_title("verify", "Verification")
         if pe.get("description"):
             embed.description = pe["description"]
         elif not pe.get("title") and not pe.get("description"):
@@ -304,7 +304,7 @@ class Verification(commands.Cog, name="Verification"):
         await save_verify_settings(interaction.guild_id, settings)
         ok = await self._send_panel(interaction.guild, settings)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("Setup Complete").description(f"Verification panel {'deployed in ' + channel.mention if ok else 'saved but channel not found'}.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title(emoji_title("success", "Setup Complete")).description(f"Verification panel {'deployed in ' + channel.mention if ok else 'saved but channel not found'}.").color("success").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -315,7 +315,7 @@ class Verification(commands.Cog, name="Verification"):
         settings = await get_verify_settings(interaction.guild_id)
         ok = await self._send_panel(interaction.guild, settings)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("Panel Deployed").description("Verification panel posted." if ok else "Configure a channel first.").color("green" if ok else "red").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title(emoji_title("success", "Panel Deployed")).description("Verification panel posted." if ok else "Configure a channel first.").color("success" if ok else "error").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -324,7 +324,7 @@ class Verification(commands.Cog, name="Verification"):
         settings = await get_verify_settings(interaction.guild_id)
         channel = interaction.guild.get_channel(settings.get("channel_id") or 0)
         role = interaction.guild.get_role(settings.get("verified_role_id") or 0)
-        embed = EmbedBuilder().title("Verification Settings").color("blue") \
+        embed = EmbedBuilder().title(emoji_title("settings", "Verification Settings")).color("info") \
             .field("Status", "Active" if settings.get("enabled") else "Inactive") \
             .field("Channel", channel.mention if channel else "Not set") \
             .field("Verified Role", role.mention if role else "Not set") \

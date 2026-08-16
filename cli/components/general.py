@@ -6,6 +6,7 @@ from discord.ext import commands
 import datetime
 
 from Ediscord import variables, utils, EmbedBuilder
+from Ediscord.builders import emoji_title
 
 
 class General(commands.Cog):
@@ -19,9 +20,9 @@ class General(commands.Cog):
         latency = round(self.bot.latency * 1000)
         embed = (
             EmbedBuilder()
-            .title("Pong!")
+            .title(emoji_title("bolt", "Pong!"))
             .description(f"**Latency:** {latency}ms\n**API Latency:** {round(self.bot.latency * 1000)}ms")
-            .color("green")
+            .color("success")
             .footer(f"Prowl v{variables.__version__}")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -33,7 +34,7 @@ class General(commands.Cog):
         uptime = utils.get_uptime()
         embed = (
             EmbedBuilder()
-            .title("Prowl")
+            .title(emoji_title("bot", "Prowl"))
             .description("A silly little cat bot with a ton of abilities.")
             .color("blurple")
             .field("Servers", str(len(self.bot.guilds)))
@@ -54,7 +55,7 @@ class General(commands.Cog):
     async def say(self, interaction: discord.Interaction, text: str, channel: discord.TextChannel = None):
         if not interaction.user.guild_permissions.manage_messages:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Messages permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Messages permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         target = channel or interaction.channel
@@ -69,12 +70,12 @@ class General(commands.Cog):
         await target.send(embed=embed)
         if target != interaction.channel:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title("Message Sent").description(f"Sent to {target.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("send", "Message Sent")).description(f"Sent to {target.mention}").color("success").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         else:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title("Message Sent").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("send", "Message Sent")).color("success").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
 
@@ -93,8 +94,8 @@ class General(commands.Cog):
         boost_count = guild.premium_subscription_count or 0
         embed = (
             EmbedBuilder()
-            .title(f"📊 {guild.name}")
-            .color("gold")
+            .title(emoji_title("server", guild.name))
+            .color("info")
             .thumbnail(guild.icon.url if guild.icon else None)
             .field("Owner", owner.mention if owner else "Unknown")
             .field("Members", str(guild.member_count), inline=True)
@@ -130,7 +131,7 @@ class General(commands.Cog):
         perms_str = ", ".join(key_perms[:5]) if key_perms else "None"
         embed = (
             EmbedBuilder()
-            .title(f"👤 {target.display_name}")
+            .title(emoji_title("member", target.display_name))
             .color(target.color if target.color != discord.Color.default() else "blurple")
             .thumbnail(target.display_avatar.url)
             .field("Username", target.name)
@@ -155,7 +156,7 @@ class General(commands.Cog):
         avatar_url = target.display_avatar.url
         embed = (
             EmbedBuilder()
-            .title(f"🖼️ {target.display_name}'s Avatar")
+            .title(emoji_title("member", f"{target.display_name}'s Avatar"))
             .color("blurple")
             .image(avatar_url)
             .description(f"[Open in Browser]({avatar_url})")
@@ -171,7 +172,7 @@ class General(commands.Cog):
         members_with_role = [m for m in role.guild.members if role in m.roles]
         embed = (
             EmbedBuilder()
-            .title(f"🎭 {role.name}")
+            .title(emoji_title("role", role.name))
             .color(role.color if role.color != discord.Color.default() else "blurple")
             .field("Role ID", str(role.id))
             .field("Color", f"#{role.color.value:06x}" if role.color != discord.Color.default() else "Default")
@@ -197,7 +198,7 @@ class General(commands.Cog):
         slowmode_str = f"{slowmode}s" if slowmode else "Disabled"
         embed = (
             EmbedBuilder()
-            .title(f"💬 {target.name}")
+            .title(emoji_title("channel", target.name))
             .color("blue")
             .field("Channel ID", str(target.id))
             .field("Type", str(target.type).title())

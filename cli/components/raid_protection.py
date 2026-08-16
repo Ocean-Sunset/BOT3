@@ -4,6 +4,7 @@ import asyncio
 import datetime
 
 from Ediscord import logger, EmbedBuilder
+from Ediscord.builders import emoji_title
 from Ediscord import db as neon_db
 from components.moderation import get_mod_settings, save_mod_settings, perform_lockdown
 
@@ -133,7 +134,7 @@ class RaidProtection(commands.Cog, name="RaidProtection"):
             action = settings.get("score_action", "kick")
             reason = f"Raid score {score}/{min_score} ({', '.join(parts) or 'no criteria matched'})"
             await self._apply_action(guild, settings, member, reason, action)
-            await self._log(guild, settings, "🚨 Raid Protection", f"{member.mention} (`{member}`) blocked — {reason}", "red")
+            await self._log(guild, settings, emoji_title("raid_detected", "Raid Protection"), f"{member.mention} (`{member}`) blocked — {reason}", "red")
             if settings.get("auto_recovery") and action == "lockdown":
                 minutes = int(settings.get("recovery_minutes", 30) or 30)
                 asyncio.create_task(self._recover(guild.id, minutes))
@@ -158,7 +159,7 @@ class RaidProtection(commands.Cog, name="RaidProtection"):
         if settings.get("default_avatar_enabled") and member.avatar is None:
             reason = "Raid protection: using a default avatar"
             await self._apply_action(guild, settings, member, reason, settings.get("default_avatar_action", "kick"))
-            await self._log(guild, settings, "🛡️ Raid Protection", f"{member.mention} (`{member}`) blocked — {reason}")
+            await self._log(guild, settings, emoji_title("anti_raid", "Raid Protection"), f"{member.mention} (`{member}`) blocked — {reason}")
             return
 
         # Account age filter
@@ -168,7 +169,7 @@ class RaidProtection(commands.Cog, name="RaidProtection"):
             if age_min < min_age_min:
                 reason = f"Raid protection: account {int(age_min)}min old (min {min_age_min})"
                 await self._apply_action(guild, settings, member, reason, settings.get("account_age_action", "kick"))
-                await self._log(guild, settings, "🛡️ Raid Protection", f"{member.mention} (`{member}`) blocked — {reason}")
+                await self._log(guild, settings, emoji_title("anti_raid", "Raid Protection"), f"{member.mention} (`{member}`) blocked — {reason}")
                 return
 
         # Join burst detection
@@ -188,7 +189,7 @@ class RaidProtection(commands.Cog, name="RaidProtection"):
                         await self._apply_action(guild, settings, m, reason, action)
             else:
                 await self._apply_action(guild, settings, member, reason, action)
-            await self._log(guild, settings, "🚨 Raid Detected", f"{reason}\nAction: **{action}**", "red")
+            await self._log(guild, settings, emoji_title("raid_detected", "Raid Detected"), f"{reason}\nAction: **{action}**", "red")
             # Auto-recovery for lockdown
             if settings.get("auto_recovery") and action == "lockdown":
                 minutes = int(settings.get("recovery_minutes", 30) or 30)
@@ -208,7 +209,7 @@ class RaidProtection(commands.Cog, name="RaidProtection"):
             await perform_lockdown(guild, False, mods, save_mod_settings)
         except Exception as e:
             logger.warning(f"Raid recovery failed: {e}")
-        await self._log(guild, settings, "✅ Raid Recovery", "Server unlocked after the raid.", "green")
+        await self._log(guild, settings, emoji_title("success", "Raid Recovery"), "Server unlocked after the raid.", "green")
 
 
 async def setup(bot: commands.Bot):

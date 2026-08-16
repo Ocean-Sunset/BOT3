@@ -4,6 +4,7 @@ import datetime
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
+from Ediscord.builders import emoji_title
 
 
 LOGGING_DEFAULTS = {
@@ -74,8 +75,8 @@ class Logging(commands.Cog, name="Logging"):
             return
         embed = (
             EmbedBuilder()
-            .title("Message Deleted")
-            .color("red")
+            .title(emoji_title("message", "Message Deleted"))
+            .color("error")
             .field("Channel", message.channel.mention)
             .field("Author", f"{message.author} (`{message.author.id}`)")
             .timestamp(message.created_at or datetime.datetime.utcnow())
@@ -92,8 +93,8 @@ class Logging(commands.Cog, name="Logging"):
         first = messages[0]
         embed = (
             EmbedBuilder()
-            .title("Bulk Message Deleted")
-            .color("red")
+            .title(emoji_title("message", "Bulk Message Deleted"))
+            .color("error")
             .field("Channel", first.channel.mention)
             .field("Messages", str(len(messages)))
             .timestamp(datetime.datetime.utcnow())
@@ -109,8 +110,8 @@ class Logging(commands.Cog, name="Logging"):
             return
         embed = (
             EmbedBuilder()
-            .title("Message Edited")
-            .color("yellow")
+            .title(emoji_title("message", "Message Edited"))
+            .color("warn")
             .field("Channel", after.channel.mention)
             .field("Author", f"{after.author} (`{after.author.id}`)")
             .field("Before", (before.content or "*(embed only)*")[:1000], inline=False)
@@ -125,8 +126,8 @@ class Logging(commands.Cog, name="Logging"):
     async def on_member_join(self, member):
         embed = (
             EmbedBuilder()
-            .title("Member Joined")
-            .color("green")
+            .title(emoji_title("welcome", "Member Joined"))
+            .color("success")
             .description(f"{member.mention} — {member}")
             .thumbnail(member.display_avatar.url)
             .field("Account Created", _fmt_time(member.created_at))
@@ -140,7 +141,7 @@ class Logging(commands.Cog, name="Logging"):
     async def on_member_remove(self, member):
         embed = (
             EmbedBuilder()
-            .title("Member Left")
+            .title(emoji_title("goodbye", "Member Left"))
             .color("gray")
             .description(f"{member} (`{member.id}`)")
             .thumbnail(member.display_avatar.url)
@@ -155,8 +156,8 @@ class Logging(commands.Cog, name="Logging"):
     async def on_member_ban(self, guild, user):
         embed = (
             EmbedBuilder()
-            .title("Member Banned")
-            .color("red")
+            .title(emoji_title("ban", "Member Banned"))
+            .color("error")
             .description(f"{user} (`{user.id}`)")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -167,8 +168,8 @@ class Logging(commands.Cog, name="Logging"):
     async def on_member_unban(self, guild, user):
         embed = (
             EmbedBuilder()
-            .title("Member Unbanned")
-            .color("green")
+            .title(emoji_title("unban", "Member Unbanned"))
+            .color("success")
             .description(f"{user} (`{user.id}`)")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -183,8 +184,8 @@ class Logging(commands.Cog, name="Logging"):
         if before.nick != after.nick:
             embed = (
                 EmbedBuilder()
-                .title("Nickname Changed")
-                .color("blue")
+.title(emoji_title("member", "Nickname Changed"))
+            .color("info")
                 .field("User", f"{after.mention} (`{after.id}`)")
                 .field("Before", before.nick or "*(none)*")
                 .field("After", after.nick or "*(none)*")
@@ -203,8 +204,8 @@ class Logging(commands.Cog, name="Logging"):
                 parts.append("**Removed:** " + ", ".join(r.mention for r in removed))
             embed = (
                 EmbedBuilder()
-                .title("Roles Updated")
-                .color("purple")
+.title(emoji_title("role", "Roles Updated"))
+            .color("brand")
                 .field("User", f"{after.mention} (`{after.id}`)")
                 .field("Change", "\n".join(parts) or "*(none)*")
                 .timestamp(datetime.datetime.utcnow())
@@ -219,8 +220,8 @@ class Logging(commands.Cog, name="Logging"):
                 text = "Mute lifted"
             embed = (
                 EmbedBuilder()
-                .title("Mute Changed")
-                .color("orange")
+.title(emoji_title("mute", "Mute Changed"))
+            .color("warn")
                 .field("User", f"{after.mention} (`{after.id}`)")
                 .field("Status", text)
                 .timestamp(datetime.datetime.utcnow())
@@ -233,8 +234,8 @@ class Logging(commands.Cog, name="Logging"):
     async def on_guild_channel_create(self, channel):
         embed = (
             EmbedBuilder()
-            .title("Channel Created")
-            .color("green")
+            .title(emoji_title("channel", "Channel Created"))
+            .color("success")
             .description(f"{channel.mention} — `{channel.name}`")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -245,8 +246,8 @@ class Logging(commands.Cog, name="Logging"):
     async def on_guild_channel_delete(self, channel):
         embed = (
             EmbedBuilder()
-            .title("Channel Deleted")
-            .color("red")
+            .title(emoji_title("channel", "Channel Deleted"))
+            .color("error")
             .description(f"`#{channel.name}`")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -264,8 +265,8 @@ class Logging(commands.Cog, name="Logging"):
             return
         embed = (
             EmbedBuilder()
-            .title("Channel Updated")
-            .color("yellow")
+            .title(emoji_title("channel", "Channel Updated"))
+            .color("warn")
             .description(f"{after.mention}\n" + "\n".join(changes))
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -277,8 +278,8 @@ class Logging(commands.Cog, name="Logging"):
     async def on_guild_role_create(self, role):
         embed = (
             EmbedBuilder()
-            .title("Role Created")
-            .color("green")
+            .title(emoji_title("role", "Role Created"))
+            .color("success")
             .description(role.mention)
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -289,8 +290,8 @@ class Logging(commands.Cog, name="Logging"):
     async def on_guild_role_delete(self, role):
         embed = (
             EmbedBuilder()
-            .title("Role Deleted")
-            .color("red")
+            .title(emoji_title("role", "Role Deleted"))
+            .color("error")
             .description(f"`@{role.name}`")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -310,8 +311,8 @@ class Logging(commands.Cog, name="Logging"):
             return
         embed = (
             EmbedBuilder()
-            .title("Role Updated")
-            .color("yellow")
+            .title(emoji_title("role", "Role Updated"))
+            .color("warn")
             .description(f"{after.mention}\n" + "\n".join(changes))
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -334,8 +335,8 @@ class Logging(commands.Cog, name="Logging"):
             return
         embed = (
             EmbedBuilder()
-            .title("Server Updated")
-            .color("blue")
+            .title(emoji_title("server", "Server Updated"))
+            .color("info")
             .description("\n".join(changes))
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -356,8 +357,8 @@ class Logging(commands.Cog, name="Logging"):
             parts.append("**Removed:** " + " ".join(f":{e.name}:" for e in removed))
         embed = (
             EmbedBuilder()
-            .title("Emoji Updated")
-            .color("yellow")
+            .title(emoji_title("sparkle", "Emoji Updated"))
+            .color("warn")
             .description("\n".join(parts))
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -372,8 +373,8 @@ class Logging(commands.Cog, name="Logging"):
             return
         embed = (
             EmbedBuilder()
-            .title("Invite Created")
-            .color("green")
+            .title(emoji_title("invite_create", "Invite Created"))
+            .color("success")
             .field("Code", invite.code)
             .field("Channel", invite.channel.mention if invite.channel else "—")
             .field("Max Uses", str(invite.max_uses) if invite.max_uses else "∞")
@@ -393,8 +394,8 @@ class Logging(commands.Cog, name="Logging"):
         if before.channel is None and after.channel is not None:
             embed = (
                 EmbedBuilder()
-                .title("Joined Voice")
-                .color("green")
+                .title(emoji_title("mic", "Joined Voice"))
+                .color("success")
                 .field("User", member.mention)
                 .field("Channel", after.channel.mention)
                 .timestamp(datetime.datetime.utcnow())
@@ -403,8 +404,8 @@ class Logging(commands.Cog, name="Logging"):
         elif before.channel is not None and after.channel is None:
             embed = (
                 EmbedBuilder()
-                .title("Left Voice")
-                .color("red")
+                .title(emoji_title("mic", "Left Voice"))
+                .color("error")
                 .field("User", member.mention)
                 .field("Channel", before.channel.mention)
                 .timestamp(datetime.datetime.utcnow())
@@ -413,8 +414,8 @@ class Logging(commands.Cog, name="Logging"):
         elif before.channel is not None and after.channel is not None:
             embed = (
                 EmbedBuilder()
-                .title("Moved Voice")
-                .color("blue")
+                .title(emoji_title("mic", "Moved Voice"))
+                .color("info")
                 .field("User", member.mention)
                 .field("Before", before.channel.mention)
                 .field("After", after.channel.mention)

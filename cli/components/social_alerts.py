@@ -9,6 +9,7 @@ from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
+from Ediscord.builders import emoji_title
 
 
 SOCIAL_DEFAULTS = {
@@ -284,7 +285,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
     async def set_youtube(self, interaction: discord.Interaction, youtube_channel_id: str, ping_role: Optional[discord.Role] = None, announce_channel: Optional[discord.TextChannel] = None):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_social_settings(interaction.guild_id)
@@ -295,8 +296,8 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         await save_social_settings(interaction.guild_id, settings)
         embed = (
             EmbedBuilder()
-            .title("YouTube Alerts Set Up")
-            .color("red")
+            .title(emoji_title("bell", "YouTube Alerts Set Up"))
+            .color("success")
             .field("Channel ID", f"`{youtube_channel_id}`")
             .field("Ping Role", ping_role.mention if ping_role else "None")
             .field("Announce Channel", announce_channel.mention if announce_channel else interaction.channel.mention)
@@ -310,7 +311,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
     async def set_twitch(self, interaction: discord.Interaction, twitch_channel: str, ping_role: Optional[discord.Role] = None, announce_channel: Optional[discord.TextChannel] = None):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_social_settings(interaction.guild_id)
@@ -321,8 +322,8 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         await save_social_settings(interaction.guild_id, settings)
         embed = (
             EmbedBuilder()
-            .title("Twitch Alerts Set Up")
-            .color("violet")
+            .title(emoji_title("bell", "Twitch Alerts Set Up"))
+            .color("brand")
             .field("Channel", f"`{twitch_channel}`")
             .field("Ping Role", ping_role.mention if ping_role else "None")
             .field("Announce Channel", announce_channel.mention if announce_channel else interaction.channel.mention)
@@ -336,7 +337,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
     async def set_twitter(self, interaction: discord.Interaction, handle: str, ping_role: Optional[discord.Role] = None, announce_channel: Optional[discord.TextChannel] = None):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_social_settings(interaction.guild_id)
@@ -347,8 +348,8 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         await save_social_settings(interaction.guild_id, settings)
         embed = (
             EmbedBuilder()
-            .title("Twitter/X Alerts Set Up")
-            .color("blue")
+            .title(emoji_title("bell", "Twitter/X Alerts Set Up"))
+            .color("info")
             .field("Handle", f"@{handle.lstrip('@')}")
             .field("Ping Role", ping_role.mention if ping_role else "None")
             .field("Announce Channel", announce_channel.mention if announce_channel else interaction.channel.mention)
@@ -361,7 +362,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
     async def config(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_social_settings(interaction.guild_id)
@@ -373,8 +374,8 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         x_channel = self._resolve_channel(interaction.guild, settings.get("twitter_announce_channel_id"))
         embed = (
             EmbedBuilder()
-            .title("Social Alert Settings")
-            .color("blue")
+            .title(emoji_title("settings", "Social Alert Settings"))
+            .color("info")
             .field("YouTube", f"Channel: `{settings.get('youtube_channel_id') or 'Not set'}`\nPing: {yt_role.mention if yt_role else 'None'}\nAnnounces: {yt_channel.mention if yt_channel else 'Not set'}")
             .field("Twitch", f"Channel: `{settings.get('twitch_channel') or 'Not set'}`\nPing: {tw_role.mention if tw_role else 'None'}\nAnnounces: {tw_channel.mention if tw_channel else 'Not set'}")
             .field("Twitter/X", f"Handle: `@{settings.get('twitter_handle') or 'Not set'}`\nPing: {x_role.mention if x_role else 'None'}\nAnnounces: {x_channel.mention if x_channel else 'Not set'}")
@@ -394,7 +395,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
     async def remove(self, interaction: discord.Interaction, platform: str):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_social_settings(interaction.guild_id)
@@ -415,7 +416,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
             settings["twitter_announce_channel_id"] = None
         await save_social_settings(interaction.guild_id, settings)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("Social Alerts Removed").description(f"Removed alerts for **{platform}**.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title(emoji_title("bell_off", "Social Alerts Removed")).description(f"Removed alerts for **{platform}**.").color("success").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 

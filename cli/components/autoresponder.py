@@ -7,6 +7,7 @@ import datetime
 from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
+from Ediscord.builders import emoji_title
 from Ediscord import db as neon_db
 
 
@@ -126,19 +127,19 @@ class Autoresponder(commands.Cog, name="Autoresponder"):
     async def add(self, interaction: discord.Interaction, trigger: str, response: str, match_type: str = "contains", channel: discord.TextChannel = None, cooldown: int = 0):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         if len(response) > 2000:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Too Long").description("Response too long (max 2000 characters).").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Too Long")).description("Response too long (max 2000 characters).").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         await self.save_trigger(interaction.guild_id, trigger, response, match_type, str(channel.id) if channel else None, cooldown)
         embed = (
             EmbedBuilder()
-            .title("Auto-Response Added")
-            .color("green")
+            .title(emoji_title("success", "Auto-Response Added"))
+            .color("success")
             .field("Trigger", f"`{trigger}`")
             .field("Response", response[:1024])
             .field("Match Type", match_type.title())
@@ -154,12 +155,12 @@ class Autoresponder(commands.Cog, name="Autoresponder"):
     async def remove(self, interaction: discord.Interaction, trigger: str):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         await self.remove_trigger(interaction.guild_id, trigger)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("Auto-Response Removed").description(f"Removed trigger: `{trigger}`").color("green").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title(emoji_title("success", "Auto-Response Removed")).description(f"Removed trigger: `{trigger}`").color("success").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -167,13 +168,13 @@ class Autoresponder(commands.Cog, name="Autoresponder"):
     async def list_triggers(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         triggers = await self.load_triggers(interaction.guild_id)
         if not triggers:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Auto-Responses").description("No auto-responses configured.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("settings", "Auto-Responses")).description("No auto-responses configured.").color("info").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         lines = []
@@ -183,9 +184,9 @@ class Autoresponder(commands.Cog, name="Autoresponder"):
             lines.append(f"`{t['trigger']}` → {t['response'][:50]} ({t['match_type']}) | {channel_str}")
         embed = (
             EmbedBuilder()
-            .title("Auto-Responses")
+            .title(emoji_title("settings", "Auto-Responses"))
             .description("\n".join(lines))
-            .color("blue")
+            .color("info")
             .footer(f"Total: {len(triggers)} triggers")
             .timestamp(datetime.datetime.utcnow())
             .build()

@@ -22,7 +22,7 @@ class General(commands.Cog):
             EmbedBuilder()
             .title(emoji_title("bolt", "Pong!"))
             .description(f"**Latency:** {latency}ms\n**API Latency:** {round(self.bot.latency * 1000)}ms")
-            .color("success")
+            .color("warn")
             .footer(f"Prowl v{variables.__version__}")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -36,7 +36,7 @@ class General(commands.Cog):
             EmbedBuilder()
             .title(emoji_title("bot", "Prowl"))
             .description("A silly little cat bot with a ton of abilities.")
-            .color("blurple")
+            .color("gray")
             .field("Servers", str(len(self.bot.guilds)))
             .field("Users", str(len(self.bot.users)))
             .field("Uptime", uptime)
@@ -95,7 +95,7 @@ class General(commands.Cog):
         embed = (
             EmbedBuilder()
             .title(emoji_title("server", guild.name))
-            .color("info")
+            .color("gray")
             .thumbnail(guild.icon.url if guild.icon else None)
             .field("Owner", owner.mention if owner else "Unknown")
             .field("Members", str(guild.member_count), inline=True)
@@ -132,7 +132,7 @@ class General(commands.Cog):
         embed = (
             EmbedBuilder()
             .title(emoji_title("member", target.display_name))
-            .color(target.color if target.color != discord.Color.default() else "blurple")
+            .color(target.color if target.color != discord.Color.default() else "gray")
             .thumbnail(target.display_avatar.url)
             .field("Username", target.name)
             .field("Nickname", target.nick or "None")
@@ -157,7 +157,7 @@ class General(commands.Cog):
         embed = (
             EmbedBuilder()
             .title(emoji_title("member", f"{target.display_name}'s Avatar"))
-            .color("blurple")
+            .color("gray")
             .image(avatar_url)
             .description(f"[Open in Browser]({avatar_url})")
             .footer(f"Requested by {interaction.user.display_name}")
@@ -173,7 +173,7 @@ class General(commands.Cog):
         embed = (
             EmbedBuilder()
             .title(emoji_title("role", role.name))
-            .color(role.color if role.color != discord.Color.default() else "blurple")
+            .color(role.color if role.color != discord.Color.default() else "brand")
             .field("Role ID", str(role.id))
             .field("Color", f"#{role.color.value:06x}" if role.color != discord.Color.default() else "Default")
             .field("Position", str(role.position))
@@ -199,7 +199,7 @@ class General(commands.Cog):
         embed = (
             EmbedBuilder()
             .title(emoji_title("channel", target.name))
-            .color("blue")
+            .color("gray")
             .field("Channel ID", str(target.id))
             .field("Type", str(target.type).title())
             .field("Category", target.category.name if target.category else "None")

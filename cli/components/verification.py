@@ -75,13 +75,13 @@ async def _verify_done(interaction: discord.Interaction, role_id, role_label="ve
         return
     if role in interaction.user.roles:
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("verify", "Already Verified")).description("You are already verified.").color("info").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title(emoji_title("verify", "Already Verified")).description("You are already verified.").color("success").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
         return
     await interaction.user.add_roles(role, reason=f"Verified via {role_label}")
     await interaction.response.send_message(
-        embed=EmbedBuilder().title(emoji_title("verify", "Verified")).description("You have been verified!").color("green").timestamp(datetime.datetime.utcnow()).build(),
+        embed=EmbedBuilder().title(emoji_title("verify", "Verified")).description("You have been verified!").color("success").timestamp(datetime.datetime.utcnow()).build(),
         ephemeral=True
     )
 
@@ -324,7 +324,7 @@ class Verification(commands.Cog, name="Verification"):
         settings = await get_verify_settings(interaction.guild_id)
         channel = interaction.guild.get_channel(settings.get("channel_id") or 0)
         role = interaction.guild.get_role(settings.get("verified_role_id") or 0)
-        embed = EmbedBuilder().title(emoji_title("settings", "Verification Settings")).color("info") \
+        embed = EmbedBuilder().title(emoji_title("settings", "Verification Settings")).color("brand") \
             .field("Status", "Active" if settings.get("enabled") else "Inactive") \
             .field("Channel", channel.mention if channel else "Not set") \
             .field("Verified Role", role.mention if role else "Not set") \

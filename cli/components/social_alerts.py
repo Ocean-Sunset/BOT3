@@ -297,7 +297,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         embed = (
             EmbedBuilder()
             .title(emoji_title("bell", "YouTube Alerts Set Up"))
-            .color("success")
+            .color("warn")
             .field("Channel ID", f"`{youtube_channel_id}`")
             .field("Ping Role", ping_role.mention if ping_role else "None")
             .field("Announce Channel", announce_channel.mention if announce_channel else interaction.channel.mention)
@@ -323,7 +323,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         embed = (
             EmbedBuilder()
             .title(emoji_title("bell", "Twitch Alerts Set Up"))
-            .color("brand")
+            .color("warn")
             .field("Channel", f"`{twitch_channel}`")
             .field("Ping Role", ping_role.mention if ping_role else "None")
             .field("Announce Channel", announce_channel.mention if announce_channel else interaction.channel.mention)
@@ -349,7 +349,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         embed = (
             EmbedBuilder()
             .title(emoji_title("bell", "Twitter/X Alerts Set Up"))
-            .color("info")
+            .color("warn")
             .field("Handle", f"@{handle.lstrip('@')}")
             .field("Ping Role", ping_role.mention if ping_role else "None")
             .field("Announce Channel", announce_channel.mention if announce_channel else interaction.channel.mention)
@@ -375,7 +375,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         embed = (
             EmbedBuilder()
             .title(emoji_title("settings", "Social Alert Settings"))
-            .color("info")
+            .color("brand")
             .field("YouTube", f"Channel: `{settings.get('youtube_channel_id') or 'Not set'}`\nPing: {yt_role.mention if yt_role else 'None'}\nAnnounces: {yt_channel.mention if yt_channel else 'Not set'}")
             .field("Twitch", f"Channel: `{settings.get('twitch_channel') or 'Not set'}`\nPing: {tw_role.mention if tw_role else 'None'}\nAnnounces: {tw_channel.mention if tw_channel else 'Not set'}")
             .field("Twitter/X", f"Handle: `@{settings.get('twitter_handle') or 'Not set'}`\nPing: {x_role.mention if x_role else 'None'}\nAnnounces: {x_channel.mention if x_channel else 'Not set'}")
@@ -416,7 +416,7 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
             settings["twitter_announce_channel_id"] = None
         await save_social_settings(interaction.guild_id, settings)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("bell_off", "Social Alerts Removed")).description(f"Removed alerts for **{platform}**.").color("success").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title(emoji_title("bell_off", "Social Alerts Removed")).description(f"Removed alerts for **{platform}**.").color("gray").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 

@@ -174,7 +174,7 @@ class Autoresponder(commands.Cog, name="Autoresponder"):
         triggers = await self.load_triggers(interaction.guild_id)
         if not triggers:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("settings", "Auto-Responses")).description("No auto-responses configured.").color("info").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("settings", "Auto-Responses")).description("No auto-responses configured.").color("brand").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         lines = []
@@ -186,7 +186,7 @@ class Autoresponder(commands.Cog, name="Autoresponder"):
             EmbedBuilder()
             .title(emoji_title("settings", "Auto-Responses"))
             .description("\n".join(lines))
-            .color("info")
+            .color("brand")
             .footer(f"Total: {len(triggers)} triggers")
             .timestamp(datetime.datetime.utcnow())
             .build()

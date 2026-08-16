@@ -124,14 +124,14 @@ class Automation(commands.Cog, name="Automation"):
     async def set_autorole(self, interaction: discord.Interaction, role: discord.Role):
         if not interaction.user.guild_permissions.manage_roles:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Roles permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Roles permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_auto_settings(interaction.guild_id)
         settings["auto_roles"]["default"] = str(role.id)
         await save_auto_settings(interaction.guild_id, settings)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("auto_role", "Auto-Role Set")).description(f"New members will receive {role.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title(emoji_title("auto_role", "Auto-Role Set")).description(f"New members will receive {role.mention}").color("brand").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -140,7 +140,7 @@ class Automation(commands.Cog, name="Automation"):
     async def set_botrole(self, interaction: discord.Interaction, role: Optional[discord.Role] = None):
         if not interaction.user.guild_permissions.manage_roles:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Roles permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Roles permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_auto_settings(interaction.guild_id)
@@ -148,12 +148,12 @@ class Automation(commands.Cog, name="Automation"):
         await save_auto_settings(interaction.guild_id, settings)
         if role:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("auto_role", "Bot Auto-Role Set")).description(f"Bots will receive {role.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("auto_role", "Bot Auto-Role Set")).description(f"Bots will receive {role.mention}").color("brand").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         else:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("auto_role", "Bot Auto-Role Removed")).description("Bot auto-role has been removed.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("auto_role", "Bot Auto-Role Removed")).description("Bot auto-role has been removed.").color("brand").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
 
@@ -162,7 +162,7 @@ class Automation(commands.Cog, name="Automation"):
     async def antiraid(self, interaction: discord.Interaction, enabled: bool, threshold: int = 5, window: int = 10):
         if not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Administrator permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Administrator permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_auto_settings(interaction.guild_id)
@@ -171,7 +171,7 @@ class Automation(commands.Cog, name="Automation"):
         settings["anti_raid_window"] = window
         await save_auto_settings(interaction.guild_id, settings)
         status = "enabled" if enabled else "disabled"
-        color = "green" if enabled else "red"
+        color = "info"
         embed = (
             EmbedBuilder()
             .title(emoji_title("anti_raid", "Anti-Raid Updated"))
@@ -189,12 +189,12 @@ class Automation(commands.Cog, name="Automation"):
     async def minage(self, interaction: discord.Interaction, days: int):
         if not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Administrator permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Administrator permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         if days < 0:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Invalid")).description("Days cannot be negative.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Invalid")).description("Days cannot be negative.").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_auto_settings(interaction.guild_id)
@@ -202,12 +202,12 @@ class Automation(commands.Cog, name="Automation"):
         await save_auto_settings(interaction.guild_id, settings)
         if days > 0:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("success", "Account Age Set")).description(f"Accounts newer than **{days} days** will be kicked.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("success", "Account Age Set")).description(f"Accounts newer than **{days} days** will be kicked.").color("success").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         else:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("success", "Account Age Disabled")).description("No minimum account age requirement.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("success", "Account Age Disabled")).description("No minimum account age requirement.").color("success").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
 
@@ -216,14 +216,14 @@ class Automation(commands.Cog, name="Automation"):
     async def muteevasion(self, interaction: discord.Interaction, enabled: bool):
         if not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Administrator permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Administrator permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_auto_settings(interaction.guild_id)
         settings["mute_evasion"] = enabled
         await save_auto_settings(interaction.guild_id, settings)
         status = "enabled" if enabled else "disabled"
-        color = "green" if enabled else "red"
+        color = "brand"
         await interaction.response.send_message(
             embed=EmbedBuilder().title(emoji_title("shield", "Mute Evasion Updated")).description(f"Mute evasion detection **{status}**.").color(color).timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
@@ -234,7 +234,7 @@ class Automation(commands.Cog, name="Automation"):
     async def nickname(self, interaction: discord.Interaction, nickname: str = None):
         if not interaction.user.guild_permissions.manage_nicknames:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Nicknames permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Nicknames permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_auto_settings(interaction.guild_id)
@@ -242,12 +242,12 @@ class Automation(commands.Cog, name="Automation"):
         await save_auto_settings(interaction.guild_id, settings)
         if nickname:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("success", "Auto-Nickname Set")).description(f"New members will be nicknamed: `{nickname}`").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("success", "Auto-Nickname Set")).description(f"New members will be nicknamed: `{nickname}`").color("success").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         else:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("success", "Auto-Nickname Disabled")).description("Auto-nickname has been removed.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("success", "Auto-Nickname Disabled")).description("Auto-nickname has been removed.").color("success").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
 
@@ -255,7 +255,7 @@ class Automation(commands.Cog, name="Automation"):
     async def config(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_auto_settings(interaction.guild_id)
@@ -269,7 +269,7 @@ class Automation(commands.Cog, name="Automation"):
         embed = (
             EmbedBuilder()
             .title(emoji_title("settings", "Automation Settings"))
-            .color("blue")
+            .color("brand")
             .field("Auto-Roles", ", ".join(role_mentions) or "None")
             .field("Bot Role", bot_role.mention if bot_role else "None")
             .field("Anti-Raid", "Enabled" if settings.get("anti_raid") else "Disabled")

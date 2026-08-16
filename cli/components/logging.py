@@ -76,7 +76,7 @@ class Logging(commands.Cog, name="Logging"):
         embed = (
             EmbedBuilder()
             .title(emoji_title("message", "Message Deleted"))
-            .color("error")
+            .color("gray")
             .field("Channel", message.channel.mention)
             .field("Author", f"{message.author} (`{message.author.id}`)")
             .timestamp(message.created_at or datetime.datetime.utcnow())
@@ -94,7 +94,7 @@ class Logging(commands.Cog, name="Logging"):
         embed = (
             EmbedBuilder()
             .title(emoji_title("message", "Bulk Message Deleted"))
-            .color("error")
+            .color("gray")
             .field("Channel", first.channel.mention)
             .field("Messages", str(len(messages)))
             .timestamp(datetime.datetime.utcnow())
@@ -111,7 +111,7 @@ class Logging(commands.Cog, name="Logging"):
         embed = (
             EmbedBuilder()
             .title(emoji_title("message", "Message Edited"))
-            .color("warn")
+            .color("gray")
             .field("Channel", after.channel.mention)
             .field("Author", f"{after.author} (`{after.author.id}`)")
             .field("Before", (before.content or "*(embed only)*")[:1000], inline=False)
@@ -142,7 +142,7 @@ class Logging(commands.Cog, name="Logging"):
         embed = (
             EmbedBuilder()
             .title(emoji_title("goodbye", "Member Left"))
-            .color("gray")
+            .color("error")
             .description(f"{member} (`{member.id}`)")
             .thumbnail(member.display_avatar.url)
             .field("Joined", _fmt_time(member.joined_at))
@@ -185,7 +185,7 @@ class Logging(commands.Cog, name="Logging"):
             embed = (
                 EmbedBuilder()
 .title(emoji_title("member", "Nickname Changed"))
-            .color("info")
+            .color("gray")
                 .field("User", f"{after.mention} (`{after.id}`)")
                 .field("Before", before.nick or "*(none)*")
                 .field("After", after.nick or "*(none)*")
@@ -235,7 +235,7 @@ class Logging(commands.Cog, name="Logging"):
         embed = (
             EmbedBuilder()
             .title(emoji_title("channel", "Channel Created"))
-            .color("success")
+            .color("gray")
             .description(f"{channel.mention} — `{channel.name}`")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -247,7 +247,7 @@ class Logging(commands.Cog, name="Logging"):
         embed = (
             EmbedBuilder()
             .title(emoji_title("channel", "Channel Deleted"))
-            .color("error")
+            .color("gray")
             .description(f"`#{channel.name}`")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -266,7 +266,7 @@ class Logging(commands.Cog, name="Logging"):
         embed = (
             EmbedBuilder()
             .title(emoji_title("channel", "Channel Updated"))
-            .color("warn")
+            .color("gray")
             .description(f"{after.mention}\n" + "\n".join(changes))
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -279,7 +279,7 @@ class Logging(commands.Cog, name="Logging"):
         embed = (
             EmbedBuilder()
             .title(emoji_title("role", "Role Created"))
-            .color("success")
+            .color("brand")
             .description(role.mention)
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -291,7 +291,7 @@ class Logging(commands.Cog, name="Logging"):
         embed = (
             EmbedBuilder()
             .title(emoji_title("role", "Role Deleted"))
-            .color("error")
+            .color("brand")
             .description(f"`@{role.name}`")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -312,7 +312,7 @@ class Logging(commands.Cog, name="Logging"):
         embed = (
             EmbedBuilder()
             .title(emoji_title("role", "Role Updated"))
-            .color("warn")
+            .color("brand")
             .description(f"{after.mention}\n" + "\n".join(changes))
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -336,7 +336,7 @@ class Logging(commands.Cog, name="Logging"):
         embed = (
             EmbedBuilder()
             .title(emoji_title("server", "Server Updated"))
-            .color("info")
+            .color("gray")
             .description("\n".join(changes))
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -358,7 +358,7 @@ class Logging(commands.Cog, name="Logging"):
         embed = (
             EmbedBuilder()
             .title(emoji_title("sparkle", "Emoji Updated"))
-            .color("warn")
+            .color("pink")
             .description("\n".join(parts))
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -395,7 +395,7 @@ class Logging(commands.Cog, name="Logging"):
             embed = (
                 EmbedBuilder()
                 .title(emoji_title("mic", "Joined Voice"))
-                .color("success")
+                .color("gray")
                 .field("User", member.mention)
                 .field("Channel", after.channel.mention)
                 .timestamp(datetime.datetime.utcnow())
@@ -405,7 +405,7 @@ class Logging(commands.Cog, name="Logging"):
             embed = (
                 EmbedBuilder()
                 .title(emoji_title("mic", "Left Voice"))
-                .color("error")
+                .color("gray")
                 .field("User", member.mention)
                 .field("Channel", before.channel.mention)
                 .timestamp(datetime.datetime.utcnow())
@@ -415,7 +415,7 @@ class Logging(commands.Cog, name="Logging"):
             embed = (
                 EmbedBuilder()
                 .title(emoji_title("mic", "Moved Voice"))
-                .color("info")
+                .color("gray")
                 .field("User", member.mention)
                 .field("Before", before.channel.mention)
                 .field("After", after.channel.mention)

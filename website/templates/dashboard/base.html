@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="preload" href="https://unpkg.com/lucide@latest" as="script" />
-  <link rel="stylesheet" href="/static/dashboard.css?v=8" />
+  <link rel="stylesheet" href="/static/dashboard.css?v=9" />
   <script>
     // API subdomain routing: production calls go to api.prowlbot.xyz with cookies,
     // localhost keeps same-origin relative paths.
@@ -52,8 +52,10 @@
        font/masonry/async fill-in CLS. -->
   <div id="page-loader" aria-hidden="true">
     <div class="page-loader-inner">
-      <div class="page-loader-logo"><img src="/static/favicon.png" alt="Prowl" /></div>
-      <div class="page-loader-bar"><span></span></div>
+      <div class="page-loader-ring-wrap">
+        <svg class="page-loader-ring" viewBox="0 0 68 68"><circle cx="34" cy="34" r="30"/></svg>
+        <img src="/static/favicon.png" alt="Prowl" />
+      </div>
     </div>
   </div>
 

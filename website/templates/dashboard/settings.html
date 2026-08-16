@@ -90,9 +90,9 @@
     </div>
     <h3 style="font-size:1.1rem;font-weight:900;letter-spacing:-0.02em;">Reset this server?</h3>
     <p style="font-size:0.8rem;color:rgba(255,255,255,0.5);margin:0.5rem 0 1rem;line-height:1.55;">This will delete <b style="color:rgba(255,255,255,0.8);">all Prowl settings, logs, and data</b> for this server. The bot will stay in your server. This action <b style="color:rgba(255,255,255,0.8);">cannot be undone</b>.</p>
-    <div style="display:flex;flex-direction:column;gap:0.5rem;">
-      <button class="md-action-btn danger" id="reset-confirm" style="width:100%;justify-content:center;padding:0.6rem;">Yes, reset everything</button>
-      <button class="md-action-btn" id="reset-cancel" style="width:100%;justify-content:center;padding:0.6rem;color:rgba(255,255,255,0.4);">Cancel</button>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="md-action-btn" id="reset-cancel" style="flex:1;justify-content:center;padding:0.6rem;color:rgba(255,255,255,0.4);">Cancel</button>
+      <button class="md-action-btn danger" id="reset-confirm" style="flex:1;justify-content:center;padding:0.6rem;">Reset</button>
     </div>
   </div>
 </div>
@@ -104,9 +104,9 @@
     </div>
     <h3 style="font-size:1.1rem;font-weight:900;letter-spacing:-0.02em;">Remove this server from Prowl?</h3>
     <p style="font-size:0.8rem;color:rgba(255,255,255,0.5);margin:0.5rem 0 1rem;line-height:1.55;">This will <b style="color:rgba(255,255,255,0.8);">permanently delete every trace of this server</b> from Prowl's database and <b style="color:rgba(255,255,255,0.8);">Prowl will leave the server</b>. This action <b style="color:rgba(255,255,255,0.8);">cannot be undone</b>.</p>
-    <div style="display:flex;flex-direction:column;gap:0.5rem;">
-      <button class="md-action-btn" id="remove-cancel" style="width:100%;justify-content:center;padding:0.6rem;color:rgba(255,255,255,0.4);">Cancel</button>
-      <button class="md-action-btn danger" id="remove-confirm" style="width:100%;justify-content:center;padding:0.6rem;">Yes, remove this server</button>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="md-action-btn" id="remove-cancel" style="flex:1;justify-content:center;padding:0.6rem;color:rgba(255,255,255,0.4);">Cancel</button>
+      <button class="md-action-btn danger" id="remove-confirm" style="flex:1;justify-content:center;padding:0.6rem;">Remove</button>
     </div>
   </div>
 </div>
@@ -188,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => location.reload(), 2000);
       }
     } catch(e) {}
-    btn.disabled = false; btn.textContent = 'Yes, reset everything';
+    btn.disabled = false; btn.textContent = 'Reset';
     modal.classList.remove('is-open');
   });
 
@@ -208,7 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof showToast === 'function') showToast('Failed to remove the server.', 'error');
       }
     } catch(e) { if (typeof showToast === 'function') showToast('Network error.', 'error'); }
-    btn.disabled = false; btn.textContent = 'Yes, remove this server';
+    btn.disabled = false; btn.textContent = 'Remove';
     rmodal.classList.remove('is-open');
   });
 });

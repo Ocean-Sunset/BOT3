@@ -113,6 +113,44 @@ app.add_middleware(
 )
 
 
+# ── Turnstile challenge gate ──
+class TurnstileMiddleware:
+    """Gate the entire site behind a Cloudflare Turnstile challenge.
+    Visitors without a valid turnstile flag in their session are redirected to /challenge."""
+
+    WHITELIST_PREFIXES = ("/static", "/challenge", "/api/", "/favicon")
+    WHITELIST_PATHS = {"/", "/health", "/api/v1/health", "/api/v1/ping"}
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+
+        if path in self.WHITELIST_PATHS or any(path.startswith(p) for p in self.WHITELIST_PREFIXES):
+            await self.app(scope, receive, send)
+            return
+
+        # Check session for turnstile verification
+        session = scope.get("session")
+        if session and rotating_session.is_turnstile_verified(session):
+            await self.app(scope, receive, send)
+            return
+
+        from starlette.responses import RedirectResponse
+        query = scope.get("query_string", b"").decode("latin-1")
+        next_param = f"?next={urllib.parse.quote(path + ('?' + query if query else ''))}" if path != "/" else ""
+        resp = RedirectResponse(f"/challenge{next_param}", status_code=302)
+        await resp(scope, receive, send)
+
+
+app.add_middleware(TurnstileMiddleware)
+
+
 class RotatingSessionMiddleware:
     """
     ASGI middleware that replaces Starlette's SessionMiddleware with
@@ -278,43 +316,6 @@ CREATE TABLE IF NOT EXISTS request_stats (
 );
 """
 
-
-# ── Turnstile challenge gate ──
-class TurnstileMiddleware:
-    """Gate the entire site behind a Cloudflare Turnstile challenge.
-    Visitors without a valid turnstile flag in their session are redirected to /challenge."""
-
-    WHITELIST_PREFIXES = ("/static", "/challenge", "/api/", "/favicon")
-    WHITELIST_PATHS = {"/", "/health", "/api/v1/health", "/api/v1/ping"}
-
-    def __init__(self, app):
-        self.app = app
-
-    async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
-        path = scope.get("path", "")
-
-        if path in self.WHITELIST_PATHS or any(path.startswith(p) for p in self.WHITELIST_PREFIXES):
-            await self.app(scope, receive, send)
-            return
-
-        # Check session for turnstile verification
-        session = scope.get("session")
-        if session and rotating_session.is_turnstile_verified(session):
-            await self.app(scope, receive, send)
-            return
-
-        from starlette.responses import RedirectResponse
-        query = scope.get("query_string", b"").decode("latin-1")
-        next_param = f"?next={urllib.parse.quote(path + ('?' + query if query else ''))}" if path != "/" else ""
-        resp = RedirectResponse(f"/challenge{next_param}", status_code=302)
-        await resp(scope, receive, send)
-
-
-app.add_middleware(TurnstileMiddleware)
 
 app.add_middleware(RequestCountMiddleware)
 

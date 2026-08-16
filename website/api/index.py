@@ -1920,7 +1920,10 @@ async def mod_purge(guild_id: str, request: Request):
 async def mod_member_stats(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     rows = await query(
-        "SELECT timestamp, member_count FROM member_history WHERE guild_id = $1 ORDER BY timestamp ASC LIMIT 168",
+        """WITH recent AS (
+             SELECT timestamp, member_count FROM member_history
+             WHERE guild_id = $1 ORDER BY timestamp DESC LIMIT 168
+           ) SELECT timestamp, member_count FROM recent ORDER BY timestamp ASC""",
         str(guild_id),
     )
     return {"points": [{"t": r["timestamp"], "v": r["member_count"]} for r in rows]}
@@ -1930,7 +1933,10 @@ async def mod_member_stats(guild_id: str, request: Request):
 async def mod_message_stats(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     rows = await query(
-        "SELECT timestamp, message_count FROM message_history WHERE guild_id = $1 ORDER BY timestamp ASC LIMIT 168",
+        """WITH recent AS (
+             SELECT timestamp, message_count FROM message_history
+             WHERE guild_id = $1 ORDER BY timestamp DESC LIMIT 168
+           ) SELECT timestamp, message_count FROM recent ORDER BY timestamp ASC""",
         str(guild_id),
     )
     return {"points": [{"t": r["timestamp"], "v": r["message_count"]} for r in rows]}

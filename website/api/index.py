@@ -392,7 +392,7 @@ class SubdomainRouteMiddleware:
             return
 
         # prowlbot.xyz: main website; API routes should live on the API subdomain
-        if is_main_host and path.startswith("/api/"):
+        if is_main_host and path.startswith("/api/") and not path.startswith("/api/v1/turnstile"):
             from starlette.responses import RedirectResponse
             new_path = f"https://api.prowlbot.xyz{path}"
             if query:

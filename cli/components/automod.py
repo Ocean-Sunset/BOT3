@@ -7,7 +7,8 @@ import unicodedata
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
-from components.moderation import build_embed, log_mod_action, render_embed_data
+from Ediscord.builders import embed_from_dict
+from components.moderation import log_mod_action, render_embed_data
 
 
 AUTOMOD_DEFAULTS = {
@@ -148,7 +149,7 @@ class AutoMod(commands.Cog, name="AutoMod"):
         if not isinstance(data, dict) or not (data.get("title") or data.get("description")):
             return None
         rendered = render_embed_data(data, message.author, reason, 0, "")
-        return build_embed(rendered)
+        return embed_from_dict(rendered)
 
     async def _apply_action(self, guild, settings, message, filter_name, reason, action):
         author = message.author

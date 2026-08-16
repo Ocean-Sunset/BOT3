@@ -7,6 +7,7 @@ from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
+from Ediscord.builders import emoji_title
 
 
 INVITE_DEFAULTS = {"enabled": False, "announce_channel_id": None, "ping_on_join": False}
@@ -99,7 +100,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
                 await record_invite(member.guild.id, str(inviter.id), used.code)
             embed = (
                 EmbedBuilder()
-                .title("Member Joined")
+                .title(emoji_title("invite_join", "Member Joined"))
                 .description(f"{member.mention} was invited by {inviter_name}")
                 .color("green")
                 .field("Invite Code", used.code)
@@ -113,7 +114,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
         else:
             embed = (
                 EmbedBuilder()
-                .title("Member Joined")
+                .title(emoji_title("invite_join", "Member Joined"))
                 .description(f"{member.mention} joined (no invite tracked)")
                 .color("green")
                 .field("Account Age", discord.utils.format_dt(member.created_at, style="R"))
@@ -184,7 +185,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
             lines.append(f"{medal} {name} - {row['total_uses']} invites")
         embed = (
             EmbedBuilder()
-            .title("Invite Leaderboard")
+            .title(emoji_title("invite_stats", "Invite Leaderboard"))
             .description("\n".join(lines))
             .color("gold")
             .timestamp(datetime.datetime.utcnow())

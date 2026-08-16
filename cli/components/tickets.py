@@ -7,6 +7,7 @@ from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
+from Ediscord.builders import embed_from_dict, emoji_title
 
 
 TICKET_DEFAULTS = {
@@ -21,36 +22,6 @@ TICKET_DEFAULTS = {
     "panel_embed": {},
     "questions": [],
 }
-
-
-def build_embed(data: dict) -> discord.Embed:
-    """Build a discord.Embed from a dashboard-configured dict."""
-    if not isinstance(data, dict):
-        data = {}
-    color = data.get("color")
-    try:
-        color = int(str(color).lstrip("#"), 16) if color else 0x5865F2
-    except (ValueError, TypeError):
-        color = 0x5865F2
-    embed = discord.Embed(
-        title=data.get("title") or None,
-        description=data.get("description") or None,
-        color=color,
-    )
-    if data.get("url"):
-        embed.url = data["url"]
-    if data.get("author_name"):
-        embed.set_author(name=data["author_name"], url=data.get("author_url") or None, icon_url=data.get("author_icon") or None)
-    if data.get("image_url"):
-        embed.set_image(url=data["image_url"])
-    if data.get("thumbnail_url"):
-        embed.set_thumbnail(url=data["thumbnail_url"])
-    if data.get("footer_text") or data.get("footer_icon"):
-        embed.set_footer(text=data.get("footer_text") or "", icon_url=data.get("footer_icon") or None)
-    for f in (data.get("fields") or []):
-        if isinstance(f, dict) and f.get("name"):
-            embed.add_field(name=f["name"][:256], value=(f.get("value") or "\u200b")[:1024], inline=bool(f.get("inline")))
-    return embed
 
 
 async def get_ticket_settings(guild_id: int):
@@ -105,7 +76,7 @@ class TicketView(discord.ui.View):
                 if log_channel:
                     log_embed = (
                         EmbedBuilder()
-                        .title("Ticket Closed")
+                        .title(emoji_title("ticket", "Ticket Closed"))
                         .description(f"Ticket {i.channel.mention} has been closed.")
                         .color("red")
                         .field("Closed By", interaction.user.mention)
@@ -216,7 +187,7 @@ class Tickets(commands.Cog, name="Tickets"):
             welcome = settings.get("welcome_message", "Support will be with you shortly.")
             embed = (
                 EmbedBuilder()
-                .title("Ticket Created")
+                .title(emoji_title("ticket", "Ticket Created"))
                 .description(welcome)
                 .color("blue")
                 .field("User", interaction.user.mention)
@@ -251,7 +222,7 @@ class Tickets(commands.Cog, name="Tickets"):
         if not channel or not isinstance(channel, discord.TextChannel):
             return False
         settings = await get_ticket_settings(guild.id)
-        embed = build_embed(settings.get("panel_embed") or {})
+        embed = embed_from_dict(settings.get("panel_embed") or {})
         view = CreateTicketView(self)
         try:
             await channel.send(embed=embed, view=view)
@@ -281,7 +252,7 @@ class Tickets(commands.Cog, name="Tickets"):
         await save_ticket_settings(interaction.guild_id, settings)
         embed = (
             EmbedBuilder()
-            .title("Support Tickets")
+            .title(emoji_title("ticket", "Support Tickets"))
             .description("Click the button below to create a support ticket.")
             .color("blue")
             .field("Category", category.mention)
@@ -306,7 +277,7 @@ class Tickets(commands.Cog, name="Tickets"):
             )
         embed = (
             EmbedBuilder()
-            .title("Support Tickets")
+            .title(emoji_title("ticket", "Support Tickets"))
             .description("Click below to create a ticket.")
             .color("blue")
             .timestamp(datetime.datetime.utcnow())

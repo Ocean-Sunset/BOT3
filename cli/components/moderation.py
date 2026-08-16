@@ -9,6 +9,7 @@ from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
+from Ediscord.builders import embed_from_dict, emoji_title, basic_action_embed
 from Ediscord.utils import is_owner
 
 
@@ -75,41 +76,6 @@ def format_duration(minutes: int) -> str:
     return f"{hours} hour{'s' if hours != 1 else ''} {rem} minute{'s' if rem != 1 else ''}"
 
 
-def build_embed(data: dict) -> discord.Embed:
-    """Build a discord.Embed from a dashboard-configured dict."""
-    if not isinstance(data, dict):
-        data = {}
-    color = data.get("color")
-    try:
-        color = int(str(color).lstrip("#"), 16) if color else 0x5865F2
-    except (ValueError, TypeError):
-        color = 0x5865F2
-    embed = discord.Embed(
-        title=data.get("title") or None,
-        description=data.get("description") or None,
-        color=color,
-    )
-    if data.get("url"):
-        embed.url = data["url"]
-    if data.get("author_name"):
-        embed.set_author(name=data["author_name"], url=data.get("author_url") or None, icon_url=data.get("author_icon") or None)
-    if data.get("image_url"):
-        embed.set_image(url=data["image_url"])
-    if data.get("thumbnail_url"):
-        embed.set_thumbnail(url=data["thumbnail_url"])
-    if data.get("footer_text") or data.get("footer_icon"):
-        embed.set_footer(text=data.get("footer_text") or "", icon_url=data.get("footer_icon") or None)
-    for f in (data.get("fields") or []):
-        if isinstance(f, dict) and f.get("name"):
-            embed.add_field(name=f["name"][:256], value=(f.get("value") or "\u200b")[:1024], inline=bool(f.get("inline")))
-    # Discord rejects embeds with no content at all — fall back so the action
-    # still works even when a custom embed is configured but empty.
-    if not (embed.title or embed.description or embed.fields or embed.author or embed.footer or embed.image or embed.thumbnail):
-        embed.title = "Action Completed"
-        embed.description = "\u200b"
-    return embed
-
-
 def custom_action_embed(action: str, settings: dict, member: discord.Member,
                         reason: str = "", msg_count: int = 0, time_str: str = "") -> Optional[discord.Embed]:
     """Return the dashboard-configured custom embed for an action, or None when
@@ -123,7 +89,7 @@ def custom_action_embed(action: str, settings: dict, member: discord.Member,
             or data.get("footer_text") or data.get("author_name")
             or data.get("thumbnail_url") or data.get("image_url")):
         return None
-    return build_embed(render_embed_data(data, member, reason, msg_count, time_str))
+    return embed_from_dict(render_embed_data(data, member, reason, msg_count, time_str))
 
 
 def render_embed_data(data: dict, member: discord.Member, reason: str = "", msg_count: int = 0, time_str: str = "") -> dict:
@@ -345,14 +311,7 @@ class Moderation(commands.Cog, name="Moderation"):
                 msg = render_template(settings.get(f"{action}_message", ""), member, reason, msg_count, time_str)
                 if not msg:
                     msg = f"{member.mention} has been {action}ed."
-                embed = (
-                    EmbedBuilder().title(title).description(msg).color(color)
-                    .field("Reason", reason)
-                    .field("Moderator", interaction.user.mention)
-                    .timestamp(datetime.datetime.utcnow())
-                    .build()
-                )
-                await interaction.followup.send(embed=embed)
+                await interaction.followup.send(embed=basic_action_embed(action, msg, color))
         except Exception as e:
             logger.error(f"send_confirm failed for {action}: {e}")
 
@@ -520,7 +479,7 @@ class Moderation(commands.Cog, name="Moderation"):
         if view.value is True:
             if settings.get("dm_on_action", True) and settings.get("kick_dm", True):
                 dm_embed = self._user_dm_embed(
-                    "You have been kicked",
+                    emoji_title("kick", "You have been kicked"),
                     f"You were kicked from **{interaction.guild.name}**.\n**Reason:** {reason}",
                     "red",
                 )
@@ -530,7 +489,7 @@ class Moderation(commands.Cog, name="Moderation"):
             await self.send_confirm(interaction, settings, "kick", "👢 Member Kicked", "red", member, reason)
 
             log_embed = (
-                EmbedBuilder().title("Member Kicked")
+                EmbedBuilder().title(emoji_title("kick", "Member Kicked"))
                 .description(f"{member.mention} (`{member.id}`)")
                 .color("red")
                 .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
@@ -570,7 +529,7 @@ class Moderation(commands.Cog, name="Moderation"):
         if view.value is True:
             if settings.get("dm_on_action", True) and settings.get("ban_dm", True):
                 dm_embed = self._user_dm_embed(
-                    "You have been banned",
+                    emoji_title("ban", "You have been banned"),
                     f"You were banned from **{interaction.guild.name}**.\n**Reason:** {reason}",
                     "red",
                 )
@@ -580,7 +539,7 @@ class Moderation(commands.Cog, name="Moderation"):
             await self.send_confirm(interaction, settings, "ban", "🔨 Member Banned", "red", member, reason)
 
             log_embed = (
-                EmbedBuilder().title("Member Banned")
+                EmbedBuilder().title(emoji_title("ban", "Member Banned"))
                 .description(f"{member.mention} (`{member.id}`)")
                 .color("red")
                 .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
@@ -623,7 +582,7 @@ class Moderation(commands.Cog, name="Moderation"):
         if view.value is True:
             if settings.get("dm_on_action", True) and settings.get("tempban_dm", True):
                 dm_embed = self._user_dm_embed(
-                    "You have been temporarily banned",
+                    emoji_title("tempban", "You have been temporarily banned"),
                     f"You were temporarily banned from **{interaction.guild.name}** for **{format_duration(duration)}**.\n**Reason:** {reason}",
                     "red",
                 )
@@ -633,7 +592,7 @@ class Moderation(commands.Cog, name="Moderation"):
             await self.send_confirm(interaction, settings, "tempban", "⏳ Member Temp-Banned", "red", member, reason, format_duration(duration))
 
             log_embed = (
-                EmbedBuilder().title("Member Temp-Banned")
+                EmbedBuilder().title(emoji_title("tempban", "Member Temp-Banned"))
                 .description(f"{member.mention} (`{member.id}`)")
                 .color("red")
                 .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
@@ -703,7 +662,7 @@ class Moderation(commands.Cog, name="Moderation"):
             return await interaction.followup.send(embed=_error_embed("An unexpected error occurred while unbanning."), ephemeral=True)
 
         embed = (
-            EmbedBuilder().title("User Unbanned")
+            EmbedBuilder().title(emoji_title("unban", "User Unbanned"))
             .description(f"{user.mention} has been unbanned.")
             .color("green")
             .field("Reason", reason)
@@ -714,7 +673,7 @@ class Moderation(commands.Cog, name="Moderation"):
         await interaction.followup.send(embed=embed)
 
         log_embed = (
-            EmbedBuilder().title("User Unbanned")
+            EmbedBuilder().title(emoji_title("unban", "User Unbanned"))
             .description(f"{user.mention} (`{user.id}`)")
             .color("green")
             .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
@@ -765,30 +724,20 @@ class Moderation(commands.Cog, name="Moderation"):
                 msg = render_template(settings.get("mute_message", ""), member, reason, msg_count, format_duration(duration))
                 if not msg:
                     msg = f"{member.mention} has been timed out."
-                embed = (
-                    EmbedBuilder().title("Member Muted")
-                    .description(msg)
-                    .color("orange")
-                    .field("Duration", format_duration(duration))
-                    .field("Reason", reason)
-                    .field("Moderator", interaction.user.mention)
-                    .timestamp(datetime.datetime.utcnow())
-                    .build()
-                )
-                await interaction.response.send_message(embed=embed)
+                await interaction.response.send_message(embed=basic_action_embed("mute", msg, "orange"))
         else:
             await interaction.response.send_message(embed=EmbedBuilder().title("Member Muted").description("Done.").color("orange").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
         if settings.get("dm_on_action", True) and settings.get("mute_dm", True):
             dm_embed = self._user_dm_embed(
-                "You have been muted",
+                emoji_title("mute", "You have been muted"),
                 f"You were muted in **{interaction.guild.name}** for **{format_duration(duration)}**.\n**Reason:** {reason}",
                 "orange",
             )
             await safe_dm(member, embed=dm_embed)
 
         log_embed = (
-            EmbedBuilder().title("Member Muted")
+            EmbedBuilder().title(emoji_title("mute", "Member Muted"))
             .description(f"{member.mention} (`{member.id}`)")
             .color("orange")
             .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
@@ -828,7 +777,7 @@ class Moderation(commands.Cog, name="Moderation"):
 
         if not settings.get("silent_mod"):
             embed = (
-                EmbedBuilder().title("Member Unmuted")
+                EmbedBuilder().title(emoji_title("unmute", "Member Unmuted"))
                 .description(f"{member.mention}'s mute has been removed.")
                 .color("green")
                 .field("Reason", reason)
@@ -842,14 +791,14 @@ class Moderation(commands.Cog, name="Moderation"):
 
         if settings.get("dm_on_action", True) and settings.get("mute_dm", True):
             dm_embed = self._user_dm_embed(
-                "You have been unmuted",
+                emoji_title("unmute", "You have been unmuted"),
                 f"Your mute in **{interaction.guild.name}** has been removed.\n**Reason:** {reason}",
                 "green",
             )
             await safe_dm(member, embed=dm_embed)
 
         log_embed = (
-            EmbedBuilder().title("Member Unmuted")
+            EmbedBuilder().title(emoji_title("unmute", "Member Unmuted"))
             .description(f"{member.mention} (`{member.id}`)")
             .color("green")
             .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
@@ -884,29 +833,20 @@ class Moderation(commands.Cog, name="Moderation"):
                 msg = render_template(settings.get("warn_message", ""), member, reason, msg_count)
                 if not msg:
                     msg = f"{member.mention} has been warned."
-                embed = (
-                    EmbedBuilder().title("Member Warned")
-                    .description(msg)
-                    .color("yellow")
-                    .field("Reason", reason)
-                    .field("Moderator", interaction.user.mention)
-                    .timestamp(datetime.datetime.utcnow())
-                    .build()
-                )
-                await interaction.response.send_message(embed=embed)
+                await interaction.response.send_message(embed=basic_action_embed("warn", msg, "yellow"))
         else:
             await interaction.response.send_message(embed=EmbedBuilder().title("Member Warned").description("Done.").color("yellow").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
         if settings.get("dm_on_action", True) and settings.get("warn_dm", True):
             dm_embed = self._user_dm_embed(
-                "You have been warned",
+                emoji_title("warn", "You have been warned"),
                 f"You were warned in **{interaction.guild.name}**.\n**Reason:** {reason}",
                 "yellow",
             )
             await safe_dm(member, embed=dm_embed)
 
         log_embed = (
-            EmbedBuilder().title("Member Warned")
+            EmbedBuilder().title(emoji_title("warn", "Member Warned"))
             .description(f"{member.mention} (`{member.id}`)")
             .color("yellow")
             .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
@@ -938,7 +878,7 @@ class Moderation(commands.Cog, name="Moderation"):
             return await interaction.response.send_message(embed=_error_embed(f"Failed to purge: {e}"), ephemeral=True)
 
         embed = (
-            EmbedBuilder().title("Messages Purged")
+            EmbedBuilder().title(emoji_title("purge", "Messages Purged"))
             .description(f"Deleted {len(deleted)} messages.")
             .color("blue")
             .field("Channel", interaction.channel.mention)
@@ -949,7 +889,7 @@ class Moderation(commands.Cog, name="Moderation"):
         await interaction.response.send_message(embed=embed, delete_after=5)
 
         log_embed = (
-            EmbedBuilder().title("Messages Purged")
+            EmbedBuilder().title(emoji_title("purge", "Messages Purged"))
             .description(f"Deleted **{len(deleted)}** messages in {interaction.channel.mention} (`{str(interaction.channel.id)}`)")
             .color("blue")
             .field("Moderator", f"{interaction.user.mention} (`{str(interaction.user.id)}`)")

@@ -7,7 +7,7 @@ from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
-from components.moderation import build_embed
+from Ediscord.builders import embed_from_dict, emoji_title
 
 
 WELCOME_DEFAULTS = {
@@ -84,7 +84,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
         mode = settings.get("welcome_mode", "basic")
         if mode == "custom" and settings.get("welcome_embed_data"):
             try:
-                embed = build_embed(render_welcome_embed(settings["welcome_embed_data"], member))
+                embed = embed_from_dict(render_welcome_embed(settings["welcome_embed_data"], member))
                 await channel.send(embed=embed)
             except Exception as e:
                 logger.warning(f"Failed to send custom welcome embed: {e}")
@@ -93,7 +93,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
             try:
                 embed = (
                     EmbedBuilder()
-                    .title("Welcome!")
+                    .title(emoji_title("welcome", "Welcome!"))
                     .description(msg)
                     .color("green")
                     .thumbnail(member.display_avatar.url)
@@ -112,7 +112,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
             try:
                 dm_embed = (
                     EmbedBuilder()
-                    .title(f"Welcome to {member.guild.name}!")
+                    .title(emoji_title("welcome", f"Welcome to {member.guild.name}!"))
                     .description(dm_msg)
                     .color("green")
                     .thumbnail(member.guild.icon.url if member.guild.icon else None)
@@ -149,12 +149,12 @@ class Welcomer(commands.Cog, name="Welcomer"):
         mode = settings.get("goodbye_mode", "basic")
         try:
             if mode == "custom" and settings.get("goodbye_embed_data"):
-                embed = build_embed(render_welcome_embed(settings["goodbye_embed_data"], member))
+                embed = embed_from_dict(render_welcome_embed(settings["goodbye_embed_data"], member))
                 await channel.send(embed=embed)
             else:
                 embed = (
                     EmbedBuilder()
-                    .title("Goodbye")
+                    .title(emoji_title("goodbye", "Goodbye"))
                     .description(msg)
                     .color("red")
                     .thumbnail(member.display_avatar.url)

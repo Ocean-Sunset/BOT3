@@ -39,6 +39,63 @@ ERROR   = 0xEF4444   # red    — failures / denied
 WARN    = 0xF59E0B   # amber  — cautions / warnings
 INFO    = 0x3B82F6   # blue   — informational
 
+# ==================================================================================================
+#                                        EMBED TYPE EMOJIS
+# ==================================================================================================
+
+# Every embed "type" maps to an emoji used to prefix its title (emoji + two spaces).
+# Values are unicode fallbacks for now — replace any with a custom server emoji string
+# like "<:prowl_ban:1234567890>" once the emojis are built.
+EMBED_EMOJIS = {
+    # Moderation actions
+    "ban":       "🔨",
+    "tempban":   "⏳",
+    "kick":      "👢",
+    "mute":      "🔇",
+    "unmute":    "🔊",
+    "warn":      "⚠️",
+    "unban":     "🔓",
+    "purge":     "🧹",
+    "modlog":    "📋",
+    "dm":        "📬",
+    # Leveling
+    "level_up":  "🎉",
+    "rank":      "📊",
+    "leaderboard": "🏆",
+    # Welcomer
+    "welcome":   "👋",
+    "goodbye":   "👋",
+    "auto_role": "🎭",
+    # Tickets
+    "ticket":      "🎫",
+    "ticket_open": "🎫",
+    "ticket_close": "🔒",
+    # Verification
+    "verify":      "✅",
+    "verify_fail": "❌",
+    # Invite tracker
+    "invite_join":  "👤",
+    "invite_stats": "📨",
+    # Global chat
+    "global_chat": "🌍",
+    # Automation / settings
+    "anti_raid": "🛡️",
+    "settings":  "⚙️",
+}
+
+
+def emoji_for(key: str) -> str:
+    """Return the emoji registered for an embed type ("" if none)."""
+    return EMBED_EMOJIS.get(key, "")
+
+
+def emoji_title(key: str, text: str) -> str:
+    """Prefix *text* with the type's emoji, separated by two spaces."""
+    emoji = emoji_for(key)
+    if not emoji:
+        return text
+    return f"{emoji}  {text}"
+
 _SEMANTIC = {
     "brand": BRAND, "violet": BRAND, "purple": BRAND,
     "success": SUCCESS, "green": SUCCESS, "ok": SUCCESS,
@@ -554,3 +611,47 @@ def error_embed(title: str, description: str = None) -> discord.Embed:
 def info_embed(title: str, description: str = None) -> discord.Embed:
     """Blue info embed."""
     return EmbedBuilder().info(title, description).build()
+
+
+def embed_from_dict(data: dict) -> discord.Embed:
+    """Build a :class:`discord.Embed` from a dashboard-configured dict.
+
+    Shared across every cog that renders dashboard embeds (moderation actions,
+    leveling, welcome/goodbye, tickets, ...).
+    """
+    if not isinstance(data, dict):
+        data = {}
+    color = data.get("color")
+    try:
+        color = int(str(color).lstrip("#"), 16) if color else BRAND
+    except (ValueError, TypeError):
+        color = BRAND
+    embed = discord.Embed(
+        title=data.get("title") or None,
+        description=data.get("description") or None,
+        color=color,
+    )
+    if data.get("url"):
+        embed.url = data["url"]
+    if data.get("author_name"):
+        embed.set_author(name=data["author_name"], url=data.get("author_url") or None, icon_url=data.get("author_icon") or None)
+    if data.get("image_url"):
+        embed.set_image(url=data["image_url"])
+    if data.get("thumbnail_url"):
+        embed.set_thumbnail(url=data["thumbnail_url"])
+    if data.get("footer_text") or data.get("footer_icon"):
+        embed.set_footer(text=data.get("footer_text") or "", icon_url=data.get("footer_icon") or None)
+    for f in (data.get("fields") or []):
+        if isinstance(f, dict) and f.get("name"):
+            embed.add_field(name=f["name"][:256], value=(f.get("value") or "\u200b")[:1024], inline=bool(f.get("inline")))
+    # Discord rejects embeds with no content at all — fall back so the action
+    # still works even when a custom embed is configured but empty.
+    if not (embed.title or embed.description or embed.fields or embed.author or embed.footer or embed.image or embed.thumbnail):
+        embed.title = "Action Completed"
+        embed.description = "\u200b"
+    return embed
+
+
+def basic_action_embed(key: str, message: str, color: str = "brand") -> discord.Embed:
+    """Basic-mode action embed: emoji + two spaces + message as the title (no fields)."""
+    return EmbedBuilder().title(emoji_title(key, message)).color(color).build()

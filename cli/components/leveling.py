@@ -9,6 +9,7 @@ from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
+from Ediscord.builders import embed_from_dict, emoji_title
 
 
 LEVELING_DEFAULTS = {
@@ -75,36 +76,6 @@ def format_level_up_message(
     for key, value in replacements.items():
         out = out.replace(key, value)
     return out
-
-
-def build_embed(data: dict) -> discord.Embed:
-    """Build a discord.Embed from a dashboard-configured dict."""
-    if not isinstance(data, dict):
-        data = {}
-    color = data.get("color")
-    try:
-        color = int(str(color).lstrip("#"), 16) if color else 0x57F287
-    except (ValueError, TypeError):
-        color = 0x57F287
-    embed = discord.Embed(
-        title=data.get("title") or None,
-        description=data.get("description") or None,
-        color=color,
-    )
-    if data.get("url"):
-        embed.url = data["url"]
-    if data.get("author_name"):
-        embed.set_author(name=data["author_name"], url=data.get("author_url") or None, icon_url=data.get("author_icon") or None)
-    if data.get("image_url"):
-        embed.set_image(url=data["image_url"])
-    if data.get("thumbnail_url"):
-        embed.set_thumbnail(url=data["thumbnail_url"])
-    if data.get("footer_text") or data.get("footer_icon"):
-        embed.set_footer(text=data.get("footer_text") or "", icon_url=data.get("footer_icon") or None)
-    for f in (data.get("fields") or []):
-        if isinstance(f, dict) and f.get("name"):
-            embed.add_field(name=f["name"][:256], value=(f.get("value") or "\u200b")[:1024], inline=bool(f.get("inline")))
-    return embed
 
 
 def render_embed_vars(data: dict, message: discord.Message, level: int, xp: int, xp_needed: int, granted_role=None) -> dict:
@@ -230,7 +201,7 @@ class Leveling(commands.Cog, name="Leveling"):
                             settings.get("level_up_embed") or {}, message=message,
                             level=new_level, xp=new_xp, xp_needed=xp_needed, granted_role=granted_role,
                         )
-                        embed = build_embed(data)
+                        embed = embed_from_dict(data)
                         await channel.send(embed=embed)
                     else:
                         msg = format_level_up_message(
@@ -243,7 +214,7 @@ class Leveling(commands.Cog, name="Leveling"):
                         )
                         embed = (
                             EmbedBuilder()
-                            .title("Level Up!")
+                            .title(emoji_title("level_up", "Level Up!"))
                             .description(msg)
                             .color("green")
                             .field("New Level", str(new_level))
@@ -272,7 +243,7 @@ class Leveling(commands.Cog, name="Leveling"):
         progress_bar = create_progress_bar(xp_in_level, xp_needed, 15)
         embed = (
             EmbedBuilder()
-            .title(f"📊 {target.display_name}'s Rank")
+            .title(emoji_title("rank", f"{target.display_name}'s Rank"))
             .color("blue")
             .thumbnail(target.display_avatar.url)
             .field("Level", str(current_level))
@@ -319,7 +290,7 @@ class Leveling(commands.Cog, name="Leveling"):
             lines.append(f"{medal} {name} - Level {lvl} ({row['xp']:,} XP)")
         embed = (
             EmbedBuilder()
-            .title("XP Leaderboard")
+            .title(emoji_title("leaderboard", "XP Leaderboard"))
             .description("\n".join(lines))
             .color("gold")
             .footer(f"Page {page}/{total_pages} | Total: {total_users} users")

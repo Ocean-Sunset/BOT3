@@ -10,6 +10,7 @@ from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
+from Ediscord.builders import emoji_title
 
 
 SITE_URL = os.environ.get("SITE_URL") or "https://prowlbot.xyz"
@@ -80,7 +81,7 @@ async def _verify_done(interaction: discord.Interaction, role_id, role_label="ve
         return
     await interaction.user.add_roles(role, reason=f"Verified via {role_label}")
     await interaction.response.send_message(
-        embed=EmbedBuilder().title("Verified").description("You have been verified!").color("green").timestamp(datetime.datetime.utcnow()).build(),
+        embed=EmbedBuilder().title(emoji_title("verify", "Verified")).description("You have been verified!").color("green").timestamp(datetime.datetime.utcnow()).build(),
         ephemeral=True
     )
 

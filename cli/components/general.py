@@ -35,7 +35,7 @@ class General(commands.Cog):
         embed = (
             EmbedBuilder()
             .title(emoji_title("bot", "Prowl"))
-            .description("A silly little cat bot with a ton of abilities.")
+            .description("A silly little cat bot with a ton of abilities")
             .color("gray")
             .thumbnail("https://prowlbot.xyz/static/favicon.png")
             .field("Servers", str(len(self.bot.guilds)), inline=True)

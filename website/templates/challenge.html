@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prowl - Verification</title>
+  <meta name="description" content="Complete the verification to access Prowl." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/static/favicon.png" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <link rel="stylesheet" href="/static/landing.css?v=2" />
+  <style>
+    .captcha-page {
+      min-height: 100vh; width: 100%; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center;
+      padding: 0 6vw; position: relative; z-index: 1;
+    }
+    .captcha-brand { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; color: #fff; margin-bottom: 2rem; }
+    .captcha-brand img { width: 32px; height: 32px; object-fit: contain; }
+    .captcha-brand span { font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; }
+    .captcha-card {
+      width: 100%; max-width: 420px; border: 1px solid rgba(255,255,255,0.12);
+      background: #151515; border-radius: 6px; padding: 1.75rem;
+    }
+    .captcha-title { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; }
+    .captcha-sub { margin-top: 0.6rem; font-size: 0.85rem; color: #666; font-weight: 500; line-height: 1.6; }
+    .captcha-widget { display: flex; justify-content: center; margin: 1.4rem 0 1.1rem; min-height: 65px; }
+    .captcha-status { font-size: 0.85rem; font-weight: 600; min-height: 1.4em; margin-top: 0.4rem; }
+    .captcha-status.ok { color: #34d399; }
+    .captcha-status.err { color: #f87171; }
+    .captcha-back { display: inline-block; margin-top: 1.25rem; font-size: 0.8rem; color: #555; text-decoration: none; font-weight: 600; transition: color 0.2s; }
+    .captcha-back:hover { color: #888; }
+  </style>
+</head>
+<body>
+
+  <div class="wave-field" id="wave-field"></div>
+  <div class="vignette"></div>
+
+  <div class="captcha-page">
+    <a href="/" class="captcha-brand gsap-hero">
+      <img src="/static/favicon.png" alt="Prowl" />
+      <span>Prowl</span>
+    </a>
+    <div class="captcha-card gsap-hero">
+      <h1 class="captcha-title">One more step</h1>
+      <p class="captcha-sub">Complete the verification below to continue to Prowl.</p>
+      <div class="captcha-widget">
+        <div class="cf-turnstile" data-sitekey="{{ site_key }}" data-theme="dark" data-callback="onTurnstileSuccess"></div>
+      </div>
+      <div class="captcha-status" id="status"></div>
+    </div>
+    <a href="/" class="captcha-back gsap-btns">Back to home</a>
+  </div>
+
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <script>
+    const statusEl = document.getElementById('status');
+    let submitted = false;
+
+    function setStatus(text, ok) {
+      if (!text) { statusEl.textContent = ''; statusEl.className = 'captcha-status'; return; }
+      statusEl.textContent = text;
+      statusEl.className = 'captcha-status ' + (ok ? 'ok' : 'err');
+    }
+
+    function onTurnstileSuccess(token) {
+      if (submitted) return;
+      submitted = true;
+      setStatus('Verifying\u2026');
+      fetch('/api/v1/turnstile/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: token, redirect: '/' })
+      }).then(function(res) {
+        if (res.redirected || res.ok) {
+          setStatus('Verified! Redirecting\u2026', true);
+          setTimeout(function() { window.location.href = '/'; }, 400);
+        } else {
+          return res.json().then(function(d) {
+            submitted = false;
+            setStatus((d && d.error) || 'Verification failed. Please try again.', false);
+            if (typeof turnstile !== 'undefined') turnstile.reset();
+          });
+        }
+      }).catch(function() {
+        submitted = false;
+        setStatus('Network error. Please try again.', false);
+        if (typeof turnstile !== 'undefined') turnstile.reset();
+      });
+    }
+
+    // ── Tildes ──
+    var waveField = document.getElementById('wave-field');
+    var isMobile = window.innerWidth < 768;
+    var tildeCount = isMobile ? 20 : 36;
+    for (var i = 0; i < tildeCount; i++) {
+      var el = document.createElement('span');
+      el.textContent = '~';
+      el.style.left = Math.random() * 100 + '%';
+      el.style.top = Math.random() * 100 + '%';
+      el.style.fontSize = (1 + Math.random() * 1.8) + 'rem';
+      el.style.opacity = 0.04 + Math.random() * 0.1;
+      el.style.setProperty('--dx', (-12 + Math.random() * 24) + 'px');
+      el.style.setProperty('--dy', (-20 + Math.random() * 40) + 'px');
+      el.style.animation = 'tildeFloat ' + (4 + Math.random() * 6) + 's ease-in-out ' + (Math.random() * 4) + 's infinite alternate';
+      waveField.appendChild(el);
+    }
+
+    // ── Load animation ──
+    gsap.set('.gsap-hero', { opacity: 0, y: 30 });
+    gsap.set('.gsap-btns', { opacity: 0, y: 24 });
+    var tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+    tl.to('.gsap-hero', { opacity: 1, y: 0, duration: 0.7 })
+      .to('.gsap-btns', { opacity: 1, y: 0, duration: 0.6 }, '-=0.35');
+  </script>
+</body>
+</html>

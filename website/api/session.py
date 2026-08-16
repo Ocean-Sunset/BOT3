@@ -103,6 +103,36 @@ def unsign_session_data(cookie: str) -> Optional[dict]:
     return None
 
 
+# ── Turnstile verification cookie ──
+
+TURNSTILE_TTL = 86400  # 24 hours
+
+
+def sign_turnstile_token(data: dict) -> str:
+    return _make_serializer(_get_current_key()).dumps(data or {})
+
+
+def verify_turnstile_token(token: str) -> bool:
+    for entry in reversed(_key_ring):
+        try:
+            data = _make_serializer(entry["key"]).loads(token, max_age=TURNSTILE_TTL)
+            return isinstance(data, dict) and "ts" in data
+        except (BadSignature, SignatureExpired):
+            continue
+    return False
+
+
+def is_turnstile_verified(session_data: dict) -> bool:
+    """Check if a session dict contains a valid, non-expired turnstile verification."""
+    ts = session_data.get("_turnstile_ts")
+    if not ts:
+        return False
+    try:
+        return (time.time() - float(ts)) < TURNSTILE_TTL
+    except (ValueError, TypeError):
+        return False
+
+
 # ── File fallback (only used when DB is unavailable) ──
 
 def _save_file():

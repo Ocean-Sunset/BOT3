@@ -279,6 +279,41 @@ CREATE TABLE IF NOT EXISTS request_stats (
 """
 
 
+# ── Turnstile challenge gate ──
+class TurnstileMiddleware:
+    """Gate the entire site behind a Cloudflare Turnstile challenge.
+    Visitors without a valid turnstile flag in their session are redirected to /challenge."""
+
+    WHITELIST_PREFIXES = ("/static", "/challenge", "/api/", "/favicon")
+    WHITELIST_PATHS = {"/", "/health", "/api/v1/health", "/api/v1/ping"}
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+
+        if path in self.WHITELIST_PATHS or any(path.startswith(p) for p in self.WHITELIST_PREFIXES):
+            await self.app(scope, receive, send)
+            return
+
+        # Check session for turnstile verification
+        session = scope.get("session")
+        if session and rotating_session.is_turnstile_verified(session):
+            await self.app(scope, receive, send)
+            return
+
+        from starlette.responses import RedirectResponse
+        resp = RedirectResponse("/challenge", status_code=302)
+        await resp(scope, receive, send)
+
+
+app.add_middleware(TurnstileMiddleware)
+
 app.add_middleware(RequestCountMiddleware)
 
 # ── Subdomain routing: enforce api.prowlbot.xyz = API only, prowlbot.xyz = pages ──
@@ -531,6 +566,15 @@ async def index(request: Request):
     return templates.TemplateResponse(request, "index.html", {
         "config": _cfg(),
         "user": user,
+    })
+
+
+@app.get("/challenge", response_class=HTMLResponse)
+async def challenge_page(request: Request):
+    """Cloudflare Turnstile challenge page — gate before the rest of the site."""
+    return templates.TemplateResponse(request, "challenge.html", {
+        "site_key": os.environ.get("TURNSTILE_SITE_KEY", ""),
+        "config": _cfg(),
     })
 
 
@@ -997,6 +1041,44 @@ async def api_health():
 @app.get("/api/v1/ping")
 async def api_ping():
     return {"ping": "pong"}
+
+
+@app.post("/api/v1/turnstile/verify")
+async def turnstile_verify(request: Request):
+    """Validate a Cloudflare Turnstile token and set a signed cookie."""
+    TURNSTILE_SECRET = os.environ.get("TURNSTILE_SECRET", "")
+    if not TURNSTILE_SECRET:
+        return HTMLResponse("Turnstile not configured.", status_code=500)
+
+    body = await request.json()
+    token = body.get("token", "")
+    if not token:
+        return JSONResponse({"ok": False, "error": "Missing token."}, status_code=400)
+
+    remoteip = request.headers.get("CF-Connecting-IP") or request.headers.get("X-Forwarded-For", "")
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                data={"secret": TURNSTILE_SECRET, "response": token, "remoteip": remoteip},
+            )
+            result = resp.json()
+    except Exception as e:
+        logger.error("Turnstile verify error: %s", e)
+        return JSONResponse({"ok": False, "error": "Verification service error."}, status_code=502)
+
+    if not result.get("success"):
+        return JSONResponse({"ok": False, "error": "Verification failed.", "codes": result.get("error-codes", [])}, status_code=400)
+
+    # Set turnstile flag in session (RotatingSessionMiddleware will persist it in the signed cookie)
+    scope_session = request.scope.get("session")
+    if scope_session is not None:
+        scope_session["_turnstile_ts"] = int(time.time())
+
+    # Redirect to the page the user was trying to reach (or /)
+    redirect_to = body.get("redirect", "/")
+    return RedirectResponse(redirect_to, status_code=302)
 
 
 @app.get("/api/v1/db-test")

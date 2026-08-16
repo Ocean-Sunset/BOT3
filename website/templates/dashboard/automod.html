@@ -146,7 +146,7 @@ function openConfig(filterKey, action) {
   cfgAction = base;
   const f = FILTERS.find(x => x.key === filterKey);
   document.getElementById('am-config-title').textContent = 'Configure ' + actionLabel(action);
-  document.getElementById('am-config-sub').textContent = f ? f.name + ' — ' + f.desc : '';
+  document.getElementById('am-config-sub').textContent = f ? f.name + ' - ' + f.desc : '';
   const cur = (SETTINGS_SNAPSHOT.action_configs || {})[filterKey] || {};
   const el = document.getElementById('am-config-fields');
   const banDays = (base === 'ban') ? '<div class="am-field-label" style="margin-top:0.6rem;">Delete Messages (days)</div>' +
@@ -226,7 +226,7 @@ function saveConfig() {
   all[cfgFilter] = obj;
   markChanged('action_configs', all);
   document.getElementById('am-config-modal').classList.remove('is-open');
-  if (typeof showToast === 'function') showToast('Action config saved — press Save to confirm.', 'info');
+  if (typeof showToast === 'function') showToast('Action config saved - press Save to confirm.', 'info');
 }
 
 function renderFilters() {

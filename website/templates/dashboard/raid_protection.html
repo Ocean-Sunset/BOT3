@@ -47,7 +47,7 @@
             </div>
           </div>
           <div class="md-behavior-item">
-            <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.6;padding-top:0.25rem;">Only matters when the raid <b>action</b> is <b>Lockdown Server</b> or <b>Require Verification</b> — those lock the server down, and this re-opens it automatically. Kick / Ban aren't affected.</div>
+            <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.6;padding-top:0.25rem;">Only matters when the raid <b>action</b> is <b>Lockdown Server</b> or <b>Require Verification</b> - those lock the server down, and this re-opens it automatically. Kick / Ban aren't affected.</div>
           </div>
         </div>
       </div>
@@ -116,7 +116,7 @@
         <div class="md-behavior-list">
           <div class="md-behavior-item">
             <label class="md-toggle"><input type="checkbox" id="rp-avatar-enabled" /><span class="md-toggle-slider"></span></label>
-            <div><div class="md-behavior-label">Block Default Avatars</div><div class="md-behavior-desc">Act on members still using Discord's default avatar — a common raider trait</div></div>
+            <div><div class="md-behavior-label">Block Default Avatars</div><div class="md-behavior-desc">Act on members still using Discord's default avatar - a common raider trait</div></div>
           </div>
           <div class="md-behavior-item">
             <div style="flex:1">
@@ -136,10 +136,10 @@
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div class="md-section-title">Actions Explained</div>
         <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.7;">
-          <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Kick</b> — removes each flagged new member.</div>
-          <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Ban</b> — bans each flagged new member.</div>
-          <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Lockdown Server</b> — locks the server down: active invites are deleted and everyone (new or existing) is blocked from sending messages and joining voice. Existing members are handled with your moderation actions (kick / ban / mute) while it stays locked. Use Auto Recovery to re-open it.</div>
-          <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Require Verification</b> — locks the server and enables the verification panel so real members can prove they're human.</div>
+          <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Kick</b> - removes each flagged new member.</div>
+          <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Ban</b> - bans each flagged new member.</div>
+          <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Lockdown Server</b> - locks the server down: active invites are deleted and everyone (new or existing) is blocked from sending messages and joining voice. Existing members are handled with your moderation actions (kick / ban / mute) while it stays locked. Use Auto Recovery to re-open it.</div>
+          <div style="padding:0.3rem 0;"><b style="color:rgba(255,255,255,0.65);">Require Verification</b> - locks the server and enables the verification panel so real members can prove they're human.</div>
         </div>
       </div>
     </div>
@@ -156,7 +156,7 @@
             </div>
           </div>
           <div class="md-behavior-item">
-            <div style="font-size:0.8rem;color:#fbbf24;line-height:1.6;padding:0.2rem 0;"><span id="score-summary">—</span></div>
+            <div style="font-size:0.8rem;color:#fbbf24;line-height:1.6;padding:0.2rem 0;"><span id="score-summary">-</span></div>
           </div>
         </div>
       </div>
@@ -214,7 +214,7 @@
             </div>
           </div>
           <div class="md-behavior-item">
-            <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.6;padding-top:0.25rem;">Lockdown Server / Require Verification also lock the server down — combine with Auto Recovery to unlock automatically.</div>
+            <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.6;padding-top:0.25rem;">Lockdown Server / Require Verification also lock the server down - combine with Auto Recovery to unlock automatically.</div>
           </div>
         </div>
       </div>
@@ -295,7 +295,7 @@ function updateScoreSummary() {
   const msgs = {
     kick: 'New members whose score reaches ' + th + ' or more points are kicked on arrival.',
     ban: 'New members whose score reaches ' + th + ' or more points are banned on arrival.',
-    lockdown: 'When a new member\u2019s score reaches ' + th + ' or more points, the server is locked down: invites are deleted and everyone — new or existing — is blocked from sending messages and joining voice. Existing members are handled by your moderation actions while it stays locked.',
+    lockdown: 'When a new member\u2019s score reaches ' + th + ' or more points, the server is locked down: invites are deleted and everyone - new or existing - is blocked from sending messages and joining voice. Existing members are handled by your moderation actions while it stays locked.',
     verify: 'When a new member\u2019s score reaches ' + th + ' or more points, the server is locked down and verification is required.',
   };
   el.textContent = msgs[act] || msgs.kick;

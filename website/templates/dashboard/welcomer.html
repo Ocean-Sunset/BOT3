@@ -117,7 +117,7 @@
                 <button class="md-custom-select-btn" id="wl-roles-btn">Add role...</button>
                 <div class="md-custom-select-drop" id="wl-roles-drop"></div>
               </div>
-              <div style="margin-top:0.5rem;" id="wl-roles-list"><div class="wl-role-empty">No auto roles selected — new members won't get any role.</div></div>
+              <div style="margin-top:0.5rem;" id="wl-roles-list"><div class="wl-role-empty">No auto roles selected - new members won't get any role.</div></div>
             </div>
           </div>
         </div>
@@ -137,7 +137,7 @@
           <code class="wl-code">{server.id}</code><span class="wl-code-note">server ID</span>
           <code class="wl-code">{count}</code><span class="wl-code-note">member count</span>
         </div>
-        <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.6;margin-top:0.75rem;">Use these in any welcome, goodbye, DM message, or custom embed — they're filled in when a member joins or leaves. Custom embeds support them in the title, description, footer and author fields.</div>
+        <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.6;margin-top:0.75rem;">Use these in any welcome, goodbye, DM message, or custom embed - they're filled in when a member joins or leaves. Custom embeds support them in the title, description, footer and author fields.</div>
       </div>
     </div>
 
@@ -256,7 +256,7 @@ function renderRoles() {
         const r = ROLES.find(x => String(x.id) === String(rid));
         return '<span class="wl-role-tag">' + esc(r ? r.name : rid) + ' <button type="button" data-rm="' + rid + '" class="wl-role-rm">&times;</button></span>';
       }).join('')
-    : '<div class="wl-role-empty">No auto roles selected — new members won\'t get any role.</div>';
+    : '<div class="wl-role-empty">No auto roles selected - new members won\'t get any role.</div>';
   el.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => {
     const next = (SETTINGS_SNAPSHOT.auto_role_ids || []).filter(x => String(x) !== b.dataset.rm);
     markChanged('auto_role_ids', next);
@@ -402,7 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       markChanged(currentEmbedTarget + '_embed_data', e);
-      if (typeof showToast === 'function') showToast('Custom embed updated — press Save to confirm.', 'success');
+      if (typeof showToast === 'function') showToast('Custom embed updated - press Save to confirm.', 'success');
     }
     document.getElementById('wl-embed-modal').classList.remove('is-open');
   });

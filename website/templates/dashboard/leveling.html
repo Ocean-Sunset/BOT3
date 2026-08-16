@@ -335,7 +335,7 @@ document.querySelectorAll('[data-edit-embed]').forEach(b => b.addEventListener('
 document.getElementById('ee-save').addEventListener('click', () => {
   const e = collectEmbed();
   if (Object.keys(e).length === 0) {
-    if (typeof showToast === 'function') showToast('The embed is empty — add a title, description, footer or a field first.', 'warning', 5000);
+    if (typeof showToast === 'function') showToast('The embed is empty - add a title, description, footer or a field first.', 'warning', 5000);
     return;
   }
   markChanged('level_up_embed', e);

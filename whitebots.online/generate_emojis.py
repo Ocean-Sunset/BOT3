@@ -1,5 +1,5 @@
 """
-Prowl emoji generator — Lucide icon font glyphs on semi-transparent rounded-rect backgrounds.
+Prowl emoji generator - Lucide icon font glyphs on semi-transparent rounded-rect backgrounds.
 Expanded set: 128 emojis covering moderation, leveling, welcomer, tickets, verification,
 invite tracker, global chat, anti-raid, status, and general UI icons.
 
@@ -16,7 +16,7 @@ FONT_SIZE = 72
 FONT_PATH = os.path.join(os.path.dirname(__file__), "lucide.ttf")
 
 # (lucide_char, color_hex)
-# All icons are unique Lucide codepoints — no two keys share a glyph.
+# All icons are unique Lucide codepoints - no two keys share a glyph.
 ICONS = {
     # ═══════ MODERATION ═══════
     "ban":            ("\ue051", "#EF4444"),
@@ -84,7 +84,7 @@ ICONS = {
     "warning":        ("\ue193", "#F59E0B"),
     "pending":        ("\ue109", "#F59E0B"),
 
-    # ═══════ UI / GENERAL — neutral gray for purely structural icons ═══════
+    # ═══════ UI / GENERAL - neutral gray for purely structural icons ═══════
     "settings":       ("\ue154", "#6B7280"),
     "dashboard":      ("\ue1c1", "#6B7280"),
     "analytics":      ("\ue2a3", "#6B7280"),

@@ -357,7 +357,7 @@ class ProwlBot(commands.Bot):
                 reason = f"Nickname set to {target_name}"
             elif act == "leave_guild":
                 await guild.leave()
-                reason = "Account deletion — leaving server"
+                reason = "Account deletion - leaving server"
                 skip_log = True
             else:
                 return False, f"unknown action: {act}"

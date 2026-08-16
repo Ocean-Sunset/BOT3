@@ -169,7 +169,7 @@ class AutoMod(commands.Cog, name="AutoMod"):
                 if custom_embed is not None:
                     await author.send(embed=custom_embed)
                 else:
-                    await author.send(f"**AutoMod — {filter_name}** in {guild.name}:\n{reason}")
+                    await author.send(f"**AutoMod - {filter_name}** in {guild.name}:\n{reason}")
             except Exception:
                 pass
         if base == "warn":

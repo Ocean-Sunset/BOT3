@@ -89,6 +89,26 @@ body {
   100% { transform: rotate(360deg); }
 }
 
+/* ── Block loader (spinner without favicon) ── */
+.block-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 0;
+}
+.block-loader svg {
+  width: 36px;
+  height: 36px;
+  animation: loader-spin 1s linear infinite;
+}
+.block-loader svg circle {
+  fill: none;
+  stroke: rgba(255,255,255,0.5);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-dasharray: 75 35;
+}
+
 /* ── Sidebar ── */
 .sidebar {
   flex-shrink: 0;

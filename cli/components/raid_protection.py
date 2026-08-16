@@ -134,7 +134,7 @@ class RaidProtection(commands.Cog, name="RaidProtection"):
             action = settings.get("score_action", "kick")
             reason = f"Raid score {score}/{min_score} ({', '.join(parts) or 'no criteria matched'})"
             await self._apply_action(guild, settings, member, reason, action)
-            await self._log(guild, settings, emoji_title("raid_detected", "Raid Protection"), f"{member.mention} (`{member}`) blocked — {reason}", "error")
+            await self._log(guild, settings, emoji_title("raid_detected", "Raid Protection"), f"{member.mention} (`{member}`) blocked - {reason}", "error")
             if settings.get("auto_recovery") and action == "lockdown":
                 minutes = int(settings.get("recovery_minutes", 30) or 30)
                 asyncio.create_task(self._recover(guild.id, minutes))
@@ -159,7 +159,7 @@ class RaidProtection(commands.Cog, name="RaidProtection"):
         if settings.get("default_avatar_enabled") and member.avatar is None:
             reason = "Raid protection: using a default avatar"
             await self._apply_action(guild, settings, member, reason, settings.get("default_avatar_action", "kick"))
-            await self._log(guild, settings, emoji_title("anti_raid", "Raid Protection"), f"{member.mention} (`{member}`) blocked — {reason}", "info")
+            await self._log(guild, settings, emoji_title("anti_raid", "Raid Protection"), f"{member.mention} (`{member}`) blocked - {reason}", "info")
             return
 
         # Account age filter
@@ -169,7 +169,7 @@ class RaidProtection(commands.Cog, name="RaidProtection"):
             if age_min < min_age_min:
                 reason = f"Raid protection: account {int(age_min)}min old (min {min_age_min})"
                 await self._apply_action(guild, settings, member, reason, settings.get("account_age_action", "kick"))
-                await self._log(guild, settings, emoji_title("anti_raid", "Raid Protection"), f"{member.mention} (`{member}`) blocked — {reason}", "info")
+                await self._log(guild, settings, emoji_title("anti_raid", "Raid Protection"), f"{member.mention} (`{member}`) blocked - {reason}", "info")
                 return
 
         # Join burst detection

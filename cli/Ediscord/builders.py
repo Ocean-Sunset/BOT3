@@ -32,22 +32,22 @@ from Ediscord import variables
 #                                        UNIFIED BRAND / SEMANTIC COLORS
 # ==================================================================================================
 
-# Prowl brand palette — every embed should use one of these.
-BRAND   = 0x8B5CF6   # violet — default / neutral
-SUCCESS = 0x22C55E   # green  — actions that succeeded
-ERROR   = 0xEF4444   # red    — failures / denied
-WARN    = 0xF59E0B   # amber  — cautions / warnings
-INFO    = 0x3B82F6   # blue   — informational
+# Prowl brand palette - every embed should use one of these.
+BRAND   = 0x8B5CF6   # violet - default / neutral
+SUCCESS = 0x22C55E   # green  - actions that succeeded
+ERROR   = 0xEF4444   # red    - failures / denied
+WARN    = 0xF59E0B   # amber  - cautions / warnings
+INFO    = 0x3B82F6   # blue   - informational
 
 # ==================================================================================================
 #                                        EMBED TYPE EMOJIS
 # ==================================================================================================
 
 # Every embed "type" maps to an emoji used to prefix its title (emoji + two spaces).
-# Values are unicode fallbacks for now — replace any with a custom server emoji string
+# Values are unicode fallbacks for now - replace any with a custom server emoji string
 # like "<:prowl_ban:1234567890>" once the emojis are built.
 # Placeholder IDs below are replaced with real ones after uploading to Discord.
-_E = "0000000000000000000"  # placeholder — swap for real emoji IDs
+_E = "0000000000000000000"  # placeholder - swap for real emoji IDs
 EMBED_EMOJIS = {
     # ── Moderation ──
     "ban":        f"<:ban:1538638670423392316>",
@@ -709,7 +709,7 @@ def quick_embed(title: str, description: str = None, color: str = "brand") -> di
 
 
 def success_embed(title: str, description: str = None) -> discord.Embed:
-    """Green success embed — title only unless a description is given."""
+    """Green success embed - title only unless a description is given."""
     return EmbedBuilder().success(title, description).build()
 
 
@@ -754,7 +754,7 @@ def embed_from_dict(data: dict) -> discord.Embed:
     for f in (data.get("fields") or []):
         if isinstance(f, dict) and f.get("name"):
             embed.add_field(name=f["name"][:256], value=(f.get("value") or "\u200b")[:1024], inline=bool(f.get("inline")))
-    # Discord rejects embeds with no content at all — fall back so the action
+    # Discord rejects embeds with no content at all - fall back so the action
     # still works even when a custom embed is configured but empty.
     if not (embed.title or embed.description or embed.fields or embed.author or embed.footer or embed.image or embed.thumbnail):
         embed.title = "Action Completed"

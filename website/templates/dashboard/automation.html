@@ -261,7 +261,7 @@ function canConnect(fromId, toId) {
   const fk=(NODE_DEFS[nodeType(fn.type)]||{}).kind, tk=(NODE_DEFS[nodeType(tn.type)]||{}).kind;
   if (fk==='variable') {
     if (tk==='variable') return {ok:false, msg:'Variables cannot connect to other variables.'};
-    if (tk!=='trigger') return {ok:false, msg:'A variable block must be placed before a trigger — connect its output to a trigger input, then reference it with ${var:name}.'};
+    if (tk!=='trigger') return {ok:false, msg:'A variable block must be placed before a trigger - connect its output to a trigger input, then reference it with ${var:name}.'};
   }
   return {ok:true};
 }
@@ -280,7 +280,7 @@ function nodeSummary(n) {
     case 'message_contains': case 'message_starts': case 'message_ends': return esc(cfg.text||'');
     case 'repeat': return 'x'+(cfg.count||1)+' times';
     case 'wait_for': return (cfg.waitType==='condition'?'until '+esc(cfg.condition||'…'):(cfg.duration||5)+'s');
-    case 'end_block': return '—';
+    case 'end_block': return '-';
     case 'set_var': case 'custom_var': {
       const v = cfg.value;
       const vs = (v === undefined || v === null) ? '…' : (typeof v === 'boolean' ? (v ? 'true' : 'false') : String(v));
@@ -471,7 +471,7 @@ function validateGraph() {
   });
   if (bad.size) {
     bad.forEach(id => flashNode(id, '#f87171'));
-    if (typeof showToast === 'function') showToast('Graph has ' + bad.size + ' problem block(s) — they are highlighted in red.', 'error', 6000);
+    if (typeof showToast === 'function') showToast('Graph has ' + bad.size + ' problem block(s) - they are highlighted in red.', 'error', 6000);
     return false;
   }
   return true;
@@ -545,7 +545,7 @@ function configureNode(n) {
   const def = NODE_DEFS[t]||{label:n.type,kind:'action'};
   const cfg = n.config||{};
   const fields = def.fields||[];
-  const title = (isVar(n) ? varRef(n) + ' — ' : '') + def.label;
+  const title = (isVar(n) ? varRef(n) + ' - ' : '') + def.label;
 
   const body = document.createElement('div');
   body.style.display = 'flex'; body.style.flexDirection = 'column'; body.style.gap = '0.7rem';

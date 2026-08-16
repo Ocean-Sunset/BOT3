@@ -23,7 +23,7 @@ async def _resolve_key(guild_id):
         if isinstance(keys, dict):
             for name in ("openrouter", "groq", "openai"):
                 if keys.get(name):
-                    return keys[name], name, True  # own key — no rate limit
+                    return keys[name], name, True  # own key - no rate limit
     except Exception:
         pass
     # Global/admin key from DB
@@ -103,7 +103,7 @@ class AI(commands.Cog, name="AI"):
             if now - self._last_global < 5:
                 wait = int(5 - (now - self._last_global))
                 return await interaction.response.send_message(
-                    embed=EmbedBuilder().title(emoji_title("warning", "Slow Down")).description(f"Global cooldown — try again in {wait}s. Provide your own AI key on the dashboard to skip rate limits.").color("warn").timestamp(datetime.datetime.utcnow()).build(),
+                    embed=EmbedBuilder().title(emoji_title("warning", "Slow Down")).description(f"Global cooldown - try again in {wait}s. Provide your own AI key on the dashboard to skip rate limits.").color("warn").timestamp(datetime.datetime.utcnow()).build(),
                     ephemeral=True
                 )
             uid = str(interaction.user.id)

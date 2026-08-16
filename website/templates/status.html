@@ -171,7 +171,7 @@
     }
 
     function durStr(s) {
-      if (s == null) return '—';
+      if (s == null) return '-';
       if (s < 60) return s + 's';
       if (s < 3600) return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
       return Math.floor(s / 3600) + 'h ' + Math.floor((s % 3600) / 60) + 'm';
@@ -184,19 +184,19 @@
         ? (stats.stale
             ? '<span style="color:#f87171;">Stale · ' + agoStr(stats.last_sync) + '</span>'
             : '<span style="color:#57f287;">Online</span>')
-        : '—';
+        : '-';
       const statusTile = stats.stale
         ? '<span style="color:#f87171;">Down for ' + durStr(stats.downtime) + '</span>'
-        : esc(stats.uptime || '—');
+        : esc(stats.uptime || '-');
       const items = [
         ['Status', statusTile],
-        ['Servers', stats.guilds != null ? Number(stats.guilds).toLocaleString() : '—'],
-        ['Members', stats.users != null ? Number(stats.users).toLocaleString() : '—'],
-        ['Commands', stats.commands != null ? Number(stats.commands).toLocaleString() : '—'],
-        ['Memory', stats.memory_mb ? stats.memory_mb + ' MB' : '—'],
-        ['CPU', stats.cpu_percent != null ? stats.cpu_percent + '%' : '—'],
-        ['Shards', stats.shards != null ? stats.shards : '—'],
-        ['Version', esc(stats.version || '—')],
+        ['Servers', stats.guilds != null ? Number(stats.guilds).toLocaleString() : '-'],
+        ['Members', stats.users != null ? Number(stats.users).toLocaleString() : '-'],
+        ['Commands', stats.commands != null ? Number(stats.commands).toLocaleString() : '-'],
+        ['Memory', stats.memory_mb ? stats.memory_mb + ' MB' : '-'],
+        ['CPU', stats.cpu_percent != null ? stats.cpu_percent + '%' : '-'],
+        ['Shards', stats.shards != null ? stats.shards : '-'],
+        ['Version', esc(stats.version || '-')],
         ['Bot Heartbeat', syncTile],
       ];
       el.innerHTML = items.map(i =>
@@ -270,7 +270,7 @@
       if (!Array.isArray(shards) || shards.length === 0) {
         const msg = count
           ? 'Prowl runs ' + count + ' shard' + (count === 1 ? '' : 's') + ' (per-shard details are not reported).'
-          : 'Prowl is not currently running sharded — no shard data is reported.';
+          : 'Prowl is not currently running sharded - no shard data is reported.';
         list.innerHTML = '<div class="empty">' + msg + '</div>';
         return;
       }

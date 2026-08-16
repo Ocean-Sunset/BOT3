@@ -617,13 +617,13 @@ def _github_redirect_uri(request: Request) -> str:
 
 @app.get("/login/nerimity")
 async def login_nerimity():
-    """Nerimity OAuth sign-in — placeholder until the Nerimity backend is built."""
+    """Nerimity OAuth sign-in - placeholder until the Nerimity backend is built."""
     nerimity_id = os.environ.get("NERIMITY_CLIENT_ID", "")
     if not nerimity_id:
         return HTMLResponse(
             "<html><body style='background:#0a0a0a;color:#e9edf5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;'>"
             "<div style='text-align:center;'><h2>Nerimity sign-in is coming soon</h2>"
-            "<p style='color:#888;'>We're building the Nerimity backend — check back later!</p>"
+            "<p style='color:#888;'>We're building the Nerimity backend - check back later!</p>"
             "<p><a href='/' style='color:#a78bfa;'>← Back to Prowl</a></p></div></body></html>",
             status_code=200,
         )
@@ -3281,7 +3281,7 @@ async def server_remove(guild_id: str, request: Request):
 
 
 # ---------------------------------------------------------------------------
-#  API Keys (global — stored in DB, bot reads them, no Vercel needed)
+#  API Keys (global - stored in DB, bot reads them, no Vercel needed)
 # ---------------------------------------------------------------------------
 
 _API_KEY_NAMES = ("openai", "groq", "openrouter")
@@ -3435,7 +3435,7 @@ async def ai_settings_set(guild_id: str, request: Request):
     if not key:
         return JSONResponse({"error": "missing key"}, status_code=400)
     if key == "api_keys":
-        # Server-side API keys dict — merge with existing, mask on save
+        # Server-side API keys dict - merge with existing, mask on save
         if not isinstance(value, dict):
             return JSONResponse({"error": "api_keys must be an object"}, status_code=400)
         current = await _get_ai_settings(guild_id)
@@ -3670,7 +3670,7 @@ async def automation_graph_save(guild_id: str, request: Request):
     now = time.time()
     last = _AUTO_SAVE_LIMIT.get(str(guild_id), 0)
     if now - last < 12:
-        return JSONResponse({"error": "Saving too quickly — try again in a moment."}, status_code=429)
+        return JSONResponse({"error": "Saving too quickly - try again in a moment."}, status_code=429)
     _AUTO_SAVE_LIMIT[str(guild_id)] = now
     body = await request.json()
     nodes = body.get("nodes", [])

@@ -40,7 +40,7 @@ async def get_logging_settings(guild_id: int):
 
 def _fmt_time(dt):
     if not dt:
-        return "—"
+        return "-"
     return f"<t:{int(dt.timestamp())}:F>"
 
 
@@ -128,7 +128,7 @@ class Logging(commands.Cog, name="Logging"):
             EmbedBuilder()
             .title(emoji_title("welcome", "Member Joined"))
             .color("success")
-            .description(f"{member.mention} — {member}")
+            .description(f"{member.mention} - {member}")
             .thumbnail(member.display_avatar.url)
             .field("Account Created", _fmt_time(member.created_at))
             .field("Member #", str(len(member.guild.members)))
@@ -236,7 +236,7 @@ class Logging(commands.Cog, name="Logging"):
             EmbedBuilder()
             .title(emoji_title("channel", "Channel Created"))
             .color("gray")
-            .description(f"{channel.mention} — `{channel.name}`")
+            .description(f"{channel.mention} - `{channel.name}`")
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -376,7 +376,7 @@ class Logging(commands.Cog, name="Logging"):
             .title(emoji_title("invite_create", "Invite Created"))
             .color("success")
             .field("Code", invite.code)
-            .field("Channel", invite.channel.mention if invite.channel else "—")
+            .field("Channel", invite.channel.mention if invite.channel else "-")
             .field("Max Uses", str(invite.max_uses) if invite.max_uses else "∞")
             .timestamp(datetime.datetime.utcnow())
             .build()

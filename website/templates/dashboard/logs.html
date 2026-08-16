@@ -185,7 +185,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Apply the same channel to every log type
       GROUPS.forEach(g => g.items.forEach(it => markChanged(it.key, id || null)));
       renderGroups();
-      if (typeof showToast === 'function') showToast('Applied to all log types — press Save to confirm.', 'info');
+      if (typeof showToast === 'function') showToast('Applied to all log types - press Save to confirm.', 'info');
     }));
     document.addEventListener('click', (e) => { if(!e.target.closest('.lg-everything')) drop.classList.remove('is-open'); });
   }

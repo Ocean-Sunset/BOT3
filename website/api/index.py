@@ -308,7 +308,9 @@ class TurnstileMiddleware:
             return
 
         from starlette.responses import RedirectResponse
-        resp = RedirectResponse("/challenge", status_code=302)
+        query = scope.get("query_string", b"").decode("latin-1")
+        next_param = f"?next={urllib.parse.quote(path + ('?' + query if query else ''))}" if path != "/" else ""
+        resp = RedirectResponse(f"/challenge{next_param}", status_code=302)
         await resp(scope, receive, send)
 
 

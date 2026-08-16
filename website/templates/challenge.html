@@ -59,6 +59,7 @@
   <script>
     const statusEl = document.getElementById('status');
     let submitted = false;
+    const redirectTo = new URLSearchParams(window.location.search).get('next') || '/';
 
     function setStatus(text, ok) {
       if (!text) { statusEl.textContent = ''; statusEl.className = 'captcha-status'; return; }
@@ -73,11 +74,11 @@
       fetch('/api/v1/turnstile/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: token, redirect: '/' })
+        body: JSON.stringify({ token: token })
       }).then(function(res) {
-        if (res.redirected || res.ok) {
+        if (res.ok) {
           setStatus('Verified! Redirecting\u2026', true);
-          setTimeout(function() { window.location.href = '/'; }, 400);
+          setTimeout(function() { window.location.href = redirectTo; }, 400);
         } else {
           return res.json().then(function(d) {
             submitted = false;

@@ -232,22 +232,11 @@ async def generate_card_image(member: discord.Member, config: dict) -> bytes:
 
 
 async def get_welcome_settings(guild_id: int):
-    pool = await neon_db.get_pool()
-    if not pool:
-        return dict(WELCOME_DEFAULTS)
-    row = await pool.fetchrow("SELECT settings FROM welcome_settings WHERE guild_id = $1", str(guild_id))
-    return neon_db.parse_settings(row["settings"], WELCOME_DEFAULTS) if row else dict(WELCOME_DEFAULTS)
+    return await neon_db.load_cached_settings("welcome_settings", guild_id, WELCOME_DEFAULTS)
 
 
 async def save_welcome_settings(guild_id: int, settings: dict):
-    pool = await neon_db.get_pool()
-    if not pool:
-        return
-    await pool.execute(
-        "INSERT INTO welcome_settings (guild_id, settings) VALUES ($1, $2::jsonb) "
-        "ON CONFLICT (guild_id) DO UPDATE SET settings = $2::jsonb",
-        str(guild_id), json.dumps(settings),
-    )
+    await neon_db.save_cached_settings("welcome_settings", guild_id, settings)
 
 
 def render_welcome(template: str, member: discord.Member) -> str:

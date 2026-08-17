@@ -31,11 +31,7 @@ LOGGING_DEFAULTS = {
 
 
 async def get_logging_settings(guild_id: int):
-    pool = await neon_db.get_pool()
-    if not pool:
-        return dict(LOGGING_DEFAULTS)
-    row = await pool.fetchrow("SELECT settings FROM logging_settings WHERE guild_id = $1", str(guild_id))
-    return neon_db.parse_settings(row["settings"], LOGGING_DEFAULTS) if row else dict(LOGGING_DEFAULTS)
+    return await neon_db.load_cached_settings("logging_settings", guild_id, LOGGING_DEFAULTS)
 
 
 def _fmt_time(dt):

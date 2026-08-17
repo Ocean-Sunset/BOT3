@@ -48,21 +48,11 @@ VERIFY_DEFAULTS = {
 
 
 async def get_verify_settings(guild_id: int):
-    pool = await neon_db.get_pool()
-    if not pool:
-        return dict(VERIFY_DEFAULTS)
-    row = await pool.fetchrow("SELECT settings FROM verify_settings WHERE guild_id = $1", str(guild_id))
-    return neon_db.parse_settings(row["settings"], VERIFY_DEFAULTS) if row else dict(VERIFY_DEFAULTS)
+    return await neon_db.load_cached_settings("verify_settings", guild_id, VERIFY_DEFAULTS)
 
 
 async def save_verify_settings(guild_id: int, settings: dict):
-    pool = await neon_db.get_pool()
-    if not pool:
-        return
-    await pool.execute(
-        "INSERT INTO verify_settings (guild_id, settings) VALUES ($1, $2::jsonb) ON CONFLICT (guild_id) DO UPDATE SET settings = $2::jsonb",
-        str(guild_id), json.dumps(settings),
-    )
+    await neon_db.save_cached_settings("verify_settings", guild_id, settings)
 
 
 async def _verify_done(interaction: discord.Interaction, role_id, role_label="verified"):

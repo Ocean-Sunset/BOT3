@@ -11,6 +11,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 _pool = None
+_SETTINGS_CACHE = {}
+_SETTINGS_CACHE_TTL = 30.0
 
 
 def parse_settings(raw, defaults: dict) -> dict:
@@ -43,6 +45,53 @@ async def get_pool():
         logger.error(f"Failed to connect to Neon: {e}")
         _pool = None
         return None
+
+
+def get_settings_cache_key(table: str, guild_id) -> tuple:
+    return (table, str(guild_id))
+
+
+def get_cached_settings(table: str, guild_id, defaults: dict) -> dict:
+    key = get_settings_cache_key(table, guild_id)
+    entry = _SETTINGS_CACHE.get(key)
+    if entry and time.time() - entry["ts"] < _SETTINGS_CACHE_TTL:
+        return dict(entry["value"])
+    return dict(defaults)
+
+
+async def load_cached_settings(table: str, guild_id, defaults: dict) -> dict:
+    key = get_settings_cache_key(table, guild_id)
+    cached = get_cached_settings(table, guild_id, defaults)
+    if cached != defaults:
+        return cached
+    pool = await get_pool()
+    if not pool:
+        return dict(defaults)
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(f"SELECT settings FROM {table} WHERE guild_id = $1", str(guild_id))
+            value = parse_settings(row["settings"], defaults) if row else dict(defaults)
+        _SETTINGS_CACHE[key] = {"value": value, "ts": time.time()}
+        return value
+    except Exception as e:
+        logger.debug(f"load_cached_settings failed for {table}/{guild_id}: {e}")
+        return dict(defaults)
+
+
+async def save_cached_settings(table: str, guild_id, settings: dict):
+    pool = await get_pool()
+    if pool is None:
+        return
+    key = get_settings_cache_key(table, guild_id)
+    _SETTINGS_CACHE[key] = {"value": dict(settings), "ts": time.time()}
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                f"INSERT INTO {table} (guild_id, settings) VALUES ($1, $2::jsonb) ON CONFLICT (guild_id) DO UPDATE SET settings = $2::jsonb",
+                str(guild_id), json.dumps(settings),
+            )
+    except Exception as e:
+        logger.debug(f"save_cached_settings failed for {table}/{guild_id}: {e}")
 
 
 async def setup_action_listener(callback):

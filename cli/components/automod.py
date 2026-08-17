@@ -76,22 +76,11 @@ EMOJI_RE = re.compile(
 
 
 async def get_automod_settings(guild_id: int):
-    pool = await neon_db.get_pool()
-    if not pool:
-        return dict(AUTOMOD_DEFAULTS)
-    row = await pool.fetchrow("SELECT settings FROM automod_settings WHERE guild_id = $1", str(guild_id))
-    return neon_db.parse_settings(row["settings"], AUTOMOD_DEFAULTS) if row else dict(AUTOMOD_DEFAULTS)
+    return await neon_db.load_cached_settings("automod_settings", guild_id, AUTOMOD_DEFAULTS)
 
 
 async def save_automod_settings(guild_id: int, settings: dict):
-    pool = await neon_db.get_pool()
-    if not pool:
-        return
-    await pool.execute(
-        "INSERT INTO automod_settings (guild_id, settings) VALUES ($1, $2::jsonb) "
-        "ON CONFLICT (guild_id) DO UPDATE SET settings = $2::jsonb",
-        str(guild_id), __import__("json").dumps(settings),
-    )
+    await neon_db.save_cached_settings("automod_settings", guild_id, settings)
 
 
 def _word_list(words_str: str, defaults):

@@ -18,7 +18,7 @@ from fastapi.templating import Jinja2Templates
 from api import session as rotating_session
 import httpx
 
-from api.db import get_pool, query, fetchrow, fetchval, execute
+from api.db import get_pool, query, fetchrow, fetchval, execute, fetchrow_cached, _update_cache
 
 logger = logging.getLogger(__name__)
 
@@ -1421,17 +1421,7 @@ MOD_SETTINGS_DEFAULTS = {
 
 
 async def _get_mod_settings(guild_id: str):
-    row = await fetchrow("SELECT settings FROM mod_settings WHERE guild_id = $1", str(guild_id))
-    if row:
-        settings = row["settings"]
-        if isinstance(settings, str):
-            try:
-                settings = json.loads(settings)
-            except (json.JSONDecodeError, TypeError):
-                return dict(MOD_SETTINGS_DEFAULTS)
-        if isinstance(settings, dict):
-            return {**MOD_SETTINGS_DEFAULTS, **settings}
-    return dict(MOD_SETTINGS_DEFAULTS)
+    return await fetchrow_cached("mod_settings", "SELECT settings FROM mod_settings WHERE guild_id = $1", guild_id, MOD_SETTINGS_DEFAULTS)
 
 
 def _valid_snowflake(value) -> bool:
@@ -1554,6 +1544,7 @@ async def _save_settings(table, guild_id, key, value, defaults):
         f"ON CONFLICT (guild_id) DO UPDATE SET settings = $2::jsonb",
         str(guild_id), json.dumps(current),
     )
+    _update_cache(table, guild_id, current)
     return None
 
 
@@ -2155,17 +2146,7 @@ LEVELING_DEFAULTS = {
 
 
 async def _get_leveling_settings(guild_id: str):
-    row = await fetchrow("SELECT settings FROM leveling_settings WHERE guild_id = $1", str(guild_id))
-    if row:
-        settings = row["settings"]
-        if isinstance(settings, str):
-            try:
-                settings = json.loads(settings)
-            except (json.JSONDecodeError, TypeError):
-                return dict(LEVELING_DEFAULTS)
-        if isinstance(settings, dict):
-            return {**LEVELING_DEFAULTS, **settings}
-    return dict(LEVELING_DEFAULTS)
+    return await fetchrow_cached("leveling_settings", "SELECT settings FROM leveling_settings WHERE guild_id = $1", guild_id, LEVELING_DEFAULTS)
 
 
 def _sanitize_role_multipliers(value):
@@ -2364,17 +2345,7 @@ LOGGING_DEFAULTS = {
 
 
 async def _get_logging_settings(guild_id: str):
-    row = await fetchrow("SELECT settings FROM logging_settings WHERE guild_id = $1", str(guild_id))
-    if row:
-        settings = row["settings"]
-        if isinstance(settings, str):
-            try:
-                settings = json.loads(settings)
-            except (json.JSONDecodeError, TypeError):
-                return dict(LOGGING_DEFAULTS)
-        if isinstance(settings, dict):
-            return {**LOGGING_DEFAULTS, **settings}
-    return dict(LOGGING_DEFAULTS)
+    return await fetchrow_cached("logging_settings", "SELECT settings FROM logging_settings WHERE guild_id = $1", guild_id, LOGGING_DEFAULTS)
 
 
 @app.get("/api/v1/logging/{guild_id}/settings")
@@ -2481,17 +2452,7 @@ def _sanitize_action_configs(value):
 
 
 async def _get_automod_settings(guild_id: str):
-    row = await fetchrow("SELECT settings FROM automod_settings WHERE guild_id = $1", str(guild_id))
-    if row:
-        settings = row["settings"]
-        if isinstance(settings, str):
-            try:
-                settings = json.loads(settings)
-            except (json.JSONDecodeError, TypeError):
-                return dict(AUTOMOD_DEFAULTS)
-        if isinstance(settings, dict):
-            return {**AUTOMOD_DEFAULTS, **settings}
-    return dict(AUTOMOD_DEFAULTS)
+    return await fetchrow_cached("automod_settings", "SELECT settings FROM automod_settings WHERE guild_id = $1", guild_id, AUTOMOD_DEFAULTS)
 
 
 @app.get("/api/v1/automod/{guild_id}/settings")
@@ -2567,17 +2528,7 @@ RAID_ACTIONS = ("kick", "ban", "lockdown", "verify")
 
 
 async def _get_raid_settings(guild_id: str):
-    row = await fetchrow("SELECT settings FROM raid_settings WHERE guild_id = $1", str(guild_id))
-    if row:
-        settings = row["settings"]
-        if isinstance(settings, str):
-            try:
-                settings = json.loads(settings)
-            except (json.JSONDecodeError, TypeError):
-                return dict(RAID_DEFAULTS)
-        if isinstance(settings, dict):
-            return {**RAID_DEFAULTS, **settings}
-    return dict(RAID_DEFAULTS)
+    return await fetchrow_cached("raid_settings", "SELECT settings FROM raid_settings WHERE guild_id = $1", guild_id, RAID_DEFAULTS)
 
 
 @app.get("/api/v1/raid/{guild_id}/settings")
@@ -2639,17 +2590,7 @@ WELCOME_DEFAULTS = {
 
 
 async def _get_welcome_settings(guild_id: str):
-    row = await fetchrow("SELECT settings FROM welcome_settings WHERE guild_id = $1", str(guild_id))
-    if row:
-        settings = row["settings"]
-        if isinstance(settings, str):
-            try:
-                settings = json.loads(settings)
-            except (json.JSONDecodeError, TypeError):
-                return dict(WELCOME_DEFAULTS)
-        if isinstance(settings, dict):
-            return {**WELCOME_DEFAULTS, **settings}
-    return dict(WELCOME_DEFAULTS)
+    return await fetchrow_cached("welcome_settings", "SELECT settings FROM welcome_settings WHERE guild_id = $1", guild_id, WELCOME_DEFAULTS)
 
 
 @app.get("/api/v1/welcomer/{guild_id}/settings")
@@ -2849,17 +2790,7 @@ SOCIAL_SETTINGS_DEFAULTS = {
 
 
 async def _get_social_settings(guild_id: str):
-    row = await fetchrow("SELECT settings FROM social_settings WHERE guild_id = $1", str(guild_id))
-    if row:
-        settings = row["settings"]
-        if isinstance(settings, str):
-            try:
-                settings = json.loads(settings)
-            except (json.JSONDecodeError, TypeError):
-                return dict(SOCIAL_SETTINGS_DEFAULTS)
-        if isinstance(settings, dict):
-            return {**SOCIAL_SETTINGS_DEFAULTS, **settings}
-    return dict(SOCIAL_SETTINGS_DEFAULTS)
+    return await fetchrow_cached("social_settings", "SELECT settings FROM social_settings WHERE guild_id = $1", guild_id, SOCIAL_SETTINGS_DEFAULTS)
 
 
 @app.get("/api/v1/social/{guild_id}/settings")
@@ -2994,17 +2925,7 @@ def _sanitize_questions(value):
 
 
 async def _get_ticket_settings(guild_id: str):
-    row = await fetchrow("SELECT settings FROM ticket_settings WHERE guild_id = $1", str(guild_id))
-    if row:
-        settings = row["settings"]
-        if isinstance(settings, str):
-            try:
-                settings = json.loads(settings)
-            except (json.JSONDecodeError, TypeError):
-                return dict(TICKET_SETTINGS_DEFAULTS)
-        if isinstance(settings, dict):
-            return {**TICKET_SETTINGS_DEFAULTS, **settings}
-    return dict(TICKET_SETTINGS_DEFAULTS)
+    return await fetchrow_cached("ticket_settings", "SELECT settings FROM ticket_settings WHERE guild_id = $1", guild_id, TICKET_SETTINGS_DEFAULTS)
 
 
 @app.get("/api/v1/tickets/{guild_id}/settings")
@@ -3107,15 +3028,7 @@ VERIFY_SETTINGS_DEFAULTS = {
 
 
 async def _get_verify_settings(guild_id: str):
-    row = await fetchrow("SELECT settings FROM verify_settings WHERE guild_id = $1", str(guild_id))
-    if row:
-        settings = row["settings"]
-        if isinstance(settings, str):
-            try: settings = json.loads(settings)
-            except: return dict(VERIFY_SETTINGS_DEFAULTS)
-        if isinstance(settings, dict):
-            return {**VERIFY_SETTINGS_DEFAULTS, **settings}
-    return dict(VERIFY_SETTINGS_DEFAULTS)
+    return await fetchrow_cached("verify_settings", "SELECT settings FROM verify_settings WHERE guild_id = $1", guild_id, VERIFY_SETTINGS_DEFAULTS)
 
 
 @app.get("/api/v1/verify/{guild_id}/settings")
@@ -3482,15 +3395,7 @@ MUSIC_DEFAULTS = {
 
 
 async def _get_music_settings(guild_id: str):
-    row = await fetchrow("SELECT settings FROM music_settings WHERE guild_id = $1", str(guild_id))
-    if row:
-        settings = row["settings"]
-        if isinstance(settings, str):
-            try: settings = json.loads(settings)
-            except: return dict(MUSIC_DEFAULTS)
-        if isinstance(settings, dict):
-            return {**MUSIC_DEFAULTS, **settings}
-    return dict(MUSIC_DEFAULTS)
+    return await fetchrow_cached("music_settings", "SELECT settings FROM music_settings WHERE guild_id = $1", guild_id, MUSIC_DEFAULTS)
 
 
 @app.get("/api/v1/music/{guild_id}/settings")
@@ -3548,15 +3453,7 @@ AI_DEFAULTS = {
 
 
 async def _get_ai_settings(guild_id: str):
-    row = await fetchrow("SELECT settings FROM ai_settings WHERE guild_id = $1", str(guild_id))
-    if row:
-        settings = row["settings"]
-        if isinstance(settings, str):
-            try: settings = json.loads(settings)
-            except: return dict(AI_DEFAULTS)
-        if isinstance(settings, dict):
-            return {**AI_DEFAULTS, **settings}
-    return dict(AI_DEFAULTS)
+    return await fetchrow_cached("ai_settings", "SELECT settings FROM ai_settings WHERE guild_id = $1", guild_id, AI_DEFAULTS)
 
 
 @app.get("/api/v1/ai/{guild_id}/settings")

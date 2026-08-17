@@ -190,26 +190,11 @@ async def perform_lockdown(guild, lock: bool, settings: dict, save_fn) -> tuple:
 
 
 async def get_mod_settings(guild_id: int):
-    pool = await neon_db.get_pool()
-    if not pool:
-        return dict(MOD_DEFAULTS)
-    row = await pool.fetchrow(
-        "SELECT settings FROM mod_settings WHERE guild_id = $1", str(guild_id)
-    )
-    if row:
-        return neon_db.parse_settings(row["settings"], MOD_DEFAULTS)
-    return dict(MOD_DEFAULTS)
+    return await neon_db.load_cached_settings("mod_settings", guild_id, MOD_DEFAULTS)
 
 
 async def save_mod_settings(guild_id: int, settings: dict):
-    pool = await neon_db.get_pool()
-    if not pool:
-        return
-    await pool.execute(
-        "INSERT INTO mod_settings (guild_id, settings) VALUES ($1, $2::jsonb) "
-        "ON CONFLICT (guild_id) DO UPDATE SET settings = $2::jsonb",
-        str(guild_id), json.dumps(settings),
-    )
+    await neon_db.save_cached_settings("mod_settings", guild_id, settings)
 
 
 async def log_mod_action(guild_id: int, user_id: str, user_name: str, action: str, reason: str = "", moderator: str = ""):

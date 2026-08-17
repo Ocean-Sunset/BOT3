@@ -14,21 +14,11 @@ INVITE_DEFAULTS = {"enabled": False, "announce_channel_id": None, "ping_on_join"
 
 
 async def get_invite_settings(guild_id: int):
-    pool = await neon_db.get_pool()
-    if not pool:
-        return dict(INVITE_DEFAULTS)
-    row = await pool.fetchrow("SELECT settings FROM invite_settings WHERE guild_id = $1", str(guild_id))
-    return neon_db.parse_settings(row["settings"], INVITE_DEFAULTS) if row else dict(INVITE_DEFAULTS)
+    return await neon_db.load_cached_settings("invite_settings", guild_id, INVITE_DEFAULTS)
 
 
 async def save_invite_settings(guild_id: int, settings: dict):
-    pool = await neon_db.get_pool()
-    if not pool:
-        return
-    await pool.execute(
-        "INSERT INTO invite_settings (guild_id, settings) VALUES ($1, $2::jsonb) ON CONFLICT (guild_id) DO UPDATE SET settings = $2::jsonb",
-        str(guild_id), json.dumps(settings),
-    )
+    await neon_db.save_cached_settings("invite_settings", guild_id, settings)
 
 
 async def record_invite(guild_id: int, inviter_id: str, code: str):

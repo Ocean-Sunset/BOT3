@@ -23,11 +23,7 @@ MUSIC_DEFAULTS = {
 
 
 async def get_music_settings(guild_id: int):
-    pool = await neon_db.get_pool()
-    if not pool:
-        return dict(MUSIC_DEFAULTS)
-    row = await pool.fetchrow("SELECT settings FROM music_settings WHERE guild_id = $1", str(guild_id))
-    return neon_db.parse_settings(row["settings"], MUSIC_DEFAULTS) if row else dict(MUSIC_DEFAULTS)
+    return await neon_db.load_cached_settings("music_settings", guild_id, MUSIC_DEFAULTS)
 
 
 URL_REGEX = re.compile(r"https?://(?:www\.)?.+")

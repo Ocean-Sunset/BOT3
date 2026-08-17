@@ -35,11 +35,7 @@ RAID_ACTIONS = ("kick", "ban", "lockdown", "verify")
 
 
 async def get_raid_settings(guild_id: int):
-    pool = await neon_db.get_pool()
-    if not pool:
-        return dict(RAID_DEFAULTS)
-    row = await pool.fetchrow("SELECT settings FROM raid_settings WHERE guild_id = $1", str(guild_id))
-    return neon_db.parse_settings(row["settings"], RAID_DEFAULTS) if row else dict(RAID_DEFAULTS)
+    return await neon_db.load_cached_settings("raid_settings", guild_id, RAID_DEFAULTS)
 
 
 class RaidProtection(commands.Cog, name="RaidProtection"):

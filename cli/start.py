@@ -108,27 +108,27 @@ class ProwlBot(commands.Bot):
             await asyncio.sleep(60)
 
     async def _stats_syncer(self):
-        """Push lightweight bot stats every 20s so the status page stays live."""
+        """Push lightweight bot stats every 60s to keep the dashboard fresh without burning CPU."""
         await self.wait_until_ready()
         while not self.is_closed():
             try:
                 await neon_db.push_bot_stats(await self._build_stats())
             except Exception as e:
                 logger.error(f"Stats sync failed: {e}")
-            await asyncio.sleep(20)
+            await asyncio.sleep(60)
 
     async def _neon_syncer(self):
-        """Push full guild data (and stats) to Neon every 2 minutes."""
+        """Push full guild data (and stats) to Neon every 5 minutes as a temporary CPU-saving fallback."""
         await self.wait_until_ready()
         while not self.is_closed():
             try:
                 await self._push_to_neon()
             except Exception as e:
                 logger.error(f"Neon sync failed: {e}")
-            await asyncio.sleep(120)
+            await asyncio.sleep(300)
 
     async def _member_sync(self):
-        """Lightweight sync: update only member names/roles/joins in guild_data."""
+        """Lightweight sync: update member names/roles/joins in guild_data every 60s as a temporary CPU cap."""
         await self.wait_until_ready()
         while not self.is_closed():
             try:
@@ -136,7 +136,7 @@ class ProwlBot(commands.Bot):
                     await self._sync_guild_members(guild)
             except Exception as e:
                 logger.debug(f"Member sync failed: {e}")
-            await asyncio.sleep(15)
+            await asyncio.sleep(60)
 
     async def _sync_guild_members(self, guild):
         pool = await neon_db.get_pool()
@@ -159,7 +159,7 @@ class ProwlBot(commands.Bot):
             logger.debug(f"Sync members for {guild.id} failed: {e}")
 
     async def _mod_settings_poller(self):
-        """Watch mod_settings for changes and log them (e.g. role promoted to admin)."""
+        """Poll mod settings less aggressively to reduce Neon CPU burn over the next month."""
         await self.wait_until_ready()
         self._mod_cache = {}
         while not self.is_closed():
@@ -176,7 +176,7 @@ class ProwlBot(commands.Bot):
                     self._mod_cache[gid] = new
             except Exception as e:
                 logger.error(f"Mod settings poller failed: {e}")
-            await asyncio.sleep(30)
+            await asyncio.sleep(120)
 
     async def _mod_action_processor(self):
         """Process queued actions instantly via LISTEN/NOTIFY, polling as fallback."""

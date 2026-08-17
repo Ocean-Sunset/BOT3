@@ -53,6 +53,7 @@ def render_welcome(template: str, member: discord.Member) -> str:
             .replace("{member.tag}", member.discriminator if member.discriminator != "0" else "")
             .replace("{member.nick}", member.display_name)
             .replace("{member.id}", str(member.id))
+            .replace("{avatar}", str(member.display_avatar.url))
             .replace("{server}", member.guild.name)
             .replace("{server.id}", str(member.guild.id))
             .replace("{count}", str(member.guild.member_count))

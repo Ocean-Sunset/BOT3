@@ -58,6 +58,7 @@ def render_template(template: str, member: discord.Member, reason: str = "", msg
     return (template
             .replace("{username}", member.name)
             .replace("{name}", member.display_name)
+            .replace("{avatar}", str(member.display_avatar.url))
             .replace("{server}", guild.name if guild else "")
             .replace("{servername}", guild.name if guild else "")
             .replace("{servermembercount}", str(guild.member_count if guild else 0))

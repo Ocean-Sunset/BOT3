@@ -63,6 +63,7 @@ def format_level_up_message(
         "{user}": member.mention,
         "{mention}": member.mention,
         "{name}": member.display_name,
+        "{avatar}": str(member.display_avatar.url),
         "{level}": str(level),
         "{next_level}": str(level + 1),
         "{xp}": str(xp),
@@ -212,18 +213,7 @@ class Leveling(commands.Cog, name="Leveling"):
                             xp_needed=xp_needed,
                             granted_role=granted_role,
                         )
-                        embed = (
-                            EmbedBuilder()
-                            .title(emoji_title("level_up", "Level Up!"))
-                            .description(msg)
-                            .color("green")
-                            .field("New Level", str(new_level))
-                            .field("Total XP", str(new_xp))
-                            .thumbnail(message.author.display_avatar.url)
-                            .timestamp(datetime.datetime.utcnow())
-                            .build()
-                        )
-                        await channel.send(embed=embed)
+                        await channel.send(msg)
                 except Exception as e:
                     logger.warning(f"Failed to send level up message: {e}")
 

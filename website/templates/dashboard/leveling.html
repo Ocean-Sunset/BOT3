@@ -142,7 +142,7 @@
 <div class="md-modal-overlay" id="embed-editor-modal">
   <div class="md-modal" style="min-width:520px;max-width:560px;max-height:80vh;overflow-y:auto;">
     <h3 id="embed-editor-title">Level-Up Embed</h3>
-    <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin:0.2rem 0 0.75rem;line-height:1.5;">Variables work in title, description and footer: <code>{user}</code> <code>{mention}</code> <code>{name}</code> <code>{level}</code> <code>{next_level}</code> <code>{xp}</code> <code>{xp_needed}</code> <code>{role}</code> <code>{servername}</code> <code>{membercount}</code></div>
+    <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin:0.2rem 0 0.75rem;line-height:1.5;">Variables work in title, description and footer: <code>{user}</code> <code>{mention}</code> <code>{name}</code> <code>{avatar}</code> <code>{level}</code> <code>{next_level}</code> <code>{xp}</code> <code>{xp_needed}</code> <code>{role}</code> <code>{servername}</code> <code>{membercount}</code></div>
     <div style="display:flex;flex-direction:column;gap:0.6rem;margin:0.75rem 0;">
       <div>
         <div class="md-behavior-label" style="margin-bottom:0.3rem;">Title</div>
@@ -302,7 +302,7 @@ function addFieldRow(f) {
   row.style.cssText = 'display:flex;gap:0.4rem;align-items:center;';
   row.innerHTML = `<input type="text" class="md-input ee-field-name" placeholder="Name" style="flex:1.2" value="${esc(f?.name||'')}"/>
     <input type="text" class="md-input ee-field-value" placeholder="Value" style="flex:2" value="${esc(f?.value||'')}"/>
-    <label style="display:flex;align-items:center;gap:0.3rem;color:rgba(255,255,255,0.4);font-size:0.7rem;white-space:nowrap;"><input type="checkbox" class="ee-field-inline" ${f?.inline?'checked':''} /> Inline</label>
+    <label class="md-toggle" data-tooltip="Inline"><input type="checkbox" class="ee-field-inline" ${f?.inline?'checked':''} /><span class="md-toggle-slider"></span></label>
     <button type="button" class="md-action-btn ee-field-del" style="padding:0.25rem;"><i data-lucide="x"></i></button>`;
   row.querySelector('.ee-field-del').addEventListener('click', () => row.remove());
   document.getElementById('ee-fields').appendChild(row);

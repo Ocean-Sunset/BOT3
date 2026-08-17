@@ -179,6 +179,38 @@ body {
 
 .footer-col a:hover { color: #ccc; }
 
+.footer-brand {
+  max-width: 280px;
+}
+
+.footer-brand-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  margin-bottom: 1rem;
+}
+
+.footer-brand-link img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.footer-brand-link span {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.footer-brand-desc {
+  font-size: 0.82rem;
+  color: #555;
+  line-height: 1.5;
+  margin: 0;
+}
+
 .footer-bottom {
   padding: 2rem 6vw;
   border-top: 1px solid rgba(255,255,255,0.06);

@@ -13,6 +13,7 @@ from Ediscord.builders import embed_from_dict, emoji_title
 WELCOME_DEFAULTS = {
     "enabled": False,
     "channel_id": None,
+    "goodbye_channel_id": None,
     "welcome_message": "Welcome {member} to {server}!",
     "welcome_mode": "basic",
     "welcome_embed_data": {},
@@ -161,7 +162,8 @@ class Welcomer(commands.Cog, name="Welcomer"):
         settings = await get_welcome_settings(member.guild.id)
         if not settings.get("enabled"):
             return
-        channel = member.guild.get_channel(int(settings.get("channel_id") or 0))
+        goodbye_ch_id = settings.get("goodbye_channel_id") or settings.get("channel_id")
+        channel = member.guild.get_channel(int(goodbye_ch_id or 0))
         if not channel or not isinstance(channel, discord.TextChannel):
             return
         if not settings.get("goodbye_message"):
@@ -222,6 +224,28 @@ class Welcomer(commands.Cog, name="Welcomer"):
             embed=EmbedBuilder().title(emoji_title("success", "Channel Set")).description(f"Welcome channel set to {channel.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
+
+    @welcomer_group.command(name="goodbyechannel", description="Set the goodbye message channel")
+    @app_commands.describe(channel="The channel for goodbye messages. Leave empty to use the welcome channel.")
+    async def set_goodbye_channel(self, interaction: discord.Interaction, channel: Optional[discord.TextChannel] = None):
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        settings = await get_welcome_settings(interaction.guild_id)
+        settings["goodbye_channel_id"] = str(channel.id) if channel else None
+        await save_welcome_settings(interaction.guild_id, settings)
+        if channel:
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("success", "Goodbye Channel Set")).description(f"Goodbye channel set to {channel.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        else:
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("info", "Goodbye Channel Reset")).description("Goodbye messages will use the welcome channel.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
 
     @welcomer_group.command(name="message", description="Set the welcome message")
     @app_commands.describe(message="Use {member}, {server}, {count} as placeholders")
@@ -379,6 +403,8 @@ class Welcomer(commands.Cog, name="Welcomer"):
         settings = await get_welcome_settings(interaction.guild_id)
         channel_id = settings.get("channel_id")
         channel = interaction.guild.get_channel(int(channel_id)) if channel_id else None
+        goodbye_ch_id = settings.get("goodbye_channel_id")
+        goodbye_channel = interaction.guild.get_channel(int(goodbye_ch_id)) if goodbye_ch_id else None
         auto_role_id = settings.get("auto_role_id")
         auto_role = interaction.guild.get_role(int(auto_role_id)) if auto_role_id else None
         bot_role_id = settings.get("bot_auto_role")
@@ -388,7 +414,8 @@ class Welcomer(commands.Cog, name="Welcomer"):
             .title(emoji_title("info", "Welcomer Configuration"))
             .color("blue")
             .field("Enabled", "Yes" if settings.get("enabled") else "No")
-            .field("Channel", channel.mention if channel else "Not set")
+            .field("Welcome Channel", channel.mention if channel else "Not set")
+            .field("Goodbye Channel", goodbye_channel.mention if goodbye_channel else "Same as welcome")
             .field("Welcome Embed", "Yes" if settings.get("welcome_embed", True) else "No")
             .field("Goodbye Embed", "Yes" if settings.get("goodbye_embed", True) else "No")
             .field("Welcome DM", "Yes" if settings.get("welcome_dm") else "No")

@@ -26,10 +26,21 @@
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div class="md-section-title">Welcome Channel</div>
-        <div class="md-behavior-desc" style="margin-bottom:0.6rem;">Where welcome &amp; goodbye messages get posted</div>
+        <div class="md-behavior-desc" style="margin-bottom:0.6rem;">Where welcome messages get posted</div>
         <div class="md-custom-select" id="wl-channel-wrap">
           <button class="md-custom-select-btn" id="wl-channel-btn">Select channel...</button>
           <div class="md-custom-select-drop" id="wl-channel-drop"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Goodbye Channel</div>
+        <div class="md-behavior-desc" style="margin-bottom:0.6rem;">Where goodbye messages get posted. Leave empty to use the welcome channel.</div>
+        <div class="md-custom-select" id="wl-goodbye-channel-wrap">
+          <button class="md-custom-select-btn" id="wl-goodbye-channel-btn">Same as welcome</button>
+          <div class="md-custom-select-drop" id="wl-goodbye-channel-drop"></div>
         </div>
       </div>
     </div>
@@ -367,6 +378,21 @@ document.addEventListener('DOMContentLoaded', () => {
       chDrop.classList.remove('is-open');
     }));
     document.addEventListener('click', (e) => { if (!e.target.closest('#wl-channel-wrap')) chDrop.classList.remove('is-open'); });
+
+    // Goodbye channel dropdown
+    const gchBtn = document.getElementById('wl-goodbye-channel-btn');
+    const gchDrop = document.getElementById('wl-goodbye-channel-drop');
+    gchDrop.innerHTML = '<button class="md-custom-opt" data-id="">Same as welcome</button>' + CHANNELS.map(c => '<button class="md-custom-opt" data-id="' + c.id + '">#' + esc(c.name) + '</button>').join('');
+    const curGch = SETTINGS_SNAPSHOT.goodbye_channel_id;
+    const gchMatch = curGch ? CHANNELS.find(c => String(c.id) === String(curGch)) : null;
+    if (gchMatch) gchBtn.textContent = '#' + gchMatch.name;
+    gchBtn.addEventListener('click', (e) => { e.stopPropagation(); gchDrop.classList.toggle('is-open'); });
+    gchDrop.querySelectorAll('.md-custom-opt').forEach(opt => opt.addEventListener('click', () => {
+      gchBtn.textContent = opt.dataset.id ? '#' + opt.textContent.replace(/^#/, '') : 'Same as welcome';
+      markChanged('goodbye_channel_id', opt.dataset.id || null);
+      gchDrop.classList.remove('is-open');
+    }));
+    document.addEventListener('click', (e) => { if (!e.target.closest('#wl-goodbye-channel-wrap')) gchDrop.classList.remove('is-open'); });
 
     // Multi role selector
     const rBtn = document.getElementById('wl-roles-btn');

@@ -2704,14 +2704,28 @@ async def welcomer_settings_set(guild_id: str, request: Request):
                             layer["y"] = max(0, min(2000, int(layer["y"])))
                         except (TypeError, ValueError):
                             return JSONResponse({"error": f"text_layers[{i}].y must be a number"}, status_code=400)
+            bg_type = value.get("bg_type", "gradient")
+            if bg_type not in ("solid", "gradient", "image"):
+                return JSONResponse({"error": "bg_type must be 'solid', 'gradient', or 'image'"}, status_code=400)
+            if "bg_opacity" in value:
+                try:
+                    value["bg_opacity"] = max(0, min(100, int(value["bg_opacity"])))
+                except (TypeError, ValueError):
+                    return JSONResponse({"error": "bg_opacity must be a number (0-100)"}, status_code=400)
+            bs = value.get("avatar_border_style", "solid")
+            if bs not in ("solid", "dashed", "dotted", "none"):
+                return JSONResponse({"error": "avatar_border_style must be 'solid', 'dashed', 'dotted', or 'none'"}, status_code=400)
+            for s_field in ("solid_color", "avatar_border"):
+                if s_field in value and not isinstance(value[s_field], str):
+                    return JSONResponse({"error": f"{s_field} must be a string"}, status_code=400)
             grad = value.get("gradient")
             if grad is not None:
                 if not isinstance(grad, dict):
                     return JSONResponse({"error": "gradient must be an object"}, status_code=400)
-            for num_key in ("width", "height", "avatar_size", "avatar_y"):
+            for num_key in ("width", "height", "avatar_size", "avatar_y", "avatar_border_width"):
                 if num_key in value:
                     try:
-                        value[num_key] = max(100, min(4000, int(value[num_key])))
+                        value[num_key] = max(0, min(4000, int(value[num_key])))
                     except (TypeError, ValueError):
                         return JSONResponse({"error": f"{num_key} must be a number"}, status_code=400)
     err = await _save_settings("welcome_settings", str(guild_id), key, value, WELCOME_DEFAULTS)

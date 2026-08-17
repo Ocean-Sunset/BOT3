@@ -38,9 +38,14 @@ DEFAULT_IMAGE_CONFIG = {
     "enabled": True,
     "width": 950,
     "height": 450,
+    "bg_type": "gradient",
     "gradient": {"color1": "#1a1a2e", "color2": "#16213e"},
+    "solid_color": "#1a1a2e",
     "bg_image": "",
+    "bg_opacity": 100,
     "avatar_border": "#ffffff",
+    "avatar_border_width": 6,
+    "avatar_border_style": "solid",
     "avatar_size": 150,
     "avatar_y": 60,
     "text_layers": [
@@ -67,18 +72,63 @@ def _load_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
     return ImageFont.load_default()
 
 
-def _circle_avatar(avatar_bytes: bytes, size: int, border_color: str = "#ffffff") -> Image.Image:
+def _hex_to_rgb(h: str) -> tuple:
+    h = h.lstrip("#")
+    return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+
+
+def _circle_avatar(avatar_bytes: bytes, size: int, border_color: str = "#ffffff",
+                   border_width: int = 6, border_style: str = "solid") -> Image.Image:
     raw = Image.open(io.BytesIO(avatar_bytes)).convert("RGBA")
     raw = raw.resize((size, size), Image.LANCZOS)
     mask = Image.new("L", (size, size), 0)
     ImageDraw.Draw(mask).ellipse((0, 0, size - 1, size - 1), fill=255)
     result = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     result.paste(raw, mask=mask)
-    border = 6
-    bordered = Image.new("RGBA", (size + border * 2, size + border * 2), (0, 0, 0, 0))
-    bc = tuple(int(border_color.lstrip("#")[i:i+2], 16) for i in (0, 2, 4))
-    ImageDraw.Draw(bordered).ellipse((0, 0, size + border * 2 - 1, size + border * 2 - 1), fill=bc + (255,))
-    bordered.paste(result, (border, border), result)
+
+    bw = max(0, border_width)
+    if bw == 0:
+        return result
+
+    total = size + bw * 2
+    bordered = Image.new("RGBA", (total, total), (0, 0, 0, 0))
+    bc = _hex_to_rgb(border_color) + (255,)
+    d = ImageDraw.Draw(bordered)
+    cx, cy = total // 2, total // 2
+    outer_r = total // 2 - 1
+    inner_r = outer_r - bw
+
+    if border_style == "none" or bw == 0:
+        pass
+    elif border_style == "dashed":
+        import math
+        num_arcs = max(8, outer_r // 4)
+        arc_len = math.pi * 2 / num_arcs
+        gap = arc_len * 0.45
+        for i in range(num_arcs):
+            start = i * arc_len + gap / 2
+            end = start + arc_len - gap
+            d.arc(
+                [cx - outer_r, cy - outer_r, cx + outer_r, cy + outer_r],
+                start=math.degrees(start) - 90, end=math.degrees(end) - 90,
+                fill=bc, width=bw,
+            )
+    elif border_style == "dotted":
+        import math
+        spacing = max(4, bw + 2)
+        circumference = 2 * math.pi * ((outer_r + inner_r) / 2)
+        n_dots = max(6, int(circumference / spacing))
+        dot_r = max(1, bw // 2)
+        mid_r = (outer_r + inner_r) / 2
+        for i in range(n_dots):
+            angle = (2 * math.pi * i) / n_dots
+            dx = cx + mid_r * math.cos(angle)
+            dy = cy + mid_r * math.sin(angle)
+            d.ellipse([dx - dot_r, dy - dot_r, dx + dot_r, dy + dot_r], fill=bc)
+    else:
+        d.ellipse([0, 0, total - 1, total - 1], fill=bc)
+
+    bordered.paste(result, (bw, bw), result)
     return bordered
 
 
@@ -94,26 +144,43 @@ async def generate_card_image(member: discord.Member, config: dict) -> bytes:
         config = DEFAULT_IMAGE_CONFIG
     w = config.get("width", 950)
     h = config.get("height", 450)
+    bg_type = config.get("bg_type", "gradient")
+    bg_opacity = max(0, min(100, config.get("bg_opacity", 100)))
+    alpha = int(255 * bg_opacity / 100)
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # Background
-    bg_url = config.get("bg_image", "")
-    if bg_url:
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(bg_url) as resp:
-                    if resp.status == 200:
-                        bg_data = await resp.read()
-                        bg = Image.open(io.BytesIO(bg_data)).convert("RGBA").resize((w, h), Image.LANCZOS)
-                        img.paste(bg, (0, 0))
-        except Exception as e:
-            logger.warning(f"Failed to load background image: {e}")
+    # Background by type
+    if bg_type == "image":
+        bg_url = config.get("bg_image", "")
+        if bg_url:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(bg_url) as resp:
+                        if resp.status == 200:
+                            bg_data = await resp.read()
+                            bg = Image.open(io.BytesIO(bg_data)).convert("RGBA").resize((w, h), Image.LANCZOS)
+                            if bg_opacity < 100:
+                                overlay = Image.new("RGBA", (w, h), (0, 0, 0, 255 - alpha))
+                                bg = Image.alpha_composite(bg, overlay)
+                            img.paste(bg, (0, 0))
+            except Exception as e:
+                logger.warning(f"Failed to load background image: {e}")
+        # Fallback gradient behind image if load fails
+        if bg_url and img.getextrema() == ((0, 0), (0, 0), (0, 0), (0, 0)):
+            bg_type = "gradient"
 
-    grad = config.get("gradient", {})
-    if grad:
-        c1 = tuple(int(grad.get("color1", "#1a1a2e").lstrip("#")[i:i+2], 16) for i in (0, 2, 4))
-        c2 = tuple(int(grad.get("color2", "#16213e").lstrip("#")[i:i+2], 16) for i in (0, 2, 4))
+    if bg_type == "solid":
+        solid_hex = config.get("solid_color", "#1a1a2e")
+        sc = _hex_to_rgb(solid_hex)
+        solid_layer = Image.new("RGBA", (w, h), sc + (alpha,))
+        img = Image.alpha_composite(img, solid_layer)
+        draw = ImageDraw.Draw(img)
+
+    if bg_type == "gradient":
+        grad = config.get("gradient", {})
+        c1 = _hex_to_rgb(grad.get("color1", "#1a1a2e"))
+        c2 = _hex_to_rgb(grad.get("color2", "#16213e"))
         grad_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
         gd = ImageDraw.Draw(grad_layer)
         for y_pos in range(h):
@@ -121,7 +188,7 @@ async def generate_card_image(member: discord.Member, config: dict) -> bytes:
             r = int(c1[0] + (c2[0] - c1[0]) * ratio)
             g = int(c1[1] + (c2[1] - c1[1]) * ratio)
             b = int(c1[2] + (c2[2] - c1[2]) * ratio)
-            gd.line([(0, y_pos), (w, y_pos)], fill=(r, g, b, 180))
+            gd.line([(0, y_pos), (w, y_pos)], fill=(r, g, b, alpha))
         img = Image.alpha_composite(img, grad_layer)
         draw = ImageDraw.Draw(img)
 
@@ -131,7 +198,9 @@ async def generate_card_image(member: discord.Member, config: dict) -> bytes:
         av_size = config.get("avatar_size", 150)
         av_y = config.get("avatar_y", 60)
         av_border = config.get("avatar_border", "#ffffff")
-        av = _circle_avatar(avatar_bytes, av_size, av_border)
+        av_bw = config.get("avatar_border_width", 6)
+        av_bs = config.get("avatar_border_style", "solid")
+        av = _circle_avatar(avatar_bytes, av_size, av_border, av_bw, av_bs)
         av_x = (w - av.width) // 2
         img.paste(av, (av_x, av_y), av)
         draw = ImageDraw.Draw(img)
@@ -146,7 +215,7 @@ async def generate_card_image(member: discord.Member, config: dict) -> bytes:
         font_size = layer.get("font_size", 24)
         font = _load_font(font_size, bold=True)
         color_hex = layer.get("color", "#ffffff")
-        color = tuple(int(color_hex.lstrip("#")[i:i+2], 16) for i in (0, 2, 4))
+        color = _hex_to_rgb(color_hex)
         bbox = draw.textbbox((0, 0), content, font=font)
         tw = bbox[2] - bbox[0]
         tx = (w - tw) // 2

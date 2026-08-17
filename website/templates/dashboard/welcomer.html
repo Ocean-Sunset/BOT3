@@ -10,6 +10,18 @@
 .wl-role-rm { background:none; border:none; color:rgba(255,255,255,0.5); cursor:pointer; font-size:0.9rem; line-height:1; padding:0; font-family:inherit; }
 .wl-role-rm:hover { color:#f87171; }
 .wl-role-empty { font-size:0.72rem; color:rgba(255,255,255,0.35); }
+.wl-small-label { font-size:0.62rem; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.04em; font-weight:700; margin-bottom:0.15rem; }
+.wl-color-pick { position:relative; display:inline-flex; align-items:center; gap:0.35rem; }
+.wl-color-swatch { width:28px; height:28px; border-radius:4px; border:2px solid rgba(255,255,255,0.12); cursor:pointer; flex-shrink:0; transition:border-color 0.15s; }
+.wl-color-swatch:hover { border-color:rgba(255,255,255,0.3); }
+.wl-color-pick input[type=color] { position:absolute; left:0; top:0; width:28px; height:28px; opacity:0; cursor:pointer; }
+.wl-opacity-track { position:relative; height:6px; background:rgba(255,255,255,0.08); border-radius:3px; cursor:pointer; }
+.wl-opacity-fill { position:absolute; left:0; top:0; height:100%; border-radius:3px; background:linear-gradient(90deg,#57f287,#3b82f6); pointer-events:none; }
+.wl-opacity-thumb { position:absolute; top:50%; width:14px; height:14px; border-radius:50%; background:#fff; border:2px solid rgba(0,0,0,0.3); transform:translate(-50%,-50%); pointer-events:none; box-shadow:0 1px 3px rgba(0,0,0,0.3); }
+.wl-seg { display:inline-flex; border:1px solid rgba(255,255,255,0.1); border-radius:4px; overflow:hidden; }
+.wl-seg button { background:rgba(255,255,255,0.04); border:none; color:rgba(255,255,255,0.5); font-size:0.72rem; font-weight:700; padding:0.3rem 0.7rem; cursor:pointer; transition:all 0.15s; font-family:inherit; }
+.wl-seg button.is-active { background:rgba(255,255,255,0.1); color:#e9edf5; }
+.wl-seg button:hover:not(.is-active) { background:rgba(255,255,255,0.06); }
 </style>
 <div id="welcomer-wrap">
 
@@ -191,51 +203,124 @@
 </div>
 
 <div class="md-modal-overlay" id="wl-img-modal">
-  <div class="md-modal" style="min-width:560px;max-width:620px;max-height:85vh;overflow-y:auto;">
+  <div class="md-modal" style="min-width:580px;max-width:640px;max-height:88vh;overflow-y:auto;">
     <h3 id="wl-img-title">Image Card Editor</h3>
-    <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin:0.2rem 0 0.75rem;line-height:1.5;">Text placeholders: <code>{name}</code> username &middot; <code>{server}</code> server name &middot; <code>{count}</code> member count</div>
-    <div style="display:flex;flex-direction:column;gap:0.6rem;margin:0.75rem 0;">
-      <div style="display:flex;gap:0.6rem;">
-        <div style="flex:1;">
-          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Gradient Top</div>
-          <div style="display:flex;align-items:center;gap:0.4rem;">
-            <input type="color" id="img-grad1" value="#1a1a2e" style="width:36px;height:32px;border:none;background:none;cursor:pointer;" />
-            <input type="text" class="md-input" id="img-grad1-hex" value="#1a1a2e" style="max-width:90px;" />
+    <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin:0.2rem 0 0.75rem;line-height:1.5;">Placeholders: <code>{name}</code> username &middot; <code>{server}</code> server &middot; <code>{count}</code> member count</div>
+    <div style="display:flex;flex-direction:column;gap:0.7rem;margin:0.75rem 0;">
+
+      <!-- Background -->
+      <div style="border:1px solid rgba(255,255,255,0.06);border-radius:4px;padding:0.6rem;background:rgba(255,255,255,0.015);">
+        <div class="md-behavior-label" style="margin-bottom:0.5rem;">Background</div>
+        <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.5rem;">
+          <div class="wl-seg" id="img-bg-type-seg">
+            <button type="button" data-bgtype="gradient" class="is-active">Gradient</button>
+            <button type="button" data-bgtype="solid">Solid</button>
+            <button type="button" data-bgtype="image">Image</button>
+          </div>
+          <div style="flex:1;"></div>
+          <div class="wl-color-pick">
+            <div class="wl-color-swatch" id="img-bg-swatch" style="background:#1a1a2e;"></div>
+            <input type="color" id="img-bg-color-pick" value="#1a1a2e" />
           </div>
         </div>
-        <div style="flex:1;">
-          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Gradient Bottom</div>
-          <div style="display:flex;align-items:center;gap:0.4rem;">
-            <input type="color" id="img-grad2" value="#16213e" style="width:36px;height:32px;border:none;background:none;cursor:pointer;" />
-            <input type="text" class="md-input" id="img-grad2-hex" value="#16213e" style="max-width:90px;" />
+        <div id="img-bg-gradient-row" style="display:flex;gap:0.6rem;margin-bottom:0.5rem;">
+          <div style="flex:1;">
+            <div class="wl-small-label">Top Color</div>
+            <div style="display:flex;align-items:center;gap:0.35rem;">
+              <div class="wl-color-pick">
+                <div class="wl-color-swatch" id="img-grad1-swatch" style="background:#1a1a2e;"></div>
+                <input type="color" id="img-grad1" value="#1a1a2e" />
+              </div>
+              <input type="text" class="md-input" id="img-grad1-hex" value="#1a1a2e" style="max-width:80px;font-size:0.72rem;" />
+            </div>
+          </div>
+          <div style="flex:1;">
+            <div class="wl-small-label">Bottom Color</div>
+            <div style="display:flex;align-items:center;gap:0.35rem;">
+              <div class="wl-color-pick">
+                <div class="wl-color-swatch" id="img-grad2-swatch" style="background:#16213e;"></div>
+                <input type="color" id="img-grad2" value="#16213e" />
+              </div>
+              <input type="text" class="md-input" id="img-grad2-hex" value="#16213e" style="max-width:80px;font-size:0.72rem;" />
+            </div>
+          </div>
+        </div>
+        <div id="img-bg-solid-row" style="display:none;margin-bottom:0.5rem;">
+          <div class="wl-small-label">Solid Color</div>
+          <div style="display:flex;align-items:center;gap:0.35rem;">
+            <div class="wl-color-pick">
+              <div class="wl-color-swatch" id="img-solid-swatch" style="background:#1a1a2e;"></div>
+              <input type="color" id="img-solid-color" value="#1a1a2e" />
+            </div>
+            <input type="text" class="md-input" id="img-solid-hex" value="#1a1a2e" style="max-width:80px;font-size:0.72rem;" />
+          </div>
+        </div>
+        <div id="img-bg-image-row" style="display:none;margin-bottom:0.5rem;">
+          <div class="wl-small-label">Image URL</div>
+          <input type="text" class="md-input" id="img-bg-url" placeholder="https://example.com/background.png" style="font-size:0.72rem;" />
+        </div>
+        <div>
+          <div class="wl-small-label">Opacity</div>
+          <div style="display:flex;align-items:center;gap:0.6rem;">
+            <div class="wl-opacity-track" id="img-opacity-track" style="flex:1;">
+              <div class="wl-opacity-fill" id="img-opacity-fill" style="width:100%;"></div>
+              <div class="wl-opacity-thumb" id="img-opacity-thumb" style="left:100%;"></div>
+            </div>
+            <input type="number" class="md-input" id="img-opacity" value="100" min="0" max="100" style="width:50px;font-size:0.72rem;text-align:center;" />
+            <span style="font-size:0.65rem;color:rgba(255,255,255,0.35);">%</span>
           </div>
         </div>
       </div>
-      <div>
-        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Background Image URL (optional, covers gradient)</div>
-        <input type="text" class="md-input" id="img-bg-url" placeholder="https://example.com/background.png" />
+
+      <!-- Avatar -->
+      <div style="border:1px solid rgba(255,255,255,0.06);border-radius:4px;padding:0.6rem;background:rgba(255,255,255,0.015);">
+        <div class="md-behavior-label" style="margin-bottom:0.5rem;">Avatar</div>
+        <div style="display:flex;gap:0.6rem;margin-bottom:0.5rem;">
+          <div style="flex:1;">
+            <div class="wl-small-label">Size</div>
+            <input type="number" class="md-input" id="img-avatar-size" value="150" min="50" max="300" style="font-size:0.72rem;" />
+          </div>
+          <div style="flex:1;">
+            <div class="wl-small-label">Y Position</div>
+            <input type="number" class="md-input" id="img-avatar-y" value="60" min="0" max="500" style="font-size:0.72rem;" />
+          </div>
+        </div>
+        <div style="display:flex;gap:0.6rem;">
+          <div style="flex:1;">
+            <div class="wl-small-label">Border Color</div>
+            <div style="display:flex;align-items:center;gap:0.35rem;">
+              <div class="wl-color-pick">
+                <div class="wl-color-swatch" id="img-border-swatch" style="background:#ffffff;"></div>
+                <input type="color" id="img-avatar-border" value="#ffffff" />
+              </div>
+              <input type="text" class="md-input" id="img-avatar-border-hex" value="#ffffff" style="max-width:80px;font-size:0.72rem;" />
+            </div>
+          </div>
+          <div style="flex:1;">
+            <div class="wl-small-label">Border Width</div>
+            <input type="number" class="md-input" id="img-avatar-border-width" value="6" min="0" max="30" style="font-size:0.72rem;" />
+          </div>
+          <div style="flex:1;">
+            <div class="wl-small-label">Border Style</div>
+            <div class="wl-seg" id="img-border-style-seg" style="width:100%;">
+              <button type="button" data-bstyle="solid" class="is-active" style="flex:1;">Solid</button>
+              <button type="button" data-bstyle="dashed" style="flex:1;">Dashed</button>
+              <button type="button" data-bstyle="dotted" style="flex:1;">Dotted</button>
+              <button type="button" data-bstyle="none" style="flex:1;">None</button>
+            </div>
+          </div>
+        </div>
       </div>
-      <div style="display:flex;gap:0.6rem;">
-        <div style="flex:1;">
-          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Avatar Size</div>
-          <input type="number" class="md-input" id="img-avatar-size" value="150" min="50" max="300" />
-        </div>
-        <div style="flex:1;">
-          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Avatar Y Position</div>
-          <input type="number" class="md-input" id="img-avatar-y" value="60" min="0" max="500" />
-        </div>
-        <div style="flex:1;">
-          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Border Color</div>
-          <input type="color" id="img-avatar-border" value="#ffffff" style="width:100%;height:32px;border:none;background:none;cursor:pointer;" />
-        </div>
-      </div>
-      <div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem;">
-          <div class="md-behavior-label">Text Layers</div>
-          <button class="md-action-btn" id="img-add-layer" style="padding:0.2rem 0.6rem;font-size:0.72rem;">+ Add Layer</button>
+
+      <!-- Text Layers -->
+      <div style="border:1px solid rgba(255,255,255,0.06);border-radius:4px;padding:0.6rem;background:rgba(255,255,255,0.015);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+          <div class="md-behavior-label" style="margin-bottom:0;">Text Layers</div>
+          <button class="md-action-btn" id="img-add-layer" style="padding:0.2rem 0.6rem;font-size:0.72rem;">+ Add</button>
         </div>
         <div id="img-layers-wrap" style="display:flex;flex-direction:column;gap:0.5rem;"></div>
       </div>
+
     </div>
     <div style="display:flex;gap:0.5rem;">
       <button class="md-action-btn" id="img-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save Card</button>
@@ -510,7 +595,7 @@ document.addEventListener('DOMContentLoaded', () => {
     wimg.addEventListener('change', function() {
       const cfg = SETTINGS_SNAPSHOT.welcome_image_config || null;
       if (this.checked) {
-        markChanged('welcome_image_config', cfg || {enabled:true, width:950, height:450, gradient:{color1:'#1a1a2e',color2:'#16213e'}, bg_image:'', avatar_border:'#ffffff', avatar_size:150, avatar_y:60, text_layers:[{content:'Welcome!',y:260,font_size:38,color:'#ffffff',enabled:true},{content:'{name}',y:310,font_size:26,color:'#aaaaaa',enabled:true},{content:'Member #{count}',y:350,font_size:18,color:'#666666',enabled:true}]});
+        markChanged('welcome_image_config', cfg || {enabled:true, width:950, height:450, bg_type:'gradient', gradient:{color1:'#1a1a2e',color2:'#16213e'}, solid_color:'#1a1a2e', bg_image:'', bg_opacity:100, avatar_border:'#ffffff', avatar_border_width:6, avatar_border_style:'solid', avatar_size:150, avatar_y:60, text_layers:[{content:'Welcome!',y:260,font_size:38,color:'#ffffff',enabled:true},{content:'{name}',y:310,font_size:26,color:'#aaaaaa',enabled:true},{content:'Member #{count}',y:350,font_size:18,color:'#666666',enabled:true}]});
       } else {
         const cfg2 = cfg ? {...cfg, enabled:false} : null;
         markChanged('welcome_image_config', cfg2);
@@ -525,7 +610,7 @@ document.addEventListener('DOMContentLoaded', () => {
     gimg.addEventListener('change', function() {
       const cfg = SETTINGS_SNAPSHOT.goodbye_image_config || null;
       if (this.checked) {
-        markChanged('goodbye_image_config', cfg || {enabled:true, width:950, height:450, gradient:{color1:'#2d1b4e',color2:'#1a1a2e'}, bg_image:'', avatar_border:'#ffffff', avatar_size:150, avatar_y:60, text_layers:[{content:'Goodbye!',y:260,font_size:38,color:'#ffffff',enabled:true},{content:'{name}',y:310,font_size:26,color:'#aaaaaa',enabled:true},{content:'We\'ll miss you!',y:350,font_size:18,color:'#666666',enabled:true}]});
+        markChanged('goodbye_image_config', cfg || {enabled:true, width:950, height:450, bg_type:'gradient', gradient:{color1:'#2d1b4e',color2:'#1a1a2e'}, solid_color:'#2d1b4e', bg_image:'', bg_opacity:100, avatar_border:'#ffffff', avatar_border_width:6, avatar_border_style:'solid', avatar_size:150, avatar_y:60, text_layers:[{content:'Goodbye!',y:260,font_size:38,color:'#ffffff',enabled:true},{content:'{name}',y:310,font_size:26,color:'#aaaaaa',enabled:true},{content:'We\'ll miss you!',y:350,font_size:18,color:'#666666',enabled:true}]});
       } else {
         const cfg2 = cfg ? {...cfg, enabled:false} : null;
         markChanged('goodbye_image_config', cfg2);
@@ -562,22 +647,66 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Image card editor ──
   let currentImageTarget = null;
+  let editImgLayers = [];
+  let editImgBgType = 'gradient';
+  let editImgBorderStyle = 'solid';
+
+  function syncColorSwatch(hexInput, swatch) {
+    const v = hexInput.value;
+    if (/^#[0-9a-fA-F]{6}$/.test(v)) swatch.style.background = v;
+  }
+  function setupColorPicker(colorInput, hexInput, swatch) {
+    colorInput.addEventListener('input', () => { hexInput.value = colorInput.value; syncColorSwatch(hexInput, swatch); });
+    hexInput.addEventListener('input', () => { if (/^#[0-9a-fA-F]{6}$/.test(hexInput.value)) { colorInput.value = hexInput.value; syncColorSwatch(hexInput, swatch); } });
+  }
+  function setupSwatchClick(swatch, colorInput) {
+    swatch.addEventListener('click', () => colorInput.click());
+  }
+  function setOpacitySlider(pct) {
+    document.getElementById('img-opacity-fill').style.width = pct + '%';
+    document.getElementById('img-opacity-thumb').style.left = pct + '%';
+  }
+  function updateBgTypeUI(type) {
+    editImgBgType = type;
+    document.getElementById('img-bg-gradient-row').style.display = type === 'gradient' ? '' : 'none';
+    document.getElementById('img-bg-solid-row').style.display = type === 'solid' ? '' : 'none';
+    document.getElementById('img-bg-image-row').style.display = type === 'image' ? '' : 'none';
+    const mainSwatch = document.getElementById('img-bg-swatch');
+    const mainPick = document.getElementById('img-bg-color-pick');
+    if (type === 'gradient') {
+      mainSwatch.style.background = document.getElementById('img-grad1-hex').value;
+      mainSwatch.style.background = 'linear-gradient(180deg, ' + document.getElementById('img-grad1-hex').value + ', ' + document.getElementById('img-grad2-hex').value + ')';
+      mainPick.style.display = 'none';
+      mainSwatch.style.display = '';
+    } else if (type === 'solid') {
+      mainSwatch.style.background = document.getElementById('img-solid-hex').value;
+      mainPick.style.display = 'none';
+      mainSwatch.style.display = '';
+    } else {
+      mainSwatch.style.display = 'none';
+      mainPick.style.display = 'none';
+    }
+  }
+  function updateBorderStyleUI(style) {
+    editImgBorderStyle = style;
+  }
+
   function renderImageLayers(layers) {
     const wrap = document.getElementById('img-layers-wrap');
     wrap.innerHTML = '';
     layers.forEach((layer, i) => {
       const row = document.createElement('div');
-      row.style.cssText = 'border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:0.5rem;background:rgba(255,255,255,0.02);';
+      row.style.cssText = 'border:1px solid rgba(255,255,255,0.06);border-radius:4px;padding:0.5rem;background:rgba(255,255,255,0.02);';
       row.innerHTML =
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem;">' +
-          '<label class="md-toggle" style="transform:scale(0.7);margin:0;"><input type="checkbox" data-ilayer="'+i+'" data-ifield="enabled" '+(layer.enabled!==false?'checked':'')+' /><span class="md-toggle-slider"></span></label>' +
+          '<label class="md-toggle" style="transform:scale(0.65);margin:0;"><input type="checkbox" data-ilayer="'+i+'" data-ifield="enabled" '+(layer.enabled!==false?'checked':'')+' /><span class="md-toggle-slider"></span></label>' +
           '<button class="md-action-btn wl-layer-rm" data-ilayer="'+i+'" style="padding:0.1rem 0.4rem;font-size:0.72rem;color:#f87171;">Remove</button>' +
         '</div>' +
-        '<div style="display:flex;gap:0.4rem;margin-bottom:0.3rem;">' +
-          '<input type="text" class="md-input" data-ilayer="'+i+'" data-ifield="content" value="'+esc(layer.content||'')+'" placeholder="Text (e.g. Welcome!)" style="flex:2;" />' +
-          '<input type="number" class="md-input" data-ilayer="'+i+'" data-ifield="font_size" value="'+(layer.font_size||24)+'" min="8" max="72" style="flex:0.5;" />' +
-          '<input type="color" data-ilayer="'+i+'" data-ifield="color" value="'+(layer.color||'#ffffff')+'" style="width:36px;height:32px;border:none;background:none;cursor:pointer;flex:0;" />' +
-          '<input type="number" class="md-input" data-ilayer="'+i+'" data-ifield="y" value="'+(layer.y||200)+'" min="0" max="2000" style="flex:0.5;" title="Y position" />' +
+        '<input type="text" class="md-input" data-ilayer="'+i+'" data-ifield="content" value="'+esc(layer.content||'')+'" placeholder="Text (e.g. Welcome!)" style="width:100%;margin-bottom:0.35rem;" />' +
+        '<div style="display:flex;gap:0.4rem;">' +
+          '<div style="flex:2;"><div class="wl-small-label">Color</div><div style="display:flex;align-items:center;gap:0.3rem;"><div class="wl-color-pick"><div class="wl-color-swatch" data-ilcolor="'+i+'" style="background:'+(layer.color||'#ffffff')+';width:24px;height:24px;"></div><input type="color" data-ilayer="'+i+'" data-ifield="color" value="'+(layer.color||'#ffffff')+'" style="width:24px;height:24px;" /></div><input type="text" class="md-input" data-ilayer="'+i+'" data-ifield="color" value="'+(layer.color||'#ffffff')+'" style="max-width:72px;font-size:0.68rem;" /></div></div>' +
+          '<div style="flex:1;"><div class="wl-small-label">Size</div><input type="number" class="md-input" data-ilayer="'+i+'" data-ifield="font_size" value="'+(layer.font_size||24)+'" min="8" max="72" style="font-size:0.72rem;" /></div>' +
+          '<div style="flex:1;"><div class="wl-small-label">Y</div><input type="number" class="md-input" data-ilayer="'+i+'" data-ifield="y" value="'+(layer.y||200)+'" min="0" max="2000" style="font-size:0.72rem;" /></div>' +
         '</div>';
       wrap.appendChild(row);
     });
@@ -588,12 +717,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (field === 'enabled') return;
         const val = field === 'content' ? el.value : (field === 'color' ? el.value : parseInt(el.value)||0);
         editImgLayers[idx][field] = val;
+        if (field === 'color') {
+          const sw = wrap.querySelector('[data-ilcolor="'+idx+'"]');
+          if (sw && /^#[0-9a-fA-F]{6}$/.test(val)) sw.style.background = val;
+        }
       });
       if (el.type === 'checkbox') {
-        el.addEventListener('change', () => {
-          const idx = parseInt(el.dataset.ilayer);
-          editImgLayers[idx].enabled = el.checked;
-        });
+        el.addEventListener('change', () => { editImgLayers[parseInt(el.dataset.ilayer)].enabled = el.checked; });
       }
     });
     wrap.querySelectorAll('.wl-layer-rm').forEach(btn => btn.addEventListener('click', () => {
@@ -601,21 +731,55 @@ document.addEventListener('DOMContentLoaded', () => {
       renderImageLayers(editImgLayers);
     }));
   }
-  let editImgLayers = [];
+
   function openImageEditor(which) {
     currentImageTarget = which;
     const cfg = SETTINGS_SNAPSHOT[which + '_image_config'] || {};
     const g = cfg.gradient || {};
-    const c1 = g.color1 || '#1a1a2e';
-    const c2 = g.color2 || '#16213e';
+
+    // BG type
+    const bgType = cfg.bg_type || 'gradient';
+    document.querySelectorAll('#img-bg-type-seg button').forEach(b => b.classList.toggle('is-active', b.dataset.bgtype === bgType));
+    updateBgTypeUI(bgType);
+
+    // Gradient
+    const c1 = g.color1 || '#1a1a2e', c2 = g.color2 || '#16213e';
     document.getElementById('img-grad1').value = c1;
     document.getElementById('img-grad1-hex').value = c1;
+    document.getElementById('img-grad1-swatch').style.background = c1;
     document.getElementById('img-grad2').value = c2;
     document.getElementById('img-grad2-hex').value = c2;
+    document.getElementById('img-grad2-swatch').style.background = c2;
+
+    // Solid
+    const sc = cfg.solid_color || '#1a1a2e';
+    document.getElementById('img-solid-color').value = sc;
+    document.getElementById('img-solid-hex').value = sc;
+    document.getElementById('img-solid-swatch').style.background = sc;
+
+    // Image
     document.getElementById('img-bg-url').value = cfg.bg_image || '';
+
+    // Opacity
+    const op = cfg.bg_opacity != null ? cfg.bg_opacity : 100;
+    document.getElementById('img-opacity').value = op;
+    setOpacitySlider(op);
+
+    // Avatar
     document.getElementById('img-avatar-size').value = cfg.avatar_size || 150;
     document.getElementById('img-avatar-y').value = cfg.avatar_y || 60;
-    document.getElementById('img-avatar-border').value = cfg.avatar_border || '#ffffff';
+    const bc = cfg.avatar_border || '#ffffff';
+    document.getElementById('img-avatar-border').value = bc;
+    document.getElementById('img-avatar-border-hex').value = bc;
+    document.getElementById('img-border-swatch').style.background = bc;
+    document.getElementById('img-avatar-border-width').value = cfg.avatar_border_width != null ? cfg.avatar_border_width : 6;
+
+    // Border style
+    const bs = cfg.avatar_border_style || 'solid';
+    document.querySelectorAll('#img-border-style-seg button').forEach(b => b.classList.toggle('is-active', b.dataset.bstyle === bs));
+    updateBorderStyleUI(bs);
+
+    // Text layers
     editImgLayers = JSON.parse(JSON.stringify(cfg.text_layers || [
       {content:'Welcome!', y:260, font_size:38, color:'#ffffff', enabled:true},
       {content:'{name}', y:310, font_size:26, color:'#aaaaaa', enabled:true},
@@ -625,18 +789,71 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('wl-img-title').textContent = (which === 'welcome' ? 'Welcome' : 'Goodbye') + ' - Image Card';
     document.getElementById('wl-img-modal').classList.add('is-open');
   }
+
   function collectImageConfig() {
     return {
       enabled: true,
       width: 950, height: 450,
+      bg_type: editImgBgType,
       gradient: { color1: document.getElementById('img-grad1-hex').value || '#1a1a2e', color2: document.getElementById('img-grad2-hex').value || '#16213e' },
+      solid_color: document.getElementById('img-solid-hex').value || '#1a1a2e',
       bg_image: document.getElementById('img-bg-url').value || '',
-      avatar_border: document.getElementById('img-avatar-border').value || '#ffffff',
+      bg_opacity: parseInt(document.getElementById('img-opacity').value) || 100,
+      avatar_border: document.getElementById('img-avatar-border-hex').value || '#ffffff',
+      avatar_border_width: parseInt(document.getElementById('img-avatar-border-width').value) || 6,
+      avatar_border_style: editImgBorderStyle,
       avatar_size: parseInt(document.getElementById('img-avatar-size').value) || 150,
       avatar_y: parseInt(document.getElementById('img-avatar-y').value) || 60,
       text_layers: editImgLayers.map(l => ({content:l.content||'', y:l.y||200, font_size:l.font_size||24, color:l.color||'#ffffff', enabled:l.enabled!==false}))
     };
   }
+
+  // Wire up BG type segmented control
+  document.querySelectorAll('#img-bg-type-seg button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#img-bg-type-seg button').forEach(x => x.classList.remove('is-active'));
+    b.classList.add('is-active');
+    updateBgTypeUI(b.dataset.bgtype);
+  }));
+
+  // Wire up border style segmented control
+  document.querySelectorAll('#img-border-style-seg button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#img-border-style-seg button').forEach(x => x.classList.remove('is-active'));
+    b.classList.add('is-active');
+    updateBorderStyleUI(b.dataset.bstyle);
+  }));
+
+  // Wire up color pickers
+  setupColorPicker(document.getElementById('img-grad1'), document.getElementById('img-grad1-hex'), document.getElementById('img-grad1-swatch'));
+  setupColorPicker(document.getElementById('img-grad2'), document.getElementById('img-grad2-hex'), document.getElementById('img-grad2-swatch'));
+  setupColorPicker(document.getElementById('img-solid-color'), document.getElementById('img-solid-hex'), document.getElementById('img-solid-swatch'));
+  setupColorPicker(document.getElementById('img-avatar-border'), document.getElementById('img-avatar-border-hex'), document.getElementById('img-border-swatch'));
+  setupSwatchClick(document.getElementById('img-grad1-swatch'), document.getElementById('img-grad1'));
+  setupSwatchClick(document.getElementById('img-grad2-swatch'), document.getElementById('img-grad2'));
+  setupSwatchClick(document.getElementById('img-solid-swatch'), document.getElementById('img-solid-color'));
+  setupSwatchClick(document.getElementById('img-border-swatch'), document.getElementById('img-avatar-border'));
+
+  // Wire up opacity slider
+  (function() {
+    const track = document.getElementById('img-opacity-track');
+    const input = document.getElementById('img-opacity');
+    function setFromMouse(e) {
+      const rect = track.getBoundingClientRect();
+      let pct = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+      pct = Math.max(0, Math.min(100, pct));
+      input.value = pct;
+      setOpacitySlider(pct);
+    }
+    let dragging = false;
+    track.addEventListener('mousedown', (e) => { dragging = true; setFromMouse(e); });
+    document.addEventListener('mousemove', (e) => { if (dragging) setFromMouse(e); });
+    document.addEventListener('mouseup', () => { dragging = false; });
+    input.addEventListener('input', () => {
+      let v = Math.max(0, Math.min(100, parseInt(input.value) || 100));
+      setOpacitySlider(v);
+    });
+  })();
+
+  // Wire up image editor buttons
   document.querySelectorAll('[data-edit-image]').forEach(b => b.addEventListener('click', () => openImageEditor(b.dataset.editImage)));
   document.getElementById('img-add-layer').addEventListener('click', () => {
     editImgLayers.push({content:'New text', y:200, font_size:24, color:'#ffffff', enabled:true});
@@ -651,16 +868,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('img-cancel').addEventListener('click', () => document.getElementById('wl-img-modal').classList.remove('is-open'));
   document.getElementById('wl-img-modal').addEventListener('click', e => { if (e.target === document.getElementById('wl-img-modal')) e.target.classList.remove('is-open'); });
-  const imgG1 = document.getElementById('img-grad1'), imgG1h = document.getElementById('img-grad1-hex');
-  const imgG2 = document.getElementById('img-grad2'), imgG2h = document.getElementById('img-grad2-hex');
-  if (imgG1 && imgG1h) {
-    imgG1h.addEventListener('input', () => { if (/^#[0-9a-fA-F]{6}$/.test(imgG1h.value)) imgG1.value = imgG1h.value; });
-    imgG1.addEventListener('input', () => { imgG1h.value = imgG1.value; });
-  }
-  if (imgG2 && imgG2h) {
-    imgG2h.addEventListener('input', () => { if (/^#[0-9a-fA-F]{6}$/.test(imgG2h.value)) imgG2.value = imgG2h.value; });
-    imgG2.addEventListener('input', () => { imgG2h.value = imgG2.value; });
-  }
 
   saveBtn.addEventListener('click', saveChanges);
   document.getElementById('discard-btn').addEventListener('click', () => {

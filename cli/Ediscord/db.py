@@ -93,6 +93,10 @@ async def _ensure_tables():
         "CREATE TABLE IF NOT EXISTS member_history (guild_id TEXT NOT NULL, timestamp DOUBLE PRECISION NOT NULL, member_count INTEGER NOT NULL, PRIMARY KEY (guild_id, timestamp))",
         "CREATE TABLE IF NOT EXISTS message_history (guild_id TEXT NOT NULL, timestamp DOUBLE PRECISION NOT NULL, message_count INTEGER NOT NULL, PRIMARY KEY (guild_id, timestamp))",
         "CREATE TABLE IF NOT EXISTS captcha_codes (code TEXT PRIMARY KEY, provider TEXT NOT NULL, guild_id TEXT DEFAULT '', user_id TEXT DEFAULT '', created_at DOUBLE PRECISION NOT NULL, expires_at DOUBLE PRECISION NOT NULL, used BOOLEAN NOT NULL DEFAULT FALSE)",
+        "CREATE TABLE IF NOT EXISTS automation_graph (guild_id TEXT PRIMARY KEY, nodes JSONB NOT NULL DEFAULT '[]', connections JSONB NOT NULL DEFAULT '[]', updated_at DOUBLE PRECISION NOT NULL DEFAULT 0)",
+        "CREATE TABLE IF NOT EXISTS automation_runs (guild_id TEXT NOT NULL, bucket_ts DOUBLE PRECISION NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, bucket_ts))",
+        "CREATE TABLE IF NOT EXISTS automation_logs (id SERIAL PRIMARY KEY, guild_id TEXT NOT NULL, message TEXT NOT NULL DEFAULT '', created_at DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now())))",
+        "CREATE INDEX IF NOT EXISTS idx_automation_logs_guild ON automation_logs (guild_id, id DESC)",
         "ALTER TABLE captcha_codes ADD COLUMN IF NOT EXISTS guild_id TEXT DEFAULT ''",
         "ALTER TABLE captcha_codes ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT ''",
     ]

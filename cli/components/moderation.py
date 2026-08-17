@@ -20,6 +20,7 @@ MOD_DEFAULTS = {
     "cmd_unban": True, "cmd_mute": True, "cmd_timeout": True, "cmd_unmute": True,
     "cmd_warn": True, "cmd_purge": True,
     "mod_roles": [], "emergency_lock": False,
+    "mute_evasion": False,
     # ── Modlog ──
     "modlog_channel_id": None,
     # ── Ban ──
@@ -428,6 +429,19 @@ class Moderation(commands.Cog, name="Moderation"):
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):
         self.member_counts[member.guild.id] = {"ts": time.time(), "count": member.guild.member_count}
+
+    @commands.Cog.listener()
+    async def on_member_update(self, before: discord.Member, after: discord.Member):
+        settings = await get_mod_settings(after.guild.id)
+        if not settings.get("mute_evasion"):
+            return
+        if before.is_timed_out() and not after.is_timed_out():
+            if before.timed_out_until and before.timed_out_until > discord.utils.utcnow():
+                try:
+                    await after.timeout(before.timed_out_until, reason="Mute evasion detected")
+                    logger.info(f"Re-applied mute to {after.name} in {after.guild.name} (mute evasion)")
+                except Exception as e:
+                    logger.warning(f"Failed to re-apply mute: {e}")
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -907,6 +921,20 @@ class Moderation(commands.Cog, name="Moderation"):
             interaction.user.name,
         )
 
+    @app_commands.command(name="muteevasion", description="Toggle mute evasion detection")
+    @app_commands.describe(enabled="Enable or disable")
+    @is_mod()
+    async def muteevasion(self, interaction: discord.Interaction, enabled: bool):
+        settings = await get_mod_settings(interaction.guild_id)
+        settings["mute_evasion"] = enabled
+        await save_mod_settings(interaction.guild_id, settings)
+        status = "enabled" if enabled else "disabled"
+        color = "green" if enabled else "red"
+        await interaction.response.send_message(
+            embed=EmbedBuilder().title(emoji_title("shield", "Mute Evasion Updated")).description(f"Mute evasion detection **{status}**.").color(color).timestamp(datetime.datetime.utcnow()).build(),
+            ephemeral=True
+        )
+
     @app_commands.command(name="settings", description="View current moderation settings")
     @is_mod()
     async def view_settings(self, interaction: discord.Interaction):
@@ -942,6 +970,7 @@ class Moderation(commands.Cog, name="Moderation"):
             .field("Kick DM", b(settings.get("kick_dm")))
             .field("Mute DM", b(settings.get("mute_dm")))
             .field("Warn DM", b(settings.get("warn_dm")))
+            .field("Mute Evasion", b(settings.get("mute_evasion")))
             .timestamp(datetime.datetime.utcnow())
             .build()
         )

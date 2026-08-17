@@ -516,8 +516,14 @@ document.addEventListener('mouseup', e => {
         } else if (hasCircular(connOrigin, toId)) {
           if (typeof showToast === 'function') showToast("That would create a circular loop.", 'warning');
         } else {
-          connections = connections.filter(c => c.to!==toId);
-          connections.push({from:connOrigin, to:toId, fromDot:connOrigDot});
+          const fromNode = nodes.find(x=>x.id===connOrigin);
+          const fromKind = fromNode ? ((NODE_DEFS[nodeType(fromNode.type)]||{}).kind) : '';
+          if (fromKind === 'variable') {
+            connections.push({from:connOrigin, to:toId, fromDot:connOrigDot});
+          } else {
+            connections = connections.filter(c => c.to!==toId);
+            connections.push({from:connOrigin, to:toId, fromDot:connOrigDot});
+          }
         }
       } else if (dot) {
         if (typeof showToast === 'function') showToast('Connect from an output dot to an input dot.', 'warning', 4000);
@@ -696,7 +702,7 @@ function configureNode(n) {
   });
 
   const overlay = document.createElement('div');
-  overlay.className = 'md-modal-overlay'; overlay.style.zIndex=200;
+  overlay.className = 'md-modal-overlay'; overlay.style.zIndex=200; overlay.tabIndex=-1;
   overlay.innerHTML = `<div class="md-modal" style="max-width:460px;max-height:80vh;overflow-y:auto;"><h3>${esc(title)}</h3><div id="cfg-fields"></div><div style="display:flex;gap:0.5rem;margin-top:0.9rem;"><button class="md-action-btn" id="cfg-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button><button class="md-action-btn" id="cfg-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save</button></div></div>`;
   overlay.querySelector('#cfg-fields').appendChild(body);
   document.body.appendChild(overlay);
@@ -729,6 +735,12 @@ function configureNode(n) {
   });
   overlay.querySelector('#cfg-cancel').addEventListener('click',()=>overlay.remove());
   overlay.addEventListener('click', e=>{if(e.target===overlay) overlay.remove();});
+  overlay.addEventListener('keydown', e=>{
+    if(e.key==='Escape'){e.preventDefault();overlay.remove();return;}
+    if(e.key==='Enter'&&!e.shiftKey&&document.activeElement&&document.activeElement.tagName!=='TEXTAREA'){
+      e.preventDefault();overlay.querySelector('#cfg-save').click();
+    }
+  });
 }
 
 document.querySelectorAll('.aut-palette-block').forEach(b=>b.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',b.dataset.palette);}));

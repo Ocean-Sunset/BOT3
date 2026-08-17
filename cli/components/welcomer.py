@@ -22,6 +22,8 @@ WELCOME_DEFAULTS = {
     "welcome_dm": False,
     "welcome_dm_message": "Welcome to **{server}**! Make sure to read the rules.",
     "auto_role_ids": [],
+    "bot_auto_role": None,
+    "auto_nickname": None,
 }
 
 
@@ -134,6 +136,24 @@ class Welcomer(commands.Cog, name="Welcomer"):
                     await member.add_roles(role, reason="Auto-role on join")
                 except Exception as e:
                     logger.warning(f"Failed to add auto-role {rid}: {e}")
+
+        if member.bot:
+            bot_role_id = settings.get("bot_auto_role")
+            if bot_role_id:
+                role = member.guild.get_role(int(bot_role_id))
+                if role:
+                    try:
+                        await member.add_roles(role, reason="Bot auto-role")
+                    except Exception as e:
+                        logger.warning(f"Failed to add bot auto-role: {e}")
+
+        auto_nick = settings.get("auto_nickname")
+        if auto_nick and not member.bot:
+            try:
+                nick = auto_nick.replace("{user}", member.name).replace("{server}", member.guild.name)
+                await member.edit(nick=nick[:32], reason="Auto-nickname")
+            except Exception as e:
+                logger.warning(f"Failed to set auto-nickname: {e}")
 
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):
@@ -275,6 +295,50 @@ class Welcomer(commands.Cog, name="Welcomer"):
                 ephemeral=True
             )
 
+    @welcomer_group.command(name="botrole", description="Set a role for bots on join")
+    @app_commands.describe(role="The role for bots. Leave empty to remove.")
+    async def botrole(self, interaction: discord.Interaction, role: Optional[discord.Role] = None):
+        if not interaction.user.guild_permissions.manage_roles:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Roles permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        settings = await get_welcome_settings(interaction.guild_id)
+        settings["bot_auto_role"] = str(role.id) if role else None
+        await save_welcome_settings(interaction.guild_id, settings)
+        if role:
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("success", "Bot Auto-Role Set")).description(f"Bots will receive {role.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        else:
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("info", "Bot Auto-Role Removed")).description("Bot auto-role has been removed.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+
+    @welcomer_group.command(name="nickname", description="Set auto-nickname for new members")
+    @app_commands.describe(nickname="Nickname template (use {user} and {server}). Leave empty to disable.")
+    async def nickname(self, interaction: discord.Interaction, nickname: str = None):
+        if not interaction.user.guild_permissions.manage_nicknames:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Nicknames permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        settings = await get_welcome_settings(interaction.guild_id)
+        settings["auto_nickname"] = nickname
+        await save_welcome_settings(interaction.guild_id, settings)
+        if nickname:
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("success", "Auto-Nickname Set")).description(f"New members will be nicknamed: `{nickname}`").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        else:
+            await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("info", "Auto-Nickname Disabled")).description("Auto-nickname has been removed.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+
     @welcomer_group.command(name="test", description="Test the welcome message")
     async def test(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
@@ -316,6 +380,8 @@ class Welcomer(commands.Cog, name="Welcomer"):
         channel = interaction.guild.get_channel(int(channel_id)) if channel_id else None
         auto_role_id = settings.get("auto_role_id")
         auto_role = interaction.guild.get_role(int(auto_role_id)) if auto_role_id else None
+        bot_role_id = settings.get("bot_auto_role")
+        bot_role = interaction.guild.get_role(int(bot_role_id)) if bot_role_id else None
         embed = (
             EmbedBuilder()
             .title(emoji_title("info", "Welcomer Configuration"))
@@ -326,6 +392,8 @@ class Welcomer(commands.Cog, name="Welcomer"):
             .field("Goodbye Embed", "Yes" if settings.get("goodbye_embed", True) else "No")
             .field("Welcome DM", "Yes" if settings.get("welcome_dm") else "No")
             .field("Auto-Role", auto_role.mention if auto_role else "None")
+            .field("Bot Auto-Role", bot_role.mention if bot_role else "None")
+            .field("Auto-Nickname", settings.get("auto_nickname") or "Disabled")
             .field("Welcome Message", settings.get("welcome_message", "Not set")[:1024])
             .field("Goodbye Message", settings.get("goodbye_message") or "Disabled")
             .timestamp(datetime.datetime.utcnow())

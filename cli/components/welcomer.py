@@ -3,7 +3,12 @@ from discord.ext import commands
 from discord import app_commands
 import json
 import datetime
+import io
+import os
 from typing import Optional
+
+from PIL import Image, ImageDraw, ImageFont
+import aiohttp
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
@@ -17,15 +22,140 @@ WELCOME_DEFAULTS = {
     "welcome_message": "Welcome {member} to {server}!",
     "welcome_mode": "basic",
     "welcome_embed_data": {},
+    "welcome_image_config": None,
     "goodbye_message": "{member} has left {server}.",
     "goodbye_mode": "basic",
     "goodbye_embed_data": {},
+    "goodbye_image_config": None,
     "welcome_dm": False,
     "welcome_dm_message": "Welcome to **{server}**! Make sure to read the rules.",
     "auto_role_ids": [],
     "bot_auto_role": None,
     "auto_nickname": None,
 }
+
+DEFAULT_IMAGE_CONFIG = {
+    "enabled": True,
+    "width": 950,
+    "height": 450,
+    "gradient": {"color1": "#1a1a2e", "color2": "#16213e"},
+    "bg_image": "",
+    "avatar_border": "#ffffff",
+    "avatar_size": 150,
+    "avatar_y": 60,
+    "text_layers": [
+        {"content": "Welcome!", "y": 260, "font_size": 38, "color": "#ffffff", "enabled": True},
+        {"content": "{name}", "y": 310, "font_size": 26, "color": "#aaaaaa", "enabled": True},
+        {"content": "Member #{count}", "y": 350, "font_size": 18, "color": "#666666", "enabled": True},
+    ],
+}
+
+
+def _load_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
+    candidates = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "C:\\Windows\\Fonts\\arialbd.ttf" if bold else "C:\\Windows\\Fonts\\arial.ttf",
+        "C:\\Windows\\Fonts\\calibrib.ttf" if bold else "C:\\Windows\\Fonts\\calibri.ttf",
+        "C:\\Windows\\Fonts\\segoeuib.ttf" if bold else "C:\\Windows\\Fonts\\segoeui.ttf",
+    ]
+    for path in candidates:
+        if os.path.isfile(path):
+            try:
+                return ImageFont.truetype(path, size)
+            except Exception:
+                continue
+    return ImageFont.load_default()
+
+
+def _circle_avatar(avatar_bytes: bytes, size: int, border_color: str = "#ffffff") -> Image.Image:
+    raw = Image.open(io.BytesIO(avatar_bytes)).convert("RGBA")
+    raw = raw.resize((size, size), Image.LANCZOS)
+    mask = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(mask).ellipse((0, 0, size - 1, size - 1), fill=255)
+    result = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    result.paste(raw, mask=mask)
+    border = 6
+    bordered = Image.new("RGBA", (size + border * 2, size + border * 2), (0, 0, 0, 0))
+    bc = tuple(int(border_color.lstrip("#")[i:i+2], 16) for i in (0, 2, 4))
+    ImageDraw.Draw(bordered).ellipse((0, 0, size + border * 2 - 1, size + border * 2 - 1), fill=bc + (255,))
+    bordered.paste(result, (border, border), result)
+    return bordered
+
+
+def render_image_text(template: str, member: discord.Member) -> str:
+    return (template
+            .replace("{name}", member.name)
+            .replace("{server}", member.guild.name)
+            .replace("{count}", str(member.guild.member_count)))
+
+
+async def generate_card_image(member: discord.Member, config: dict) -> bytes:
+    if not config:
+        config = DEFAULT_IMAGE_CONFIG
+    w = config.get("width", 950)
+    h = config.get("height", 450)
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    # Background
+    bg_url = config.get("bg_image", "")
+    if bg_url:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(bg_url) as resp:
+                    if resp.status == 200:
+                        bg_data = await resp.read()
+                        bg = Image.open(io.BytesIO(bg_data)).convert("RGBA").resize((w, h), Image.LANCZOS)
+                        img.paste(bg, (0, 0))
+        except Exception as e:
+            logger.warning(f"Failed to load background image: {e}")
+
+    grad = config.get("gradient", {})
+    if grad:
+        c1 = tuple(int(grad.get("color1", "#1a1a2e").lstrip("#")[i:i+2], 16) for i in (0, 2, 4))
+        c2 = tuple(int(grad.get("color2", "#16213e").lstrip("#")[i:i+2], 16) for i in (0, 2, 4))
+        grad_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        gd = ImageDraw.Draw(grad_layer)
+        for y_pos in range(h):
+            ratio = y_pos / h
+            r = int(c1[0] + (c2[0] - c1[0]) * ratio)
+            g = int(c1[1] + (c2[1] - c1[1]) * ratio)
+            b = int(c1[2] + (c2[2] - c1[2]) * ratio)
+            gd.line([(0, y_pos), (w, y_pos)], fill=(r, g, b, 180))
+        img = Image.alpha_composite(img, grad_layer)
+        draw = ImageDraw.Draw(img)
+
+    # Avatar
+    try:
+        avatar_bytes = await member.display_avatar.read()
+        av_size = config.get("avatar_size", 150)
+        av_y = config.get("avatar_y", 60)
+        av_border = config.get("avatar_border", "#ffffff")
+        av = _circle_avatar(avatar_bytes, av_size, av_border)
+        av_x = (w - av.width) // 2
+        img.paste(av, (av_x, av_y), av)
+        draw = ImageDraw.Draw(img)
+    except Exception as e:
+        logger.warning(f"Failed to load avatar for card: {e}")
+
+    # Text layers
+    for layer in config.get("text_layers", []):
+        if not layer.get("enabled", True):
+            continue
+        content = render_image_text(layer.get("content", ""), member)
+        font_size = layer.get("font_size", 24)
+        font = _load_font(font_size, bold=True)
+        color_hex = layer.get("color", "#ffffff")
+        color = tuple(int(color_hex.lstrip("#")[i:i+2], 16) for i in (0, 2, 4))
+        bbox = draw.textbbox((0, 0), content, font=font)
+        tw = bbox[2] - bbox[0]
+        tx = (w - tw) // 2
+        ty = layer.get("y", h // 2)
+        draw.text((tx, ty), content, font=font, fill=color + (255,))
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
 
 
 async def get_welcome_settings(guild_id: int):
@@ -86,10 +216,21 @@ class Welcomer(commands.Cog, name="Welcomer"):
 
         # Custom embed mode renders the user-configured embed; otherwise the default styled embed
         mode = settings.get("welcome_mode", "basic")
+        image_config = settings.get("welcome_image_config")
+        card_file = None
+        if image_config and image_config.get("enabled"):
+            try:
+                card_bytes = await generate_card_image(member, image_config)
+                card_file = discord.File(io.BytesIO(card_bytes), filename="welcome.png")
+            except Exception as e:
+                logger.warning(f"Failed to generate welcome card: {e}")
+
         if mode == "custom" and settings.get("welcome_embed_data"):
             try:
                 embed = embed_from_dict(render_welcome_embed(settings["welcome_embed_data"], member))
-                await channel.send(embed=embed)
+                if card_file:
+                    embed.set_image(url="attachment://welcome.png")
+                await channel.send(embed=embed, file=card_file) if card_file else await channel.send(embed=embed)
             except Exception as e:
                 logger.warning(f"Failed to send custom welcome embed: {e}")
         else:
@@ -107,7 +248,9 @@ class Welcomer(commands.Cog, name="Welcomer"):
                     .timestamp(datetime.datetime.utcnow())
                     .build()
                 )
-                await channel.send(embed=embed)
+                if card_file:
+                    embed.set_image(url="attachment://welcome.png")
+                await channel.send(embed=embed, file=card_file) if card_file else await channel.send(embed=embed)
             except Exception as e:
                 logger.warning(f"Failed to send welcome message: {e}")
 
@@ -170,10 +313,20 @@ class Welcomer(commands.Cog, name="Welcomer"):
             return
         msg = render_welcome(settings.get("goodbye_message", ""), member)
         mode = settings.get("goodbye_mode", "basic")
+        image_config = settings.get("goodbye_image_config")
+        card_file = None
+        if image_config and image_config.get("enabled"):
+            try:
+                card_bytes = await generate_card_image(member, image_config)
+                card_file = discord.File(io.BytesIO(card_bytes), filename="goodbye.png")
+            except Exception as e:
+                logger.warning(f"Failed to generate goodbye card: {e}")
         try:
             if mode == "custom" and settings.get("goodbye_embed_data"):
                 embed = embed_from_dict(render_welcome_embed(settings["goodbye_embed_data"], member))
-                await channel.send(embed=embed)
+                if card_file:
+                    embed.set_image(url="attachment://goodbye.png")
+                await channel.send(embed=embed, file=card_file) if card_file else await channel.send(embed=embed)
             else:
                 embed = (
                     EmbedBuilder()
@@ -186,7 +339,9 @@ class Welcomer(commands.Cog, name="Welcomer"):
                     .timestamp(datetime.datetime.utcnow())
                     .build()
                 )
-                await channel.send(embed=embed)
+                if card_file:
+                    embed.set_image(url="attachment://goodbye.png")
+                await channel.send(embed=embed, file=card_file) if card_file else await channel.send(embed=embed)
         except Exception as e:
             logger.warning(f"Failed to send goodbye message: {e}")
 
@@ -373,6 +528,14 @@ class Welcomer(commands.Cog, name="Welcomer"):
             )
         settings = await get_welcome_settings(interaction.guild_id)
         msg = render_welcome(settings.get("welcome_message", "Welcome {member}!"), interaction.user)
+        image_config = settings.get("welcome_image_config")
+        card_file = None
+        if image_config and image_config.get("enabled"):
+            try:
+                card_bytes = await generate_card_image(interaction.user, image_config)
+                card_file = discord.File(io.BytesIO(card_bytes), filename="welcome.png")
+            except Exception as e:
+                logger.warning(f"Failed to generate test card: {e}")
         if settings.get("welcome_embed", True):
             embed = (
                 EmbedBuilder()
@@ -386,9 +549,14 @@ class Welcomer(commands.Cog, name="Welcomer"):
                 .timestamp(datetime.datetime.utcnow())
                 .build()
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            if card_file:
+                embed.set_image(url="attachment://welcome.png")
+            await interaction.response.send_message(embed=embed, file=card_file, ephemeral=True) if card_file else await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
             await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("success", "Welcome! (Test)")).description(msg).color("green").timestamp(datetime.datetime.utcnow()).build(),
+                file=card_file, ephemeral=True
+            ) if card_file else await interaction.response.send_message(
                 embed=EmbedBuilder().title(emoji_title("success", "Welcome! (Test)")).description(msg).color("green").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )

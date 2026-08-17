@@ -1,6 +1,6 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
-<link rel="stylesheet" href="/static/moderation.css?v=16" />
+<link rel="stylesheet" href="/static/moderation.css?v=17" />
 <style>
 .wl-code { font-size:0.72rem; font-weight:700; color:#e9edf5; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:4px; padding:0.2rem 0.45rem; font-family:monospace; }
 .wl-code-note { font-size:0.72rem; color:rgba(255,255,255,0.4); margin-right:0.6rem; }
@@ -73,6 +73,23 @@
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Welcome Image Card</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <label class="md-toggle"><input type="checkbox" id="wl-wimg" /><span class="md-toggle-slider"></span></label>
+            <div style="flex:1"><div class="md-behavior-label">Send an image card with the welcome message</div><div class="md-behavior-desc">A generated card image with avatar, gradient background, and custom text is attached to the embed</div></div>
+          </div>
+          <div class="md-behavior-item" id="wl-wimg-edit-row" style="display:none;">
+            <div style="flex:1">
+              <button class="md-action-btn" data-edit-image="welcome" style="width:100%;justify-content:center;padding:0.5rem;"><i data-lucide="pen-square"></i> Edit Image Card</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;">
           <div class="md-section-title" style="margin-bottom:0;">Goodbye Message</div>
           <div class="md-segmented">
@@ -93,6 +110,23 @@
         </div>
         <div data-wl-custom="goodbye" style="display:none;">
           <button class="md-action-btn" data-edit-embed="goodbye" style="width:100%;justify-content:center;padding:0.5rem;margin-top:0.25rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Goodbye Image Card</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <label class="md-toggle"><input type="checkbox" id="wl-gimg" /><span class="md-toggle-slider"></span></label>
+            <div style="flex:1"><div class="md-behavior-label">Send an image card with the goodbye message</div><div class="md-behavior-desc">A generated card image with avatar, gradient background, and custom text is attached to the embed</div></div>
+          </div>
+          <div class="md-behavior-item" id="wl-gimg-edit-row" style="display:none;">
+            <div style="flex:1">
+              <button class="md-action-btn" data-edit-image="goodbye" style="width:100%;justify-content:center;padding:0.5rem;"><i data-lucide="pen-square"></i> Edit Image Card</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -154,6 +188,60 @@
 
   </div>
 
+</div>
+
+<div class="md-modal-overlay" id="wl-img-modal">
+  <div class="md-modal" style="min-width:560px;max-width:620px;max-height:85vh;overflow-y:auto;">
+    <h3 id="wl-img-title">Image Card Editor</h3>
+    <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin:0.2rem 0 0.75rem;line-height:1.5;">Text placeholders: <code>{name}</code> username &middot; <code>{server}</code> server name &middot; <code>{count}</code> member count</div>
+    <div style="display:flex;flex-direction:column;gap:0.6rem;margin:0.75rem 0;">
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Gradient Top</div>
+          <div style="display:flex;align-items:center;gap:0.4rem;">
+            <input type="color" id="img-grad1" value="#1a1a2e" style="width:36px;height:32px;border:none;background:none;cursor:pointer;" />
+            <input type="text" class="md-input" id="img-grad1-hex" value="#1a1a2e" style="max-width:90px;" />
+          </div>
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Gradient Bottom</div>
+          <div style="display:flex;align-items:center;gap:0.4rem;">
+            <input type="color" id="img-grad2" value="#16213e" style="width:36px;height:32px;border:none;background:none;cursor:pointer;" />
+            <input type="text" class="md-input" id="img-grad2-hex" value="#16213e" style="max-width:90px;" />
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Background Image URL (optional, covers gradient)</div>
+        <input type="text" class="md-input" id="img-bg-url" placeholder="https://example.com/background.png" />
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Avatar Size</div>
+          <input type="number" class="md-input" id="img-avatar-size" value="150" min="50" max="300" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Avatar Y Position</div>
+          <input type="number" class="md-input" id="img-avatar-y" value="60" min="0" max="500" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Border Color</div>
+          <input type="color" id="img-avatar-border" value="#ffffff" style="width:100%;height:32px;border:none;background:none;cursor:pointer;" />
+        </div>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem;">
+          <div class="md-behavior-label">Text Layers</div>
+          <button class="md-action-btn" id="img-add-layer" style="padding:0.2rem 0.6rem;font-size:0.72rem;">+ Add Layer</button>
+        </div>
+        <div id="img-layers-wrap" style="display:flex;flex-direction:column;gap:0.5rem;"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="md-action-btn" id="img-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save Card</button>
+      <button class="md-action-btn" id="img-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button>
+    </div>
+  </div>
 </div>
 
 <div class="md-modal-overlay" id="wl-embed-modal">
@@ -414,6 +502,37 @@ document.addEventListener('DOMContentLoaded', () => {
     rBtn.addEventListener('click', (e) => { e.stopPropagation(); renderRoleOptions(); rDrop.classList.toggle('is-open'); });
     document.addEventListener('click', (e) => { if (!e.target.closest('#wl-roles-wrap')) rDrop.classList.remove('is-open'); });
 
+    // Image card toggles
+    const wimg = document.getElementById('wl-wimg');
+    const wimgRow = document.getElementById('wl-wimg-edit-row');
+    wimg.checked = !!(SETTINGS_SNAPSHOT.welcome_image_config && SETTINGS_SNAPSHOT.welcome_image_config.enabled);
+    wimgRow.style.display = wimg.checked ? '' : 'none';
+    wimg.addEventListener('change', function() {
+      const cfg = SETTINGS_SNAPSHOT.welcome_image_config || null;
+      if (this.checked) {
+        markChanged('welcome_image_config', cfg || {enabled:true, width:950, height:450, gradient:{color1:'#1a1a2e',color2:'#16213e'}, bg_image:'', avatar_border:'#ffffff', avatar_size:150, avatar_y:60, text_layers:[{content:'Welcome!',y:260,font_size:38,color:'#ffffff',enabled:true},{content:'{name}',y:310,font_size:26,color:'#aaaaaa',enabled:true},{content:'Member #{count}',y:350,font_size:18,color:'#666666',enabled:true}]});
+      } else {
+        const cfg2 = cfg ? {...cfg, enabled:false} : null;
+        markChanged('welcome_image_config', cfg2);
+      }
+      wimgRow.style.display = this.checked ? '' : 'none';
+    });
+
+    const gimg = document.getElementById('wl-gimg');
+    const gimgRow = document.getElementById('wl-gimg-edit-row');
+    gimg.checked = !!(SETTINGS_SNAPSHOT.goodbye_image_config && SETTINGS_SNAPSHOT.goodbye_image_config.enabled);
+    gimgRow.style.display = gimg.checked ? '' : 'none';
+    gimg.addEventListener('change', function() {
+      const cfg = SETTINGS_SNAPSHOT.goodbye_image_config || null;
+      if (this.checked) {
+        markChanged('goodbye_image_config', cfg || {enabled:true, width:950, height:450, gradient:{color1:'#2d1b4e',color2:'#1a1a2e'}, bg_image:'', avatar_border:'#ffffff', avatar_size:150, avatar_y:60, text_layers:[{content:'Goodbye!',y:260,font_size:38,color:'#ffffff',enabled:true},{content:'{name}',y:310,font_size:26,color:'#aaaaaa',enabled:true},{content:'We\'ll miss you!',y:350,font_size:18,color:'#666666',enabled:true}]});
+      } else {
+        const cfg2 = cfg ? {...cfg, enabled:false} : null;
+        markChanged('goodbye_image_config', cfg2);
+      }
+      gimgRow.style.display = this.checked ? '' : 'none';
+    });
+
     renderRoles();
     updateDisabledState();
   });
@@ -441,6 +560,108 @@ document.addEventListener('DOMContentLoaded', () => {
     weColor.addEventListener('input', () => { weHex.value = weColor.value; });
   }
 
+  // ── Image card editor ──
+  let currentImageTarget = null;
+  function renderImageLayers(layers) {
+    const wrap = document.getElementById('img-layers-wrap');
+    wrap.innerHTML = '';
+    layers.forEach((layer, i) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:0.5rem;background:rgba(255,255,255,0.02);';
+      row.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem;">' +
+          '<label class="md-toggle" style="transform:scale(0.7);margin:0;"><input type="checkbox" data-ilayer="'+i+'" data-ifield="enabled" '+(layer.enabled!==false?'checked':'')+' /><span class="md-toggle-slider"></span></label>' +
+          '<button class="md-action-btn wl-layer-rm" data-ilayer="'+i+'" style="padding:0.1rem 0.4rem;font-size:0.72rem;color:#f87171;">Remove</button>' +
+        '</div>' +
+        '<div style="display:flex;gap:0.4rem;margin-bottom:0.3rem;">' +
+          '<input type="text" class="md-input" data-ilayer="'+i+'" data-ifield="content" value="'+esc(layer.content||'')+'" placeholder="Text (e.g. Welcome!)" style="flex:2;" />' +
+          '<input type="number" class="md-input" data-ilayer="'+i+'" data-ifield="font_size" value="'+(layer.font_size||24)+'" min="8" max="72" style="flex:0.5;" />' +
+          '<input type="color" data-ilayer="'+i+'" data-ifield="color" value="'+(layer.color||'#ffffff')+'" style="width:36px;height:32px;border:none;background:none;cursor:pointer;flex:0;" />' +
+          '<input type="number" class="md-input" data-ilayer="'+i+'" data-ifield="y" value="'+(layer.y||200)+'" min="0" max="2000" style="flex:0.5;" title="Y position" />' +
+        '</div>';
+      wrap.appendChild(row);
+    });
+    wrap.querySelectorAll('[data-ilayer]').forEach(el => {
+      el.addEventListener('input', () => {
+        const idx = parseInt(el.dataset.ilayer);
+        const field = el.dataset.ifield;
+        if (field === 'enabled') return;
+        const val = field === 'content' ? el.value : (field === 'color' ? el.value : parseInt(el.value)||0);
+        editImgLayers[idx][field] = val;
+      });
+      if (el.type === 'checkbox') {
+        el.addEventListener('change', () => {
+          const idx = parseInt(el.dataset.ilayer);
+          editImgLayers[idx].enabled = el.checked;
+        });
+      }
+    });
+    wrap.querySelectorAll('.wl-layer-rm').forEach(btn => btn.addEventListener('click', () => {
+      editImgLayers.splice(parseInt(btn.dataset.ilayer), 1);
+      renderImageLayers(editImgLayers);
+    }));
+  }
+  let editImgLayers = [];
+  function openImageEditor(which) {
+    currentImageTarget = which;
+    const cfg = SETTINGS_SNAPSHOT[which + '_image_config'] || {};
+    const g = cfg.gradient || {};
+    const c1 = g.color1 || '#1a1a2e';
+    const c2 = g.color2 || '#16213e';
+    document.getElementById('img-grad1').value = c1;
+    document.getElementById('img-grad1-hex').value = c1;
+    document.getElementById('img-grad2').value = c2;
+    document.getElementById('img-grad2-hex').value = c2;
+    document.getElementById('img-bg-url').value = cfg.bg_image || '';
+    document.getElementById('img-avatar-size').value = cfg.avatar_size || 150;
+    document.getElementById('img-avatar-y').value = cfg.avatar_y || 60;
+    document.getElementById('img-avatar-border').value = cfg.avatar_border || '#ffffff';
+    editImgLayers = JSON.parse(JSON.stringify(cfg.text_layers || [
+      {content:'Welcome!', y:260, font_size:38, color:'#ffffff', enabled:true},
+      {content:'{name}', y:310, font_size:26, color:'#aaaaaa', enabled:true},
+      {content:'Member #{count}', y:350, font_size:18, color:'#666666', enabled:true}
+    ]));
+    renderImageLayers(editImgLayers);
+    document.getElementById('wl-img-title').textContent = (which === 'welcome' ? 'Welcome' : 'Goodbye') + ' - Image Card';
+    document.getElementById('wl-img-modal').classList.add('is-open');
+  }
+  function collectImageConfig() {
+    return {
+      enabled: true,
+      width: 950, height: 450,
+      gradient: { color1: document.getElementById('img-grad1-hex').value || '#1a1a2e', color2: document.getElementById('img-grad2-hex').value || '#16213e' },
+      bg_image: document.getElementById('img-bg-url').value || '',
+      avatar_border: document.getElementById('img-avatar-border').value || '#ffffff',
+      avatar_size: parseInt(document.getElementById('img-avatar-size').value) || 150,
+      avatar_y: parseInt(document.getElementById('img-avatar-y').value) || 60,
+      text_layers: editImgLayers.map(l => ({content:l.content||'', y:l.y||200, font_size:l.font_size||24, color:l.color||'#ffffff', enabled:l.enabled!==false}))
+    };
+  }
+  document.querySelectorAll('[data-edit-image]').forEach(b => b.addEventListener('click', () => openImageEditor(b.dataset.editImage)));
+  document.getElementById('img-add-layer').addEventListener('click', () => {
+    editImgLayers.push({content:'New text', y:200, font_size:24, color:'#ffffff', enabled:true});
+    renderImageLayers(editImgLayers);
+  });
+  document.getElementById('img-save').addEventListener('click', () => {
+    if (currentImageTarget) {
+      markChanged(currentImageTarget + '_image_config', collectImageConfig());
+      if (typeof showToast === 'function') showToast('Image card updated - press Save to confirm.', 'success');
+    }
+    document.getElementById('wl-img-modal').classList.remove('is-open');
+  });
+  document.getElementById('img-cancel').addEventListener('click', () => document.getElementById('wl-img-modal').classList.remove('is-open'));
+  document.getElementById('wl-img-modal').addEventListener('click', e => { if (e.target === document.getElementById('wl-img-modal')) e.target.classList.remove('is-open'); });
+  const imgG1 = document.getElementById('img-grad1'), imgG1h = document.getElementById('img-grad1-hex');
+  const imgG2 = document.getElementById('img-grad2'), imgG2h = document.getElementById('img-grad2-hex');
+  if (imgG1 && imgG1h) {
+    imgG1h.addEventListener('input', () => { if (/^#[0-9a-fA-F]{6}$/.test(imgG1h.value)) imgG1.value = imgG1h.value; });
+    imgG1.addEventListener('input', () => { imgG1h.value = imgG1.value; });
+  }
+  if (imgG2 && imgG2h) {
+    imgG2h.addEventListener('input', () => { if (/^#[0-9a-fA-F]{6}$/.test(imgG2h.value)) imgG2.value = imgG2h.value; });
+    imgG2.addEventListener('input', () => { imgG2h.value = imgG2.value; });
+  }
+
   saveBtn.addEventListener('click', saveChanges);
   document.getElementById('discard-btn').addEventListener('click', () => {
     const reverted = { ...LOADED };
@@ -460,6 +681,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const chBtn = document.getElementById('wl-channel-btn');
     const m = CHANNELS.find(c => String(c.id) === String(reverted.channel_id));
     chBtn.textContent = m ? '#' + m.name : 'Select channel...';
+    const gchBtn2 = document.getElementById('wl-goodbye-channel-btn');
+    const gm = CHANNELS.find(c => String(c.id) === String(reverted.goodbye_channel_id));
+    gchBtn2.textContent = gm ? '#' + gm.name : 'Same as welcome';
+    const wimg2 = document.getElementById('wl-wimg');
+    wimg2.checked = !!(reverted.welcome_image_config && reverted.welcome_image_config.enabled);
+    document.getElementById('wl-wimg-edit-row').style.display = wimg2.checked ? '' : 'none';
+    const gimg2 = document.getElementById('wl-gimg');
+    gimg2.checked = !!(reverted.goodbye_image_config && reverted.goodbye_image_config.enabled);
+    document.getElementById('wl-gimg-edit-row').style.display = gimg2.checked ? '' : 'none';
     renderRoles();
     updateDisabledState();
     saveBar.classList.add('is-closed');

@@ -2621,15 +2621,20 @@ async def raid_channels(guild_id: str, request: Request):
 WELCOME_DEFAULTS = {
     "enabled": False,
     "channel_id": None,
+    "goodbye_channel_id": None,
     "welcome_message": "Welcome {member} to {server}!",
     "welcome_mode": "basic",
     "welcome_embed_data": {},
+    "welcome_image_config": None,
     "goodbye_message": "{member} has left {server}.",
     "goodbye_mode": "basic",
     "goodbye_embed_data": {},
+    "goodbye_image_config": None,
     "welcome_dm": False,
     "welcome_dm_message": "Welcome to **{server}**! Make sure to read the rules.",
     "auto_role_ids": [],
+    "bot_auto_role": None,
+    "auto_nickname": None,
 }
 
 
@@ -2675,6 +2680,40 @@ async def welcomer_settings_set(guild_id: str, request: Request):
         if err:
             return JSONResponse({"error": err}, status_code=400)
         value = clean
+    elif key in ("welcome_image_config", "goodbye_image_config"):
+        if value is not None and not isinstance(value, dict):
+            return JSONResponse({"error": f"'{key}' must be an object or null"}, status_code=400)
+        if value is not None:
+            tl = value.get("text_layers")
+            if tl is not None:
+                if not isinstance(tl, list) or len(tl) > 5:
+                    return JSONResponse({"error": "text_layers must be a list with at most 5 entries"}, status_code=400)
+                for i, layer in enumerate(tl):
+                    if not isinstance(layer, dict):
+                        return JSONResponse({"error": f"text_layers[{i}] must be an object"}, status_code=400)
+                    for field in ("content", "color"):
+                        if field in layer and not isinstance(layer[field], str):
+                            return JSONResponse({"error": f"text_layers[{i}].{field} must be a string"}, status_code=400)
+                    if "font_size" in layer:
+                        try:
+                            layer["font_size"] = max(8, min(72, int(layer["font_size"])))
+                        except (TypeError, ValueError):
+                            return JSONResponse({"error": f"text_layers[{i}].font_size must be a number"}, status_code=400)
+                    if "y" in layer:
+                        try:
+                            layer["y"] = max(0, min(2000, int(layer["y"])))
+                        except (TypeError, ValueError):
+                            return JSONResponse({"error": f"text_layers[{i}].y must be a number"}, status_code=400)
+            grad = value.get("gradient")
+            if grad is not None:
+                if not isinstance(grad, dict):
+                    return JSONResponse({"error": "gradient must be an object"}, status_code=400)
+            for num_key in ("width", "height", "avatar_size", "avatar_y"):
+                if num_key in value:
+                    try:
+                        value[num_key] = max(100, min(4000, int(value[num_key])))
+                    except (TypeError, ValueError):
+                        return JSONResponse({"error": f"{num_key} must be a number"}, status_code=400)
     err = await _save_settings("welcome_settings", str(guild_id), key, value, WELCOME_DEFAULTS)
     if err:
         return JSONResponse({"error": err}, status_code=400)

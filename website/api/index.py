@@ -2704,6 +2704,11 @@ async def welcomer_settings_set(guild_id: str, request: Request):
                             layer["y"] = max(0, min(2000, int(layer["y"])))
                         except (TypeError, ValueError):
                             return JSONResponse({"error": f"text_layers[{i}].y must be a number"}, status_code=400)
+                    if "x" in layer:
+                        try:
+                            layer["x"] = max(0, min(4000, int(layer["x"])))
+                        except (TypeError, ValueError):
+                            return JSONResponse({"error": f"text_layers[{i}].x must be a number"}, status_code=400)
             bg_type = value.get("bg_type", "gradient")
             if bg_type not in ("solid", "gradient", "image"):
                 return JSONResponse({"error": "bg_type must be 'solid', 'gradient', or 'image'"}, status_code=400)

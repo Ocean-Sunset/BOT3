@@ -595,7 +595,7 @@ document.addEventListener('DOMContentLoaded', () => {
     wimg.addEventListener('change', function() {
       const cfg = SETTINGS_SNAPSHOT.welcome_image_config || null;
       if (this.checked) {
-        markChanged('welcome_image_config', cfg || {enabled:true, width:950, height:450, bg_type:'gradient', gradient:{color1:'#1a1a2e',color2:'#16213e'}, solid_color:'#1a1a2e', bg_image:'', bg_opacity:100, avatar_border:'#ffffff', avatar_border_width:6, avatar_border_style:'solid', avatar_size:150, avatar_y:60, text_layers:[{content:'Welcome!',y:260,font_size:38,color:'#ffffff',enabled:true},{content:'{name}',y:310,font_size:26,color:'#aaaaaa',enabled:true},{content:'Member #{count}',y:350,font_size:18,color:'#666666',enabled:true}]});
+        markChanged('welcome_image_config', cfg || {enabled:true, width:950, height:450, bg_type:'gradient', gradient:{color1:'#1a1a2e',color2:'#16213e'}, solid_color:'#1a1a2e', bg_image:'', bg_opacity:100, avatar_border:'#ffffff', avatar_border_width:6, avatar_border_style:'solid', avatar_size:150, avatar_y:60, text_layers:[{content:'Welcome!',x:0,y:260,font_size:38,color:'#ffffff',enabled:true},{content:'{name}',x:0,y:310,font_size:26,color:'#aaaaaa',enabled:true},{content:'Member #{count}',x:0,y:350,font_size:18,color:'#666666',enabled:true}]});
       } else {
         const cfg2 = cfg ? {...cfg, enabled:false} : null;
         markChanged('welcome_image_config', cfg2);
@@ -610,7 +610,7 @@ document.addEventListener('DOMContentLoaded', () => {
     gimg.addEventListener('change', function() {
       const cfg = SETTINGS_SNAPSHOT.goodbye_image_config || null;
       if (this.checked) {
-        markChanged('goodbye_image_config', cfg || {enabled:true, width:950, height:450, bg_type:'gradient', gradient:{color1:'#2d1b4e',color2:'#1a1a2e'}, solid_color:'#2d1b4e', bg_image:'', bg_opacity:100, avatar_border:'#ffffff', avatar_border_width:6, avatar_border_style:'solid', avatar_size:150, avatar_y:60, text_layers:[{content:'Goodbye!',y:260,font_size:38,color:'#ffffff',enabled:true},{content:'{name}',y:310,font_size:26,color:'#aaaaaa',enabled:true},{content:'We\'ll miss you!',y:350,font_size:18,color:'#666666',enabled:true}]});
+        markChanged('goodbye_image_config', cfg || {enabled:true, width:950, height:450, bg_type:'gradient', gradient:{color1:'#2d1b4e',color2:'#1a1a2e'}, solid_color:'#2d1b4e', bg_image:'', bg_opacity:100, avatar_border:'#ffffff', avatar_border_width:6, avatar_border_style:'solid', avatar_size:150, avatar_y:60, text_layers:[{content:'Goodbye!',x:0,y:260,font_size:38,color:'#ffffff',enabled:true},{content:'{name}',x:0,y:310,font_size:26,color:'#aaaaaa',enabled:true},{content:'We\'ll miss you!',x:0,y:350,font_size:18,color:'#666666',enabled:true}]});
       } else {
         const cfg2 = cfg ? {...cfg, enabled:false} : null;
         markChanged('goodbye_image_config', cfg2);
@@ -706,6 +706,7 @@ document.addEventListener('DOMContentLoaded', () => {
         '<div style="display:flex;gap:0.4rem;">' +
           '<div style="flex:2;"><div class="wl-small-label">Color</div><div style="display:flex;align-items:center;gap:0.3rem;"><div class="wl-color-pick"><div class="wl-color-swatch" data-ilcolor="'+i+'" style="background:'+(layer.color||'#ffffff')+';width:24px;height:24px;"></div><input type="color" data-ilayer="'+i+'" data-ifield="color" value="'+(layer.color||'#ffffff')+'" style="width:24px;height:24px;" /></div><input type="text" class="md-input" data-ilayer="'+i+'" data-ifield="color" value="'+(layer.color||'#ffffff')+'" style="max-width:72px;font-size:0.68rem;" /></div></div>' +
           '<div style="flex:1;"><div class="wl-small-label">Size</div><input type="number" class="md-input" data-ilayer="'+i+'" data-ifield="font_size" value="'+(layer.font_size||24)+'" min="8" max="72" style="font-size:0.72rem;" /></div>' +
+          '<div style="flex:1;"><div class="wl-small-label">X</div><input type="number" class="md-input" data-ilayer="'+i+'" data-ifield="x" value="'+(layer.x||0)+'" min="0" max="4000" style="font-size:0.72rem;" title="0 = centered" /></div>' +
           '<div style="flex:1;"><div class="wl-small-label">Y</div><input type="number" class="md-input" data-ilayer="'+i+'" data-ifield="y" value="'+(layer.y||200)+'" min="0" max="2000" style="font-size:0.72rem;" /></div>' +
         '</div>';
       wrap.appendChild(row);
@@ -781,9 +782,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Text layers
     editImgLayers = JSON.parse(JSON.stringify(cfg.text_layers || [
-      {content:'Welcome!', y:260, font_size:38, color:'#ffffff', enabled:true},
-      {content:'{name}', y:310, font_size:26, color:'#aaaaaa', enabled:true},
-      {content:'Member #{count}', y:350, font_size:18, color:'#666666', enabled:true}
+      {content:'Welcome!', x:0, y:260, font_size:38, color:'#ffffff', enabled:true},
+      {content:'{name}', x:0, y:310, font_size:26, color:'#aaaaaa', enabled:true},
+      {content:'Member #{count}', x:0, y:350, font_size:18, color:'#666666', enabled:true}
     ]));
     renderImageLayers(editImgLayers);
     document.getElementById('wl-img-title').textContent = (which === 'welcome' ? 'Welcome' : 'Goodbye') + ' - Image Card';
@@ -804,7 +805,7 @@ document.addEventListener('DOMContentLoaded', () => {
       avatar_border_style: editImgBorderStyle,
       avatar_size: parseInt(document.getElementById('img-avatar-size').value) || 150,
       avatar_y: parseInt(document.getElementById('img-avatar-y').value) || 60,
-      text_layers: editImgLayers.map(l => ({content:l.content||'', y:l.y||200, font_size:l.font_size||24, color:l.color||'#ffffff', enabled:l.enabled!==false}))
+      text_layers: editImgLayers.map(l => ({content:l.content||'', x:l.x||0, y:l.y||200, font_size:l.font_size||24, color:l.color||'#ffffff', enabled:l.enabled!==false}))
     };
   }
 
@@ -856,7 +857,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Wire up image editor buttons
   document.querySelectorAll('[data-edit-image]').forEach(b => b.addEventListener('click', () => openImageEditor(b.dataset.editImage)));
   document.getElementById('img-add-layer').addEventListener('click', () => {
-    editImgLayers.push({content:'New text', y:200, font_size:24, color:'#ffffff', enabled:true});
+    editImgLayers.push({content:'New text', x:0, y:200, font_size:24, color:'#ffffff', enabled:true});
     renderImageLayers(editImgLayers);
   });
   document.getElementById('img-save').addEventListener('click', () => {

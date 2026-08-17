@@ -49,9 +49,9 @@ DEFAULT_IMAGE_CONFIG = {
     "avatar_size": 150,
     "avatar_y": 60,
     "text_layers": [
-        {"content": "Welcome!", "y": 260, "font_size": 38, "color": "#ffffff", "enabled": True},
-        {"content": "{name}", "y": 310, "font_size": 26, "color": "#aaaaaa", "enabled": True},
-        {"content": "Member #{count}", "y": 350, "font_size": 18, "color": "#666666", "enabled": True},
+        {"content": "Welcome!", "x": 0, "y": 260, "font_size": 38, "color": "#ffffff", "enabled": True},
+        {"content": "{name}", "x": 0, "y": 310, "font_size": 26, "color": "#aaaaaa", "enabled": True},
+        {"content": "Member #{count}", "x": 0, "y": 350, "font_size": 18, "color": "#666666", "enabled": True},
     ],
 }
 
@@ -218,7 +218,11 @@ async def generate_card_image(member: discord.Member, config: dict) -> bytes:
         color = _hex_to_rgb(color_hex)
         bbox = draw.textbbox((0, 0), content, font=font)
         tw = bbox[2] - bbox[0]
-        tx = (w - tw) // 2
+        tx_raw = layer.get("x", 0)
+        if tx_raw == 0:
+            tx = (w - tw) // 2
+        else:
+            tx = max(0, min(w - tw, int(tx_raw)))
         ty = layer.get("y", h // 2)
         draw.text((tx, ty), content, font=font, fill=color + (255,))
 

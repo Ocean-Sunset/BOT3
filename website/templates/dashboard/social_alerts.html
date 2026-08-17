@@ -313,6 +313,19 @@ async function saveChanges() {
 
 document.addEventListener('DOMContentLoaded', async () => {
 
+  function applyDropdownValue(wrap, value, noneLabel) {
+    const btn = wrap.querySelector('.md-custom-select-btn');
+    if (!btn) return;
+    const match = value ? wrap.querySelector(`.md-custom-opt[data-id="${value}"]`) : null;
+    btn.textContent = match ? match.textContent : noneLabel;
+  }
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('[data-role-select], [data-channel-select], [data-extra-role], [data-extra-channel]')) {
+      document.querySelectorAll('.md-custom-select-drop').forEach(drop => drop.classList.remove('is-open'));
+    }
+  });
+
   // ── Channels for announce dropdowns (per platform) ──
   const CHANNEL_MAP = {};
   api('/channels').then(d => {
@@ -333,8 +346,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         drop.classList.remove('is-open');
       }));
-      btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
-      document.addEventListener('click', (e) => { if(!e.target.closest('[data-channel-select], [data-extra-channel]')) drop.classList.remove('is-open'); });
+      if (!btn.dataset.selectBound) {
+        btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+        btn.dataset.selectBound = 'true';
+      }
+      document.querySelectorAll('[data-role-select], [data-channel-select]').forEach(w => {
+        const k = w.dataset.roleSelect || w.dataset.channelSelect;
+        const label = w.dataset.roleSelect ? 'No role' : 'No channel';
+        if (SETTINGS_SNAPSHOT[k] !== undefined && SETTINGS_SNAPSHOT[k] !== null && SETTINGS_SNAPSHOT[k] !== '') {
+          applyDropdownValue(w, SETTINGS_SNAPSHOT[k], label);
+        } else {
+          applyDropdownValue(w, null, label);
+        }
+      });
     });
   });
 
@@ -354,8 +378,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         drop.classList.remove('is-open');
       }));
-      btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
-      document.addEventListener('click', (e) => { if(!e.target.closest('[data-role-select], [data-extra-role]')) drop.classList.remove('is-open'); });
+      if (!btn.dataset.selectBound) {
+        btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+        btn.dataset.selectBound = 'true';
+      }
+      document.querySelectorAll('[data-role-select], [data-channel-select]').forEach(w => {
+        const k = w.dataset.roleSelect || w.dataset.channelSelect;
+        const label = w.dataset.roleSelect ? 'No role' : 'No channel';
+        if (SETTINGS_SNAPSHOT[k] !== undefined && SETTINGS_SNAPSHOT[k] !== null && SETTINGS_SNAPSHOT[k] !== '') {
+          applyDropdownValue(w, SETTINGS_SNAPSHOT[k], label);
+        } else {
+          applyDropdownValue(w, null, label);
+        }
+      });
     });
   });
 
@@ -372,12 +407,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); updateGrayOut(); updateRequiredWarnings(); }));
     document.querySelectorAll('input[type="text"][data-key]').forEach(inp => inp.addEventListener('change', function(){ markChanged(this.dataset.key, this.value); updateRequiredWarnings(); }));
 
-    // Set dropdown button labels from saved values
+    // Set dropdown button labels from saved values once the option lists are populated
     document.querySelectorAll('[data-role-select], [data-channel-select]').forEach(wrap => {
       const key = wrap.dataset.roleSelect || wrap.dataset.channelSelect;
-      if (s[key]) {
-        const opt = wrap.querySelector(`.md-custom-opt[data-id="${s[key]}"]`);
-        if (opt) wrap.querySelector('.md-custom-select-btn').textContent = opt.textContent;
+      const label = wrap.dataset.roleSelect ? 'No role' : 'No channel';
+      const value = s[key];
+      if (value !== undefined && value !== null && value !== '') {
+        applyDropdownValue(wrap, value, label);
+      } else {
+        applyDropdownValue(wrap, null, label);
       }
     });
 

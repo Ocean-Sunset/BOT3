@@ -276,20 +276,26 @@ function updateGrayOut() {
   if (config) config.classList.toggle('is-disabled', !enabled);
 }
 
+function applyDropdownValue(wrap, value, noneLabel) {
+  const btn = wrap.querySelector('.md-custom-select-btn');
+  if (!btn) return;
+  const match = value ? wrap.querySelector(`.md-custom-opt[data-id="${value}"]`) : null;
+  btn.textContent = match ? match.textContent : noneLabel;
+}
+
 function resetDropdowns() {
   document.querySelectorAll('[data-role-select], [data-channel-select], [data-category-select]').forEach(wrap => {
     const key = wrap.dataset.roleSelect || wrap.dataset.channelSelect || 'category_id';
-    const btn = wrap.querySelector('.md-custom-select-btn');
-    if (!btn) return;
-    const saved = SETTINGS_SNAPSHOT[key];
-    if (saved) {
-      const opt = wrap.querySelector(`.md-custom-opt[data-id="${saved}"]`);
-      btn.textContent = opt ? opt.textContent : 'None';
-    } else {
-      btn.textContent = key === 'category_id' ? 'No category' : (key.includes('channel') ? 'No channel' : 'No role');
-    }
+    const noneLabel = key === 'category_id' ? 'No category' : (key.includes('channel') ? 'No channel' : 'No role');
+    applyDropdownValue(wrap, SETTINGS_SNAPSHOT[key], noneLabel);
   });
 }
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('[data-role-select], [data-channel-select], [data-category-select]')) {
+    document.querySelectorAll('.md-custom-select-drop').forEach(drop => drop.classList.remove('is-open'));
+  }
+});
 
 document.addEventListener('DOMContentLoaded', async () => {
 
@@ -306,8 +312,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       markChanged('category_id', b.dataset.id || null);
       drop.classList.remove('is-open');
     }));
-    btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
-    document.addEventListener('click', (e) => { if(!e.target.closest('[data-category-select]')) drop.classList.remove('is-open'); });
+    if (!btn.dataset.selectBound) {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+      btn.dataset.selectBound = 'true';
+    }
+    resetDropdowns();
   });
 
   // ── Channels ──
@@ -323,8 +332,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       markChanged('log_channel_id', b.dataset.id || null);
       drop.classList.remove('is-open');
     }));
-    btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
-    document.addEventListener('click', (e) => { if(!e.target.closest('[data-channel-select]')) drop.classList.remove('is-open'); });
+    if (!btn.dataset.selectBound) {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+      btn.dataset.selectBound = 'true';
+    }
+    resetDropdowns();
   });
 
   // ── Roles ──
@@ -340,8 +352,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       markChanged('support_role_id', b.dataset.id || null);
       drop.classList.remove('is-open');
     }));
-    btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
-    document.addEventListener('click', (e) => { if(!e.target.closest('[data-role-select]')) drop.classList.remove('is-open'); });
+    if (!btn.dataset.selectBound) {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+      btn.dataset.selectBound = 'true';
+    }
+    resetDropdowns();
   });
 
   // ── Settings load + bind ──

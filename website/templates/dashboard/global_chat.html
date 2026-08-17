@@ -85,14 +85,26 @@ function updateGrayOut() {
   if (config) config.classList.toggle('is-disabled', !enabled);
 }
 
+function applyDropdownValue(wrap, value, noneLabel) {
+  const btn = wrap.querySelector('.md-custom-select-btn');
+  if (!btn) return;
+  const saved = value ?? '';
+  const match = saved ? wrap.querySelector(`.md-custom-opt[data-id="${saved}"]`) : null;
+  btn.textContent = match ? match.textContent : noneLabel;
+}
+
 function resetDropdowns() {
   document.querySelectorAll('[data-channel-select]').forEach(wrap => {
     const key = wrap.dataset.channelSelect;
-    const btn = wrap.querySelector('.md-custom-select-btn'); if (!btn) return;
-    const saved = SETTINGS_SNAPSHOT[key];
-    btn.textContent = saved ? (wrap.querySelector(`.md-custom-opt[data-id="${saved}"]`)?.textContent || 'No channel') : 'No channel';
+    applyDropdownValue(wrap, SETTINGS_SNAPSHOT[key], 'No channel');
   });
 }
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('[data-channel-select]')) {
+    document.querySelectorAll('.md-custom-select-drop').forEach(drop => drop.classList.remove('is-open'));
+  }
+});
 
 document.addEventListener('DOMContentLoaded', async () => {
   api('/channels').then(d => {
@@ -106,8 +118,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       markChanged('channel_id', b.dataset.id || null);
       drop.classList.remove('is-open');
     }));
-    btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
-    document.addEventListener('click', e => { if(!e.target.closest('[data-channel-select]')) drop.classList.remove('is-open'); });
+    if (!btn.dataset.selectBound) {
+      btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+      btn.dataset.selectBound = 'true';
+    }
+    resetDropdowns();
   });
 
   api('/settings').then(d => {

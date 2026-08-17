@@ -50,7 +50,7 @@ class TicketView(discord.ui.View):
     async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not interaction.channel or not interaction.channel.name.startswith("ticket-"):
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Error").description("This is not a ticket channel.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Error")).description("This is not a ticket channel.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
 
@@ -92,7 +92,7 @@ class TicketView(discord.ui.View):
 
         async def cancel_cb(i: discord.Interaction):
             await i.response.edit_message(
-                embed=EmbedBuilder().title("Cancelled").description("Ticket close cancelled.").color("grey").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("info", "Cancelled")).description("Ticket close cancelled.").color("grey").timestamp(datetime.datetime.utcnow()).build(),
                 view=None
             )
 
@@ -104,7 +104,7 @@ class TicketView(discord.ui.View):
         confirm_view.add_item(confirm_btn)
         confirm_view.add_item(cancel_btn)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("Close Ticket?").description("Are you sure you want to close this ticket?").color("orange").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title(emoji_title("warning", "Close Ticket?")).description("Are you sure you want to close this ticket?").color("orange").timestamp(datetime.datetime.utcnow()).build(),
             view=confirm_view,
             ephemeral=True
         )
@@ -120,7 +120,7 @@ class CreateTicketView(discord.ui.View):
         settings = await get_ticket_settings(interaction.guild_id)
         if not settings.get("enabled"):
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Not Configured").description("Ticket system is not configured.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Not Configured")).description("Ticket system is not configured.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         questions = settings.get("questions") or []
@@ -163,7 +163,7 @@ class Tickets(commands.Cog, name="Tickets"):
         ticket_limit = settings.get("ticket_limit", 3)
         if len(existing_tickets) >= ticket_limit:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Limit Reached").description(f"You already have {len(existing_tickets)} open tickets (limit: {ticket_limit}).").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Limit Reached")).description(f"You already have {len(existing_tickets)} open tickets (limit: {ticket_limit}).").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         category = interaction.guild.get_channel(int(settings.get("category_id") or 0))
@@ -206,13 +206,13 @@ class Tickets(commands.Cog, name="Tickets"):
                     content = f"{interaction.user.mention}\n{qa}"
             await channel.send(content=content, embed=embed, view=view)
             await interaction.response.send_message(
-                embed=EmbedBuilder().title("Ticket Created").description(f"Your ticket has been created: {channel.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("success", "Ticket Created")).description(f"Your ticket has been created: {channel.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         except Exception as e:
             logger.error(f"Failed to create ticket: {e}")
             await interaction.response.send_message(
-                embed=EmbedBuilder().title("Error").description(f"Could not create ticket: {str(e)[:100]}").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Error")).description(f"Could not create ticket: {str(e)[:100]}").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
 
@@ -240,7 +240,7 @@ class Tickets(commands.Cog, name="Tickets"):
     async def setup(self, interaction: discord.Interaction, category: discord.CategoryChannel, role: Optional[discord.Role] = None, log_channel: Optional[discord.TextChannel] = None):
         if not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Administrator permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Administrator permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = {
@@ -264,7 +264,7 @@ class Tickets(commands.Cog, name="Tickets"):
         view = CreateTicketView(self)
         await interaction.channel.send(embed=embed, view=view)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("Setup Complete").description(f"Ticket system set up in {category.mention}.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title(emoji_title("success", "Setup Complete")).description(f"Ticket system set up in {category.mention}.").color("green").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -272,7 +272,7 @@ class Tickets(commands.Cog, name="Tickets"):
     async def panel(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Administrator permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Administrator permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         embed = (
@@ -286,7 +286,7 @@ class Tickets(commands.Cog, name="Tickets"):
         view = CreateTicketView(self)
         await interaction.channel.send(embed=embed, view=view)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("Panel Sent").description("Ticket panel sent to this channel.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title(emoji_title("success", "Panel Sent")).description("Ticket panel sent to this channel.").color("green").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -295,13 +295,13 @@ class Tickets(commands.Cog, name="Tickets"):
     async def add_user(self, interaction: discord.Interaction, user: discord.Member):
         if not interaction.channel or not interaction.channel.name.startswith("ticket-"):
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Error").description("This is not a ticket channel.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Error")).description("This is not a ticket channel.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         await interaction.channel.set_permissions(user, read_messages=True, send_messages=True)
         embed = (
             EmbedBuilder()
-            .title("User Added")
+            .title(emoji_title("success", "User Added"))
             .description(f"{user.mention} has been added to this ticket.")
             .color("green")
             .field("Added By", interaction.user.mention)
@@ -315,13 +315,13 @@ class Tickets(commands.Cog, name="Tickets"):
     async def remove_user(self, interaction: discord.Interaction, user: discord.Member):
         if not interaction.channel or not interaction.channel.name.startswith("ticket-"):
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Error").description("This is not a ticket channel.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Error")).description("This is not a ticket channel.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         await interaction.channel.set_permissions(user, overwrite=None)
         embed = (
             EmbedBuilder()
-            .title("User Removed")
+            .title(emoji_title("success", "User Removed"))
             .description(f"{user.mention} has been removed from this ticket.")
             .color("orange")
             .field("Removed By", interaction.user.mention)
@@ -335,19 +335,19 @@ class Tickets(commands.Cog, name="Tickets"):
     async def rename(self, interaction: discord.Interaction, name: str):
         if not interaction.channel or not interaction.channel.name.startswith("ticket-"):
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Error").description("This is not a ticket channel.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Error")).description("This is not a ticket channel.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         if not interaction.user.guild_permissions.manage_channels:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Channels permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Channels permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         new_name = f"ticket-{name[:30].lower().replace(' ', '-')}"
         await interaction.channel.edit(name=new_name, reason=f"Ticket renamed by {interaction.user}")
         embed = (
             EmbedBuilder()
-            .title("Ticket Renamed")
+            .title(emoji_title("success", "Ticket Renamed"))
             .description(f"Ticket renamed to **{new_name}**")
             .color("blue")
             .field("Renamed By", interaction.user.mention)
@@ -360,7 +360,7 @@ class Tickets(commands.Cog, name="Tickets"):
     async def stats(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         ticket_channels = [c for c in interaction.guild.text_channels if c.name.startswith("ticket-")]
@@ -374,7 +374,7 @@ class Tickets(commands.Cog, name="Tickets"):
             closed_count = row["count"] if row else 0
         embed = (
             EmbedBuilder()
-            .title("Ticket Statistics")
+            .title(emoji_title("info", "Ticket Statistics"))
             .color("blue")
             .field("Open Tickets", str(len(ticket_channels)))
             .field("Closed Tickets", str(closed_count))

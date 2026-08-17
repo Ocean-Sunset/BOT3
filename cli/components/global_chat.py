@@ -1,70 +1,92 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-import json
-import asyncio
 import datetime
-from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
 from Ediscord.builders import emoji_title
 
 
-GC_DEFAULTS = {"enabled": False, "channel_id": None, "global_channel_id": None}
-
-
 class GlobalChat(commands.Cog, name="GlobalChat"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    async def get_linked_channel(self):
+    async def get_linked_channel(self, guild_id: int):
         pool = await neon_db.get_pool()
         if not pool:
             return None
-        row = await pool.fetchrow("SELECT value FROM bot_stats WHERE key = 'global_chat_channel'")
-        return str(row["value"]) if row else None
+        row = await pool.fetchrow(
+            "SELECT value FROM bot_stats WHERE key = $1",
+            f"global_chat_channel_{guild_id}",
+        )
+        if not row or not row["value"] or row["value"] == "0":
+            return None
+        return str(row["value"])
 
-    async def set_linked_channel(self, channel_id: str):
+    async def set_linked_channel(self, guild_id: int, channel_id: str):
         pool = await neon_db.get_pool()
         if not pool:
             return
         await pool.execute(
-            "INSERT INTO bot_stats (key, value) VALUES ('global_chat_channel', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+            "INSERT INTO bot_stats (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+            f"global_chat_channel_{guild_id}",
             channel_id,
         )
+
+    async def get_all_linked_channels(self):
+        pool = await neon_db.get_pool()
+        if not pool:
+            return []
+        rows = await pool.fetch(
+            "SELECT key, value FROM bot_stats WHERE key LIKE 'global_chat_channel_%' AND value != '0' AND value != ''"
+        )
+        results = []
+        for row in rows:
+            guild_id = row["key"].rsplit("_", 1)[-1]
+            channel_id = row["value"]
+            results.append((guild_id, channel_id))
+        return results
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         if message.author.bot or not message.guild:
             return
-        hub_channel_id = await self.get_linked_channel()
-        if not hub_channel_id:
+        my_channel_id = await self.get_linked_channel(message.guild.id)
+        if not my_channel_id:
             return
-        if str(message.channel.id) != str(hub_channel_id):
+        if str(message.channel.id) != my_channel_id:
             return
 
+        all_linked = await self.get_all_linked_channels()
+
         content = message.content[:1000] if message.content else "[attachment]"
-        for guild in self.bot.guilds:
-            for channel in guild.text_channels:
-                if str(channel.id) == str(hub_channel_id) and str(channel.id) != str(message.channel.id):
-                    webhooks = await channel.webhooks()
-                    webhook = discord.utils.get(webhooks, name="GlobalChat")
-                    if not webhook:
-                        try:
-                            webhook = await channel.create_webhook(name="GlobalChat")
-                        except Exception as e:
-                            logger.warning(f"Failed to create GlobalChat webhook: {e}")
-                            continue
-                    try:
-                        await webhook.send(
-                            content=content,
-                            username=f"{message.author.display_name} ({message.guild.name})",
-                            avatar_url=message.author.display_avatar.url,
-                        )
-                    except Exception as e:
-                        logger.warning(f"GlobalChat webhook send failed: {e}")
-                        continue
+        for guild_id, channel_id in all_linked:
+            if str(message.guild.id) == guild_id and str(message.channel.id) == channel_id:
+                continue
+            target_guild = self.bot.get_guild(int(guild_id))
+            if not target_guild:
+                continue
+            target_channel = target_guild.get_channel(int(channel_id))
+            if not target_channel:
+                continue
+            webhooks = await target_channel.webhooks()
+            webhook = discord.utils.get(webhooks, name="GlobalChat")
+            if not webhook:
+                try:
+                    webhook = await target_channel.create_webhook(name="GlobalChat")
+                except Exception as e:
+                    logger.warning(f"Failed to create GlobalChat webhook: {e}")
+                    continue
+            try:
+                await webhook.send(
+                    content=content,
+                    username=f"{message.author.display_name} ({message.guild.name})",
+                    avatar_url=message.author.display_avatar.url,
+                )
+            except Exception as e:
+                logger.warning(f"GlobalChat webhook send failed: {e}")
+                continue
 
     gc_group = app_commands.Group(name="globalchat", description="Global chat commands")
 
@@ -72,10 +94,10 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
     async def link(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
-        await self.set_linked_channel(str(interaction.channel_id))
+        await self.set_linked_channel(interaction.guild.id, str(interaction.channel_id))
         embed = (
             EmbedBuilder()
             .title(emoji_title("global_chat", "Global Chat Linked"))
@@ -91,19 +113,19 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
     async def unlink(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
-        await self.set_linked_channel("0")
+        await self.set_linked_channel(interaction.guild.id, "0")
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("Global Chat Unlinked").description("This channel has been unlinked from global chat.").color("orange").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title(emoji_title("success", "Global Chat Unlinked")).description("This channel has been unlinked from global chat.").color("orange").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
     @gc_group.command(name="info", description="Check global chat status")
     async def info(self, interaction: discord.Interaction):
-        hub_channel_id = await self.get_linked_channel()
-        if hub_channel_id and hub_channel_id != "0":
+        hub_channel_id = await self.get_linked_channel(interaction.guild.id)
+        if hub_channel_id:
             channel = self.bot.get_channel(int(hub_channel_id))
             embed = (
                 EmbedBuilder()

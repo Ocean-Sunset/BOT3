@@ -173,7 +173,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
     async def toggle(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_welcome_settings(interaction.guild_id)
@@ -182,7 +182,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
         status = "enabled" if settings["enabled"] else "disabled"
         color = "green" if settings["enabled"] else "red"
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("Welcomer Toggled").description(f"Welcome messages **{status}**.").color(color).timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title(emoji_title("success", "Welcomer Toggled")).description(f"Welcome messages **{status}**.").color(color).timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -191,14 +191,14 @@ class Welcomer(commands.Cog, name="Welcomer"):
     async def set_channel(self, interaction: discord.Interaction, channel: discord.TextChannel):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_welcome_settings(interaction.guild_id)
         settings["channel_id"] = str(channel.id)
         await save_welcome_settings(interaction.guild_id, settings)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("Channel Set").description(f"Welcome channel set to {channel.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title(emoji_title("success", "Channel Set")).description(f"Welcome channel set to {channel.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -207,12 +207,12 @@ class Welcomer(commands.Cog, name="Welcomer"):
     async def set_message(self, interaction: discord.Interaction, message: str):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         if len(message) > 500:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Too Long").description("Message too long (max 500 characters).").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Too Long")).description("Message too long (max 500 characters).").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_welcome_settings(interaction.guild_id)
@@ -221,7 +221,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
         preview = render_welcome(message, interaction.user)
         embed = (
             EmbedBuilder()
-            .title("Welcome Message Updated")
+            .title(emoji_title("success", "Welcome Message Updated"))
             .description(f"**Preview:**\n{preview}")
             .color("green")
             .field("Placeholders", "`{member}` `{member.name}` `{server}` `{count}`")
@@ -235,7 +235,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
     async def set_goodbye(self, interaction: discord.Interaction, message: str):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_welcome_settings(interaction.guild_id)
@@ -243,13 +243,13 @@ class Welcomer(commands.Cog, name="Welcomer"):
         await save_welcome_settings(interaction.guild_id, settings)
         if message.lower() == "off":
             await interaction.response.send_message(
-                embed=EmbedBuilder().title("Goodbye Disabled").description("Goodbye messages have been disabled.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("info", "Goodbye Disabled")).description("Goodbye messages have been disabled.").color("green").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         else:
             preview = render_welcome(message, interaction.user)
             await interaction.response.send_message(
-                embed=EmbedBuilder().title("Goodbye Message Updated").description(f"**Preview:**\n{preview}").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("success", "Goodbye Message Updated")).description(f"**Preview:**\n{preview}").color("green").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
 
@@ -258,7 +258,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
     async def autorole(self, interaction: discord.Interaction, role: Optional[discord.Role] = None):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_welcome_settings(interaction.guild_id)
@@ -266,12 +266,12 @@ class Welcomer(commands.Cog, name="Welcomer"):
         await save_welcome_settings(interaction.guild_id, settings)
         if role:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title("Auto-Role Set").description(f"New members will receive {role.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("success", "Auto-Role Set")).description(f"New members will receive {role.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         else:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title("Auto-Role Removed").description("Auto-role has been removed.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("info", "Auto-Role Removed")).description("Auto-role has been removed.").color("green").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
 
@@ -279,7 +279,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
     async def test(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_welcome_settings(interaction.guild_id)
@@ -287,7 +287,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
         if settings.get("welcome_embed", True):
             embed = (
                 EmbedBuilder()
-                .title("Welcome! (Test)")
+                .title(emoji_title("success", "Welcome! (Test)"))
                 .description(msg)
                 .color("green")
                 .thumbnail(interaction.user.display_avatar.url)
@@ -300,7 +300,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title("Welcome! (Test)").description(msg).color("green").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("success", "Welcome! (Test)")).description(msg).color("green").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
 
@@ -308,7 +308,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
     async def config(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_welcome_settings(interaction.guild_id)
@@ -318,7 +318,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
         auto_role = interaction.guild.get_role(int(auto_role_id)) if auto_role_id else None
         embed = (
             EmbedBuilder()
-            .title("Welcomer Configuration")
+            .title(emoji_title("info", "Welcomer Configuration"))
             .color("blue")
             .field("Enabled", "Yes" if settings.get("enabled") else "No")
             .field("Channel", channel.mention if channel else "Not set")
@@ -338,7 +338,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
     async def dm(self, interaction: discord.Interaction, enabled: bool, message: str = None):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_welcome_settings(interaction.guild_id)
@@ -350,7 +350,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
         color = "green" if enabled else "red"
         embed = (
             EmbedBuilder()
-            .title("Welcome DM Updated")
+            .title(emoji_title("success", "Welcome DM Updated"))
             .description(f"Welcome DMs are now **{status}**.")
             .color(color)
             .timestamp(datetime.datetime.utcnow())

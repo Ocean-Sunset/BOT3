@@ -3231,12 +3231,11 @@ GC_DEFAULTS = {"enabled": False, "channel_id": None}
 
 async def _get_gc_settings(guild_id: str):
     d = dict(GC_DEFAULTS)
-    for key in ("global_chat_enabled", "global_chat_channel"):
-        row = await fetchrow("SELECT value FROM bot_stats WHERE key = $1", key)
+    for suffix, out_key in (("enabled", "enabled"), ("channel", "channel_id")):
+        row = await fetchrow("SELECT value FROM bot_stats WHERE key = $1", f"global_chat_{suffix}_{guild_id}")
         if row:
-            d["enabled" if key == "global_chat_enabled" else "channel_id"] = (
-                row["value"].lower() == "true" if key == "global_chat_enabled" else str(row["value"])
-            )
+            val = row["value"]
+            d[out_key] = (val.lower() == "true" if out_key == "enabled" else str(val))
     return d
 
 
@@ -3252,9 +3251,9 @@ async def gc_settings_set(guild_id: str, request: Request):
     body = await request.json()
     key = body.get("key"); value = body.get("value")
     if not key: return JSONResponse({"error": "missing key"}, 400)
-    if key not in GC_DEFAULTS and key not in ("enabled", "channel_id"):
+    if key not in ("enabled", "channel_id"):
         return JSONResponse({"error": f"unknown key '{key}'"}, 400)
-    db_key = "global_chat_enabled" if key == "enabled" else "global_chat_channel" if key == "channel_id" else key
+    db_key = f"global_chat_{'enabled' if key == 'enabled' else 'channel'}_{guild_id}"
     db_val = str(value) if value is not None else ""
     await execute(
         "INSERT INTO bot_stats (key, value, updated_at) VALUES ($1, $2, $3) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at",

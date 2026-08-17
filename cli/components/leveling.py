@@ -262,7 +262,7 @@ class Leveling(commands.Cog, name="Leveling"):
         pool = await neon_db.get_pool()
         if not pool:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Error").description("Database unavailable.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Error")).description("Database unavailable.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         offset = (page - 1) * 10
@@ -278,7 +278,7 @@ class Leveling(commands.Cog, name="Leveling"):
         total_pages = math.ceil(total_users / 10) if total_users > 0 else 1
         if not rows:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Leaderboard").description("No leveling data yet.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("info", "Leaderboard")).description("No leveling data yet.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         lines = []
@@ -303,7 +303,7 @@ class Leveling(commands.Cog, name="Leveling"):
     async def toggle(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_leveling_settings(interaction.guild_id)
@@ -313,7 +313,7 @@ class Leveling(commands.Cog, name="Leveling"):
         color = "green" if settings["enabled"] else "red"
         embed = (
             EmbedBuilder()
-            .title("XP System Toggled")
+            .title(emoji_title("success", "XP System Toggled"))
             .description(f"XP system is now **{status}**.")
             .color(color)
             .timestamp(datetime.datetime.utcnow())
@@ -326,19 +326,19 @@ class Leveling(commands.Cog, name="Leveling"):
     async def setxp(self, interaction: discord.Interaction, member: discord.Member, xp: int):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         if xp < 0:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Invalid XP").description("XP cannot be negative.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Invalid XP")).description("XP cannot be negative.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         await set_user_xp(interaction.guild_id, member.id, xp)
         new_level = level_from_xp(xp)
         embed = (
             EmbedBuilder()
-            .title("XP Updated")
+            .title(emoji_title("success", "XP Updated"))
             .description(f"Set {member.mention}'s XP to **{xp:,}**")
             .color("green")
             .field("New Level", str(new_level))
@@ -354,13 +354,13 @@ class Leveling(commands.Cog, name="Leveling"):
     async def reset(self, interaction: discord.Interaction, member: discord.Member):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         await set_user_xp(interaction.guild_id, member.id, 0)
         embed = (
             EmbedBuilder()
-            .title("XP Reset")
+            .title(emoji_title("info", "XP Reset"))
             .description(f"Reset {member.mention}'s XP to 0")
             .color("orange")
             .field("Moderator", interaction.user.mention)
@@ -374,7 +374,7 @@ class Leveling(commands.Cog, name="Leveling"):
     async def config(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_leveling_settings(interaction.guild_id)
@@ -384,7 +384,7 @@ class Leveling(commands.Cog, name="Leveling"):
         roles_str = "\n".join([f"Level {lvl}: <@&{rid}>" for lvl, rid in level_roles.items()]) if level_roles else "None configured"
         embed = (
             EmbedBuilder()
-            .title("Leveling Configuration")
+            .title(emoji_title("info", "Leveling Configuration"))
             .color("blue")
             .field("Enabled", "Yes" if settings.get("enabled") else "No")
             .field("XP Rate", f"{settings.get('xp_rate', 1.0)}x")
@@ -402,12 +402,12 @@ class Leveling(commands.Cog, name="Leveling"):
     async def setrole(self, interaction: discord.Interaction, level: int, role: discord.Role):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         if level < 1:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Invalid Level").description("Level must be at least 1.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Invalid Level")).description("Level must be at least 1.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_leveling_settings(interaction.guild_id)
@@ -415,7 +415,7 @@ class Leveling(commands.Cog, name="Leveling"):
         await save_leveling_settings(interaction.guild_id, settings)
         embed = (
             EmbedBuilder()
-            .title("Level Role Set")
+            .title(emoji_title("success", "Level Role Set"))
             .description(f"Users who reach **level {level}** will receive {role.mention}")
             .color("green")
             .field("XP Required", f"{xp_for_level(level):,} XP")

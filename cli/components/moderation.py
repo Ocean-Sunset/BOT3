@@ -107,11 +107,11 @@ def _info_embed(title: str, description: str, color: str = "blue", ephemeral_vie
 
 
 def _error_embed(description: str) -> discord.Embed:
-    return EmbedBuilder().title("Error").description(description).color("red").timestamp(datetime.datetime.utcnow()).build()
+    return EmbedBuilder().title(emoji_title("error", "Error")).description(description).color("red").timestamp(datetime.datetime.utcnow()).build()
 
 
 def _confirmation_embed(description: str) -> discord.Embed:
-    return EmbedBuilder().title("Confirm Action").description(description).color("orange").timestamp(datetime.datetime.utcnow()).build()
+    return EmbedBuilder().title(emoji_title("warning", "Confirm Action")).description(description).color("orange").timestamp(datetime.datetime.utcnow()).build()
 
 
 async def send_modlog(guild, settings, embed):
@@ -500,7 +500,7 @@ class Moderation(commands.Cog, name="Moderation"):
             await send_modlog(interaction.guild, settings, log_embed)
             await log_mod_action(interaction.guild_id, str(member.id), member.name, "kick", reason, interaction.user.name)
         else:
-            await interaction.followup.send(embed=EmbedBuilder().title("Cancelled").description("Kick cancelled.").color("grey").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await interaction.followup.send(embed=EmbedBuilder().title(emoji_title("info", "Cancelled")).description("Kick cancelled.").color("grey").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
     @app_commands.command(name="ban", description="Ban a member from the server")
     @app_commands.describe(member="The member to ban", reason="Reason for the ban (optional)", delete_days="Days of messages to delete (0-7)")
@@ -551,7 +551,7 @@ class Moderation(commands.Cog, name="Moderation"):
             await send_modlog(interaction.guild, settings, log_embed)
             await log_mod_action(interaction.guild_id, str(member.id), member.name, "ban", reason, interaction.user.name)
         else:
-            await interaction.followup.send(embed=EmbedBuilder().title("Cancelled").description("Ban cancelled.").color("grey").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await interaction.followup.send(embed=EmbedBuilder().title(emoji_title("info", "Cancelled")).description("Ban cancelled.").color("grey").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
     @app_commands.command(name="tempban", description="Temporarily ban a member (auto-unbans after duration)")
     @app_commands.describe(member="The member to temporarily ban", duration="Duration in minutes", reason="Reason for the temp ban (optional)")
@@ -606,7 +606,7 @@ class Moderation(commands.Cog, name="Moderation"):
 
             self.bot.loop.create_task(self._auto_unban(interaction.guild_id, member.id, duration, reason))
         else:
-            await interaction.followup.send(embed=EmbedBuilder().title("Cancelled").description("Temp ban cancelled.").color("grey").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await interaction.followup.send(embed=EmbedBuilder().title(emoji_title("info", "Cancelled")).description("Temp ban cancelled.").color("grey").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
     async def _auto_unban(self, guild_id, user_id, duration_minutes, original_reason: str = ""):
         await asyncio.sleep(duration_minutes * 60)
@@ -647,7 +647,7 @@ class Moderation(commands.Cog, name="Moderation"):
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         await view.wait()
         if view.value is not True:
-            return await interaction.followup.send(embed=EmbedBuilder().title("Cancelled").description("Unban cancelled.").color("grey").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            return await interaction.followup.send(embed=EmbedBuilder().title(emoji_title("info", "Cancelled")).description("Unban cancelled.").color("grey").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
         try:
             user = await self.bot.fetch_user(target_id)
@@ -726,7 +726,7 @@ class Moderation(commands.Cog, name="Moderation"):
                     msg = f"{member.mention} has been timed out."
                 await interaction.response.send_message(embed=basic_action_embed("mute", msg, "orange"))
         else:
-            await interaction.response.send_message(embed=EmbedBuilder().title("Member Muted").description("Done.").color("orange").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await interaction.response.send_message(embed=EmbedBuilder().title(emoji_title("success", "Member Muted")).description("Done.").color("orange").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
         if settings.get("dm_on_action", True) and settings.get("mute_dm", True):
             dm_embed = self._user_dm_embed(
@@ -787,7 +787,7 @@ class Moderation(commands.Cog, name="Moderation"):
             )
             await interaction.response.send_message(embed=embed)
         else:
-            await interaction.response.send_message(embed=EmbedBuilder().title("Member Unmuted").description("Done.").color("green").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await interaction.response.send_message(embed=EmbedBuilder().title(emoji_title("success", "Member Unmuted")).description("Done.").color("green").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
         if settings.get("dm_on_action", True) and settings.get("mute_dm", True):
             dm_embed = self._user_dm_embed(
@@ -835,7 +835,7 @@ class Moderation(commands.Cog, name="Moderation"):
                     msg = f"{member.mention} has been warned."
                 await interaction.response.send_message(embed=basic_action_embed("warn", msg, "yellow"))
         else:
-            await interaction.response.send_message(embed=EmbedBuilder().title("Member Warned").description("Done.").color("yellow").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await interaction.response.send_message(embed=EmbedBuilder().title(emoji_title("success", "Member Warned")).description("Done.").color("yellow").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
         if settings.get("dm_on_action", True) and settings.get("warn_dm", True):
             dm_embed = self._user_dm_embed(
@@ -917,7 +917,7 @@ class Moderation(commands.Cog, name="Moderation"):
         mod_roles = settings.get("mod_roles", []) or []
         embed = (
             EmbedBuilder()
-            .title("Moderation Settings")
+            .title(emoji_title("info", "Moderation Settings"))
             .color("blue")
             .field("General", "\u200b", inline=False)
             .field("DM on Action", b(settings.get("dm_on_action")))

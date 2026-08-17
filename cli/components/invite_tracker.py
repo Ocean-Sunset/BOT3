@@ -131,7 +131,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
     async def toggle(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_invite_settings(interaction.guild_id)
@@ -140,7 +140,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
         status = "enabled" if settings["enabled"] else "disabled"
         color = "green" if settings["enabled"] else "red"
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("Invite Tracking").description(f"Invite tracking **{status}**.").color(color).timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title(emoji_title("success", "Invite Tracking")).description(f"Invite tracking **{status}**.").color(color).timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -149,14 +149,14 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
     async def set_channel(self, interaction: discord.Interaction, channel: discord.TextChannel):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Permission Denied").description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_invite_settings(interaction.guild_id)
         settings["announce_channel_id"] = str(channel.id)
         await save_invite_settings(interaction.guild_id, settings)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title("Channel Set").description(f"Invite announcements will be sent to {channel.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title(emoji_title("success", "Channel Set")).description(f"Invite announcements will be sent to {channel.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -165,7 +165,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
         pool = await neon_db.get_pool()
         if not pool:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Error").description("Database unavailable.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Error")).description("Database unavailable.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         rows = await pool.fetch(
@@ -174,7 +174,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
         )
         if not rows:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Invite Stats").description("No invite data yet.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("info", "Invite Stats")).description("No invite data yet.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         lines = []
@@ -199,7 +199,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
         pool = await neon_db.get_pool()
         if not pool:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Error").description("Database unavailable.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("error", "Error")).description("Database unavailable.").color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         rows = await pool.fetch(
@@ -208,7 +208,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
         )
         if not rows:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title("Invite Stats").description(f"{user.mention} has no recorded invites.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().title(emoji_title("info", "Invite Stats")).description(f"{user.mention} has no recorded invites.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         total = sum(r["uses"] for r in rows)

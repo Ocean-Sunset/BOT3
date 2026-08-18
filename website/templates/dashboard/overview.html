@@ -366,7 +366,12 @@ function loadFeed() {
   prowlCachedJson('feed', 15000, `/api/v1/mod/${GID}/feed`, render).then(render);
 }
 loadFeed();
-setInterval(loadFeed, 5000);
+(function feedLoop() {
+  setTimeout(() => {
+    if (!document.hidden) loadFeed();
+    feedLoop();
+  }, document.hidden ? 30000 : 5000);
+})();
 
 api('/settings').then(d => {
   const s = d.settings || {};

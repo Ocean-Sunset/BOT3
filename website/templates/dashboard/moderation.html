@@ -553,7 +553,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     prowlCachedJson('feed', 15000, `/api/v1/mod/${GID}/feed?scope=mod`, render).then(render);
   }
   loadFeed();
-  setInterval(() => { if (!document.hidden) loadFeed(); }, 30000);
+  (function feedLoop() {
+    setTimeout(() => {
+      if (!document.hidden) loadFeed();
+      feedLoop();
+    }, document.hidden ? 60000 : 30000);
+  })();
 
   prowlCachedJson('members', 60000, `/api/v1/mod/${GID}/members`).then(d => {
     const w = document.querySelector('.md-member-table-wrap');

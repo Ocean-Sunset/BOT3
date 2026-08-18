@@ -269,8 +269,13 @@ function refreshMembers() {
 }
 let lastSig = '';
 
-// Refresh every 30s, but pause when the tab is hidden
-setInterval(() => { if (!document.hidden) refreshMembers(); }, 30000);
+// Refresh every 30s, but pause entirely when the tab is hidden
+(function memberLoop() {
+  setTimeout(() => {
+    if (!document.hidden) refreshMembers();
+    memberLoop();
+  }, document.hidden ? 60000 : 30000);
+})();
 
 document.addEventListener('DOMContentLoaded', () => {
   Promise.all([refreshMembers().then(() => MEMBERS), memApi('/roles'), memApi('/bot')]).then(([md, rd, bd]) => {

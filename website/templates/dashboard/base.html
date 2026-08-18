@@ -225,22 +225,29 @@
           Object.keys(TTL).forEach(n => this._write(this._key(n), { ts: 0, ttl: -1, data: undefined }));
         }
       };
+      window.prowlIsVisible = function() { return !document.hidden; };
       window.prowlCachedJson = function(name, ttl, url, onChange) {
         const cached = window.prowlCache.get(name);
-        const fetchFresh = () => fetch(url, { credentials: 'include' }).then(r => r.json()).then(d => {
-          window.prowlCache.set(name, d, ttl);
-          if (onChange) onChange(d);
-          return d;
-        }).catch(() => cached !== undefined ? cached : {});
+        const fetchFresh = () => {
+          if (document.hidden) {
+            if (onChange && cached !== undefined) onChange(cached);
+            return Promise.resolve(cached !== undefined ? cached : {});
+          }
+          return fetch(url, { credentials: 'include' }).then(r => r.json()).then(d => {
+            window.prowlCache.set(name, d, ttl);
+            if (onChange) onChange(d);
+            return d;
+          }).catch(() => cached !== undefined ? cached : {});
+        };
         if (cached !== undefined) {
-          if (!window._prowlRefreshed[name]) {
+          if (!window._prowlRefreshed[name] && window.prowlIsVisible()) {
             window._prowlRefreshed[name] = true;
             fetchFresh();
           }
           return Promise.resolve(cached);
         }
         window._prowlRefreshed[name] = true;
-        return fetchFresh();
+        return window.prowlIsVisible() ? fetchFresh() : Promise.resolve({});
       };
       window.addEventListener('prowl:action-queued', () => { if (window.prowlCache) window.prowlCache.invalidate(); });
     })();
@@ -345,14 +352,14 @@
       window.notifyActions = notifyActions;
       // When a page queues an action, check right away so toasts pop fast
       window.addEventListener('prowl:action-queued', notifyActions);
-      // Poll fast while actions are pending, slow otherwise (toasts show near-instantly)
+      // Poll fast while actions are pending, slow otherwise, and stop entirely while hidden.
       (function schedule() {
         setTimeout(() => {
           if (!document.hidden) notifyActions();
           schedule();
-        }, pendingNow ? 1500 : 20000);
+        }, document.hidden ? 30000 : (pendingNow ? 1500 : 20000));
       })();
-      setTimeout(notifyActions, 1200);
+      setTimeout(() => { if (!document.hidden) notifyActions(); }, 1200);
     })();
   </script>
 

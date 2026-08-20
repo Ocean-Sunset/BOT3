@@ -163,8 +163,8 @@ async def get_pool():
         return None
     try:
         if token:
-            import pyturso
-            _conn = pyturso.connect(
+            import libsql_experimental as libsql
+            _conn = libsql.connect(
                 "prowl.db",
                 sync_url=url,
                 auth_token=token,

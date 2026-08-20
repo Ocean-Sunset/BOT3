@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-asyncpg
+libsql-client>=0.3.0
 python-dotenv
 jinja2
 aiofiles

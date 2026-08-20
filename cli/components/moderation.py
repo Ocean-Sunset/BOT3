@@ -324,16 +324,20 @@ class Moderation(commands.Cog, name="Moderation"):
                     duration    INTEGER,
                     status      TEXT NOT NULL DEFAULT 'pending',
                     created_at  REAL NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_mod_actions_pending ON mod_actions (status, created_at);
+                )
+            """)
+            await pool.execute("CREATE INDEX IF NOT EXISTS idx_mod_actions_pending ON mod_actions (status, created_at)")
+            await pool.execute("""
                 CREATE TABLE IF NOT EXISTS member_history (
                     guild_id TEXT NOT NULL, timestamp REAL NOT NULL,
                     member_count INTEGER NOT NULL, PRIMARY KEY (guild_id, timestamp)
-                );
+                )
+            """)
+            await pool.execute("""
                 CREATE TABLE IF NOT EXISTS message_history (
                     guild_id TEXT NOT NULL, timestamp REAL NOT NULL,
                     message_count INTEGER NOT NULL, PRIMARY KEY (guild_id, timestamp)
-                );
+                )
             """)
             logger.info("Ensured moderation tables exist.")
             return True

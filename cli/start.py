@@ -59,7 +59,7 @@ class ProwlBot(commands.Bot):
     async def _initial_neon_push(self):
         await self.wait_until_ready()
         import os as _os
-        if not _os.environ.get("DATABASE_URL"):
+        if not (_os.environ.get("TURSO_DATABASE_URL") or _os.environ.get("DATABASE_URL")):
             logger.warning("TURSO_DATABASE_URL not set - bot won't push guild data. Set it in cli/.env")
             return
         try:

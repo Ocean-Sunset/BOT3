@@ -58,21 +58,51 @@ class Record:
         return f"Record({dict(self)})"
 
 
+def _to_http_url(url: str) -> str:
+    """Convert libsql:// or ws:// URLs to https:// for the HTTP API, appending /v2/pipeline."""
+    if url.startswith("libsql://"):
+        base = "https://" + url[len("libsql://"):]
+    elif url.startswith("ws://"):
+        base = "http://" + url[len("ws://"):]
+    elif url.startswith("wss://"):
+        base = "https://" + url[len("wss://"):]
+    else:
+        base = url
+    base = base.rstrip("/")
+    if not base.endswith("/v2/pipeline"):
+        base += "/v2/pipeline"
+    return base
+
+
+def _wrap_arg(value) -> dict:
+    """Wrap a Python value as a Turso pipeline arg."""
+    if value is None:
+        return {"type": "null", "value": None}
+    if isinstance(value, int):
+        return {"type": "integer", "value": str(value)}
+    if isinstance(value, float):
+        return {"type": "float", "value": str(value)}
+    return {"type": "text", "value": str(value)}
+
+
+def _unwrap_cell(cell) -> str:
+    """Extract a plain Python value from a Turso pipeline cell {type, value}."""
+    if isinstance(cell, dict):
+        return cell.get("value", "")
+    return cell
+
+
 def _rows_to_records(result: dict) -> List[Record]:
-    """Convert a Turso HTTP result object to a list of Record objects."""
+    """Convert a Turso pipeline result object to a list of Record objects."""
     cols = [c["name"] for c in result.get("cols", [])]
-    return [Record(cols, tuple(row)) for row in result.get("rows", [])]
-
-
-def _extract_results(data) -> list:
-    """Handle Turso responses that may be a bare list or a {"results": [...]} dict."""
-    if isinstance(data, list):
-        return data
-    return data.get("results", []) if isinstance(data, dict) else []
+    rows = []
+    for row in result.get("rows", []):
+        rows.append(Record(cols, tuple(_unwrap_cell(c) for c in row)))
+    return rows
 
 
 async def _execute_http(sql: str, args=()) -> dict:
-    """Execute a single SQL statement via Turso HTTP API."""
+    """Execute a single SQL statement via Turso pipeline API."""
     import httpx
     global _url, _token
     if not _url:
@@ -80,18 +110,28 @@ async def _execute_http(sql: str, args=()) -> dict:
     headers = {"Content-Type": "application/json"}
     if _token:
         headers["Authorization"] = f"Bearer {_token}"
-    body = {"statements": [{"q": sql, "params": list(args) if args else []}]}
+    body = {
+        "requests": [
+            {"type": "execute", "stmt": {"sql": sql, "args": [_wrap_arg(a) for a in (args or [])]}},
+            {"type": "close"},
+        ]
+    }
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(_url, json=body, headers=headers)
         data = resp.json()
         if resp.status_code >= 400:
             raise RuntimeError(f"Turso HTTP {resp.status_code}: {data}")
-        results = _extract_results(data)
-        return results[0] if results else {}
+        results = data.get("results", [])
+        if not results:
+            return {}
+        first = results[0]
+        if first.get("type") == "error":
+            raise RuntimeError(f"Turso pipeline error: {first.get('error', {})}")
+        return first.get("response", {}).get("result", {})
 
 
 async def _execute_batch_http(statements: list) -> list:
-    """Execute multiple SQL statements in one HTTP request."""
+    """Execute multiple SQL statements in one Turso pipeline request."""
     import httpx
     global _url, _token
     if not _url:
@@ -99,27 +139,23 @@ async def _execute_batch_http(statements: list) -> list:
     headers = {"Content-Type": "application/json"}
     if _token:
         headers["Authorization"] = f"Bearer {_token}"
-    stmts = []
+    requests = []
     for sql, args in statements:
-        stmts.append({"q": sql, "params": list(args) if args else []})
-    body = {"statements": stmts}
+        requests.append({"type": "execute", "stmt": {"sql": sql, "args": [_wrap_arg(a) for a in (args or [])]}})
+    requests.append({"type": "close"})
+    body = {"requests": requests}
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(_url, json=body, headers=headers)
         data = resp.json()
         if resp.status_code >= 400:
             raise RuntimeError(f"Turso HTTP {resp.status_code}: {data}")
-        return _extract_results(data)
-
-
-def _to_http_url(url: str) -> str:
-    """Convert libsql:// or ws:// URLs to https:// for the HTTP API."""
-    if url.startswith("libsql://"):
-        return "https://" + url[len("libsql://"):]
-    if url.startswith("ws://"):
-        return "http://" + url[len("ws://"):]
-    if url.startswith("wss://"):
-        return "https://" + url[len("wss://"):]
-    return url
+        results = data.get("results", [])
+        out = []
+        for r in results:
+            if r.get("type") == "error":
+                raise RuntimeError(f"Turso pipeline error: {r.get('error', {})}")
+            out.append(r.get("response", {}).get("result", {}))
+        return out
 
 
 async def get_conn():

@@ -1701,7 +1701,7 @@ async def _consume_captcha_code(code: str, provider: str):
     if not info:
         return None
     try:
-    await execute("UPDATE captcha_codes SET used = 1 WHERE code = ?", code)
+        await execute("UPDATE captcha_codes SET used = 1 WHERE code = ?", code)
     except Exception:
         return None
     return info

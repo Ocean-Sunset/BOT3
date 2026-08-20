@@ -83,13 +83,14 @@ async def _execute_http(sql: str, args=()) -> dict:
     headers = {"Content-Type": "application/json"}
     if _token:
         headers["Authorization"] = f"Bearer {_token}"
-    body = {"q": sql, "params": list(args) if args else []}
+    body = {"statements": [{"q": sql, "params": list(args) if args else []}]}
     async with aiohttp.ClientSession() as session:
         async with session.post(_url, json=body, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
             data = await resp.json()
             if resp.status >= 400:
                 raise RuntimeError(f"Turso HTTP {resp.status}: {data}")
-            return data
+            results = data.get("results", [])
+            return results[0] if results else {}
 
 
 async def _execute_batch_http(statements: list) -> list:

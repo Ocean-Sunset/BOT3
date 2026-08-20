@@ -73,13 +73,14 @@ async def _execute_http(sql: str, args=()) -> dict:
     headers = {"Content-Type": "application/json"}
     if _token:
         headers["Authorization"] = f"Bearer {_token}"
-    body = {"q": sql, "params": list(args) if args else []}
+    body = {"statements": [{"q": sql, "params": list(args) if args else []}]}
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(_url, json=body, headers=headers)
         data = resp.json()
         if resp.status_code >= 400:
             raise RuntimeError(f"Turso HTTP {resp.status_code}: {data}")
-        return data
+        results = data.get("results", [])
+        return results[0] if results else {}
 
 
 async def _execute_batch_http(statements: list) -> list:

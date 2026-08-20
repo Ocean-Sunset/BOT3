@@ -79,7 +79,7 @@ def _wrap_arg(value) -> dict:
     if value is None:
         return {"type": "null", "value": None}
     if isinstance(value, int):
-        return {"type": "integer", "value": value}
+        return {"type": "integer", "value": str(value)}
     if isinstance(value, float):
         return {"type": "float", "value": value}
     return {"type": "text", "value": str(value)}

@@ -74,6 +74,13 @@ def _rows_to_records(result: dict) -> List[Record]:
     return [Record(cols, tuple(row)) for row in result.get("rows", [])]
 
 
+def _extract_results(data) -> list:
+    """Handle Turso responses that may be a bare list or a {"results": [...]} dict."""
+    if isinstance(data, list):
+        return data
+    return data.get("results", []) if isinstance(data, dict) else []
+
+
 async def _execute_http(sql: str, args=()) -> dict:
     """Execute a single SQL statement via Turso HTTP API, return raw result dict."""
     import aiohttp
@@ -89,7 +96,7 @@ async def _execute_http(sql: str, args=()) -> dict:
             data = await resp.json()
             if resp.status >= 400:
                 raise RuntimeError(f"Turso HTTP {resp.status}: {data}")
-            results = data.get("results", [])
+            results = _extract_results(data)
             return results[0] if results else {}
 
 
@@ -111,7 +118,7 @@ async def _execute_batch_http(statements: list) -> list:
             data = await resp.json()
             if resp.status >= 400:
                 raise RuntimeError(f"Turso HTTP {resp.status}: {data}")
-            return data.get("results", [])
+            return _extract_results(data)
 
 
 class _ConnWrapper:

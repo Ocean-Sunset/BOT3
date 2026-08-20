@@ -103,12 +103,24 @@ async def _execute_batch_http(statements: list) -> list:
         return data.get("results", [])
 
 
+def _to_http_url(url: str) -> str:
+    """Convert libsql:// or ws:// URLs to https:// for the HTTP API."""
+    if url.startswith("libsql://"):
+        return "https://" + url[len("libsql://"):]
+    if url.startswith("ws://"):
+        return "http://" + url[len("ws://"):]
+    if url.startswith("wss://"):
+        return "https://" + url[len("wss://"):]
+    return url
+
+
 async def get_conn():
     """Initialize connection settings (lazy, once per process)."""
     global _url, _token
     if _url is not None:
         return True
-    _url = os.environ.get("TURSO_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    raw = os.environ.get("TURSO_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    _url = _to_http_url(raw) if raw else None
     _token = os.environ.get("TURSO_AUTH_TOKEN")
     if not _url:
         logger.warning("TURSO_DATABASE_URL not set")

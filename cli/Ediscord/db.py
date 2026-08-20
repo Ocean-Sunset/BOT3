@@ -164,11 +164,23 @@ def parse_settings(raw, defaults: dict) -> dict:
     return dict(defaults)
 
 
+def _to_http_url(url: str) -> str:
+    """Convert libsql:// or ws:// URLs to https:// for the HTTP API."""
+    if url.startswith("libsql://"):
+        return "https://" + url[len("libsql://"):]
+    if url.startswith("ws://"):
+        return "http://" + url[len("ws://"):]
+    if url.startswith("wss://"):
+        return "https://" + url[len("wss://"):]
+    return url
+
+
 async def get_pool():
     """Get the database connection wrapper (HTTP to Turso)."""
     global _url, _token, _ensure_done
     if _url is None:
-        _url = os.environ.get("TURSO_DATABASE_URL") or os.environ.get("DATABASE_URL")
+        raw = os.environ.get("TURSO_DATABASE_URL") or os.environ.get("DATABASE_URL")
+        _url = _to_http_url(raw) if raw else None
         _token = os.environ.get("TURSO_AUTH_TOKEN")
     if not _url:
         logger.warning("TURSO_DATABASE_URL not set - database disabled.")

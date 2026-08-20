@@ -55,7 +55,7 @@ class TicketView(discord.ui.View):
             pool = await neon_db.get_pool()
             if pool:
                 await pool.execute(
-                    "INSERT INTO ticket_logs (guild_id, channel_id, user_id, transcript, closed_at) VALUES ($1, $2, $3, $4, $5)",
+                    "INSERT INTO ticket_logs (guild_id, channel_id, user_id, transcript, closed_at) VALUES (?, ?, ?, ?, ?)",
                     str(i.guild_id), str(i.channel.id), str(interaction.user.id), transcript_text[:5000], datetime.datetime.utcnow().isoformat(),
                 )
 
@@ -358,7 +358,7 @@ class Tickets(commands.Cog, name="Tickets"):
         closed_count = 0
         if pool:
             row = await pool.fetchrow(
-                "SELECT COUNT(*) as count FROM ticket_logs WHERE guild_id = $1",
+                "SELECT COUNT(*) as count FROM ticket_logs WHERE guild_id = ?",
                 str(interaction.guild_id)
             )
             closed_count = row["count"] if row else 0

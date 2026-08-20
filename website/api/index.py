@@ -66,7 +66,7 @@ DIRECT_ACTIONS = ("mute", "unmute", "kick", "ban", "add_role", "remove_role", "n
 
 
 def _parse_guild_data(row):
-    """Safely extract guild data dict from a DB row (handles TEXT vs JSONB)."""
+    """Safely extract guild data dict from a DB row."""
     if not row:
         return None
     d = row["data"]
@@ -292,7 +292,7 @@ class RequestCountMiddleware:
         try:
             bucket = int(time.time() // 3600) * 3600
             await execute(
-                "INSERT INTO request_stats (bucket_ts, count) VALUES ($1, 1) "
+                "INSERT INTO request_stats (bucket_ts, count) VALUES (?, 1) "
                 "ON CONFLICT (bucket_ts) DO UPDATE SET count = request_stats.count + 1",
                 bucket,
             )
@@ -301,7 +301,7 @@ class RequestCountMiddleware:
                 await execute(_REQUEST_TABLE_SQL)
                 bucket = int(time.time() // 3600) * 3600
                 await execute(
-                    "INSERT INTO request_stats (bucket_ts, count) VALUES ($1, 1) "
+                    "INSERT INTO request_stats (bucket_ts, count) VALUES (?, 1) "
                     "ON CONFLICT (bucket_ts) DO UPDATE SET count = request_stats.count + 1",
                     bucket,
                 )
@@ -311,7 +311,7 @@ class RequestCountMiddleware:
 
 _REQUEST_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS request_stats (
-    bucket_ts DOUBLE PRECISION PRIMARY KEY,
+    bucket_ts REAL PRIMARY KEY,
     count INTEGER NOT NULL DEFAULT 0
 );
 """
@@ -574,7 +574,7 @@ async def index(request: Request):
 
 @app.get("/challenge", response_class=HTMLResponse)
 async def challenge_page(request: Request):
-    """Cloudflare Turnstile challenge page — gate before the rest of the site."""
+    """Cloudflare Turnstile challenge page - gate before the rest of the site."""
     return templates.TemplateResponse(request, "challenge.html", {
         "site_key": os.environ.get("TURNSTILE_SITE_KEY", ""),
         "config": _cfg(),
@@ -795,7 +795,7 @@ async def callback_github(request: Request, code: str = None, state: str = None)
     if user and user.get("id"):
         try:
             await execute(
-                "UPDATE users SET github_id = $1, github_username = $2, github_email = $3 WHERE id = $4",
+                "UPDATE users SET github_id = ?, github_username = ?, github_email = ? WHERE id = ?",
                 gid, gname, gemail, str(user.get("id")),
             )
         except Exception as e:
@@ -805,13 +805,13 @@ async def callback_github(request: Request, code: str = None, state: str = None)
     # Sign-in via GitHub: only works if the account already has this GitHub
     # connection linked.
     row = await fetchrow(
-        "SELECT id, username, global_name, avatar, email FROM users WHERE github_id = $1",
+        "SELECT id, username, global_name, avatar, email FROM users WHERE github_id = ?",
         gid,
     )
     if row:
         request.session["user"] = dict(row)
         try:
-            await execute("UPDATE users SET last_login = $1 WHERE id = $2", time.time(), str(row["id"]))
+            await execute("UPDATE users SET last_login = ? WHERE id = ?", time.time(), str(row["id"]))
         except Exception as e:
             logger.error("GitHub login last_login update failed: %s", e)
         return RedirectResponse("/dashboard")
@@ -975,12 +975,12 @@ async def _upsert_user(user: dict):
     try:
         await execute(
             "INSERT INTO users (id, username, global_name, avatar, email, created_at, last_login) "
-            "VALUES ($1, $2, $3, $4, $5, $6, $6) "
-            "ON CONFLICT (id) DO UPDATE SET username = EXCLUDED.username, "
-            "global_name = EXCLUDED.global_name, avatar = EXCLUDED.avatar, "
-            "email = EXCLUDED.email, last_login = EXCLUDED.last_login",
+            "VALUES (?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT (id) DO UPDATE SET username = excluded.username, "
+            "global_name = excluded.global_name, avatar = excluded.avatar, "
+            "email = excluded.email, last_login = excluded.last_login",
             str(user["id"]), user.get("username", ""), user.get("global_name") or user.get("username", ""),
-            user.get("avatar"), user.get("email", ""), time.time(),
+            user.get("avatar"), user.get("email", ""), time.time(), time.time(),
         )
     except Exception as e:
         logger.error("Failed to upsert user account: %s", e)
@@ -989,11 +989,11 @@ async def _upsert_user(user: dict):
 @app.get("/api/v1/account")
 async def account_info(request: Request):
     user = await require_auth(request)
-    row = await fetchrow("SELECT id, username, global_name, created_at, last_login, github_id, github_username, github_email FROM users WHERE id = $1", str(user.get("id")))
+    row = await fetchrow("SELECT id, username, global_name, created_at, last_login, github_id, github_username, github_email FROM users WHERE id = ?", str(user.get("id")))
     if not row:
         # Account not recorded yet (e.g. logged in before this feature) - record it now
         await _upsert_user(user)
-        row = await fetchrow("SELECT id, username, global_name, created_at, last_login, github_id, github_username, github_email FROM users WHERE id = $1", str(user.get("id")))
+        row = await fetchrow("SELECT id, username, global_name, created_at, last_login, github_id, github_username, github_email FROM users WHERE id = ?", str(user.get("id")))
     return {"account": dict(row) if row else None}
 
 
@@ -1001,7 +1001,7 @@ async def account_info(request: Request):
 async def account_github_unlink(request: Request):
     user = await require_auth(request)
     try:
-        await execute("UPDATE users SET github_id = '', github_username = '', github_email = '' WHERE id = $1", str(user.get("id")))
+        await execute("UPDATE users SET github_id = '', github_username = '', github_email = '' WHERE id = ?", str(user.get("id")))
     except Exception as e:
         logger.error("github unlink failed: %s", e)
     return {"ok": True}
@@ -1025,13 +1025,13 @@ async def account_delete(request: Request):
     # Wipe moderation state for those servers, then queue Prowl to leave each one
     for gid in owned:
         try:
-            await execute("DELETE FROM muted_users WHERE guild_id = $1", gid)
-            await execute("DELETE FROM mod_log WHERE guild_id = $1", gid)
-            await execute("DELETE FROM mod_actions WHERE guild_id = $1", gid)
+            await execute("DELETE FROM muted_users WHERE guild_id = ?", gid)
+            await execute("DELETE FROM mod_log WHERE guild_id = ?", gid)
+            await execute("DELETE FROM mod_actions WHERE guild_id = ?", gid)
             await _queue_action(gid, "leave_guild", uid, username, "Account deleted", None, "System")
         except Exception as e:
             logger.error("account delete: cleanup failed for %s: %s", gid, e)
-    await execute("DELETE FROM users WHERE id = $1", uid)
+    await execute("DELETE FROM users WHERE id = ?", uid)
     request.session.clear()
     return {"ok": True, "cleaned_guilds": len(owned)}
 
@@ -1137,13 +1137,13 @@ async def api_status(request: Request):
 
 _INCIDENTS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS incidents (
-    id SERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
     body TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'active',
     severity TEXT NOT NULL DEFAULT 'minor',
-    starts_at DOUBLE PRECISION NOT NULL,
-    resolves_at DOUBLE PRECISION
+    starts_at REAL NOT NULL,
+    resolves_at REAL
 );
 """
 
@@ -1259,8 +1259,8 @@ async def status_summary(request: Request):
          "latency_ms": gateway_ping},
         {"id": "web", "name": "Web Dashboard & API", "status": "operational",
          "detail": f"v{safe_str('bot_version', '?')} · Python {safe_str('python_version', '?')}", "latency_ms": None},
-        {"id": "db", "name": "Database (Neon)", "status": "operational" if db_ok else "down",
-         "detail": "PostgreSQL · Neon", "latency_ms": db_ms},
+        {"id": "db", "name": "Database", "status": "operational" if db_ok else "down",
+         "detail": "Turso (libSQL)", "latency_ms": db_ms},
         {"id": "discord", "name": "Discord API", "status": "operational" if discord_ok else "down",
          "detail": f"{shard_count} shard{'s' if shard_count != 1 else ''}", "latency_ms": discord_ms},
         {"id": "music", "name": "Music", "status": music_status,
@@ -1298,7 +1298,7 @@ async def status_summary(request: Request):
     try:
         since = int(time.time() // 3600) * 3600 - 23 * 3600
         rows_r = await query(
-            "SELECT bucket_ts, count FROM request_stats WHERE bucket_ts >= $1 ORDER BY bucket_ts ASC",
+            "SELECT bucket_ts, count FROM request_stats WHERE bucket_ts >= ? ORDER BY bucket_ts ASC",
             since,
         )
         by_bucket = {int(r["bucket_ts"]): int(r["count"]) for r in rows_r}
@@ -1363,7 +1363,7 @@ async def api_guilds(request: Request):
 @app.get("/api/v1/guild/{guild_id}")
 async def api_guild(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     g = _parse_guild_data(row)
     if g is not None:
         return g
@@ -1421,7 +1421,7 @@ MOD_SETTINGS_DEFAULTS = {
 
 
 async def _get_mod_settings(guild_id: str):
-    return await fetchrow_cached("mod_settings", "SELECT settings FROM mod_settings WHERE guild_id = $1", guild_id, MOD_SETTINGS_DEFAULTS)
+    return await fetchrow_cached("mod_settings", "SELECT settings FROM mod_settings WHERE guild_id = ?", guild_id, MOD_SETTINGS_DEFAULTS)
 
 
 def _valid_snowflake(value) -> bool:
@@ -1528,7 +1528,7 @@ async def _save_settings(table, guild_id, key, value, defaults):
     if err:
         return err
     current = dict(defaults)
-    row = await fetchrow(f"SELECT settings FROM {table} WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow(f"SELECT settings FROM {table} WHERE guild_id = ?", str(guild_id))
     if row:
         stored = row["settings"]
         if isinstance(stored, str):
@@ -1540,9 +1540,9 @@ async def _save_settings(table, guild_id, key, value, defaults):
             current.update(stored)
     current[key] = clean
     await execute(
-        f"INSERT INTO {table} (guild_id, settings) VALUES ($1, $2::jsonb) "
-        f"ON CONFLICT (guild_id) DO UPDATE SET settings = $2::jsonb",
-        str(guild_id), json.dumps(current),
+        f"INSERT INTO {table} (guild_id, settings) VALUES (?, ?) "
+        f"ON CONFLICT (guild_id) DO UPDATE SET settings = ?",
+        str(guild_id), json.dumps(current), json.dumps(current),
     )
     _update_cache(table, guild_id, current)
     return None
@@ -1582,17 +1582,17 @@ async def mod_feed(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     scope = request.query_params.get("scope", "all")
     MOD_ONLY = ("kick", "ban", "unban", "tempban", "mute", "unmute", "warn", "purge", "lockdown")
-    sql = "SELECT user_name, action, reason, moderator, created_at FROM mod_log WHERE guild_id = $1"
+    sql = "SELECT user_name, action, reason, moderator, created_at FROM mod_log WHERE guild_id = ?"
     params = [str(guild_id)]
     if scope == "mod":
-        sql += " AND action = ANY($2::text[])"
-        params.append(list(MOD_ONLY))
+        sql += f" AND action IN ({','.join(['?']*len(MOD_ONLY))})"
+        params.extend(MOD_ONLY)
     sql += " ORDER BY created_at DESC LIMIT 20"
     rows = await query(sql, *params)
     if rows:
         # Build channel-name lookup for purge events that stored raw IDs
         ch_map = {}
-        gd = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+        gd = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
         parsed = _parse_guild_data({"data": gd["data"]}) if gd else None
         if parsed and isinstance(parsed.get("channels"), list):
             for c in parsed["channels"]:
@@ -1623,7 +1623,7 @@ async def mod_log_push(guild_id: str, request: Request):
     """Endpoint for the bot to push moderation events."""
     body = await request.json()
     await execute(
-        "INSERT INTO mod_log (guild_id, user_id, user_name, action, reason, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+        "INSERT INTO mod_log (guild_id, user_id, user_name, action, reason, created_at) VALUES (?, ?, ?, ?, ?, ?)",
         str(guild_id), body.get("user_id", ""), body.get("user_name", ""),
         body.get("action", ""), body.get("reason", ""), time.time(),
     )
@@ -1633,14 +1633,14 @@ async def mod_log_push(guild_id: str, request: Request):
 async def push_mod_event(guild_id, user_id, user_name, action, reason=""):
     """Insert a moderation event into mod_log."""
     await execute(
-        "INSERT INTO mod_log (guild_id, user_id, user_name, action, reason, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+        "INSERT INTO mod_log (guild_id, user_id, user_name, action, reason, created_at) VALUES (?, ?, ?, ?, ?, ?)",
         str(guild_id), str(user_id), user_name, action, reason, time.time(),
     )
 
 
 _MOD_ACTIONS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS mod_actions (
-    id SERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     guild_id TEXT NOT NULL,
     action TEXT NOT NULL,
     target_id TEXT NOT NULL,
@@ -1650,8 +1650,8 @@ CREATE TABLE IF NOT EXISTS mod_actions (
     error TEXT DEFAULT '',
     duration INTEGER,
     status TEXT NOT NULL DEFAULT 'pending',
-    created_at DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now())),
-    processed_at DOUBLE PRECISION
+    created_at REAL NOT NULL,
+    processed_at REAL
 );
 CREATE INDEX IF NOT EXISTS idx_mod_actions_pending ON mod_actions (status, created_at);
 """
@@ -1667,9 +1667,9 @@ CREATE TABLE IF NOT EXISTS captcha_codes (
     provider TEXT NOT NULL,
     guild_id TEXT DEFAULT '',
     user_id TEXT DEFAULT '',
-    created_at DOUBLE PRECISION NOT NULL,
-    expires_at DOUBLE PRECISION NOT NULL,
-    used BOOLEAN NOT NULL DEFAULT FALSE
+    created_at REAL NOT NULL,
+    expires_at REAL NOT NULL,
+    used INTEGER NOT NULL DEFAULT 0
 );
 """
 
@@ -1685,7 +1685,7 @@ async def _validate_captcha_code(code: str, provider: str):
         except Exception:
             pass
         row = await fetchrow(
-            "SELECT used, expires_at, guild_id, user_id FROM captcha_codes WHERE code = $1 AND provider = $2",
+            "SELECT used, expires_at, guild_id, user_id FROM captcha_codes WHERE code = ? AND provider = ?",
             code, provider,
         )
         if not row or row["used"] or time.time() > row["expires_at"]:
@@ -1701,7 +1701,7 @@ async def _consume_captcha_code(code: str, provider: str):
     if not info:
         return None
     try:
-        await execute("UPDATE captcha_codes SET used = TRUE WHERE code = $1", code)
+    await execute("UPDATE captcha_codes SET used = 1 WHERE code = ?", code)
     except Exception:
         return None
     return info
@@ -1747,7 +1747,7 @@ async def _queue_action(guild_id, action, target_id, target_name="", reason="", 
     try:
         await execute(
             "INSERT INTO mod_actions (guild_id, action, target_id, target_name, reason, moderator, duration, status, created_at) "
-            "VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)",
             str(guild_id), action, str(target_id), target_name, reason, moderator,
             duration_int, time.time(),
         )
@@ -1755,21 +1755,16 @@ async def _queue_action(guild_id, action, target_id, target_name="", reason="", 
         await _ensure_mod_actions_table()
         await execute(
             "INSERT INTO mod_actions (guild_id, action, target_id, target_name, reason, moderator, duration, status, created_at) "
-            "VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)",
             str(guild_id), action, str(target_id), target_name, reason, moderator,
             duration_int, time.time(),
         )
-    # Wake the bot instantly via Postgres NOTIFY
-    try:
-        await execute("SELECT pg_notify('prowl_actions', $1)", str(guild_id))
-    except Exception:
-        pass
 
 
 @app.get("/api/v1/mod/{guild_id}/debug")
 async def mod_debug(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d is not None:
         return {"has_data": True, "has_members": "members" in d, "has_channels": "channels" in d, "has_roles": "roles" in d, "keys": list(d.keys()), "member_count": len(d.get("members", [])), "channel_count": len(d.get("channels", [])), "role_count": len(d.get("roles", []))}
@@ -1780,7 +1775,7 @@ async def mod_debug(guild_id: str, request: Request):
 @app.get("/api/v1/mod/{guild_id}/members")
 async def mod_members(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
 
     def avatar_url(m):
@@ -1809,7 +1804,7 @@ async def mod_members(guild_id: str, request: Request):
 @app.get("/api/v1/mod/{guild_id}/channels")
 async def mod_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "channels" in d:
         # Coerce IDs to strings (JS-safe) - categories reported separately
@@ -1830,21 +1825,21 @@ async def mod_muted(guild_id: str, request: Request):
     now = time.time()
     try:
         rows = await query(
-            "SELECT user_id, user_name, reason, end_ts FROM muted_users WHERE guild_id = $1 AND end_ts > $2 ORDER BY end_ts ASC",
+            "SELECT user_id, user_name, reason, end_ts FROM muted_users WHERE guild_id = ? AND end_ts > ? ORDER BY end_ts ASC",
             str(guild_id), now,
         )
     except Exception:
         await execute(
-            "CREATE TABLE IF NOT EXISTS muted_users (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, user_name TEXT DEFAULT '', reason TEXT DEFAULT '', end_ts DOUBLE PRECISION NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, user_id))"
+            "CREATE TABLE IF NOT EXISTS muted_users (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, user_name TEXT DEFAULT '', reason TEXT DEFAULT '', end_ts REAL NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, user_id))"
         )
         rows = await query(
-            "SELECT user_id, user_name, reason, end_ts FROM muted_users WHERE guild_id = $1 AND end_ts > $2 ORDER BY end_ts ASC",
+            "SELECT user_id, user_name, reason, end_ts FROM muted_users WHERE guild_id = ? AND end_ts > ? ORDER BY end_ts ASC",
             str(guild_id), now,
         )
 
     # Avatar lookup from guild_data members
     avatar_map = {}
-    gd = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    gd = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     parsed = _parse_guild_data({"data": gd["data"]}) if gd else None
     if parsed and isinstance(parsed.get("members"), list):
         for m in parsed["members"]:
@@ -1872,7 +1867,7 @@ async def mod_muted(guild_id: str, request: Request):
 @app.get("/api/v1/mod/{guild_id}/roles")
 async def mod_roles(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     roles = d.get("roles", []) if d else []
     if row and isinstance(row["data"], dict) and "roles" in row["data"]:
@@ -1935,9 +1930,9 @@ async def mod_roles_set(guild_id: str, request: Request):
         mod_roles.remove(role_id)
     current["mod_roles"] = mod_roles
     await execute(
-        "INSERT INTO mod_settings (guild_id, settings) VALUES ($1, $2::jsonb) "
-        "ON CONFLICT (guild_id) DO UPDATE SET settings = $2::jsonb",
-        str(guild_id), json.dumps(current),
+        "INSERT INTO mod_settings (guild_id, settings) VALUES (?, ?) "
+        "ON CONFLICT (guild_id) DO UPDATE SET settings = ?",
+        str(guild_id), json.dumps(current), json.dumps(current),
     )
     return {"ok": True}
 
@@ -1950,9 +1945,9 @@ async def mod_roles_batch(guild_id: str, request: Request):
     current = await _get_mod_settings(guild_id)
     current["mod_roles"] = role_ids
     await execute(
-        "INSERT INTO mod_settings (guild_id, settings) VALUES ($1, $2::jsonb) "
-        "ON CONFLICT (guild_id) DO UPDATE SET settings = $2::jsonb",
-        str(guild_id), json.dumps(current),
+        "INSERT INTO mod_settings (guild_id, settings) VALUES (?, ?) "
+        "ON CONFLICT (guild_id) DO UPDATE SET settings = ?",
+        str(guild_id), json.dumps(current), json.dumps(current),
     )
     logger.info(f"Mod roles saved for guild {guild_id}: {role_ids}")
     return {"ok": True, "mod_roles": role_ids}
@@ -1963,10 +1958,13 @@ async def mod_emergency(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
     locked = body.get("locked", False)
+    # Read current settings and merge to preserve other keys
+    current = await _get_mod_settings(guild_id)
+    current["emergency_lock"] = locked
     await execute(
-        "INSERT INTO mod_settings (guild_id, settings) VALUES ($1, $2::jsonb) "
-        "ON CONFLICT (guild_id) DO UPDATE SET settings = mod_settings.settings || $2::jsonb",
-        str(guild_id), json.dumps({"emergency_lock": locked}),
+        "INSERT INTO mod_settings (guild_id, settings) VALUES (?, ?) "
+        "ON CONFLICT (guild_id) DO UPDATE SET settings = ?",
+        str(guild_id), json.dumps(current), json.dumps(current),
     )
     # Queue the actual lockdown/restore for the bot to execute
     session_user = request.session.get("user") or {}
@@ -1996,7 +1994,7 @@ async def mod_member_stats(guild_id: str, request: Request):
     rows = await query(
         """WITH recent AS (
              SELECT timestamp, member_count FROM member_history
-             WHERE guild_id = $1 ORDER BY timestamp DESC LIMIT 168
+             WHERE guild_id = ? ORDER BY timestamp DESC LIMIT 168
            ) SELECT timestamp, member_count FROM recent ORDER BY timestamp ASC""",
         str(guild_id),
     )
@@ -2009,7 +2007,7 @@ async def mod_message_stats(guild_id: str, request: Request):
     rows = await query(
         """WITH recent AS (
              SELECT timestamp, message_count FROM message_history
-             WHERE guild_id = $1 ORDER BY timestamp DESC LIMIT 168
+             WHERE guild_id = ? ORDER BY timestamp DESC LIMIT 168
            ) SELECT timestamp, message_count FROM recent ORDER BY timestamp ASC""",
         str(guild_id),
     )
@@ -2038,7 +2036,7 @@ async def mod_stats_daily(guild_id: str, request: Request):
         await execute(_STATS_HISTORY_SQL)
     except Exception:
         pass
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     d = d or {}
     members = int(d.get("member_count", 0) or 0)
@@ -2050,10 +2048,10 @@ async def mod_stats_daily(guild_id: str, request: Request):
     try:
         await execute(
             "INSERT INTO guild_stats_history (guild_id, day, member_count, channel_count, role_count, category_count) "
-            "VALUES ($1, $2, $3, $4, $5, $6) "
+            "VALUES (?, ?, ?, ?, ?, ?) "
             "ON CONFLICT (guild_id, day) DO UPDATE SET "
-            "member_count = EXCLUDED.member_count, channel_count = EXCLUDED.channel_count, "
-            "role_count = EXCLUDED.role_count, category_count = EXCLUDED.category_count",
+            "member_count = excluded.member_count, channel_count = excluded.channel_count, "
+            "role_count = excluded.role_count, category_count = excluded.category_count",
             str(guild_id), today, members, channels, roles, categories,
         )
     except Exception:
@@ -2062,7 +2060,7 @@ async def mod_stats_daily(guild_id: str, request: Request):
     try:
         yrow = await fetchrow(
             "SELECT member_count, channel_count, role_count, category_count "
-            "FROM guild_stats_history WHERE guild_id = $1 AND day = $2",
+            "FROM guild_stats_history WHERE guild_id = ? AND day = ?",
             str(guild_id), yesterday,
         )
         prev = dict(yrow) if yrow else None
@@ -2091,7 +2089,7 @@ async def mod_actions_list(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     rows = await query(
         "SELECT id, action, target_id, target_name, reason, moderator, duration, status, error, created_at, processed_at "
-        "FROM mod_actions WHERE guild_id = $1 ORDER BY created_at DESC LIMIT 30",
+        "FROM mod_actions WHERE guild_id = ? ORDER BY created_at DESC LIMIT 30",
         str(guild_id),
     )
     return {"actions": [dict(r) for r in rows]}
@@ -2146,7 +2144,7 @@ LEVELING_DEFAULTS = {
 
 
 async def _get_leveling_settings(guild_id: str):
-    return await fetchrow_cached("leveling_settings", "SELECT settings FROM leveling_settings WHERE guild_id = $1", guild_id, LEVELING_DEFAULTS)
+    return await fetchrow_cached("leveling_settings", "SELECT settings FROM leveling_settings WHERE guild_id = ?", guild_id, LEVELING_DEFAULTS)
 
 
 def _sanitize_role_multipliers(value):
@@ -2237,13 +2235,13 @@ async def leveling_settings_set(guild_id: str, request: Request):
 async def leveling_leaderboard(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     rows = await query(
-        "SELECT user_id, xp FROM leveling_data WHERE guild_id = $1 ORDER BY xp DESC LIMIT 50",
+        "SELECT user_id, xp FROM leveling_data WHERE guild_id = ? ORDER BY xp DESC LIMIT 50",
         str(guild_id),
     )
     if not rows:
         return {"members": []}
     # Join with cached member data for names/avatars
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     by_id = {}
     if d and "members" in d:
@@ -2283,7 +2281,7 @@ async def leveling_leaderboard(guild_id: str, request: Request):
 @app.get("/api/v1/leveling/{guild_id}/channels")
 async def leveling_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
@@ -2293,7 +2291,7 @@ async def leveling_channels(guild_id: str, request: Request):
 @app.get("/api/v1/leveling/{guild_id}/roles")
 async def leveling_roles(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     roles = d.get("roles", []) if d else []
     if row and isinstance(row["data"], dict) and "roles" in row["data"]:
@@ -2345,7 +2343,7 @@ LOGGING_DEFAULTS = {
 
 
 async def _get_logging_settings(guild_id: str):
-    return await fetchrow_cached("logging_settings", "SELECT settings FROM logging_settings WHERE guild_id = $1", guild_id, LOGGING_DEFAULTS)
+    return await fetchrow_cached("logging_settings", "SELECT settings FROM logging_settings WHERE guild_id = ?", guild_id, LOGGING_DEFAULTS)
 
 
 @app.get("/api/v1/logging/{guild_id}/settings")
@@ -2371,7 +2369,7 @@ async def logging_settings_set(guild_id: str, request: Request):
 @app.get("/api/v1/logging/{guild_id}/channels")
 async def logging_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
@@ -2452,7 +2450,7 @@ def _sanitize_action_configs(value):
 
 
 async def _get_automod_settings(guild_id: str):
-    return await fetchrow_cached("automod_settings", "SELECT settings FROM automod_settings WHERE guild_id = $1", guild_id, AUTOMOD_DEFAULTS)
+    return await fetchrow_cached("automod_settings", "SELECT settings FROM automod_settings WHERE guild_id = ?", guild_id, AUTOMOD_DEFAULTS)
 
 
 @app.get("/api/v1/automod/{guild_id}/settings")
@@ -2488,7 +2486,7 @@ async def automod_settings_set(guild_id: str, request: Request):
 @app.get("/api/v1/automod/{guild_id}/channels")
 async def automod_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
@@ -2528,7 +2526,7 @@ RAID_ACTIONS = ("kick", "ban", "lockdown", "verify")
 
 
 async def _get_raid_settings(guild_id: str):
-    return await fetchrow_cached("raid_settings", "SELECT settings FROM raid_settings WHERE guild_id = $1", guild_id, RAID_DEFAULTS)
+    return await fetchrow_cached("raid_settings", "SELECT settings FROM raid_settings WHERE guild_id = ?", guild_id, RAID_DEFAULTS)
 
 
 @app.get("/api/v1/raid/{guild_id}/settings")
@@ -2558,7 +2556,7 @@ async def raid_settings_set(guild_id: str, request: Request):
 @app.get("/api/v1/raid/{guild_id}/channels")
 async def raid_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
@@ -2590,7 +2588,7 @@ WELCOME_DEFAULTS = {
 
 
 async def _get_welcome_settings(guild_id: str):
-    return await fetchrow_cached("welcome_settings", "SELECT settings FROM welcome_settings WHERE guild_id = $1", guild_id, WELCOME_DEFAULTS)
+    return await fetchrow_cached("welcome_settings", "SELECT settings FROM welcome_settings WHERE guild_id = ?", guild_id, WELCOME_DEFAULTS)
 
 
 @app.get("/api/v1/welcomer/{guild_id}/settings")
@@ -2684,7 +2682,7 @@ async def welcomer_settings_set(guild_id: str, request: Request):
 async def welcomer_channels(guild_id: str, request: Request):
     """Text channels for the welcome channel dropdown."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
@@ -2695,7 +2693,7 @@ async def welcomer_channels(guild_id: str, request: Request):
 async def welcomer_roles(guild_id: str, request: Request):
     """All roles for the auto-role dropdown."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "roles" in d:
         return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
@@ -2710,7 +2708,7 @@ async def welcomer_roles(guild_id: str, request: Request):
 async def autoresponder_triggers(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     rows = await query(
-        "SELECT id, trigger, response, match_type, channel_id, cooldown FROM autoresponder WHERE guild_id = $1 ORDER BY created_at ASC",
+        "SELECT id, trigger, response, match_type, channel_id, cooldown FROM autoresponder WHERE guild_id = ? ORDER BY created_at ASC",
         str(guild_id),
     )
     if not rows:
@@ -2721,7 +2719,7 @@ async def autoresponder_triggers(guild_id: str, request: Request):
 @app.get("/api/v1/autoresponder/{guild_id}/channels")
 async def autoresponder_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
@@ -2752,13 +2750,13 @@ async def autoresponder_trigger_add(guild_id: str, request: Request):
     except (TypeError, ValueError):
         return JSONResponse({"error": "cooldown must be an integer (seconds)"}, status_code=400)
     existing = await query(
-        "SELECT id FROM autoresponder WHERE guild_id = $1 AND lower(trigger) = lower($2) AND match_type = $3",
+        "SELECT id FROM autoresponder WHERE guild_id = ? AND lower(trigger) = lower(?) AND match_type = ?",
         str(guild_id), trigger, match_type,
     )
     if existing:
         return JSONResponse({"error": "A trigger with this text and match type already exists."}, status_code=400)
     r = await query(
-        "INSERT INTO autoresponder (guild_id, trigger, response, match_type, channel_id, cooldown) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, trigger, response, match_type, channel_id, cooldown",
+        "INSERT INTO autoresponder (guild_id, trigger, response, match_type, channel_id, cooldown) VALUES (?, ?, ?, ?, ?, ?) RETURNING id, trigger, response, match_type, channel_id, cooldown",
         str(guild_id), trigger, response, match_type, channel_id, cooldown,
     )
     return {"ok": True, "trigger": dict(r[0]) if r else None}
@@ -2771,7 +2769,7 @@ async def autoresponder_trigger_remove(guild_id: str, trigger_id: str, request: 
         tid = int(trigger_id)
     except (TypeError, ValueError):
         return JSONResponse({"error": "invalid trigger id"}, status_code=400)
-    await execute("DELETE FROM autoresponder WHERE guild_id = $1 AND id = $2", str(guild_id), tid)
+    await execute("DELETE FROM autoresponder WHERE guild_id = ? AND id = ?", str(guild_id), tid)
     return {"ok": True}
 
 
@@ -2790,7 +2788,7 @@ SOCIAL_SETTINGS_DEFAULTS = {
 
 
 async def _get_social_settings(guild_id: str):
-    return await fetchrow_cached("social_settings", "SELECT settings FROM social_settings WHERE guild_id = $1", guild_id, SOCIAL_SETTINGS_DEFAULTS)
+    return await fetchrow_cached("social_settings", "SELECT settings FROM social_settings WHERE guild_id = ?", guild_id, SOCIAL_SETTINGS_DEFAULTS)
 
 
 @app.get("/api/v1/social/{guild_id}/settings")
@@ -2828,7 +2826,7 @@ async def social_settings_set(guild_id: str, request: Request):
 async def social_roles(guild_id: str, request: Request):
     """All roles for ping-role dropdowns."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "roles" in d:
         return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
@@ -2839,7 +2837,7 @@ async def social_roles(guild_id: str, request: Request):
 async def social_channels(guild_id: str, request: Request):
     """Text channels for the announce-channel dropdown."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
@@ -2925,7 +2923,7 @@ def _sanitize_questions(value):
 
 
 async def _get_ticket_settings(guild_id: str):
-    return await fetchrow_cached("ticket_settings", "SELECT settings FROM ticket_settings WHERE guild_id = $1", guild_id, TICKET_SETTINGS_DEFAULTS)
+    return await fetchrow_cached("ticket_settings", "SELECT settings FROM ticket_settings WHERE guild_id = ?", guild_id, TICKET_SETTINGS_DEFAULTS)
 
 
 @app.get("/api/v1/tickets/{guild_id}/settings")
@@ -2982,7 +2980,7 @@ async def ticket_send_panel(guild_id: str, request: Request):
 async def ticket_categories(guild_id: str, request: Request):
     """Categories for the ticket category dropdown."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "channels" in d:
         return {"categories": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 4]}
@@ -2993,7 +2991,7 @@ async def ticket_categories(guild_id: str, request: Request):
 async def ticket_channels(guild_id: str, request: Request):
     """Text channels for the log-channel dropdown."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
@@ -3004,7 +3002,7 @@ async def ticket_channels(guild_id: str, request: Request):
 async def ticket_roles(guild_id: str, request: Request):
     """All roles for the support-role dropdown."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "roles" in d:
         return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
@@ -3028,7 +3026,7 @@ VERIFY_SETTINGS_DEFAULTS = {
 
 
 async def _get_verify_settings(guild_id: str):
-    return await fetchrow_cached("verify_settings", "SELECT settings FROM verify_settings WHERE guild_id = $1", guild_id, VERIFY_SETTINGS_DEFAULTS)
+    return await fetchrow_cached("verify_settings", "SELECT settings FROM verify_settings WHERE guild_id = ?", guild_id, VERIFY_SETTINGS_DEFAULTS)
 
 
 @app.get("/api/v1/verify/{guild_id}/settings")
@@ -3061,7 +3059,7 @@ async def verify_deploy(guild_id: str, request: Request):
 @app.get("/api/v1/verify/{guild_id}/channels")
 async def verify_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name")} for c in d["channels"] if c.get("type", 0) == 0]}
@@ -3071,7 +3069,7 @@ async def verify_channels(guild_id: str, request: Request):
 @app.get("/api/v1/verify/{guild_id}/roles")
 async def verify_roles(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "roles" in d:
         return {"roles": [{"id": str(r.get("id")), "name": r.get("name")} for r in d["roles"]]}
@@ -3170,7 +3168,7 @@ async def captcha_complete(request: Request):
 async def members_roles(guild_id: str, request: Request):
     """All roles (unfiltered) with positions + managed flag for member management."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "roles" in d:
         return {"roles": [{"id": str(r.get("id")), "name": r.get("name", ""), "position": r.get("position", 0), "managed": bool(r.get("managed", False))} for r in d["roles"]]}
@@ -3181,7 +3179,7 @@ async def members_roles(guild_id: str, request: Request):
 async def members_bot_info(guild_id: str, request: Request):
     """Bot hierarchy/permission info for member management checks."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d:
         return {
@@ -3203,7 +3201,7 @@ GC_DEFAULTS = {"enabled": False, "channel_id": None}
 async def _get_gc_settings(guild_id: str):
     d = dict(GC_DEFAULTS)
     for suffix, out_key in (("enabled", "enabled"), ("channel", "channel_id")):
-        row = await fetchrow("SELECT value FROM bot_stats WHERE key = $1", f"global_chat_{suffix}_{guild_id}")
+        row = await fetchrow("SELECT value FROM bot_stats WHERE key = ?", f"global_chat_{suffix}_{guild_id}")
         if row:
             val = row["value"]
             d[out_key] = (val.lower() == "true" if out_key == "enabled" else str(val))
@@ -3227,7 +3225,7 @@ async def gc_settings_set(guild_id: str, request: Request):
     db_key = f"global_chat_{'enabled' if key == 'enabled' else 'channel'}_{guild_id}"
     db_val = str(value) if value is not None else ""
     await execute(
-        "INSERT INTO bot_stats (key, value, updated_at) VALUES ($1, $2, $3) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at",
+        "INSERT INTO bot_stats (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
         db_key, db_val, time.time(),
     )
     return {"ok": True}
@@ -3236,7 +3234,7 @@ async def gc_settings_set(guild_id: str, request: Request):
 @app.get("/api/v1/global_chat/{guild_id}/channels")
 async def gc_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name")} for c in d["channels"] if c.get("type", 0) == 0]}
@@ -3262,7 +3260,7 @@ ALL_FEATURE_TABLES = (
 
 
 async def _get_server_settings(guild_id: str):
-    row = await fetchrow("SELECT settings FROM guild_settings WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT settings FROM guild_settings WHERE guild_id = ?", str(guild_id))
     if row:
         settings = row["settings"]
         if isinstance(settings, str):
@@ -3283,14 +3281,14 @@ async def server_settings_get(guild_id: str, request: Request):
 async def server_info(guild_id: str, request: Request):
     """Quick summary of the server + feature activation states (read-only)."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     features = {}
     for table in ALL_FEATURE_TABLES:
         if table in ("mod_log", "mod_actions", "ticket_logs", "captcha_codes", "guild_stats_history", "member_history", "message_history"):
             continue
         try:
-            cnt = await fetchval("SELECT COUNT(*) FROM " + table + " WHERE guild_id = $1", str(guild_id))
+            cnt = await fetchval("SELECT COUNT(*) FROM " + table + " WHERE guild_id = ?", str(guild_id))
             features[table] = (cnt > 0) if cnt is not None else False
         except Exception:
             features[table] = False
@@ -3307,7 +3305,7 @@ async def server_reset(guild_id: str, request: Request):
     deleted = 0
     for table in ALL_FEATURE_TABLES:
         try:
-            await execute("DELETE FROM " + table + " WHERE guild_id = $1", str(guild_id))
+            await execute("DELETE FROM " + table + " WHERE guild_id = ?", str(guild_id))
             deleted += 1
         except Exception:
             pass
@@ -3327,7 +3325,7 @@ async def server_remove(guild_id: str, request: Request):
     deleted = 0
     for table in _ALL_REMOVE_TABLES:
         try:
-            await execute("DELETE FROM " + table + " WHERE guild_id = $1", str(guild_id))
+            await execute("DELETE FROM " + table + " WHERE guild_id = ?", str(guild_id))
             deleted += 1
         except Exception:
             pass
@@ -3372,12 +3370,12 @@ async def set_api_key(request: Request):
     if key_name not in _API_KEY_NAMES:
         return JSONResponse({"error": "invalid key_name"}, status_code=400)
     if not value:
-        await execute("DELETE FROM api_keys WHERE key_name = $1", key_name)
+        await execute("DELETE FROM api_keys WHERE key_name = ?", key_name)
     else:
         await execute(
-            "INSERT INTO api_keys (key_name, value, updated_at) VALUES ($1, $2, $3) "
-            "ON CONFLICT (key_name) DO UPDATE SET value = $2, updated_at = $3",
-            key_name, value, time.time(),
+            "INSERT INTO api_keys (key_name, value, updated_at) VALUES (?, ?, ?) "
+            "ON CONFLICT (key_name) DO UPDATE SET value = ?, updated_at = ?",
+            key_name, value, time.time(), value, time.time(),
         )
     return {"ok": True, "key_name": key_name, "masked": _mask_key(value) if value else ""}
 
@@ -3395,7 +3393,7 @@ MUSIC_DEFAULTS = {
 
 
 async def _get_music_settings(guild_id: str):
-    return await fetchrow_cached("music_settings", "SELECT settings FROM music_settings WHERE guild_id = $1", guild_id, MUSIC_DEFAULTS)
+    return await fetchrow_cached("music_settings", "SELECT settings FROM music_settings WHERE guild_id = ?", guild_id, MUSIC_DEFAULTS)
 
 
 @app.get("/api/v1/music/{guild_id}/settings")
@@ -3421,7 +3419,7 @@ async def music_settings_set(guild_id: str, request: Request):
 @app.get("/api/v1/music/{guild_id}/roles")
 async def music_roles(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "roles" in d:
         return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
@@ -3431,7 +3429,7 @@ async def music_roles(guild_id: str, request: Request):
 @app.get("/api/v1/music/{guild_id}/channels")
 async def music_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
@@ -3453,7 +3451,7 @@ AI_DEFAULTS = {
 
 
 async def _get_ai_settings(guild_id: str):
-    return await fetchrow_cached("ai_settings", "SELECT settings FROM ai_settings WHERE guild_id = $1", guild_id, AI_DEFAULTS)
+    return await fetchrow_cached("ai_settings", "SELECT settings FROM ai_settings WHERE guild_id = ?", guild_id, AI_DEFAULTS)
 
 
 @app.get("/api/v1/ai/{guild_id}/settings")
@@ -3503,7 +3501,7 @@ async def ai_settings_set(guild_id: str, request: Request):
 @app.get("/api/v1/ai/{guild_id}/channels")
 async def ai_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
@@ -3516,14 +3514,14 @@ async def ai_channels(guild_id: str, request: Request):
 
 _AUTOMATION_RULES_TABLE = """
 CREATE TABLE IF NOT EXISTS automation_rules (
-    id SERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     guild_id TEXT NOT NULL,
     name TEXT NOT NULL DEFAULT '',
     trigger_type TEXT NOT NULL DEFAULT 'member_join',
-    trigger_cfg JSONB NOT NULL DEFAULT '{}',
+    trigger_cfg TEXT NOT NULL DEFAULT '{}',
     action_type TEXT NOT NULL DEFAULT 'send_message',
-    action_cfg JSONB NOT NULL DEFAULT '{}',
-    created_at DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+    action_cfg TEXT NOT NULL DEFAULT '{}',
+    created_at REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_automation_rules_guild ON automation_rules (guild_id);
 """
@@ -3532,8 +3530,8 @@ _AUTOMATION_OVERRIDES_TABLE = """
 CREATE TABLE IF NOT EXISTS automation_overrides (
     guild_id TEXT NOT NULL,
     feature TEXT NOT NULL,
-    enabled BOOLEAN NOT NULL DEFAULT FALSE,
-    updated_at DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now())),
+    enabled INTEGER NOT NULL DEFAULT 0,
+    updated_at REAL NOT NULL,
     PRIMARY KEY (guild_id, feature)
 );
 """
@@ -3558,7 +3556,7 @@ async def automation_rules_get(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     rows = await query(
         "SELECT id, name, trigger_type, trigger_cfg, action_type, action_cfg FROM automation_rules "
-        "WHERE guild_id = $1 ORDER BY created_at ASC",
+        "WHERE guild_id = ? ORDER BY created_at ASC",
         str(guild_id),
     )
     rules = []
@@ -3588,7 +3586,7 @@ async def automation_rule_add(guild_id: str, request: Request):
         return JSONResponse({"error": "invalid name, trigger_type or action_type"}, status_code=400)
     row = await query(
         "INSERT INTO automation_rules (guild_id, name, trigger_type, trigger_cfg, action_type, action_cfg) "
-        "VALUES ($1,$2,$3,$4::jsonb,$5,$6::jsonb) RETURNING id",
+        "VALUES (?,?,?,?,?,?) RETURNING id",
         str(guild_id), name, trigger_type, json.dumps(trigger_cfg), action_type, json.dumps(action_cfg),
     )
     return {"ok": True, "id": row[0]["id"] if row else None}
@@ -3611,8 +3609,8 @@ async def automation_rule_edit(guild_id: str, rule_id: str, request: Request):
     except (TypeError, ValueError):
         return JSONResponse({"error": "invalid id"}, status_code=400)
     await execute(
-        "UPDATE automation_rules SET name=$1, trigger_type=$2, trigger_cfg=$3::jsonb, action_type=$4, action_cfg=$5::jsonb "
-        "WHERE id=$6 AND guild_id=$7",
+        "UPDATE automation_rules SET name=?, trigger_type=?, trigger_cfg=?, action_type=?, action_cfg=? "
+        "WHERE id=? AND guild_id=?",
         name, trigger_type, json.dumps(trigger_cfg), action_type, json.dumps(action_cfg), rid, str(guild_id),
     )
     return {"ok": True}
@@ -3625,7 +3623,7 @@ async def automation_rule_delete(guild_id: str, rule_id: str, request: Request):
         rid = int(rule_id)
     except (TypeError, ValueError):
         return JSONResponse({"error": "invalid id"}, status_code=400)
-    await execute("DELETE FROM automation_rules WHERE id=$1 AND guild_id=$2", rid, str(guild_id))
+    await execute("DELETE FROM automation_rules WHERE id=? AND guild_id=?", rid, str(guild_id))
     return {"ok": True}
 
 
@@ -3633,7 +3631,7 @@ async def automation_rule_delete(guild_id: str, rule_id: str, request: Request):
 async def automation_overrides_get(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     rows = await query(
-        "SELECT feature, enabled FROM automation_overrides WHERE guild_id = $1",
+        "SELECT feature, enabled FROM automation_overrides WHERE guild_id = ?",
         str(guild_id),
     )
     return {"overrides": {r["feature"]: r["enabled"] for r in rows}}
@@ -3650,8 +3648,8 @@ async def automation_overrides_set(guild_id: str, request: Request):
         return JSONResponse({"error": "missing key"}, status_code=400)
     await execute(
         "INSERT INTO automation_overrides (guild_id, feature, enabled, updated_at) "
-        "VALUES ($1, $2, $3, $4) ON CONFLICT (guild_id, feature) DO UPDATE SET enabled=$3, updated_at=$4",
-        str(guild_id), key, value, time.time(),
+        "VALUES (?, ?, ?, ?) ON CONFLICT (guild_id, feature) DO UPDATE SET enabled=?, updated_at=?",
+        str(guild_id), key, value, time.time(), value, time.time(),
     )
     return {"ok": True}
 
@@ -3659,7 +3657,7 @@ async def automation_overrides_set(guild_id: str, request: Request):
 @app.get("/api/v1/automation/{guild_id}/channels")
 async def automation_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
@@ -3669,7 +3667,7 @@ async def automation_channels(guild_id: str, request: Request):
 @app.get("/api/v1/automation/{guild_id}/roles")
 async def automation_roles(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
     d = _parse_guild_data(row)
     if d and "roles" in d:
         return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
@@ -3680,17 +3678,17 @@ _AUTO_SAVE_LIMIT = {}
 _AUTO_USAGE_SQL = """
 CREATE TABLE IF NOT EXISTS automation_runs (
     guild_id    TEXT NOT NULL,
-    bucket_ts   DOUBLE PRECISION NOT NULL,
+    bucket_ts   REAL NOT NULL,
     count       INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (guild_id, bucket_ts)
 );
 """
 _AUTO_LOGS_SQL = """
 CREATE TABLE IF NOT EXISTS automation_logs (
-    id          SERIAL PRIMARY KEY,
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
     guild_id    TEXT NOT NULL,
     message     TEXT NOT NULL DEFAULT '',
-    created_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+    created_at  REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_automation_logs_guild ON automation_logs (guild_id, id DESC);
 """
@@ -3699,7 +3697,7 @@ CREATE INDEX IF NOT EXISTS idx_automation_logs_guild ON automation_logs (guild_i
 @app.get("/api/v1/automation/{guild_id}/graph")
 async def automation_graph_get(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT nodes, connections FROM automation_graph WHERE guild_id = $1", str(guild_id))
+    row = await fetchrow("SELECT nodes, connections FROM automation_graph WHERE guild_id = ?", str(guild_id))
     if row:
         return {"nodes": row["nodes"] if isinstance(row["nodes"], list) else json.loads(row["nodes"] or "[]"),
                 "connections": row["connections"] if isinstance(row["connections"], list) else json.loads(row["connections"] or "[]")}
@@ -3720,8 +3718,9 @@ async def automation_graph_save(guild_id: str, request: Request):
     connections = body.get("connections", [])
     await execute(
         "INSERT INTO automation_graph (guild_id, nodes, connections, updated_at) "
-        "VALUES ($1,$2::jsonb,$3::jsonb,$4) ON CONFLICT (guild_id) DO UPDATE SET nodes=$2::jsonb, connections=$3::jsonb, updated_at=$4",
+        "VALUES (?,?,?,?) ON CONFLICT (guild_id) DO UPDATE SET nodes=?, connections=?, updated_at=?",
         str(guild_id), json.dumps(nodes), json.dumps(connections), time.time(),
+        json.dumps(nodes), json.dumps(connections), time.time(),
     )
     return {"ok": True}
 
@@ -3734,7 +3733,7 @@ async def automation_usage(guild_id: str, request: Request):
     except Exception:
         pass
     since = int(time.time() // 3600) * 3600 - 23 * 3600
-    rows = await query("SELECT bucket_ts, count FROM automation_runs WHERE guild_id = $1 AND bucket_ts >= $2 ORDER BY bucket_ts ASC", str(guild_id), since)
+    rows = await query("SELECT bucket_ts, count FROM automation_runs WHERE guild_id = ? AND bucket_ts >= ? ORDER BY bucket_ts ASC", str(guild_id), since)
     by = {int(r["bucket_ts"]): int(r["count"]) for r in rows}
     points = []
     for i in range(24):
@@ -3750,7 +3749,7 @@ async def automation_logs(guild_id: str, request: Request):
         await execute(_AUTO_LOGS_SQL)
     except Exception:
         pass
-    rows = await query("SELECT id, message, created_at FROM automation_logs WHERE guild_id = $1 ORDER BY id DESC LIMIT 30", str(guild_id))
+    rows = await query("SELECT id, message, created_at FROM automation_logs WHERE guild_id = ? ORDER BY id DESC LIMIT 30", str(guild_id))
     return {"logs": [{"id": r["id"], "message": r["message"], "time": _relative_time(r["created_at"])} for r in rows]}
 
 

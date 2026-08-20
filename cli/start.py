@@ -60,13 +60,13 @@ class ProwlBot(commands.Bot):
         await self.wait_until_ready()
         import os as _os
         if not _os.environ.get("DATABASE_URL"):
-            logger.warning("DATABASE_URL not set - bot won't push guild data to Neon. Set it in cli/.env")
+            logger.warning("TURSO_DATABASE_URL not set - bot won't push guild data. Set it in cli/.env")
             return
         try:
             await self._push_to_neon()
-            logger.info("Initial Neon push complete.")
+            logger.info("Initial DB push complete.")
         except Exception as e:
-            logger.error(f"Initial Neon push failed: {e}")
+            logger.error(f"Initial DB push failed: {e}")
 
     async def load_cogs(self):
         for file in COGS_DIR.glob("*.py"):
@@ -118,13 +118,13 @@ class ProwlBot(commands.Bot):
             await asyncio.sleep(60)
 
     async def _neon_syncer(self):
-        """Push full guild data (and stats) to Neon every 5 minutes as a temporary CPU-saving fallback."""
+        """Push full guild data (and stats) to the database every 5 minutes."""
         await self.wait_until_ready()
         while not self.is_closed():
             try:
                 await self._push_to_neon()
             except Exception as e:
-                logger.error(f"Neon sync failed: {e}")
+                logger.error(f"DB sync failed: {e}")
             await asyncio.sleep(300)
 
     async def _member_sync(self):
@@ -152,14 +152,14 @@ class ProwlBot(commands.Bot):
         try:
             async with pool.acquire() as conn:
                 await conn.execute(
-                    "UPDATE guild_data SET data = jsonb_set(data, '{members}', $2::jsonb), updated_at = $3 WHERE guild_id = $1",
-                    str(guild.id), json.dumps(members), time.time(),
+                    "UPDATE guild_data SET data = json_set(data, '$.members', json(?)), updated_at = ? WHERE guild_id = ?",
+                    json.dumps(members), time.time(), str(guild.id),
                 )
         except Exception as e:
             logger.debug(f"Sync members for {guild.id} failed: {e}")
 
     async def _mod_settings_poller(self):
-        """Poll mod settings less aggressively to reduce Neon CPU burn over the next month."""
+        """Poll mod settings less aggressively to reduce DB CPU burn."""
         await self.wait_until_ready()
         self._mod_cache = {}
         while not self.is_closed():
@@ -179,38 +179,16 @@ class ProwlBot(commands.Bot):
             await asyncio.sleep(120)
 
     async def _mod_action_processor(self):
-        """Process queued actions instantly via LISTEN/NOTIFY, polling as fallback."""
+        """Process queued actions via polling."""
         await self.wait_until_ready()
         from components.verification import get_verify_settings  # noqa: F811
         self._processing_actions = False
-        self._listen_conn = None
-        # Subscribe to instant wakeups via a dedicated listening connection
-        self._listen_conn = await neon_db.setup_action_listener(self._on_action_notify)
-        if self._listen_conn:
-            logger.info("Action processor subscribed to LISTEN/NOTIFY.")
         while not self.is_closed():
             try:
                 await self._process_pending()
             except Exception as e:
                 logger.error(f"Mod action processor failed: {e}")
-            await asyncio.sleep(3)  # fallback poll
-        # Clean up the listener connection on shutdown
-        if self._listen_conn:
-            try:
-                await self._listen_conn.close()
-            except Exception:
-                pass
-
-    def _on_action_notify(self, connection, pid, channel, payload):
-        # Called on a DB thread; schedule processing on the event loop
-        try:
-            self.loop.call_soon_threadsafe(self._schedule_process)
-        except Exception:
-            pass
-
-    def _schedule_process(self):
-        if not self._processing_actions:
-            self.loop.create_task(self._process_pending())
+            await asyncio.sleep(3)
 
     async def _process_pending(self):
         if self._processing_actions:
@@ -432,7 +410,7 @@ class ProwlBot(commands.Bot):
         }
 
     async def _push_to_neon(self):
-        """Build stats and push directly to Neon PostgreSQL."""
+        """Build stats and push directly to the database."""
         bot_stats = await self._build_stats()
 
         guilds = list(self.guilds)
@@ -467,7 +445,7 @@ class ProwlBot(commands.Bot):
 
         await neon_db.push_bot_stats(bot_stats)
         await neon_db.push_guild_data(guild_list)
-        logger.info("Neon sync: data pushed successfully.")
+        logger.info("DB sync: data pushed successfully.")
 
 
 def main():

@@ -31,7 +31,7 @@ async def _resolve_key(guild_id):
         try:
             pool = await neon_db.get_pool()
             if pool:
-                row = await pool.fetchrow("SELECT value FROM api_keys WHERE key_name = $1", name)
+                row = await pool.fetchrow("SELECT value FROM api_keys WHERE key_name = ?", name)
                 if row and row["value"]:
                     return row["value"], name, False
         except Exception:

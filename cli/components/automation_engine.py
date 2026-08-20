@@ -67,7 +67,7 @@ class AutomationEngine(commands.Cog, name="AutomationEngine"):
             return None
         try:
             row = await pool.fetchrow(
-                "SELECT nodes, connections FROM automation_graph WHERE guild_id = $1",
+                "SELECT nodes, connections FROM automation_graph WHERE guild_id = ?",
                 str(guild_id),
             )
         except Exception as e:
@@ -464,7 +464,7 @@ class AutomationEngine(commands.Cog, name="AutomationEngine"):
                 return
             bucket = int(time.time() // 3600) * 3600
             await pool.execute(
-                "INSERT INTO automation_runs (guild_id, bucket_ts, count) VALUES ($1, $2, 1) "
+                "INSERT INTO automation_runs (guild_id, bucket_ts, count) VALUES (?, ?, 1) "
                 "ON CONFLICT (guild_id, bucket_ts) DO UPDATE SET count = automation_runs.count + 1",
                 str(guild_id), float(bucket),
             )
@@ -477,7 +477,7 @@ class AutomationEngine(commands.Cog, name="AutomationEngine"):
             if not pool:
                 return
             await pool.execute(
-                "INSERT INTO automation_logs (guild_id, message) VALUES ($1, $2)",
+                "INSERT INTO automation_logs (guild_id, message) VALUES (?, ?)",
                 str(guild_id), message[:500],
             )
         except Exception as e:

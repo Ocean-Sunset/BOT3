@@ -26,7 +26,7 @@ async def record_invite(guild_id: int, inviter_id: str, code: str):
     if not pool:
         return
     await pool.execute(
-        "INSERT INTO invite_stats (guild_id, inviter_id, code, uses) VALUES ($1, $2, $3, 1) "
+        "INSERT INTO invite_stats (guild_id, inviter_id, code, uses) VALUES (?, ?, ?, 1) "
         "ON CONFLICT (guild_id, inviter_id, code) DO UPDATE SET uses = invite_stats.uses + 1",
         str(guild_id), inviter_id, code,
     )
@@ -159,7 +159,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
                 ephemeral=True
             )
         rows = await pool.fetch(
-            "SELECT inviter_id, SUM(uses) as total_uses FROM invite_stats WHERE guild_id = $1 GROUP BY inviter_id ORDER BY total_uses DESC LIMIT 10",
+            "SELECT inviter_id, SUM(uses) as total_uses FROM invite_stats WHERE guild_id = ? GROUP BY inviter_id ORDER BY total_uses DESC LIMIT 10",
             str(interaction.guild_id),
         )
         if not rows:
@@ -193,7 +193,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
                 ephemeral=True
             )
         rows = await pool.fetch(
-            "SELECT code, uses FROM invite_stats WHERE guild_id = $1 AND inviter_id = $2 ORDER BY uses DESC",
+            "SELECT code, uses FROM invite_stats WHERE guild_id = ? AND inviter_id = ? ORDER BY uses DESC",
             str(interaction.guild_id), str(user.id),
         )
         if not rows:

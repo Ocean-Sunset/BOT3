@@ -1,6 +1,6 @@
 """
 Server-side session store with rotating secret keys.
-Cookie holds a random session ID; data lives in memory + Neon DB (shared across
+Cookie holds a random session ID; data lives in memory + DB (shared across
 serverless instances) with a /tmp file fallback for non-DB environments.
 Secret key rotates every 30 seconds; old keys stay valid for 5 minutes.
 """
@@ -39,8 +39,8 @@ _last_save = 0
 _SESSIONS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS sessions (
     sid     TEXT PRIMARY KEY,
-    data    JSONB NOT NULL DEFAULT '{}',
-    expires DOUBLE PRECISION NOT NULL
+    data    TEXT NOT NULL DEFAULT '{}',
+    expires REAL NOT NULL
 );
 """
 
@@ -165,7 +165,7 @@ def _load_file():
         pass
 
 
-# ── Neon DB persistence (shared across serverless instances) ──
+# ── DB persistence (shared across serverless instances) ──
 
 async def _db_get(sid: str):
     try:
@@ -174,7 +174,7 @@ async def _db_get(sid: str):
         if not pool:
             return None
         row = await pool.fetchrow(
-            "SELECT data, expires FROM sessions WHERE sid = $1", sid
+            "SELECT data, expires FROM sessions WHERE sid = ?", sid
         )
         if not row:
             return None
@@ -194,9 +194,9 @@ async def _db_save(sid: str, data: dict, expires: float):
         except Exception:
             pass
         await pool.execute(
-            "INSERT INTO sessions (sid, data, expires) VALUES ($1, $2::jsonb, $3) "
-            "ON CONFLICT (sid) DO UPDATE SET data = $2::jsonb, expires = $3",
-            sid, json.dumps(data), expires,
+            "INSERT INTO sessions (sid, data, expires) VALUES (?, ?, ?) "
+            "ON CONFLICT (sid) DO UPDATE SET data = ?, expires = ?",
+            sid, json.dumps(data), expires, json.dumps(data), expires,
         )
     except Exception:
         pass
@@ -208,7 +208,7 @@ async def _db_delete(sid: str):
         pool = await db.get_pool()
         if not pool:
             return
-        await pool.execute("DELETE FROM sessions WHERE sid = $1", sid)
+        await pool.execute("DELETE FROM sessions WHERE sid = ?", sid)
     except Exception:
         pass
 

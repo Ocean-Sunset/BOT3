@@ -17,7 +17,7 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
         if not pool:
             return None
         row = await pool.fetchrow(
-            "SELECT value FROM bot_stats WHERE key = $1",
+            "SELECT value FROM bot_stats WHERE key = ?",
             f"global_chat_channel_{guild_id}",
         )
         if not row or not row["value"] or row["value"] == "0":
@@ -29,9 +29,9 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
         if not pool:
             return
         await pool.execute(
-            "INSERT INTO bot_stats (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+            "INSERT INTO bot_stats (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = ?",
             f"global_chat_channel_{guild_id}",
-            channel_id,
+            channel_id, channel_id,
         )
 
     async def get_all_linked_channels(self):

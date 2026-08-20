@@ -101,7 +101,7 @@ async def get_user_xp(guild_id: int, user_id: int):
     if not pool:
         return {"xp": 0, "level": 1}
     row = await pool.fetchrow(
-        "SELECT xp FROM leveling_data WHERE guild_id = $1 AND user_id = $2", str(guild_id), str(user_id)
+        "SELECT xp FROM leveling_data WHERE guild_id = ? AND user_id = ?", str(guild_id), str(user_id)
     )
     xp = row["xp"] if row else 0
     return {"xp": xp, "level": level_from_xp(xp)}
@@ -112,8 +112,8 @@ async def set_user_xp(guild_id: int, user_id: int, xp: int):
     if not pool:
         return
     await pool.execute(
-        "INSERT INTO leveling_data (guild_id, user_id, xp) VALUES ($1, $2, $3) ON CONFLICT (guild_id, user_id) DO UPDATE SET xp = $3",
-        str(guild_id), str(user_id), xp,
+        "INSERT INTO leveling_data (guild_id, user_id, xp) VALUES (?, ?, ?) ON CONFLICT (guild_id, user_id) DO UPDATE SET xp = ?",
+        str(guild_id), str(user_id), xp, xp,
     )
 
 
@@ -247,11 +247,11 @@ class Leveling(commands.Cog, name="Leveling"):
             )
         offset = (page - 1) * 10
         rows = await pool.fetch(
-            "SELECT user_id, xp FROM leveling_data WHERE guild_id = $1 ORDER BY xp DESC LIMIT 10 OFFSET $2",
+            "SELECT user_id, xp FROM leveling_data WHERE guild_id = ? ORDER BY xp DESC LIMIT 10 OFFSET ?",
             str(interaction.guild_id), offset,
         )
         total_rows = await pool.fetchrow(
-            "SELECT COUNT(*) as count FROM leveling_data WHERE guild_id = $1",
+            "SELECT COUNT(*) as count FROM leveling_data WHERE guild_id = ?",
             str(interaction.guild_id),
         )
         total_users = total_rows["count"] if total_rows else 0

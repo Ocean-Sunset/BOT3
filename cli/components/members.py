@@ -119,7 +119,7 @@ class Members(commands.Cog, name="Members"):
                 ephemeral=True
             )
         rows = await pool.fetch(
-            "SELECT action, reason, created_at FROM mod_log WHERE guild_id = $1 AND user_id = $2 AND action = 'warn' ORDER BY created_at DESC",
+            "SELECT action, reason, created_at FROM mod_log WHERE guild_id = ? AND user_id = ? AND action = 'warn' ORDER BY created_at DESC",
             str(interaction.guild_id), str(member.id),
         )
         if not rows:

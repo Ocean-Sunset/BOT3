@@ -315,7 +315,7 @@ class Moderation(commands.Cog, name="Moderation"):
         try:
             await pool.execute("""
                 CREATE TABLE IF NOT EXISTS mod_actions (
-                    id          SERIAL PRIMARY KEY,
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
                     guild_id    TEXT NOT NULL,
                     action      TEXT NOT NULL,
                     target_id   TEXT NOT NULL,
@@ -323,15 +323,15 @@ class Moderation(commands.Cog, name="Moderation"):
                     reason      TEXT DEFAULT '',
                     duration    INTEGER,
                     status      TEXT NOT NULL DEFAULT 'pending',
-                    created_at  DOUBLE PRECISION NOT NULL DEFAULT (extract(epoch from now()))
+                    created_at  REAL NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS idx_mod_actions_pending ON mod_actions (status, created_at);
                 CREATE TABLE IF NOT EXISTS member_history (
-                    guild_id TEXT NOT NULL, timestamp DOUBLE PRECISION NOT NULL,
+                    guild_id TEXT NOT NULL, timestamp REAL NOT NULL,
                     member_count INTEGER NOT NULL, PRIMARY KEY (guild_id, timestamp)
                 );
                 CREATE TABLE IF NOT EXISTS message_history (
-                    guild_id TEXT NOT NULL, timestamp DOUBLE PRECISION NOT NULL,
+                    guild_id TEXT NOT NULL, timestamp REAL NOT NULL,
                     message_count INTEGER NOT NULL, PRIMARY KEY (guild_id, timestamp)
                 );
             """)
@@ -374,9 +374,9 @@ class Moderation(commands.Cog, name="Moderation"):
             for guild_id, msg_count in self.message_accum.items():
                 if msg_count > 0:
                     await pool.execute(
-                        "INSERT INTO message_history (guild_id, timestamp, message_count) VALUES ($1, $2, $3) "
-                        "ON CONFLICT (guild_id, timestamp) DO UPDATE SET message_count = $3",
-                        str(guild_id), now, msg_count,
+                        "INSERT INTO message_history (guild_id, timestamp, message_count) VALUES (?, ?, ?) "
+                        "ON CONFLICT (guild_id, timestamp) DO UPDATE SET message_count = ?",
+                        str(guild_id), now, msg_count, msg_count,
                     )
             self.message_accum = {}
         except Exception as e:
@@ -390,16 +390,16 @@ class Moderation(commands.Cog, name="Moderation"):
         try:
             for guild_id, mc in self.member_counts.items():
                 await pool.execute(
-                    "INSERT INTO member_history (guild_id, timestamp, member_count) VALUES ($1, $2, $3) "
-                    "ON CONFLICT (guild_id, timestamp) DO UPDATE SET member_count = $3",
-                    str(guild_id), mc["ts"], mc["count"],
+                    "INSERT INTO member_history (guild_id, timestamp, member_count) VALUES (?, ?, ?) "
+                    "ON CONFLICT (guild_id, timestamp) DO UPDATE SET member_count = ?",
+                    str(guild_id), mc["ts"], mc["count"], mc["count"],
                 )
             for guild_id, msg_count in self.message_accum.items():
                 if msg_count > 0:
                     await pool.execute(
-                        "INSERT INTO message_history (guild_id, timestamp, message_count) VALUES ($1, $2, $3) "
-                        "ON CONFLICT (guild_id, timestamp) DO UPDATE SET message_count = $3",
-                        str(guild_id), now, msg_count,
+                        "INSERT INTO message_history (guild_id, timestamp, message_count) VALUES (?, ?, ?) "
+                        "ON CONFLICT (guild_id, timestamp) DO UPDATE SET message_count = ?",
+                        str(guild_id), now, msg_count, msg_count,
                     )
             self.message_accum = {}
             self.member_counts = {g.id: {"ts": now, "count": g.member_count} for g in self.bot.guilds}

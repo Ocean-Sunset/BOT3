@@ -42,7 +42,7 @@ class Autoresponder(commands.Cog, name="Autoresponder"):
         if not pool:
             return []
         rows = await pool.fetch(
-            "SELECT id, trigger, response, match_type, channel_id, cooldown FROM autoresponder WHERE guild_id = $1 ORDER BY created_at ASC",
+            "SELECT id, trigger, response, match_type, channel_id, cooldown FROM autoresponder WHERE guild_id = ? ORDER BY created_at ASC",
             str(guild_id),
         )
         return [dict(r) for r in rows]
@@ -52,7 +52,7 @@ class Autoresponder(commands.Cog, name="Autoresponder"):
         if not pool:
             return
         await pool.execute(
-            "INSERT INTO autoresponder (guild_id, trigger, response, match_type, channel_id, cooldown) VALUES ($1, $2, $3, $4, $5, $6)",
+            "INSERT INTO autoresponder (guild_id, trigger, response, match_type, channel_id, cooldown) VALUES (?, ?, ?, ?, ?, ?)",
             str(guild_id), trigger, response, match_type, channel_id, cooldown,
         )
 
@@ -61,7 +61,7 @@ class Autoresponder(commands.Cog, name="Autoresponder"):
         if not pool:
             return
         await pool.execute(
-            "DELETE FROM autoresponder WHERE guild_id = $1 AND trigger = $2", str(guild_id), trigger,
+            "DELETE FROM autoresponder WHERE guild_id = ? AND trigger = ?", str(guild_id), trigger,
         )
 
     @commands.Cog.listener()

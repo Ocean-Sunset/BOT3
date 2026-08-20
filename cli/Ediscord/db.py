@@ -1,7 +1,7 @@
 """
 Ediscord database module.
 Writes bot stats and guild data directly to the database.
-Uses pyturso with embedded replica for fast local reads + cloud-synced writes.
+Uses libsql-client for remote HTTP access to Turso.
 """
 
 import os
@@ -14,7 +14,6 @@ from typing import Optional, List, Dict, Any
 logger = logging.getLogger(__name__)
 
 _conn = None
-_sync_task = None
 _SETTINGS_CACHE = {}
 _SETTINGS_CACHE_TTL = 30.0
 
@@ -152,48 +151,28 @@ def parse_settings(raw, defaults: dict) -> dict:
 
 
 async def get_pool():
-    """Get the database connection pool (actually a single embedded replica connection)."""
-    global _conn, _sync_task
+    """Get the database connection (remote HTTP via libsql-client)."""
+    global _conn
     if _conn is not None:
         return _PoolWrapper(_conn)
     url = os.environ.get("TURSO_DATABASE_URL") or os.environ.get("DATABASE_URL")
     token = os.environ.get("TURSO_AUTH_TOKEN")
     if not url:
-        logger.warning("TURSO_DATABASE_URL not set - database sync disabled.")
+        logger.warning("TURSO_DATABASE_URL not set - database disabled.")
         return None
     try:
+        import libsql
+        kwargs = {"database": url}
         if token:
-            import libsql_experimental as libsql
-            _conn = libsql.connect(
-                "prowl.db",
-                sync_url=url,
-                auth_token=token,
-            )
-            _conn.sync()
-            logger.info("Connected to database (embedded replica).")
-        else:
-            logger.warning("TURSO_AUTH_TOKEN not set - database sync disabled.")
-            return None
+            kwargs["auth_token"] = token
+        _conn = libsql.connect(**kwargs)
+        logger.info("Connected to database (remote HTTP).")
         await _ensure_tables()
-        # Start background sync task
-        if _sync_task is None:
-            _sync_task = asyncio.create_task(_background_sync())
         return _PoolWrapper(_conn)
     except Exception as e:
         logger.error(f"Failed to connect to database: {e}")
         _conn = None
         return None
-
-
-async def _background_sync():
-    """Periodically sync the embedded replica with the cloud primary."""
-    while True:
-        try:
-            await asyncio.sleep(60)
-            if _conn is not None:
-                await asyncio.to_thread(_conn.sync)
-        except Exception as e:
-            logger.debug(f"Background sync failed: {e}")
 
 
 def get_settings_cache_key(table: str, guild_id) -> tuple:

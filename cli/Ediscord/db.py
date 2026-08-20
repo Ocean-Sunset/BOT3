@@ -301,9 +301,7 @@ async def _ensure_tables():
         ("CREATE TABLE IF NOT EXISTS leveling_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS leveling_data (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, xp INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, user_id))", ()),
         ("CREATE TABLE IF NOT EXISTS automation_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
-        ("CREATE TABLE IF NOT EXISTS autoresponder (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, trigger TEXT NOT NULL, response TEXT NOT NULL, match_type TEXT NOT NULL DEFAULT 'contains', created_at REAL)", ()),
-        ("ALTER TABLE autoresponder ADD COLUMN IF NOT EXISTS channel_id TEXT", ()),
-        ("ALTER TABLE autoresponder ADD COLUMN IF NOT EXISTS cooldown INTEGER DEFAULT 0", ()),
+        ("CREATE TABLE IF NOT EXISTS autoresponder (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, trigger TEXT NOT NULL, response TEXT NOT NULL, match_type TEXT NOT NULL DEFAULT 'contains', channel_id TEXT, cooldown INTEGER DEFAULT 0, created_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS social_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS invite_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS invite_stats (guild_id TEXT NOT NULL, inviter_id TEXT NOT NULL, code TEXT NOT NULL, uses INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, inviter_id, code))", ()),
@@ -316,13 +314,18 @@ async def _ensure_tables():
         ("CREATE TABLE IF NOT EXISTS automation_runs (guild_id TEXT NOT NULL, bucket_ts REAL NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, bucket_ts))", ()),
         ("CREATE TABLE IF NOT EXISTS automation_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, message TEXT NOT NULL DEFAULT '', created_at REAL NOT NULL DEFAULT 0)", ()),
         ("CREATE INDEX IF NOT EXISTS idx_automation_logs_guild ON automation_logs (guild_id, id DESC)", ()),
-        ("ALTER TABLE captcha_codes ADD COLUMN IF NOT EXISTS guild_id TEXT DEFAULT ''", ()),
-        ("ALTER TABLE captcha_codes ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT ''", ()),
-        ("ALTER TABLE mod_log ADD COLUMN IF NOT EXISTS moderator TEXT DEFAULT ''", ()),
-        ("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS moderator TEXT DEFAULT ''", ()),
-        ("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS error TEXT DEFAULT ''", ()),
-        ("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS processed_at REAL", ()),
         ("CREATE INDEX IF NOT EXISTS idx_autoresponder_guild ON autoresponder (guild_id)", ()),
+    ]
+    # Migration: ALTER TABLE ADD COLUMN (no IF NOT EXISTS — run individually, ignore "duplicate column")
+    migrations = [
+        "ALTER TABLE autoresponder ADD COLUMN channel_id TEXT",
+        "ALTER TABLE autoresponder ADD COLUMN cooldown INTEGER DEFAULT 0",
+        "ALTER TABLE captcha_codes ADD COLUMN guild_id TEXT DEFAULT ''",
+        "ALTER TABLE captcha_codes ADD COLUMN user_id TEXT DEFAULT ''",
+        "ALTER TABLE mod_log ADD COLUMN moderator TEXT DEFAULT ''",
+        "ALTER TABLE mod_actions ADD COLUMN moderator TEXT DEFAULT ''",
+        "ALTER TABLE mod_actions ADD COLUMN error TEXT DEFAULT ''",
+        "ALTER TABLE mod_actions ADD COLUMN processed_at REAL",
     ]
     try:
         await _execute_batch_http(statements)
@@ -332,6 +335,11 @@ async def _ensure_tables():
             logger.info("Schema was already created concurrently.")
         else:
             logger.error(f"ensure_tables failed: {e}")
+    for m_sql in migrations:
+        try:
+            await _execute_http(m_sql)
+        except Exception:
+            pass  # column already exists
 
 
 async def push_bot_stats(data: dict):

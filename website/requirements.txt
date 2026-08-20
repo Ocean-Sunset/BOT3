@@ -1,9 +1,8 @@
 fastapi
 uvicorn
-libsql-client>=0.3.0
+httpx
 python-dotenv
 jinja2
 aiofiles
 itsdangerous
-httpx
 python-multipart

@@ -1,19 +1,21 @@
 """
 Ediscord database module.
 Writes bot stats and guild data directly to the database.
-Uses libsql-client for remote HTTP access to Turso.
+Uses Turso's HTTP API via aiohttp (already in requirements).
+No external DB driver needed.
 """
 
 import os
 import time
 import json
 import logging
-import asyncio
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 
 logger = logging.getLogger(__name__)
 
-_conn = None
+_url = None
+_token = None
+_ensure_done = False
 _SETTINGS_CACHE = {}
 _SETTINGS_CACHE_TTL = 30.0
 
@@ -66,76 +68,88 @@ class Record:
         return NotImplemented
 
 
-def _wrap_rows(cursor) -> List[Record]:
-    """Convert a libsql cursor to a list of Record objects."""
-    columns = [desc[0] for desc in cursor.description] if cursor.description else []
-    return [Record(columns, row) for row in cursor.fetchall()]
+def _rows_to_records(result: dict) -> List[Record]:
+    """Convert a Turso HTTP result object to a list of Record objects."""
+    cols = [c["name"] for c in result.get("cols", [])]
+    return [Record(cols, tuple(row)) for row in result.get("rows", [])]
 
 
-def _wrap_row(cursor) -> Optional[Record]:
-    """Convert a libsql cursor to a single Record or None."""
-    row = cursor.fetchone()
-    if row is None:
-        return None
-    columns = [desc[0] for desc in cursor.description] if cursor.description else []
-    return Record(columns, row)
+async def _execute_http(sql: str, args=()) -> dict:
+    """Execute a single SQL statement via Turso HTTP API, return raw result dict."""
+    import aiohttp
+    global _url, _token
+    if not _url:
+        raise RuntimeError("TURSO_DATABASE_URL not set")
+    headers = {"Content-Type": "application/json"}
+    if _token:
+        headers["Authorization"] = f"Bearer {_token}"
+    body = {"q": sql, "params": list(args) if args else []}
+    async with aiohttp.ClientSession() as session:
+        async with session.post(_url, json=body, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+            data = await resp.json()
+            if resp.status >= 400:
+                raise RuntimeError(f"Turso HTTP {resp.status}: {data}")
+            return data
+
+
+async def _execute_batch_http(statements: list) -> list:
+    """Execute multiple SQL statements in one HTTP request via Turso HTTP batch API."""
+    import aiohttp
+    global _url, _token
+    if not _url:
+        raise RuntimeError("TURSO_DATABASE_URL not set")
+    headers = {"Content-Type": "application/json"}
+    if _token:
+        headers["Authorization"] = f"Bearer {_token}"
+    stmts = []
+    for sql, args in statements:
+        stmts.append({"q": sql, "params": list(args) if args else []})
+    body = {"statements": stmts}
+    async with aiohttp.ClientSession() as session:
+        async with session.post(_url, json=body, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+            data = await resp.json()
+            if resp.status >= 400:
+                raise RuntimeError(f"Turso HTTP {resp.status}: {data}")
+            return data.get("results", [])
 
 
 class _ConnWrapper:
-    """Async-compatible wrapper around a sync libsql connection."""
-
-    def __init__(self, conn):
-        self._conn = conn
+    """Async-compatible wrapper matching the interface callers expect."""
 
     async def fetchrow(self, sql: str, *args) -> Optional[Record]:
-        def _do():
-            return _wrap_row(self._conn.execute(sql, args))
-        return await asyncio.to_thread(_do)
+        result = await _execute_http(sql, args)
+        records = _rows_to_records(result)
+        return records[0] if records else None
 
     async def fetch(self, sql: str, *args) -> List[Record]:
-        def _do():
-            return _wrap_rows(self._conn.execute(sql, args))
-        return await asyncio.to_thread(_do)
+        result = await _execute_http(sql, args)
+        return _rows_to_records(result)
 
     async def execute(self, sql: str, *args) -> str:
-        def _do():
-            self._conn.execute(sql, args)
-            self._conn.commit()
-        await asyncio.to_thread(_do)
+        await _execute_http(sql, args)
         return "OK"
 
 
 class _PoolWrapper:
-    """Async-compatible pool that mimics asyncpg's pool interface."""
-
-    def __init__(self, conn):
-        self._conn = conn
+    """Mimics asyncpg pool interface — all callers use pool.acquire() as conn."""
 
     def acquire(self):
         return self
 
     async def __aenter__(self):
-        return _ConnWrapper(self._conn)
+        return _ConnWrapper()
 
     async def __aexit__(self, *args):
         pass
 
     async def fetchrow(self, sql: str, *args) -> Optional[Record]:
-        def _do():
-            return _wrap_row(self._conn.execute(sql, args))
-        return await asyncio.to_thread(_do)
+        return await _ConnWrapper().fetchrow(sql, *args)
 
     async def fetch(self, sql: str, *args) -> List[Record]:
-        def _do():
-            return _wrap_rows(self._conn.execute(sql, args))
-        return await asyncio.to_thread(_do)
+        return await _ConnWrapper().fetch(sql, *args)
 
     async def execute(self, sql: str, *args) -> str:
-        def _do():
-            self._conn.execute(sql, args)
-            self._conn.commit()
-        await asyncio.to_thread(_do)
-        return "OK"
+        return await _ConnWrapper().execute(sql, *args)
 
 
 def parse_settings(raw, defaults: dict) -> dict:
@@ -151,27 +165,21 @@ def parse_settings(raw, defaults: dict) -> dict:
 
 
 async def get_pool():
-    """Get the database connection (remote HTTP via libsql-client)."""
-    global _conn
-    if _conn is not None:
-        return _PoolWrapper(_conn)
-    url = os.environ.get("TURSO_DATABASE_URL") or os.environ.get("DATABASE_URL")
-    token = os.environ.get("TURSO_AUTH_TOKEN")
-    if not url:
+    """Get the database connection wrapper (HTTP to Turso)."""
+    global _url, _token, _ensure_done
+    if _url is None:
+        _url = os.environ.get("TURSO_DATABASE_URL") or os.environ.get("DATABASE_URL")
+        _token = os.environ.get("TURSO_AUTH_TOKEN")
+    if not _url:
         logger.warning("TURSO_DATABASE_URL not set - database disabled.")
         return None
     try:
-        import libsql
-        kwargs = {"database": url}
-        if token:
-            kwargs["auth_token"] = token
-        _conn = libsql.connect(**kwargs)
-        logger.info("Connected to database (remote HTTP).")
-        await _ensure_tables()
-        return _PoolWrapper(_conn)
+        if not _ensure_done:
+            await _ensure_tables()
+            _ensure_done = True
+        return _PoolWrapper()
     except Exception as e:
-        logger.error(f"Failed to connect to database: {e}")
-        _conn = None
+        logger.error(f"Failed to initialize database: {e}")
         return None
 
 
@@ -224,49 +232,44 @@ async def save_cached_settings(table: str, guild_id, settings: dict):
 
 async def _ensure_tables():
     """Create required tables if they don't exist (self-healing)."""
-    pool = await get_pool()
-    if pool is None:
-        return
     statements = [
-        "CREATE TABLE IF NOT EXISTS bot_stats (key TEXT PRIMARY KEY, value TEXT, updated_at REAL)",
-        "CREATE TABLE IF NOT EXISTS guild_data (guild_id TEXT PRIMARY KEY, data TEXT NOT NULL DEFAULT '{}', updated_at REAL)",
-        "CREATE TABLE IF NOT EXISTS mod_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)",
-        "CREATE TABLE IF NOT EXISTS mod_log (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT, user_id TEXT, user_name TEXT, action TEXT, reason TEXT DEFAULT '', moderator TEXT DEFAULT '', created_at REAL)",
-        "CREATE TABLE IF NOT EXISTS mod_actions (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT, action TEXT, target_id TEXT, target_name TEXT DEFAULT '', reason TEXT DEFAULT '', moderator TEXT DEFAULT '', duration INTEGER, status TEXT DEFAULT 'pending', created_at REAL)",
-        "CREATE TABLE IF NOT EXISTS muted_users (guild_id TEXT, user_id TEXT, user_name TEXT DEFAULT '', reason TEXT DEFAULT '', end_ts REAL, PRIMARY KEY (guild_id, user_id))",
-        "CREATE TABLE IF NOT EXISTS ai_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)",
-        "CREATE TABLE IF NOT EXISTS welcome_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)",
-        "CREATE TABLE IF NOT EXISTS verify_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)",
-        "CREATE TABLE IF NOT EXISTS leveling_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)",
-        "CREATE TABLE IF NOT EXISTS leveling_data (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, xp INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, user_id))",
-        "CREATE TABLE IF NOT EXISTS automation_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)",
-        "CREATE TABLE IF NOT EXISTS autoresponder (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, trigger TEXT NOT NULL, response TEXT NOT NULL, match_type TEXT NOT NULL DEFAULT 'contains', created_at REAL)",
-        "ALTER TABLE autoresponder ADD COLUMN IF NOT EXISTS channel_id TEXT",
-        "ALTER TABLE autoresponder ADD COLUMN IF NOT EXISTS cooldown INTEGER DEFAULT 0",
-        "CREATE TABLE IF NOT EXISTS social_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)",
-        "CREATE TABLE IF NOT EXISTS invite_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)",
-        "CREATE TABLE IF NOT EXISTS invite_stats (guild_id TEXT NOT NULL, inviter_id TEXT NOT NULL, code TEXT NOT NULL, uses INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, inviter_id, code))",
-        "CREATE TABLE IF NOT EXISTS ticket_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)",
-        "CREATE TABLE IF NOT EXISTS ticket_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, channel_id TEXT NOT NULL, user_id TEXT NOT NULL, transcript TEXT NOT NULL, closed_at TEXT NOT NULL)",
-        "CREATE TABLE IF NOT EXISTS member_history (guild_id TEXT NOT NULL, timestamp REAL NOT NULL, member_count INTEGER NOT NULL, PRIMARY KEY (guild_id, timestamp))",
-        "CREATE TABLE IF NOT EXISTS message_history (guild_id TEXT NOT NULL, timestamp REAL NOT NULL, message_count INTEGER NOT NULL, PRIMARY KEY (guild_id, timestamp))",
-        "CREATE TABLE IF NOT EXISTS captcha_codes (code TEXT PRIMARY KEY, provider TEXT NOT NULL, guild_id TEXT DEFAULT '', user_id TEXT DEFAULT '', created_at REAL NOT NULL, expires_at REAL NOT NULL, used INTEGER NOT NULL DEFAULT 0)",
-        "CREATE TABLE IF NOT EXISTS automation_graph (guild_id TEXT PRIMARY KEY, nodes TEXT NOT NULL DEFAULT '[]', connections TEXT NOT NULL DEFAULT '[]', updated_at REAL NOT NULL DEFAULT 0)",
-        "CREATE TABLE IF NOT EXISTS automation_runs (guild_id TEXT NOT NULL, bucket_ts REAL NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, bucket_ts))",
-        "CREATE TABLE IF NOT EXISTS automation_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, message TEXT NOT NULL DEFAULT '', created_at REAL NOT NULL DEFAULT 0)",
-        "CREATE INDEX IF NOT EXISTS idx_automation_logs_guild ON automation_logs (guild_id, id DESC)",
-        "ALTER TABLE captcha_codes ADD COLUMN IF NOT EXISTS guild_id TEXT DEFAULT ''",
-        "ALTER TABLE captcha_codes ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT ''",
+        ("CREATE TABLE IF NOT EXISTS bot_stats (key TEXT PRIMARY KEY, value TEXT, updated_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS guild_data (guild_id TEXT PRIMARY KEY, data TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS mod_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS mod_log (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT, user_id TEXT, user_name TEXT, action TEXT, reason TEXT DEFAULT '', moderator TEXT DEFAULT '', created_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS mod_actions (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT, action TEXT, target_id TEXT, target_name TEXT DEFAULT '', reason TEXT DEFAULT '', moderator TEXT DEFAULT '', duration INTEGER, status TEXT DEFAULT 'pending', created_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS muted_users (guild_id TEXT, user_id TEXT, user_name TEXT DEFAULT '', reason TEXT DEFAULT '', end_ts REAL, PRIMARY KEY (guild_id, user_id))", ()),
+        ("CREATE TABLE IF NOT EXISTS ai_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS welcome_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS verify_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS leveling_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS leveling_data (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, xp INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, user_id))", ()),
+        ("CREATE TABLE IF NOT EXISTS automation_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS autoresponder (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, trigger TEXT NOT NULL, response TEXT NOT NULL, match_type TEXT NOT NULL DEFAULT 'contains', created_at REAL)", ()),
+        ("ALTER TABLE autoresponder ADD COLUMN IF NOT EXISTS channel_id TEXT", ()),
+        ("ALTER TABLE autoresponder ADD COLUMN IF NOT EXISTS cooldown INTEGER DEFAULT 0", ()),
+        ("CREATE TABLE IF NOT EXISTS social_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS invite_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS invite_stats (guild_id TEXT NOT NULL, inviter_id TEXT NOT NULL, code TEXT NOT NULL, uses INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, inviter_id, code))", ()),
+        ("CREATE TABLE IF NOT EXISTS ticket_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS ticket_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, channel_id TEXT NOT NULL, user_id TEXT NOT NULL, transcript TEXT NOT NULL, closed_at TEXT NOT NULL)", ()),
+        ("CREATE TABLE IF NOT EXISTS member_history (guild_id TEXT NOT NULL, timestamp REAL NOT NULL, member_count INTEGER NOT NULL, PRIMARY KEY (guild_id, timestamp))", ()),
+        ("CREATE TABLE IF NOT EXISTS message_history (guild_id TEXT NOT NULL, timestamp REAL NOT NULL, message_count INTEGER NOT NULL, PRIMARY KEY (guild_id, timestamp))", ()),
+        ("CREATE TABLE IF NOT EXISTS captcha_codes (code TEXT PRIMARY KEY, provider TEXT NOT NULL, guild_id TEXT DEFAULT '', user_id TEXT DEFAULT '', created_at REAL NOT NULL, expires_at REAL NOT NULL, used INTEGER NOT NULL DEFAULT 0)", ()),
+        ("CREATE TABLE IF NOT EXISTS automation_graph (guild_id TEXT PRIMARY KEY, nodes TEXT NOT NULL DEFAULT '[]', connections TEXT NOT NULL DEFAULT '[]', updated_at REAL NOT NULL DEFAULT 0)", ()),
+        ("CREATE TABLE IF NOT EXISTS automation_runs (guild_id TEXT NOT NULL, bucket_ts REAL NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, bucket_ts))", ()),
+        ("CREATE TABLE IF NOT EXISTS automation_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, message TEXT NOT NULL DEFAULT '', created_at REAL NOT NULL DEFAULT 0)", ()),
+        ("CREATE INDEX IF NOT EXISTS idx_automation_logs_guild ON automation_logs (guild_id, id DESC)", ()),
+        ("ALTER TABLE captcha_codes ADD COLUMN IF NOT EXISTS guild_id TEXT DEFAULT ''", ()),
+        ("ALTER TABLE captcha_codes ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT ''", ()),
+        ("ALTER TABLE mod_log ADD COLUMN IF NOT EXISTS moderator TEXT DEFAULT ''", ()),
+        ("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS moderator TEXT DEFAULT ''", ()),
+        ("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS error TEXT DEFAULT ''", ()),
+        ("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS processed_at REAL", ()),
+        ("CREATE INDEX IF NOT EXISTS idx_autoresponder_guild ON autoresponder (guild_id)", ()),
     ]
     try:
-        async with pool.acquire() as conn:
-            for stmt in statements:
-                await conn.execute(stmt)
-            await conn.execute("ALTER TABLE mod_log ADD COLUMN IF NOT EXISTS moderator TEXT DEFAULT ''")
-            await conn.execute("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS moderator TEXT DEFAULT ''")
-            await conn.execute("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS error TEXT DEFAULT ''")
-            await conn.execute("ALTER TABLE mod_actions ADD COLUMN IF NOT EXISTS processed_at REAL")
-            await conn.execute("CREATE INDEX IF NOT EXISTS idx_autoresponder_guild ON autoresponder (guild_id)")
+        await _execute_batch_http(statements)
         logger.info("Ensured database tables exist.")
     except Exception as e:
         if "already exists" in str(e).lower():

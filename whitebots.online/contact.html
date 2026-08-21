@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact - WhiteBots</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <canvas id="bgWave" aria-hidden="true"></canvas>
+
+  <nav id="nav">
+    <a href="/" class="logo-link" aria-label="WhiteBots home">
+      <div class="logo-img">
+        <img src="https://static.thenounproject.com/png/2590907-200.png" alt="WhiteBots">
+      </div>
+      <span class="logo-text">WhiteBots</span>
+    </a>
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="services.html">Services</a></li>
+      <li><a href="contact.html" class="active">Contact</a></li>
+    </ul>
+  </nav>
+
+  <section style="padding-top:8rem">
+    <p class="section-label">Contact</p>
+    <h2 class="section-title">Get in touch with us</h2>
+    <p class="section-sub">Tell us what we should fix</p>
+    <form class="contact-form" onsubmit="return handleSubmit(event)">
+      <input type="text" name="name" placeholder="Your Name" required>
+      <input type="email" name="email" placeholder="Email Address" required>
+      <input type="text" name="subject" placeholder="Subject">
+      <textarea name="message" placeholder="Tell us what you need..." required></textarea>
+      <button type="submit" class="btn btn-primary" style="align-self:flex-start;margin-top:.5rem">Send Message</button>
+    </form>
+    <p id="form-status" style="text-align:center;margin-top:1.5rem;color:var(--white);display:none"></p>
+  </section>
+
+  <footer>
+    &copy; 2026 WhiteBots. All rights reserved.
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="background.js"></script>
+  <script>
+    const nav = document.getElementById('nav');
+    window.addEventListener('scroll', () => {
+      nav.classList.toggle('floating', window.scrollY > 50);
+    }, { passive: true });
+
+    function handleSubmit(e) {
+      e.preventDefault();
+      var s = document.getElementById('form-status');
+      s.textContent = 'Thanks! We\'ll get back to you soon.';
+      s.style.display = 'block';
+      e.target.reset();
+      return false;
+    }
+  </script>
+</body>
+</html>

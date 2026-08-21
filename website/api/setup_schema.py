@@ -272,6 +272,26 @@ CREATE TABLE IF NOT EXISTS users (
 ALTER TABLE users ADD COLUMN IF NOT EXISTS github_id TEXT DEFAULT '';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS github_username TEXT DEFAULT '';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS github_email TEXT DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS alias_settings (
+    guild_id    TEXT PRIMARY KEY,
+    settings    TEXT NOT NULL DEFAULT '{}',
+    updated_at  REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS profile_settings (
+    guild_id    TEXT PRIMARY KEY,
+    settings    TEXT NOT NULL DEFAULT '{}',
+    updated_at  REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS profile_bios (
+    guild_id    TEXT NOT NULL,
+    user_id     TEXT NOT NULL,
+    bio         TEXT NOT NULL DEFAULT '',
+    updated_at  REAL NOT NULL,
+    PRIMARY KEY (guild_id, user_id)
+);
 """
 
 

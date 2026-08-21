@@ -57,7 +57,7 @@
       <div class="captcha-widget">
         {% if recaptcha_version == "v3" %}
           <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:rgba(255,255,255,0.5);">
-            <span class="captcha-spinner"></span> Checking you're human…
+            <span class="captcha-spinner"></span> Checking you're human...
           </div>
         {% else %}
           <div class="g-recaptcha" data-sitekey="{{ site_key }}" data-theme="dark"></div>
@@ -88,7 +88,7 @@
     async function complete(token) {
       if (done) return;
       done = true;
-      setStatus('Verifying…');
+      setStatus('Verifying...');
       try {
         const res = await fetch('/api/v1/captcha/complete', {
           method: 'POST',

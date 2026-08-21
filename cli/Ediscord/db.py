@@ -313,6 +313,9 @@ async def _ensure_tables():
         ("CREATE TABLE IF NOT EXISTS automation_graph (guild_id TEXT PRIMARY KEY, nodes TEXT NOT NULL DEFAULT '[]', connections TEXT NOT NULL DEFAULT '[]', updated_at REAL NOT NULL DEFAULT 0)", ()),
         ("CREATE TABLE IF NOT EXISTS automation_runs (guild_id TEXT NOT NULL, bucket_ts REAL NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, bucket_ts))", ()),
         ("CREATE TABLE IF NOT EXISTS automation_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, message TEXT NOT NULL DEFAULT '', created_at REAL NOT NULL DEFAULT 0)", ()),
+        ("CREATE TABLE IF NOT EXISTS alias_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS profile_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS profile_bios (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, bio TEXT NOT NULL DEFAULT '', updated_at REAL NOT NULL, PRIMARY KEY (guild_id, user_id))", ()),
         ("CREATE INDEX IF NOT EXISTS idx_automation_logs_guild ON automation_logs (guild_id, id DESC)", ()),
         ("CREATE INDEX IF NOT EXISTS idx_autoresponder_guild ON autoresponder (guild_id)", ()),
     ]

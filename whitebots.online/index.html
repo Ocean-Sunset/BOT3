@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhiteBots - Discord Bots & Automation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <canvas id="bgWave" aria-hidden="true"></canvas>
+
+  <nav id="nav">
+    <a href="/" class="logo-link" aria-label="WhiteBots home">
+      <div class="logo-img">
+        <img src="https://static.thenounproject.com/png/2590907-200.png" alt="WhiteBots">
+      </div>
+      <span class="logo-text">WhiteBots</span>
+    </a>
+    <ul>
+      <li><a href="index.html" class="active">Home</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="services.html">Services</a></li>
+      <li><a href="contact.html">Contact</a></li>
+    </ul>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-left">
+        <div class="hero-logo">
+          <img src="https://static.thenounproject.com/png/2590907-200.png" alt="WhiteBots">
+        </div>
+        <h2>Bots That Work For You</h2>
+        <p>Powerful, reliable Discord bots and automation tools built from scratch for your community</p>
+        <div class="hero-btns">
+          <a href="services.html" class="btn btn-primary">Services</a>
+          <a href="contact.html" class="btn btn-outline">Contact</a>
+        </div>
+      </div>
+      <div class="hero-right">
+        <h1 class="hero-title">WHITE<br>BOTS</h1>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="section-label">What we do</p>
+    <h2 class="section-title">Built different</h2>
+    <p class="section-sub">No bloat, no compromise, Just bots that do what they're supposed to do.</p>
+    <div class="cards">
+      <div class="card">
+        <h3>Powerful Bots</h3>
+        <p>Discord bots with tons of features and a easy to access dashboard make for the perfect experience</p>
+      </div>
+      <div class="card">
+        <h3>24/7 Uptime</h3>
+        <p>Infrastructure that keeps our bots online around the clock</p>
+      </div>
+      <div class="card">
+        <h3>Fast Support</h3>
+        <p>Thinking about changes or fixes? We respond quickly and get things done</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    &copy; 2026 WhiteBots. All rights reserved.
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+  <script src="background.js"></script>
+  <script>
+    // Nav floating on scroll
+    const nav = document.getElementById('nav');
+    window.addEventListener('scroll', () => {
+      nav.classList.toggle('floating', window.scrollY > 50);
+    }, { passive: true });
+
+    // GSAP animations
+    gsap.registerPlugin(ScrollTrigger);
+    gsap.from('.hero-left', { opacity: 0, x: -40, duration: 1, ease: 'power3.out' });
+    gsap.from('.hero-title', { opacity: 0, x: 40, duration: 1, delay: 0.2, ease: 'power3.out' });
+    gsap.from('.card', {
+      scrollTrigger: { trigger: '.cards', start: 'top 80%' },
+      opacity: 0, y: 30, stagger: 0.15, duration: 0.6, ease: 'power2.out'
+    });
+  </script>
+</body>
+</html>

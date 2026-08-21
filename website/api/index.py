@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import time
 import secrets
@@ -384,6 +385,11 @@ class SubdomainRouteMiddleware:
         if is_status_host:
             # API + static assets are shared with the main app; allow them through
             if path.startswith("/api/") or path.startswith("/static/") or path in ("/favicon.ico", "/favicon.png"):
+                await self.app(scope, receive, send)
+                return
+            # Let the turnstile challenge through, otherwise TurnstileMiddleware
+            # redirects to /challenge which we'd rewrite back to /status -> loop
+            if path == "/challenge":
                 await self.app(scope, receive, send)
                 return
             # Rewrite everything else to the /status page handler
@@ -908,6 +914,7 @@ async def dashboard(request: Request, guild_id: str, panel: str = "overview"):
         "music", "leveling", "verification", "automation",
         "social_alerts", "invite_tracker", "tickets", "global_chat",
         "autoresponder", "settings", "raid_protection", "profile",
+        "aliases", "profiles",
     ]
     if panel not in valid_panels:
         panel = "overview"
@@ -2416,7 +2423,7 @@ AUTOMOD_FILTERS = ("profanity", "spam", "links", "caps", "mentions", "invites", 
 
 
 def _sanitize_action_configs(value):
-    """Validate action_configs: dict of {filter: {warn_message, mute_minutes, kick_message, ban_message, ban_days}}."""
+    """Validate action_configs: per-filter {<base>_message, <base>_mode, <base>_embed, mute_minutes, ban_days}."""
     if not isinstance(value, dict):
         return None, "action_configs must be an object"
     clean = {}
@@ -2427,11 +2434,11 @@ def _sanitize_action_configs(value):
             continue
         c = {}
         for k, v in cfg.items():
-            if k in ("warn_message", "kick_message", "ban_message") and isinstance(v, str) and v.strip():
+            if k in ("delete_message", "warn_message", "mute_message", "kick_message", "ban_message") and isinstance(v, str) and v.strip():
                 c[k] = v[:500]
-            elif k in ("warn_mode", "kick_mode", "ban_mode") and v in ("basic", "custom"):
+            elif k in ("delete_mode", "warn_mode", "mute_mode", "kick_mode", "ban_mode") and v in ("basic", "custom"):
                 c[k] = v
-            elif k in ("warn_embed", "kick_embed", "ban_embed"):
+            elif k in ("delete_embed", "warn_embed", "mute_embed", "kick_embed", "ban_embed"):
                 clean_embed, err = _sanitize_panel_embed(v)
                 if not err:
                     c[k] = clean_embed
@@ -2491,6 +2498,140 @@ async def automod_channels(guild_id: str, request: Request):
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
     return {"channels": [{"id": "2001", "name": "general"}]}
+
+
+# ---------------------------------------------------------------------------
+#  Command Aliases API v1
+# ---------------------------------------------------------------------------
+
+ALIAS_DEFAULTS = {
+    "enabled": False,
+    "aliases": {},
+}
+
+ALIAS_NAME_RE = re.compile(r"^[a-z0-9_-]{1,32}$")
+ALIAS_MAX = 50
+
+# Keep in sync with the slash commands registered in cli/components/*.py
+ALIAS_COMMAND_CATALOG = {
+    "General": ["ping", "info", "say", "serverinfo", "userinfo", "avatar", "roleinfo", "channelinfo"],
+    "Moderation": ["kick", "ban", "tempban", "unban", "mute", "unmute", "warn", "purge", "muteevasion", "settings", "lockdown"],
+    "Leveling": ["level rank", "level leaderboard", "level toggle", "level setxp", "level reset", "level config", "level setrole"],
+    "Music": ["music play", "music skip", "music stop", "music queue", "music volume", "music nowplaying",
+              "music pause", "music resume", "music loop", "music shuffle", "music remove", "music clear"],
+    "AI": ["ai chat", "ai clear", "ai imagine", "ai config", "ai model", "ai prompt"],
+    "Members & Invites": ["members list", "members info", "members role", "members note", "members warnings",
+                          "invites toggle", "invites channel", "invites stats", "invites user"],
+}
+ALIAS_VALID_TARGETS = {p for paths in ALIAS_COMMAND_CATALOG.values() for p in paths}
+
+
+def _sanitize_aliases(value):
+    """Validate aliases: {name: {target: command path}}."""
+    if not isinstance(value, dict):
+        return None, "aliases must be an object"
+    clean = {}
+    for name, entry in value.items():
+        name = str(name).strip().lower()
+        if not ALIAS_NAME_RE.match(name):
+            return None, f"Invalid alias name: {name or '(empty)'}"
+        if isinstance(entry, dict):
+            target = str(entry.get("target", "")).strip()
+        elif isinstance(entry, str):
+            target = entry.strip()
+        else:
+            target = ""
+        if target not in ALIAS_VALID_TARGETS:
+            return None, f"Unknown command for /{name}: {target}"
+        clean[name] = {"target": target}
+    if len(clean) > ALIAS_MAX:
+        return None, f"Too many aliases (max {ALIAS_MAX})"
+    return clean, None
+
+
+@app.get("/api/v1/aliases/catalog")
+async def aliases_catalog(request: Request):
+    await require_auth(request)
+    return {"catalog": ALIAS_COMMAND_CATALOG}
+
+
+@app.get("/api/v1/aliases/{guild_id}/settings")
+async def alias_settings_get(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    settings = await fetchrow_cached(
+        "alias_settings",
+        "SELECT settings FROM alias_settings WHERE guild_id = ?", guild_id, ALIAS_DEFAULTS,
+    )
+    return {"settings": settings}
+
+
+@app.post("/api/v1/aliases/{guild_id}/settings")
+async def alias_settings_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    key = body.get("key")
+    value = body.get("value")
+    if not key:
+        return JSONResponse({"error": "missing key"}, status_code=400)
+    if key == "aliases":
+        clean, err = _sanitize_aliases(value)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        err = await _save_settings("alias_settings", str(guild_id), key, clean, ALIAS_DEFAULTS)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        return {"ok": True}
+    err = await _save_settings("alias_settings", str(guild_id), key, value, ALIAS_DEFAULTS)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+#  Profiles API v1
+# ---------------------------------------------------------------------------
+
+PROFILE_DEFAULTS = {
+    "enabled": False,
+    "bg_type": "gradient",
+    "gradient_from": "#5865f2",
+    "gradient_to": "#eb459e",
+    "solid_color": "#1a1a1a",
+    "bg_image_url": "",
+    "bg_opacity": 35,
+    "accent_auto": True,
+    "accent_color": "#5865f2",
+    "text_color": "#ffffff",
+    "show_level": True,
+    "show_joinage": True,
+    "show_roles": True,
+    "bio_enabled": True,
+    "footer_text": "",
+}
+
+
+@app.get("/api/v1/profile/{guild_id}/settings")
+async def profile_settings_get(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    settings = await fetchrow_cached(
+        "profile_settings",
+        "SELECT settings FROM profile_settings WHERE guild_id = ?", guild_id, PROFILE_DEFAULTS,
+    )
+    return {"settings": settings}
+
+
+@app.post("/api/v1/profile/{guild_id}/settings")
+async def profile_settings_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    key = body.get("key")
+    value = body.get("value")
+    if not key:
+        return JSONResponse({"error": "missing key"}, status_code=400)
+    err = await _save_settings("profile_settings", str(guild_id), key, value, PROFILE_DEFAULTS)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------

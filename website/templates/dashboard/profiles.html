@@ -1,0 +1,267 @@
+{% extends "dashboard/base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/moderation.css?v=16" />
+<style>
+  .pr-card { border:1px solid rgba(255,255,255,0.08); border-radius:4px; background:rgba(255,255,255,0.015); padding:1rem; }
+  .pr-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:0.6rem 0.25rem; border-bottom:1px solid rgba(255,255,255,0.05); flex-wrap:wrap; }
+  .pr-row:last-child { border-bottom:none; }
+  .pr-label { font-size:0.82rem; font-weight:700; color:rgba(255,255,255,0.85); }
+  .pr-hint { font-size:0.68rem; font-weight:500; color:rgba(255,255,255,0.35); margin-top:2px; line-height:1.45; }
+  .pr-ctrl { display:flex; align-items:center; gap:0.5rem; }
+  .pr-select { position:relative; min-width:180px; }
+  .pr-select .md-custom-select-drop { right:0; left:auto; min-width:160px; z-index:60; }
+  .pr-color { width:36px; height:32px; border:none; background:none; cursor:pointer; padding:0; }
+  .pr-hex { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#fff; font-size:0.78rem; font-weight:600; padding:0.4rem 0.55rem; width:86px; outline:none; }
+  .pr-text { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#fff; font-size:0.8rem; font-weight:600; padding:0.45rem 0.6rem; width:280px; max-width:100%; outline:none; }
+  .pr-num { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#fff; font-size:0.8rem; font-weight:600; padding:0.45rem 0.6rem; width:80px; outline:none; }
+  .pr-check { display:flex; align-items:center; gap:0.45rem; font-size:0.72rem; font-weight:600; color:rgba(255,255,255,0.5); cursor:pointer; user-select:none; }
+  .pr-check input { accent-color:#5865f2; cursor:pointer; }
+</style>
+<div>
+
+  <div style="margin-bottom:1rem;animation-delay:.05s;">
+    <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Profiles</h1>
+    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Customize the /profile card for this server</p>
+  </div>
+
+  <div class="md-section">
+    <div class="pr-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:0.4rem;">
+        <div>
+          <div class="md-section-title" style="margin-bottom:0.15rem;">Profile Card</div>
+          <p class="pr-hint">Members run /profile to see their card. Bios are set by members with /profile setbio.</p>
+        </div>
+        <label class="md-toggle"><input type="checkbox" id="pr-enabled" data-toggle="enabled" /><span class="md-toggle-slider"></span></label>
+      </div>
+
+      <div class="pr-row">
+        <div><div class="pr-label">Background</div></div>
+        <div class="md-custom-select pr-select">
+          <button class="md-custom-select-btn" id="pr-bg-btn">Gradient</button>
+          <div class="md-custom-select-drop" id="pr-bg-drop">
+            <button class="md-custom-opt" data-value="gradient">Gradient</button>
+            <button class="md-custom-opt" data-value="solid">Solid Color</button>
+            <button class="md-custom-opt" data-value="image">Image URL</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pr-row" data-bg="gradient">
+        <div><div class="pr-label">Gradient Colors</div></div>
+        <div class="pr-ctrl">
+          <input type="color" class="pr-color" id="pr-gfrom-color" />
+          <input type="text" class="pr-hex" id="pr-gfrom-hex" maxlength="7" />
+          <span style="color:rgba(255,255,255,0.3);">&rarr;</span>
+          <input type="color" class="pr-color" id="pr-gto-color" />
+          <input type="text" class="pr-hex" id="pr-gto-hex" maxlength="7" />
+        </div>
+      </div>
+
+      <div class="pr-row" data-bg="solid">
+        <div><div class="pr-label">Solid Color</div></div>
+        <div class="pr-ctrl">
+          <input type="color" class="pr-color" id="pr-solid-color" />
+          <input type="text" class="pr-hex" id="pr-solid-hex" maxlength="7" />
+        </div>
+      </div>
+
+      <div class="pr-row" data-bg="image">
+        <div><div class="pr-label">Background Image URL</div><div class="pr-hint">PNG/JPG, will be cropped to cover the card</div></div>
+        <input type="text" class="pr-text" id="pr-bg-url" placeholder="https://...png" spellcheck="false" />
+      </div>
+
+      <div class="pr-row" data-bg="image">
+        <div><div class="pr-label">Overlay Darkness</div><div class="pr-hint">Higher = darker scrim over the image (keeps text readable)</div></div>
+        <input type="number" class="pr-num" id="pr-opacity" min="0" max="100" />
+      </div>
+
+      <div class="pr-row">
+        <div><div class="pr-label">Accent Color</div><div class="pr-hint">Avatar ring and stat separators</div></div>
+        <div class="pr-ctrl">
+          <label class="pr-check"><input type="checkbox" id="pr-accent-auto" /> Use member's top role color</label>
+          <input type="color" class="pr-color" id="pr-accent-color" />
+          <input type="text" class="pr-hex" id="pr-accent-hex" maxlength="7" />
+        </div>
+      </div>
+
+      <div class="pr-row">
+        <div><div class="pr-label">Text Color</div></div>
+        <div class="pr-ctrl">
+          <input type="color" class="pr-color" id="pr-text-color" />
+          <input type="text" class="pr-hex" id="pr-text-hex" maxlength="7" />
+        </div>
+      </div>
+
+      <div class="pr-row">
+        <div><div class="pr-label">Card Contents</div></div>
+        <div class="pr-ctrl" style="gap:1.1rem;flex-wrap:wrap;">
+          <label class="pr-check"><input type="checkbox" data-toggle="show_level" /> Level &amp; XP</label>
+          <label class="pr-check"><input type="checkbox" data-toggle="show_joinage" /> Join date</label>
+          <label class="pr-check"><input type="checkbox" data-toggle="show_roles" /> Role count</label>
+          <label class="pr-check"><input type="checkbox" data-toggle="bio_enabled" /> Allow bios</label>
+        </div>
+      </div>
+
+      <div class="pr-row">
+        <div><div class="pr-label">Footer Text</div><div class="pr-hint">Small text in the bottom-right corner (optional)</div></div>
+        <input type="text" class="pr-text" id="pr-footer" placeholder="e.g. prowl.xyz" maxlength="80" />
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const GID = window.__GUILD_ID;
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
+const pending = {};
+const original = {};
+let SETTINGS_SNAPSHOT = {};
+let LOADED = {};
+const saveBar = document.getElementById('save-bar');
+const saveBtn = document.getElementById('save-btn');
+let saveTimer = null;
+
+function markChanged(key, value) {
+  if (!(key in original)) original[key] = (key in SETTINGS_SNAPSHOT) ? SETTINGS_SNAPSHOT[key] : null;
+  pending[key] = value;
+  SETTINGS_SNAPSHOT[key] = value;
+  saveBar.classList.remove('is-closed');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
+}
+
+function normHex(v, fallback) {
+  if (typeof v === 'string' && HEX_RE.test(v)) return v.toLowerCase();
+  if (typeof v === 'string' && /^[0-9a-fA-F]{6}$/.test(v)) return '#' + v.toLowerCase();
+  return fallback;
+}
+
+function bindColorPair(colorId, hexId, key, fallback) {
+  const col = document.getElementById(colorId);
+  const hex = document.getElementById(hexId);
+  col.addEventListener('input', () => { hex.value = col.value; markChanged(key, col.value); });
+  hex.addEventListener('input', () => {
+    const v = normHex(hex.value, null);
+    if (v) col.value = v;
+    if (HEX_RE.test(hex.value)) markChanged(key, normHex(hex.value, fallback));
+  });
+}
+
+function setBgVisibility() {
+  const t = SETTINGS_SNAPSHOT.bg_type || 'gradient';
+  document.querySelectorAll('[data-bg]').forEach(row => {
+    row.style.display = row.dataset.bg === t ? '' : 'none';
+  });
+}
+
+function renderAll() {
+  const s = SETTINGS_SNAPSHOT;
+  document.getElementById('pr-enabled').checked = s.enabled === true;
+  const bgLabels = { gradient: 'Gradient', solid: 'Solid Color', image: 'Image URL' };
+  const t = s.bg_type || 'gradient';
+  document.getElementById('pr-bg-btn').textContent = bgLabels[t] || 'Gradient';
+  document.getElementById('pr-gfrom-color').value = normHex(s.gradient_from, '#5865f2');
+  document.getElementById('pr-gfrom-hex').value = normHex(s.gradient_from, '#5865f2');
+  document.getElementById('pr-gto-color').value = normHex(s.gradient_to, '#eb459e');
+  document.getElementById('pr-gto-hex').value = normHex(s.gradient_to, '#eb459e');
+  document.getElementById('pr-solid-color').value = normHex(s.solid_color, '#1a1a1a');
+  document.getElementById('pr-solid-hex').value = normHex(s.solid_color, '#1a1a1a');
+  document.getElementById('pr-bg-url').value = s.bg_image_url || '';
+  document.getElementById('pr-opacity').value = Number.isFinite(+s.bg_opacity) ? +s.bg_opacity : 35;
+  document.getElementById('pr-accent-auto').checked = s.accent_auto !== false;
+  document.getElementById('pr-accent-color').value = normHex(s.accent_color, '#5865f2');
+  document.getElementById('pr-accent-hex').value = normHex(s.accent_color, '#5865f2');
+  document.getElementById('pr-text-color').value = normHex(s.text_color, '#ffffff');
+  document.getElementById('pr-text-hex').value = normHex(s.text_color, '#ffffff');
+  document.querySelectorAll('[data-toggle]').forEach(cb => {
+    if (cb.id === 'pr-enabled') return;
+    cb.checked = s[cb.dataset.toggle] !== false;
+  });
+  document.getElementById('pr-footer').value = s.footer_text || '';
+  setBgVisibility();
+}
+
+async function saveChanges() {
+  const keys = Object.keys(pending);
+  if (!keys.length) return;
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving...';
+  for (const key of keys) {
+    try {
+      const res = await fetch(`/api/v1/profile/${GID}/settings`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]}) });
+      if (!res.ok) {
+        let detail = 'Save failed';
+        try { const j = await res.json(); detail = j.detail || j.error || detail; } catch {}
+        if (typeof showToast === 'function') showToast(detail, 'error', 5000);
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save';
+        return;
+      }
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('Network error saving.', 'error', 5000);
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save';
+      return;
+    }
+  }
+  for (const key of keys) { LOADED[key] = pending[key]; delete original[key]; delete pending[key]; }
+  saveBar.classList.add('is-closed');
+  saveBtn.disabled = false;
+  saveBtn.textContent = 'Save';
+  if (typeof showToast === 'function') showToast('Profile settings saved.', 'success');
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  fetch(`/api/v1/profile/${GID}/settings`).then(r=>r.json()).catch(()=>({settings:{}})).then(sd => {
+    SETTINGS_SNAPSHOT = { ...(sd.settings||{}) };
+    LOADED = { ...SETTINGS_SNAPSHOT };
+    renderAll();
+  });
+
+  // Background dropdown (bound once - this is the only generic select on the page)
+  const bgBtn = document.getElementById('pr-bg-btn');
+  const bgDrop = document.getElementById('pr-bg-drop');
+  bgBtn.addEventListener('click', (e) => { e.stopPropagation(); bgDrop.classList.toggle('is-open'); });
+  bgDrop.querySelectorAll('.md-custom-opt').forEach(opt => opt.addEventListener('click', () => {
+    bgBtn.textContent = opt.textContent;
+    bgDrop.classList.remove('is-open');
+    markChanged('bg_type', opt.dataset.value);
+    setBgVisibility();
+  }));
+  document.addEventListener('click', (e) => { if (!e.target.closest('.pr-select')) bgDrop.classList.remove('is-open'); });
+
+  bindColorPair('pr-gfrom-color', 'pr-gfrom-hex', 'gradient_from', '#5865f2');
+  bindColorPair('pr-gto-color', 'pr-gto-hex', 'gradient_to', '#eb459e');
+  bindColorPair('pr-solid-color', 'pr-solid-hex', 'solid_color', '#1a1a1a');
+  bindColorPair('pr-accent-color', 'pr-accent-hex', 'accent_color', '#5865f2');
+  bindColorPair('pr-text-color', 'pr-text-hex', 'text_color', '#ffffff');
+
+  document.getElementById('pr-bg-url').addEventListener('input', function(){ markChanged('bg_image_url', this.value.trim()); });
+  document.getElementById('pr-opacity').addEventListener('input', function(){
+    markChanged('bg_opacity', Math.max(0, Math.min(100, parseInt(this.value) || 0)));
+  });
+  document.getElementById('pr-accent-auto').addEventListener('change', function(){ markChanged('accent_auto', this.checked); });
+  document.getElementById('pr-footer').addEventListener('input', function(){ markChanged('footer_text', this.value); });
+  document.querySelectorAll('[data-toggle]').forEach(cb => cb.addEventListener('change', function(){
+    markChanged(this.dataset.toggle, this.checked);
+  }));
+
+  saveBtn.addEventListener('click', saveChanges);
+  document.getElementById('discard-btn').addEventListener('click', () => {
+    const reverted = { ...LOADED };
+    for (const key of Object.keys(pending)) {
+      if (key in original) reverted[key] = original[key];
+    }
+    for (const key of Object.keys(pending)) delete pending[key];
+    for (const key of Object.keys(original)) delete original[key];
+    SETTINGS_SNAPSHOT = { ...reverted };
+    renderAll();
+    saveBar.classList.add('is-closed');
+  });
+});
+</script>
+{% endblock %}

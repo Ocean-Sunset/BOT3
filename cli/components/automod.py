@@ -8,7 +8,7 @@ import unicodedata
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
 from Ediscord.builders import embed_from_dict
-from components.moderation import log_mod_action, render_embed_data
+from components.moderation import log_mod_action, render_embed_data, render_template
 
 
 AUTOMOD_DEFAULTS = {
@@ -128,7 +128,7 @@ class AutoMod(commands.Cog, name="AutoMod"):
         except Exception as e:
             logger.warning(f"AutoMod post failed in {guild.id}: {e}")
 
-    def _custom_embed(self, cfg, base, message, reason):
+    def _custom_embed(self, cfg, base, message, reason, filter_name=""):
         """Return a discord.Embed for a custom-message action, or None."""
         if not isinstance(cfg, dict):
             return None
@@ -138,7 +138,21 @@ class AutoMod(commands.Cog, name="AutoMod"):
         if not isinstance(data, dict) or not (data.get("title") or data.get("description")):
             return None
         rendered = render_embed_data(data, message.author, reason, 0, "")
+        if filter_name:
+            for k, v in list(rendered.items()):
+                if isinstance(v, str):
+                    rendered[k] = v.replace("{filter}", filter_name)
         return embed_from_dict(rendered)
+
+    def _dm_text(self, cfg, base, message, filter_name, reason):
+        """Resolve the DM text for an action: custom message with variables, or default."""
+        tmpl = cfg.get(base + "_message") if isinstance(cfg, dict) else None
+        if tmpl:
+            try:
+                return render_template(str(tmpl), message.author, reason).replace("{filter}", filter_name)
+            except Exception:
+                return str(tmpl)
+        return f"**AutoMod - {filter_name}** in {message.guild.name}:\n{reason}"
 
     async def _apply_action(self, guild, settings, message, filter_name, reason, action):
         author = message.author
@@ -152,24 +166,19 @@ class AutoMod(commands.Cog, name="AutoMod"):
             await message.delete()
         except Exception:
             pass
-        custom_embed = self._custom_embed(cfg, base, message, reason)
+        custom_embed = self._custom_embed(cfg, base, message, reason, filter_name)
         if send_dm:
             try:
                 if custom_embed is not None:
                     await author.send(embed=custom_embed)
                 else:
-                    await author.send(f"**AutoMod - {filter_name}** in {guild.name}:\n{reason}")
+                    await author.send(self._dm_text(cfg, base, message, filter_name, reason))
             except Exception:
                 pass
         if base == "warn":
             custom = cfg.get("warn_message")
             if custom:
-                reason = custom
-                if send_dm:
-                    try:
-                        await author.send(f"**AutoMod warn** in {guild.name}:\n{custom}")
-                    except Exception:
-                        pass
+                reason = render_template(str(custom), author, reason).replace("{filter}", filter_name)
             await log_mod_action(guild.id, str(author.id), author.name, "warn", reason, "AutoMod")
         elif base == "mute":
             if member:

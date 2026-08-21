@@ -116,7 +116,6 @@ function actionLabel(v) {
 }
 
 // ── Action config popup ──
-const CONFIG_MSG_ACTIONS = ['warn', 'kick', 'ban'];
 let cfgFilter = null;
 let cfgAction = null;
 
@@ -139,9 +138,10 @@ function embedField(label, id, ph, v) {
 }
 
 function openConfig(filterKey, action) {
-  // Config lives on the base action (warn_dm -> warn); only warn/kick/ban/mute are configurable
-  const base = String(action || '').replace(/_dm$/, '');
-  if (base !== 'mute' && !CONFIG_MSG_ACTIONS.includes(base)) return;
+  // Config lives on the base action (warn_dm -> warn); every base is configurable
+  const act = String(action || '');
+  const base = act.replace(/_dm$/, '');
+  if (!['delete', 'warn', 'mute', 'kick', 'ban'].includes(base)) return;
   cfgFilter = filterKey;
   cfgAction = base;
   const f = FILTERS.find(x => x.key === filterKey);
@@ -149,46 +149,48 @@ function openConfig(filterKey, action) {
   document.getElementById('am-config-sub').textContent = f ? f.name + ' - ' + f.desc : '';
   const cur = (SETTINGS_SNAPSHOT.action_configs || {})[filterKey] || {};
   const el = document.getElementById('am-config-fields');
+  const isDm = act.endsWith('_dm');
+  const muteMins = (base === 'mute') ? '<div class="am-field-label" style="margin-top:0.6rem;">Mute Duration (minutes)</div>' +
+    '<input type="number" class="md-input" data-cfg="mute_minutes" min="1" value="' + esc(cur.mute_minutes ?? 60) + '" style="width:100%;" />' : '';
   const banDays = (base === 'ban') ? '<div class="am-field-label" style="margin-top:0.6rem;">Delete Messages (days)</div>' +
     '<input type="number" class="md-input" data-cfg="ban_days" min="0" max="7" value="' + esc(cur.ban_days ?? 0) + '" style="width:100%;" />' : '';
-  if (base === 'mute') {
-    el.innerHTML = '<div class="am-field-label">Mute Duration (minutes)</div>' +
-      '<input type="number" class="md-input" data-cfg="mute_minutes" min="1" value="' + esc(cur.mute_minutes ?? 60) + '" style="width:100%;" />';
-  } else {
-    const mode = cur[base + '_mode'] === 'custom' ? 'custom' : 'basic';
-    const msg = cur[base + '_message'] || '';
-    const emb = cur[base + '_embed'] || {};
-    const hex = (emb.color && !/^#/.test(String(emb.color))) ? '#' + emb.color : (emb.color || '#5865f2');
-    const msgLabel = base === 'warn' ? 'Warn Message' : base === 'kick' ? 'Kick Message' : 'Ban Message';
-    const msgPh = base === 'warn' ? 'Message shown to the warned user' : 'Reason attached to the ' + base;
-    el.innerHTML =
-      '<div class="am-mode-row">' +
-        '<button type="button" class="am-mode-tab" data-am-mode="basic">Basic Message</button>' +
-        '<button type="button" class="am-mode-tab" data-am-mode="custom">Custom Embed</button>' +
+  const LBL = {
+    delete: ['DM Message', 'Message sent to the user instead of the default'],
+    warn:   ['Warn Message', isDm ? 'Message sent to the warned user' : 'Reason shown in the mod log'],
+    mute:   ['Mute Message', 'Message sent to the muted user'],
+    kick:   ['Kick Message', isDm ? 'Message sent to the kicked user' : 'Reason attached to the kick'],
+    ban:    ['Ban Message', isDm ? 'Message sent to the banned user' : 'Reason attached to the ban'],
+  }[base] || ['Message', ''];
+  const mode = cur[base + '_mode'] === 'custom' ? 'custom' : 'basic';
+  const msg = cur[base + '_message'] || '';
+  const emb = cur[base + '_embed'] || {};
+  const hex = (emb.color && !/^#/.test(String(emb.color))) ? '#' + emb.color : (emb.color || '#5865f2');
+  el.innerHTML =
+    muteMins +
+    '<div class="am-mode-row">' +
+      '<button type="button" class="am-mode-tab" data-am-mode="basic">Basic Message</button>' +
+      '<button type="button" class="am-mode-tab" data-am-mode="custom">Custom Embed</button>' +
+    '</div>' +
+    '<div data-am-view="basic">' +
+      '<div class="am-field-label">' + LBL[0] + '</div>' +
+      '<input type="text" class="md-input" data-cfg="' + base + '_message" value="' + esc(msg) + '" placeholder="' + esc(LBL[1]) + '" style="width:100%;" />' +
+      banDays +
+    '</div>' +
+    '<div data-am-view="custom" style="display:none;">' +
+      embedField('Title', 'am-ee-title', 'Embed title', emb.title) +
+      embedField('Description', 'am-ee-desc', 'Embed description', emb.description) +
+      '<div class="am-field-label" style="margin-top:0.6rem;">Color</div>' +
+      '<div style="display:flex;align-items:center;gap:0.4rem;">' +
+        '<input type="color" id="am-ee-color" value="' + esc(/^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#5865f2') + '" style="width:36px;height:32px;border:none;background:none;cursor:pointer;" />' +
+        '<input type="text" class="md-input" id="am-ee-color-hex" value="' + esc(hex) + '" style="max-width:90px;" />' +
       '</div>' +
-      '<div data-am-view="basic">' +
-        '<div class="am-field-label">' + msgLabel + '</div>' +
-        '<input type="text" class="md-input" data-cfg="' + base + '_message" value="' + esc(msg) + '" placeholder="' + esc(msgPh) + '" style="width:100%;" />' +
-        banDays +
-      '</div>' +
-      '<div data-am-view="custom" style="display:none;">' +
-        embedField('Title', 'am-ee-title', 'Embed title', emb.title) +
-        embedField('Description', 'am-ee-desc', 'Embed description', emb.description) +
-        '<div class="am-field-label" style="margin-top:0.6rem;">Color</div>' +
-        '<div style="display:flex;align-items:center;gap:0.4rem;">' +
-          '<input type="color" id="am-ee-color" value="' + esc(/^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#5865f2') + '" style="width:36px;height:32px;border:none;background:none;cursor:pointer;" />' +
-          '<input type="text" class="md-input" id="am-ee-color-hex" value="' + esc(hex) + '" style="max-width:90px;" />' +
-        '</div>' +
-        embedField('URL', 'am-ee-url', 'https://...', emb.url) +
-        embedField('Author Name', 'am-ee-author', 'Author', emb.author_name) +
-        embedField('Footer Text', 'am-ee-footer', 'Footer', emb.footer_text) +
-        embedField('Thumbnail URL', 'am-ee-thumb', 'https://...png', emb.thumbnail_url) +
-        embedField('Image URL', 'am-ee-image', 'https://...png', emb.image_url) +
-        banDays +
-      '</div>';
-    el.querySelectorAll('.am-mode-tab').forEach(b => b.classList.toggle('is-active', b.dataset.amMode === mode));
-    el.querySelector('[data-am-view="' + mode + '"]').style.display = '';
-  }
+      embedField('URL', 'am-ee-url', 'https://...', emb.url) +
+      embedField('Author Name', 'am-ee-author', 'Author', emb.author_name) +
+      embedField('Footer Text', 'am-ee-footer', 'Footer', emb.footer_text) +
+      embedField('Thumbnail URL', 'am-ee-thumb', 'https://...png', emb.thumbnail_url) +
+      embedField('Image URL', 'am-ee-image', 'https://...png', emb.image_url) +
+      banDays +
+    '</div>';
   // Bind mode tabs + color sync
   el.querySelectorAll('.am-mode-tab').forEach(b => b.addEventListener('click', () => {
     el.querySelectorAll('.am-mode-tab').forEach(x => x.classList.toggle('is-active', x === b));
@@ -207,21 +209,20 @@ function openConfig(filterKey, action) {
 function saveConfig() {
   if (!cfgFilter) return;
   const obj = {};
+  const mode = document.querySelector('.am-mode-tab.is-active')?.dataset.amMode || 'basic';
+  obj[cfgAction + '_mode'] = mode;
+  const msgInp = document.querySelector('[data-cfg="' + cfgAction + '_message"]');
+  if (msgInp && msgInp.value) obj[cfgAction + '_message'] = msgInp.value;
+  if (mode === 'custom') {
+    const e = collectCfgEmbed();
+    if (Object.keys(e).length) obj[cfgAction + '_embed'] = e;
+  }
   if (cfgAction === 'mute') {
     const inp = document.querySelector('[data-cfg="mute_minutes"]');
     obj.mute_minutes = inp ? (parseInt(inp.value) || 60) : 60;
-  } else {
-    const mode = document.querySelector('.am-mode-tab.is-active')?.dataset.amMode || 'basic';
-    obj[cfgAction + '_mode'] = mode;
-    const msgInp = document.querySelector('[data-cfg="' + cfgAction + '_message"]');
-    if (msgInp && msgInp.value) obj[cfgAction + '_message'] = msgInp.value;
-    if (mode === 'custom') {
-      const e = collectCfgEmbed();
-      if (Object.keys(e).length) obj[cfgAction + '_embed'] = e;
-    }
-    const days = document.querySelector('[data-cfg="ban_days"]');
-    if (days) obj.ban_days = parseInt(days.value) || 0;
   }
+  const days = document.querySelector('[data-cfg="ban_days"]');
+  if (days) obj.ban_days = parseInt(days.value) || 0;
   const all = { ...(SETTINGS_SNAPSHOT.action_configs || {}) };
   all[cfgFilter] = obj;
   markChanged('action_configs', all);
@@ -234,8 +235,7 @@ function renderFilters() {
   el.innerHTML = FILTERS.map(f => {
     const en = SETTINGS_SNAPSHOT[f.key + '_enabled'] === true;
     const act = SETTINGS_SNAPSHOT[f.key + '_action'] || 'delete';
-    const cfgBase = act.replace(/_dm$/, '');
-    const cfgVisible = cfgBase === 'mute' || CONFIG_MSG_ACTIONS.includes(cfgBase);
+    const cfgVisible = act !== 'delete';
     return '<div class="am-filter">' +
       '<div class="am-filter-head">' +
         '<label class="md-toggle"><input type="checkbox" data-enable="' + f.key + '" ' + (en?'checked':'') + ' /><span class="md-toggle-slider"></span></label>' +
@@ -278,11 +278,10 @@ function bindFilters() {
     btn.textContent = opt.textContent;
     markChanged(key, opt.dataset.value);
     drop.classList.remove('is-open');
-    // Show/hide the configure button based on the new action (warn/kick/ban/mute)
+    // Show/hide the configure button based on the new action (everything but plain delete)
     const card = drop.closest('.am-filter');
     const cfgBtn = card.querySelector('.am-cfg-btn');
-    const newBase = opt.dataset.value.replace(/_dm$/, '');
-    const newVisible = newBase === 'mute' || CONFIG_MSG_ACTIONS.includes(newBase);
+    const newVisible = opt.dataset.value !== 'delete';
     if (cfgBtn) cfgBtn.style.display = newVisible ? '' : 'none';
   }));
   document.querySelectorAll('.am-cfg-btn').forEach(b => b.addEventListener('click', (e) => {

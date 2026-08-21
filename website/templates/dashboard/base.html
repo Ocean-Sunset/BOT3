@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="preload" href="https://unpkg.com/lucide@latest" as="script" />
-  <link rel="stylesheet" href="/static/dashboard.css?v=14" />
+  <link rel="stylesheet" href="/static/dashboard.css?v=15" />
   <script>
     // API subdomain routing: production calls go to api.prowlbot.xyz with cookies,
     // localhost keeps same-origin relative paths.
@@ -97,7 +97,9 @@
             <input type="text" id="sidebar-search-input" placeholder="Search dashboard..." autocomplete="off" spellcheck="false" />
             <kbd>/</kbd>
           </div>
-          <div id="sidebar-search-results" class="sidebar-search-results hidden"></div>
+          <div id="sidebar-search-results" class="sidebar-search-results">
+            <div class="ssr-list" id="sidebar-search-list"></div>
+          </div>
         </div>
         {% endif %}
       </div>
@@ -442,42 +444,49 @@
       const box = wrap.querySelector('.sidebar-search');
       const input = document.getElementById('sidebar-search-input');
       const panel = document.getElementById('sidebar-search-results');
+      const list = document.getElementById('sidebar-search-list');
       let items = [], active = -1, debounce = null, controller = null;
 
       function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
 
-      function close() { panel.classList.add('hidden'); active = -1; }
+      function close() { panel.classList.remove('is-open'); panel.style.height = '0px'; active = -1; }
+
+      // in-flow panel: animate its height so the nav below slides smoothly
+      function showPanel() {
+        panel.classList.add('is-open');
+        panel.style.height = Math.min(list.scrollHeight, 320) + 'px';
+      }
 
       function render() {
         if (!items.length) {
-          panel.innerHTML = '<div class="ssr-empty">No matches</div>';
-          panel.classList.remove('hidden');
-          return;
-        }
-        panel.innerHTML = items.map((it, i) =>
-          '<a class="ssr-item' + (i === active ? ' is-active' : '') + '" href="' + esc(it.href) + '">' +
-          '<i data-lucide="' + esc(it.icon) + '"></i>' +
-          '<span><span class="ssr-title">' + esc(it.title) +
-          (it.block ? '<span class="ssr-block">' + esc(it.block) + '</span>' : '') +
-          '</span>' +
-          '<span class="ssr-desc">' + esc(it.description) + '</span></span></a>'
-        ).join('');
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-        [...panel.querySelectorAll('.ssr-item')].forEach((el, i) => {
-          el.addEventListener('mousedown', e => {
-            e.preventDefault();
-            const it = items[i];
-            const hl = it.href.match(/#hl=([^&]+)/);
-            // already on that page? just scroll+glow instead of reloading
-            if (hl && location.pathname === it.href.split('#')[0]) {
-              history.replaceState(null, '', location.pathname + location.search + '#hl=' + hl[1]);
-              close(); input.blur();
-              window.__prowlHighlight(decodeURIComponent(hl[1]));
-              return;
-            }
-            location.href = it.href;
+          list.innerHTML = '<div class="ssr-empty">No matches</div>';
+        } else {
+          list.innerHTML = items.map((it, i) =>
+            '<a class="ssr-item' + (i === active ? ' is-active' : '') + '" href="' + esc(it.href) + '">' +
+            '<i data-lucide="' + esc(it.icon) + '"></i>' +
+            '<span><span class="ssr-title">' + esc(it.title) +
+            (it.block ? '<span class="ssr-block">' + esc(it.block) + '</span>' : '') +
+            '</span>' +
+            '<span class="ssr-desc">' + esc(it.description) + '</span></span></a>'
+          ).join('');
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+          [...list.querySelectorAll('.ssr-item')].forEach((el, i) => {
+            el.addEventListener('mousedown', e => {
+              e.preventDefault();
+              const it = items[i];
+              const hl = it.href.match(/#hl=([^&]+)/);
+              // already on that page? just scroll+glow instead of reloading
+              if (hl && location.pathname === it.href.split('#')[0]) {
+                history.replaceState(null, '', location.pathname + location.search + '#hl=' + hl[1]);
+                close(); input.blur();
+                window.__prowlHighlight(decodeURIComponent(hl[1]));
+                return;
+              }
+              location.href = it.href;
+            });
           });
-        });
+        }
+        showPanel();
       }
 
       async function run(q) {
@@ -508,7 +517,7 @@
         if (q.length < 2) { close(); return; }
         debounce = setTimeout(() => run(q), 220);
       });
-      input.addEventListener('focus', () => { if (input.value.trim().length >= 2 && items.length) panel.classList.remove('hidden'); });
+      input.addEventListener('focus', () => { if (input.value.trim().length >= 2 && items.length) showPanel(); });
       input.addEventListener('keydown', e => {
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
           e.preventDefault();

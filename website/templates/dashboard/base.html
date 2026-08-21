@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="preload" href="https://unpkg.com/lucide@latest" as="script" />
-  <link rel="stylesheet" href="/static/dashboard.css?v=11" />
+  <link rel="stylesheet" href="/static/dashboard.css?v=12" />
   <script>
     // API subdomain routing: production calls go to api.prowlbot.xyz with cookies,
     // localhost keeps same-origin relative paths.
@@ -89,6 +89,15 @@
           <a href="/servers" class="server-switch" data-tooltip="Switch server">
             <i data-lucide="repeat"></i>
           </a>
+        </div>
+
+        <div id="sidebar-search-wrap" class="sidebar-search-wrap">
+          <div class="sidebar-search">
+            <i data-lucide="search"></i>
+            <input type="text" id="sidebar-search-input" placeholder="Search dashboard..." autocomplete="off" spellcheck="false" />
+            <kbd>/</kbd>
+          </div>
+          <div id="sidebar-search-results" class="sidebar-search-results hidden"></div>
         </div>
         {% endif %}
       </div>
@@ -395,6 +404,83 @@
       if (document.readyState === 'complete') { hide(); }
       else { window.addEventListener('load', hide); }
       setTimeout(hide, 5000);
+    })();
+  </script>
+
+  <script>
+    // ── Sidebar search (semantic via /api/v1/dashboard/search) ──
+    (function() {
+      const wrap = document.getElementById('sidebar-search-wrap');
+      if (!wrap) return;
+      const input = document.getElementById('sidebar-search-input');
+      const panel = document.getElementById('sidebar-search-results');
+      let items = [], active = -1, debounce = null, controller = null;
+
+      function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+
+      function close() { panel.classList.add('hidden'); active = -1; }
+
+      function render() {
+        if (!items.length) {
+          panel.innerHTML = '<div class="ssr-empty">No matches</div>';
+          panel.classList.remove('hidden');
+          return;
+        }
+        panel.innerHTML = items.map((it, i) =>
+          '<a class="ssr-item' + (i === active ? ' is-active' : '') + '" href="' + esc(it.href) + '">' +
+          '<i data-lucide="' + esc(it.icon) + '"></i>' +
+          '<span><span class="ssr-title">' + esc(it.title) + '</span>' +
+          '<span class="ssr-desc">' + esc(it.description) + '</span></span></a>'
+        ).join('');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        [...panel.querySelectorAll('.ssr-item')].forEach((el, i) => {
+          el.addEventListener('mousedown', e => { e.preventDefault(); location.href = items[i].href; });
+        });
+      }
+
+      async function run(q) {
+        if (controller) controller.abort();
+        controller = new AbortController();
+        try {
+          const res = await fetch('/api/v1/dashboard/search?q=' + encodeURIComponent(q) + '&guild_id=' + window.__GUILD_ID, { signal: controller.signal });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || 'failed');
+          items = data.items || [];
+          active = items.length ? 0 : -1;
+          panel.classList.remove('hidden');
+          render();
+        } catch (e) {
+          if (e.name === 'AbortError') return;
+          items = []; render();
+        }
+      }
+
+      input.addEventListener('input', () => {
+        const q = input.value.trim();
+        clearTimeout(debounce);
+        if (q.length < 2) { close(); return; }
+        debounce = setTimeout(() => run(q), 220);
+      });
+      input.addEventListener('focus', () => { if (input.value.trim().length >= 2 && items.length) panel.classList.remove('hidden'); });
+      input.addEventListener('keydown', e => {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (!items.length) return;
+          active = (active + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+          render();
+        } else if (e.key === 'Enter') {
+          if (active >= 0 && items[active]) location.href = items[active].href;
+        } else if (e.key === 'Escape') {
+          input.value = ''; close(); input.blur();
+        }
+      });
+      document.addEventListener('click', e => { if (!wrap.contains(e.target)) close(); });
+      document.addEventListener('keydown', e => {
+        if (e.key === '/' && document.activeElement !== input &&
+            !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) {
+          e.preventDefault(); input.focus();
+        }
+      });
     })();
   </script>
 

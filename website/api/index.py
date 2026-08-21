@@ -2,6 +2,8 @@ import os
 import re
 import json
 import time
+import asyncio
+import math
 import secrets
 import logging
 import urllib.parse
@@ -90,6 +92,12 @@ async def lifespan(app: FastAPI):
         await _ensure_incidents()
     except Exception as e:
         logger.error("Failed to initialize database pool: %s", e)
+    # Warm the sidebar-search embedding cache in the background (no-op if
+    # OPENAI_API_KEY is unset - search then runs in keyword-only mode).
+    try:
+        asyncio.get_running_loop().create_task(_catalog_vectors())
+    except Exception:
+        pass
     yield
 
 app = FastAPI(title="Prowl", version="1.0.0", lifespan=lifespan)
@@ -2676,6 +2684,183 @@ async def bot_profile_set(guild_id: str, request: Request):
             detail = ""
         return JSONResponse({"error": detail or f"bot responded {r.status_code}"}, status_code=502)
     return r.json()
+
+
+# ---------------------------------------------------------------------------
+#  Dashboard sidebar search (semantic via OpenAI embeddings, keyword fallback)
+# ---------------------------------------------------------------------------
+
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+EMBED_MODEL = "text-embedding-3-small"
+SEARCH_RESULT_MIN = 0.18  # drop anything scoring below this
+
+# Everything reachable from the sidebar. Descriptions are written so the
+# embedding model can map natural queries ("stop people spamming") onto them.
+SEARCH_CATALOG = [
+    {"panel": "overview", "icon": "layout-dashboard", "title": "Overview",
+     "description": "Server statistics, recent activity feed and the quick setup checklist.",
+     "keywords": "home dashboard stats overview activity setup"},
+    {"panel": "ai", "icon": "sparkles", "title": "AI",
+     "description": "AI chatbot, image generation, custom system prompt and model selection.",
+     "keywords": "ai chat bot openai gpt image generate prompt model chatbot"},
+    {"panel": "moderation", "icon": "shield", "title": "Moderation",
+     "description": "Ban, kick, temp-ban, mute, timeout, warn, purge messages, modlog, emergency lockdown, mute evasion and action DMs.",
+     "keywords": "ban kick mute timeout warn purge modlog lockdown punish moderator"},
+    {"panel": "members", "icon": "users", "title": "Users",
+     "description": "Member list, role management, notes and warnings per user.",
+     "keywords": "members users roles notes warnings list people"},
+    {"panel": "welcomer", "icon": "door-open", "title": "Welcomer",
+     "description": "Welcome messages, goodbye messages, auto role, auto nickname and welcome DMs for new members.",
+     "keywords": "welcome goodbye greeting join leave auto role nickname dm greeter"},
+    {"panel": "verification", "icon": "shield-check", "title": "Verification",
+     "description": "Verify button panel, captcha (reCAPTCHA / Turnstile), reaction verification and the verified role.",
+     "keywords": "verify verification captcha recaptcha turnstile reaction verified role anti alt"},
+    {"panel": "leveling", "icon": "trending-up", "title": "Leveling",
+     "description": "XP system, rank cards, leaderboard, level roles and level-up announcements.",
+     "keywords": "xp levels leveling rank leaderboard rewards voice text activity"},
+    {"panel": "automation", "icon": "workflow", "title": "Automation",
+     "description": "Visual automation graph connecting triggers to actions.",
+     "keywords": "automation workflow triggers actions graph events"},
+    {"panel": "autoresponder", "icon": "reply", "title": "Autoresponder",
+     "description": "Automatic responses whenever a message matches a trigger word or phrase.",
+     "keywords": "autoresponder auto response trigger words replies commands"},
+    {"panel": "global_chat", "icon": "globe", "title": "Global Chat",
+     "description": "Link this server's channel with other servers into one shared global chat.",
+     "keywords": "global chat link cross server network shared messaging"},
+    {"panel": "aliases", "icon": "replace", "title": "Command Aliases",
+     "description": "Custom alternative names for slash commands in this server.",
+     "keywords": "alias aliases command rename shortcut custom names slash"},
+    {"panel": "social_alerts", "icon": "bell", "title": "Social Alerts",
+     "description": "Notifications for YouTube uploads, Twitch streams going live and X/Twitter posts.",
+     "keywords": "youtube twitch twitter x social alerts notifications posts uploads live stream"},
+    {"panel": "tickets", "icon": "ticket", "title": "Tickets",
+     "description": "Support ticket panels, ticket categories, claiming, closing and staff access.",
+     "keywords": "tickets support help panel claim close category staff"},
+    {"panel": "music", "icon": "music", "title": "Music",
+     "description": "Play songs, queue management, skip, loop, shuffle and volume control.",
+     "keywords": "music play song queue skip loop shuffle volume youtube spotify player"},
+    {"panel": "logs", "icon": "scroll-text", "title": "Logs",
+     "description": "Message edits/deletes, member joins/leaves, voice activity, channel and role changes logging.",
+     "keywords": "logs logging audit message deleted edited joins leaves voice channels moderation trail"},
+    {"panel": "automod", "icon": "bot", "title": "AutoMod",
+     "description": "Anti-spam, invite filter, link filter, emoji spam, mention spam and banned words with automatic punishments.",
+     "keywords": "automod auto filter spam links invites emoji mentions bad words swear censorship"},
+    {"panel": "raid_protection", "icon": "shield-alert", "title": "Raid Protection",
+     "description": "Detect join raids, block alt accounts, account-age gates and panic mode lockdown.",
+     "keywords": "raid protection raids alts alt detection panic lockdown wave attack security"},
+    {"panel": "bot_profile", "icon": "user-cog", "title": "Bot Profile",
+     "description": "Per-server bot nickname, avatar, banner and bio - how Prowl looks in this server.",
+     "keywords": "bot profile nickname avatar banner bio appearance name photo identity"},
+    {"panel": "settings", "icon": "settings", "title": "Settings",
+     "description": "General bot configuration for this server.",
+     "keywords": "settings configuration options general preferences config"},
+]
+
+_search_state = {"vecs": None, "failed_at": 0.0}
+
+
+def _search_doc(item):
+    return f"{item['title']}: {item['description']} ({item['keywords']})"
+
+
+def _search_tokens(s):
+    return set(re.findall(r"[a-z0-9]+", s.lower()))
+
+
+def _keyword_score(q, item):
+    """Cheap lexical score so exact wording always beats embeddings."""
+    ql = q.lower().strip()
+    title = item["title"].lower()
+    doc = f"{title} {item['description'].lower()} {item['keywords'].lower()}"
+    if ql == title:
+        return 1.0
+    if ql in title:
+        return 0.95
+    if ql in doc:
+        return 0.8
+    qt = _search_tokens(ql)
+    dt = _search_tokens(doc)
+    if not qt:
+        return 0.0
+    hits = sum(1 for t in qt if t in dt)
+    prefix = any(any(w.startswith(t) for w in dt) for t in qt)
+    return min(0.7, (hits / len(qt)) * 0.55 + (0.15 if prefix else 0.0))
+
+
+def _cosine(a, b):
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(x * x for x in b))
+    return dot / (na * nb) if na and nb else 0.0
+
+
+async def _openai_embed(texts):
+    """Embed texts with OpenAI. Raises on failure; caller decides fallback."""
+    if not OPENAI_API_KEY:
+        raise RuntimeError("OPENAI_API_KEY not configured")
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.post(
+            "https://api.openai.com/v1/embeddings",
+            headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
+            json={"model": EMBED_MODEL, "input": texts},
+        )
+        if r.status_code != 200:
+            raise RuntimeError(f"embeddings api {r.status_code}")
+        data = r.json()["data"]
+        return [d["embedding"] for d in sorted(data, key=lambda d: d["index"])]
+
+
+async def _catalog_vectors():
+    """Lazily embed the catalog once per process; retry 5 min after a failure."""
+    if _search_state["vecs"] is not None:
+        return _search_state["vecs"]
+    if time.time() - _search_state["failed_at"] < 300:
+        return None
+    try:
+        vecs = await _openai_embed([_search_doc(i) for i in SEARCH_CATALOG])
+        _search_state["vecs"] = vecs
+        return vecs
+    except Exception as e:
+        logger.warning("Search: embedding catalog unavailable (%s) - keyword-only mode", e)
+        _search_state["failed_at"] = time.time()
+        return None
+
+
+@app.get("/api/v1/dashboard/search")
+async def dashboard_search(request: Request, q: str = "", guild_id: str = ""):
+    await require_auth(request)
+    q = (q or "").strip()
+    if len(q) < 2:
+        return {"items": [], "mode": "none"}
+
+    cat_vecs = await _catalog_vectors()
+    q_vec = None
+    if cat_vecs:
+        try:
+            q_vec = (await _openai_embed([q]))[0]
+        except Exception:
+            q_vec = None
+    mode = "semantic" if (cat_vecs and q_vec) else "keyword"
+
+    gid = guild_id if guild_id.isdigit() else ""
+    results = []
+    for i, item in enumerate(SEARCH_CATALOG):
+        kw = _keyword_score(q, item)
+        sem = _cosine(q_vec, cat_vecs[i]) if (cat_vecs and q_vec) else 0.0
+        score = max(kw, sem * 0.95)
+        if score < SEARCH_RESULT_MIN:
+            continue
+        href = f"/guild/{gid}/{item['panel']}" if gid else "/servers"
+        results.append({
+            "panel": item["panel"],
+            "icon": item["icon"],
+            "title": item["title"],
+            "description": item["description"],
+            "href": href,
+            "_score": round(score, 4),
+        })
+    results.sort(key=lambda r: r["_score"], reverse=True)
+    return {"items": results[:6], "mode": mode}
 
 
 # ---------------------------------------------------------------------------

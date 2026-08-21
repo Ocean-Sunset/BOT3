@@ -241,6 +241,106 @@ body {
 .server-switch:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.6); }
 .server-switch svg { width: 14px; height: 14px; }
 
+/* ── Sidebar search ── */
+.sidebar-search-wrap {
+  position: relative;
+  padding: 0 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.sidebar-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #1a1a1a;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+  transition: border-color 0.15s;
+  cursor: text;
+}
+.sidebar-search:focus-within { border-color: rgba(255,255,255,0.22); }
+.sidebar-search > svg {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  color: rgba(255,255,255,0.35);
+}
+.sidebar-search input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: #e9edf5;
+  font-family: 'Lexend', system-ui, sans-serif;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.sidebar-search input::placeholder { color: rgba(255,255,255,0.25); }
+.sidebar-search kbd {
+  font-family: 'Lexend', system-ui, sans-serif;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.3);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 4px;
+  padding: 0.05rem 0.35rem;
+  line-height: 1.3;
+}
+.sidebar-search-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0.5rem;
+  right: 0.5rem;
+  z-index: 80;
+  background: #151515;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.55);
+  max-height: 320px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.ssr-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.5rem 0.65rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+.ssr-item:hover, .ssr-item.is-active { background: rgba(255,255,255,0.05); }
+.ssr-item > svg {
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  margin-top: 2px;
+  color: rgba(255,255,255,0.4);
+}
+.ssr-item span { display: block; min-width: 0; }
+.ssr-title {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+}
+.ssr-desc {
+  font-size: 0.64rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.38);
+  line-height: 1.35;
+  margin-top: 1px;
+}
+.ssr-empty {
+  padding: 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.32);
+  text-align: center;
+}
+.sidebar.is-collapsed .sidebar-search-wrap { display: none; }
+
 /* ── Navigation ── */
 .sidebar-nav {
   flex: 1;

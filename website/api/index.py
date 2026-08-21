@@ -914,7 +914,7 @@ async def dashboard(request: Request, guild_id: str, panel: str = "overview"):
         "music", "leveling", "verification", "automation",
         "social_alerts", "invite_tracker", "tickets", "global_chat",
         "autoresponder", "settings", "raid_protection", "profile",
-        "aliases", "profiles",
+        "aliases", "bot_profile",
     ]
     if panel not in valid_panels:
         panel = "overview"
@@ -2588,50 +2588,94 @@ async def alias_settings_set(guild_id: str, request: Request):
 
 
 # ---------------------------------------------------------------------------
-#  Profiles API v1
+#  Bot Profile API v1 (per-guild bot nickname/avatar/banner via HTTP bridge)
 # ---------------------------------------------------------------------------
 
-PROFILE_DEFAULTS = {
-    "enabled": False,
-    "bg_type": "gradient",
-    "gradient_from": "#5865f2",
-    "gradient_to": "#eb459e",
-    "solid_color": "#1a1a1a",
-    "bg_image_url": "",
-    "bg_opacity": 35,
-    "accent_auto": True,
-    "accent_color": "#5865f2",
-    "text_color": "#ffffff",
-    "show_level": True,
-    "show_joinage": True,
-    "show_roles": True,
-    "bio_enabled": True,
-    "footer_text": "",
-}
+BOT_PROFILE_MAX_IMAGE_CHARS = 14_000_000  # base64 data URI cap (~10MB binary)
 
 
-@app.get("/api/v1/profile/{guild_id}/settings")
-async def profile_settings_get(guild_id: str, request: Request):
+def _sanitize_bot_profile_payload(body: dict):
+    """Validate a bot-profile update. Returns (payload, error)."""
+    payload = {}
+    if "nick" in body:
+        nick = str(body.get("nick") or "").strip()
+        if len(nick) > 32:
+            return None, "Nickname must be 32 characters or fewer."
+        payload["nick"] = nick
+    if "bio" in body:
+        bio = str(body.get("bio") or "").strip()
+        if len(bio) > 350:
+            return None, "Bio must be 350 characters or fewer."
+        payload["bio"] = bio
+    for key in ("avatar", "banner"):
+        if body.get(f"reset_{key}"):
+            payload[f"reset_{key}"] = True
+            continue
+        data = body.get(key)
+        if data:
+            data = str(data)
+            if not data.startswith("data:image/"):
+                return None, f"Invalid {key} image."
+            if len(data) > BOT_PROFILE_MAX_IMAGE_CHARS:
+                return None, f"{key.capitalize()} must be under 10MB."
+            payload[key] = data
+    if not payload:
+        return None, "Nothing to update."
+    return payload, None
+
+
+@app.get("/api/v1/botprofile/{guild_id}")
+async def bot_profile_get(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    settings = await fetchrow_cached(
-        "profile_settings",
-        "SELECT settings FROM profile_settings WHERE guild_id = ?", guild_id, PROFILE_DEFAULTS,
-    )
-    return {"settings": settings}
+    if not BOT_SERVER_URL or not BOT_HTTP_TOKEN:
+        return JSONResponse({"error": "Bot bridge is not configured."}, status_code=503)
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            r = await client.get(
+                BOT_SERVER_URL.rstrip("/") + "/api/profile",
+                params={"guild_id": str(guild_id)},
+                headers={"X-Prowl-Token": BOT_HTTP_TOKEN},
+            )
+    except Exception:
+        return JSONResponse({"error": "Bot server unreachable."}, status_code=502)
+    if r.status_code != 200:
+        try:
+            detail = r.json().get("error", "")
+        except Exception:
+            detail = ""
+        return JSONResponse({"error": detail or f"bot responded {r.status_code}"}, status_code=502)
+    return r.json()
 
 
-@app.post("/api/v1/profile/{guild_id}/settings")
-async def profile_settings_set(guild_id: str, request: Request):
+@app.post("/api/v1/botprofile/{guild_id}")
+async def bot_profile_set(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    body = await request.json()
-    key = body.get("key")
-    value = body.get("value")
-    if not key:
-        return JSONResponse({"error": "missing key"}, status_code=400)
-    err = await _save_settings("profile_settings", str(guild_id), key, value, PROFILE_DEFAULTS)
+    if not BOT_SERVER_URL or not BOT_HTTP_TOKEN:
+        return JSONResponse({"error": "Bot bridge is not configured."}, status_code=503)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "invalid json"}, status_code=400)
+    payload, err = _sanitize_bot_profile_payload(body if isinstance(body, dict) else {})
     if err:
         return JSONResponse({"error": err}, status_code=400)
-    return {"ok": True}
+    payload["guild_id"] = str(guild_id)
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            r = await client.post(
+                BOT_SERVER_URL.rstrip("/") + "/api/profile",
+                json=payload,
+                headers={"X-Prowl-Token": BOT_HTTP_TOKEN},
+            )
+    except Exception:
+        return JSONResponse({"error": "Bot server unreachable."}, status_code=502)
+    if r.status_code != 200:
+        try:
+            detail = r.json().get("error", "")
+        except Exception:
+            detail = ""
+        return JSONResponse({"error": detail or f"bot responded {r.status_code}"}, status_code=502)
+    return r.json()
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,308 @@
+{% extends "dashboard/base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/moderation.css?v=16" />
+<style>
+  .bp-card { border:1px solid rgba(255,255,255,0.08); border-radius:4px; background:rgba(255,255,255,0.015); padding:1rem; }
+  .bp-preview { position:relative; margin-bottom:1.25rem; }
+  .bp-banner { width:100%; aspect-ratio:4/1; border-radius:6px; overflow:hidden; background:linear-gradient(120deg,#5865f2,#eb459e); display:flex; align-items:center; justify-content:center; border:1px solid rgba(255,255,255,0.08); }
+  .bp-banner img { width:100%; height:100%; object-fit:cover; display:block; }
+  .bp-banner-empty { color:rgba(255,255,255,0.55); font-size:0.78rem; font-weight:700; letter-spacing:0.04em; }
+  .bp-avatar-wrap { position:absolute; left:1.25rem; bottom:-2.25rem; width:96px; height:96px; border-radius:50%; overflow:hidden; border:5px solid var(--bg-1,#0b0d12); background:#1a1d24; box-shadow:0 4px 16px rgba(0,0,0,0.45); }
+  .bp-avatar-wrap img { width:100%; height:100%; object-fit:cover; display:block; }
+  .bp-idrow { padding-left:8.25rem; min-height:3rem; display:flex; align-items:flex-end; gap:0.6rem; flex-wrap:wrap; }
+  .bp-name { font-size:1.05rem; font-weight:800; color:#fff; line-height:1.2; }
+  .bp-nicktag { font-size:0.68rem; font-weight:700; color:#c7cdff; background:rgba(88,101,242,0.14); border:1px solid rgba(88,101,242,0.35); border-radius:99px; padding:0.15rem 0.55rem; }
+  .bp-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:1rem; margin-top:1rem; }
+  .bp-tile { border:1px solid rgba(255,255,255,0.08); border-radius:6px; background:rgba(255,255,255,0.02); padding:0.85rem; display:flex; flex-direction:column; gap:0.65rem; }
+  .bp-tile-head { display:flex; align-items:center; justify-content:space-between; }
+  .bp-tile-title { font-size:0.8rem; font-weight:800; color:#fff; }
+  .bp-tile-sub { font-size:0.68rem; color:rgba(255,255,255,0.35); font-weight:600; }
+  .bp-imgbox { border-radius:5px; overflow:hidden; border:1px dashed rgba(255,255,255,0.14); background:rgba(255,255,255,0.02); display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.28); font-size:0.72rem; font-weight:700; }
+  .bp-imgbox img { width:100%; height:100%; object-fit:cover; display:block; }
+  .bp-imgbox.avatar { aspect-ratio:1/1; max-width:150px; }
+  .bp-imgbox.banner { aspect-ratio:4/1; }
+  .bp-actions { display:flex; gap:0.5rem; flex-wrap:wrap; }
+  .bp-btn { display:inline-flex; align-items:center; gap:0.35rem; font-size:0.75rem; font-weight:700; padding:0.45rem 0.8rem; border-radius:4px; cursor:pointer; transition:background 0.15s,border-color 0.15s; background:rgba(88,101,242,0.15); border:1px solid rgba(88,101,242,0.4); color:#c7cdff; }
+  .bp-btn:hover { background:rgba(88,101,242,0.28); }
+  .bp-btn.ghost { background:none; border-color:rgba(255,255,255,0.14); color:rgba(255,255,255,0.55); }
+  .bp-btn.ghost:hover { color:#f87171; border-color:rgba(248,113,113,0.4); background:rgba(248,113,113,0.06); }
+  .bp-field label { display:block; font-size:0.72rem; font-weight:800; letter-spacing:0.05em; text-transform:uppercase; color:rgba(255,255,255,0.4); margin-bottom:0.4rem; }
+  .bp-field input[type=text], .bp-field textarea { width:100%; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#fff; font-size:0.85rem; font-weight:600; padding:0.55rem 0.7rem; outline:none; resize:vertical; }
+  .bp-field input:focus, .bp-field textarea:focus { border-color:rgba(88,101,242,0.5); }
+  .bp-count { font-size:0.66rem; color:rgba(255,255,255,0.3); font-weight:700; text-align:right; margin-top:0.25rem; }
+  .bp-note { display:flex; gap:0.6rem; align-items:flex-start; margin-top:1rem; padding:0.7rem 0.9rem; border-radius:4px; background:rgba(88,101,242,0.07); border:1px solid rgba(88,101,242,0.22); font-size:0.74rem; color:rgba(255,255,255,0.55); line-height:1.55; }
+  .bp-warn { display:none; margin-bottom:1rem; padding:0.7rem 0.9rem; border-radius:4px; background:rgba(248,113,113,0.08); border:1px solid rgba(248,113,113,0.35); color:#fca5a5; font-size:0.78rem; font-weight:600; }
+  .bp-staged { font-size:0.66rem; font-weight:700; color:#34d399; }
+</style>
+<div>
+
+  <div style="margin-bottom:1rem;animation-delay:.05s;">
+    <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Bot Profile</h1>
+    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Customize Prowl's nickname, avatar and banner in this server</p>
+  </div>
+
+  <div class="bp-warn" id="bp-warn"></div>
+
+  <div class="md-section">
+    <div class="bp-card">
+      <div class="md-section-title" style="margin-bottom:0.15rem;">Preview</div>
+      <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.5;">This is how members see Prowl in this server. Changes apply instantly here only &mdash; other servers keep their own look.</p>
+      <div class="bp-preview" style="margin-top:0.9rem;">
+        <div class="bp-banner" id="bp-banner-view"><span class="bp-banner-empty">No banner set</span></div>
+        <div class="bp-avatar-wrap" id="bp-avatar-view"></div>
+        <div class="bp-idrow">
+          <div>
+            <div class="bp-name" id="bp-name">&hellip;</div>
+            <div style="font-size:0.7rem;color:rgba(255,255,255,0.35);font-weight:600;" id="bp-subname"></div>
+          </div>
+          <span class="bp-nicktag" id="bp-nicktag" style="display:none;"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bp-grid">
+    <div class="bp-tile">
+      <div class="bp-tile-head">
+        <div>
+          <div class="bp-tile-title">Server Avatar</div>
+          <div class="bp-tile-sub">PNG / JPG / WEBP / GIF &middot; max 10MB</div>
+        </div>
+        <span class="bp-staged" id="bp-avatar-staged" style="display:none;">new image ready</span>
+      </div>
+      <div class="bp-imgbox avatar" id="bp-avatar-box">No server avatar</div>
+      <div class="bp-actions">
+        <button type="button" class="bp-btn" id="bp-avatar-upload"><i data-lucide="image-up"></i> Upload</button>
+        <button type="button" class="bp-btn ghost" id="bp-avatar-reset"><i data-lucide="rotate-ccw"></i> Use default</button>
+      </div>
+      <input type="file" id="bp-avatar-file" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;" />
+    </div>
+
+    <div class="bp-tile">
+      <div class="bp-tile-head">
+        <div>
+          <div class="bp-tile-title">Server Banner</div>
+          <div class="bp-tile-sub">Wide image works best &middot; max 10MB</div>
+        </div>
+        <span class="bp-staged" id="bp-banner-staged" style="display:none;">new image ready</span>
+      </div>
+      <div class="bp-imgbox banner" id="bp-banner-box">No server banner</div>
+      <div class="bp-actions">
+        <button type="button" class="bp-btn" id="bp-banner-upload"><i data-lucide="image-up"></i> Upload</button>
+        <button type="button" class="bp-btn ghost" id="bp-banner-reset"><i data-lucide="rotate-ccw"></i> Remove banner</button>
+      </div>
+      <input type="file" id="bp-banner-file" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;" />
+    </div>
+  </div>
+
+  <div class="bp-grid">
+    <div class="bp-field bp-tile">
+      <label for="bp-nick">Nickname</label>
+      <input type="text" id="bp-nick" maxlength="32" placeholder="Leave empty to use the default name" spellcheck="false" />
+      <div class="bp-count"><span id="bp-nick-count">0</span>/32</div>
+    </div>
+    <div class="bp-field bp-tile">
+      <label for="bp-bio">Bio</label>
+      <textarea id="bp-bio" rows="3" maxlength="350" placeholder="Shown on Prowl's profile card in this server"></textarea>
+      <div class="bp-count"><span id="bp-bio-count">0</span>/350</div>
+    </div>
+  </div>
+
+  <div class="bp-note">
+    <i data-lucide="info" style="width:15px;height:15px;flex-shrink:0;margin-top:1px;color:#c7cdff;"></i>
+    <span>Uploads are applied directly to Discord when you press Save. Discord's CDN can take a few seconds to serve fresh images &mdash; if the preview looks old, reload once.</span>
+  </div>
+
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const GID = window.__GUILD_ID;
+const esc = s => { const d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; };
+const bust = u => u ? u + (u.includes('?') ? '&' : '?') + 't=' + Date.now() : u;
+
+let CURRENT = null;
+let stagedAvatar = null;
+let stagedBanner = null;
+let resetAvatar = false;
+let resetBanner = false;
+
+const saveBar = document.getElementById('save-bar');
+const saveBtn = document.getElementById('save-btn');
+let saveTimer = null;
+
+function showBar() {
+  saveBar.classList.remove('is-closed');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
+}
+function hideBar() {
+  saveBar.classList.add('is-closed');
+  clearTimeout(saveTimer);
+}
+
+function isDirty() {
+  if (!CURRENT) return false;
+  if (stagedAvatar || stagedBanner || resetAvatar || resetBanner) return true;
+  const nick = document.getElementById('bp-nick').value.trim();
+  const bio = document.getElementById('bp-bio').value.trim();
+  return nick !== (CURRENT.nick || '') || bio !== (CURRENT.bio || '');
+}
+
+function render() {
+  const avView = document.getElementById('bp-avatar-view');
+  const bnView = document.getElementById('bp-banner-view');
+  const avBox = document.getElementById('bp-avatar-box');
+  const bnBox = document.getElementById('bp-banner-box');
+
+  const avatarSrc = stagedAvatar || (CURRENT && !resetAvatar && CURRENT.avatar_url) || (CURRENT && CURRENT.global_avatar_url) || '';
+  avView.innerHTML = avatarSrc ? '<img src="' + esc(bust(avatarSrc)) + '" alt="" />' : '';
+  avBox.innerHTML = (stagedAvatar || (CURRENT && !resetAvatar && CURRENT.avatar_url))
+    ? '<img src="' + esc(bust(stagedAvatar || CURRENT.avatar_url)) + '" alt="" />'
+    : (resetAvatar ? 'Will use default' : 'No server avatar');
+
+  const bannerSrc = stagedBanner || (CURRENT && !resetBanner && CURRENT.banner_url) || '';
+  if (bannerSrc) {
+    bnView.innerHTML = '<img src="' + esc(bust(bannerSrc)) + '" alt="" />';
+    bnBox.innerHTML = '<img src="' + esc(bust(bannerSrc)) + '" alt="" />';
+  } else {
+    bnView.innerHTML = '<span class="bp-banner-empty">' + (resetBanner ? 'Banner removed on save' : 'No banner set') + '</span>';
+    bnBox.textContent = resetBanner ? 'Will be removed' : 'No server banner';
+  }
+
+  document.getElementById('bp-avatar-staged').style.display = stagedAvatar ? '' : 'none';
+  document.getElementById('bp-banner-staged').style.display = stagedBanner ? '' : 'none';
+
+  if (CURRENT) {
+    const displayName = CURRENT.nick || CURRENT.name || 'Prowl';
+    document.getElementById('bp-name').textContent = displayName;
+    document.getElementById('bp-subname').textContent = CURRENT.nick ? 'default name: ' + CURRENT.name : '';
+    const tag = document.getElementById('bp-nicktag');
+    tag.style.display = CURRENT.nick ? '' : 'none';
+    tag.textContent = 'server nickname';
+  }
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function updateCounts() {
+  document.getElementById('bp-nick-count').textContent = document.getElementById('bp-nick').value.length;
+  document.getElementById('bp-bio-count').textContent = document.getElementById('bp-bio').value.length;
+}
+
+function changed() { updateCounts(); if (isDirty()) showBar(); else hideBar(); }
+
+function readImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('read failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function pickImage(kind) {
+  const input = document.getElementById(kind === 'avatar' ? 'bp-avatar-file' : 'bp-banner-file');
+  input.value = '';
+  input.click();
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      if (typeof showToast === 'function') showToast('That file is not an image.', 'error', 5000);
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      if (typeof showToast === 'function') showToast('Image must be under 10MB.', 'error', 5000);
+      return;
+    }
+    try {
+      const dataUrl = await readImage(file);
+      if (kind === 'avatar') { stagedAvatar = dataUrl; resetAvatar = false; }
+      else { stagedBanner = dataUrl; resetBanner = false; }
+      render(); changed();
+    } catch {
+      if (typeof showToast === 'function') showToast('Could not read that file.', 'error', 5000);
+    }
+  };
+}
+
+async function loadProfile() {
+  const warn = document.getElementById('bp-warn');
+  try {
+    const res = await fetch(`/api/v1/botprofile/${GID}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load');
+    CURRENT = data;
+    warn.style.display = 'none';
+    document.getElementById('bp-nick').value = CURRENT.nick || '';
+    document.getElementById('bp-bio').value = CURRENT.bio || '';
+  } catch (e) {
+    warn.textContent = e.message || 'Bot server unreachable - cannot load the current profile.';
+    warn.style.display = '';
+  }
+  updateCounts();
+  render();
+}
+
+async function saveChanges() {
+  if (!CURRENT) {
+    if (typeof showToast === 'function') showToast('Profile not loaded yet.', 'error', 5000);
+    return;
+  }
+  const body = {
+    nick: document.getElementById('bp-nick').value.trim(),
+    bio: document.getElementById('bp-bio').value.trim(),
+  };
+  if (stagedAvatar) body.avatar = stagedAvatar;
+  if (stagedBanner) body.banner = stagedBanner;
+  if (resetAvatar) body.reset_avatar = true;
+  if (resetBanner) body.reset_banner = true;
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving...';
+  try {
+    const res = await fetch(`/api/v1/botprofile/${GID}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Save failed');
+    CURRENT = data;
+    stagedAvatar = null; stagedBanner = null; resetAvatar = false; resetBanner = false;
+    document.getElementById('bp-nick').value = CURRENT.nick || '';
+    document.getElementById('bp-bio').value = CURRENT.bio || '';
+    hideBar(); updateCounts(); render();
+    if (typeof showToast === 'function') showToast('Bot profile updated.', 'success');
+  } catch (e) {
+    if (typeof showToast === 'function') showToast(e.message || 'Network error saving.', 'error', 5000);
+  }
+  saveBtn.disabled = false;
+  saveBtn.textContent = 'Save';
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('bp-avatar-upload').addEventListener('click', () => pickImage('avatar'));
+  document.getElementById('bp-banner-upload').addEventListener('click', () => pickImage('banner'));
+  document.getElementById('bp-avatar-reset').addEventListener('click', () => {
+    resetAvatar = !resetAvatar;
+    if (resetAvatar) stagedAvatar = null;
+    render(); changed();
+  });
+  document.getElementById('bp-banner-reset').addEventListener('click', () => {
+    resetBanner = !resetBanner;
+    if (resetBanner) stagedBanner = null;
+    render(); changed();
+  });
+  document.getElementById('bp-nick').addEventListener('input', changed);
+  document.getElementById('bp-bio').addEventListener('input', changed);
+
+  saveBtn.addEventListener('click', saveChanges);
+  document.getElementById('discard-btn').addEventListener('click', () => {
+    stagedAvatar = null; stagedBanner = null; resetAvatar = false; resetBanner = false;
+    document.getElementById('bp-nick').value = (CURRENT && CURRENT.nick) || '';
+    document.getElementById('bp-bio').value = (CURRENT && CURRENT.bio) || '';
+    hideBar(); updateCounts(); render();
+  });
+
+  await loadProfile();
+});
+</script>
+{% endblock %}

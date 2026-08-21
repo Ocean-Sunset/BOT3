@@ -20,6 +20,7 @@ import time
 import hmac
 import logging
 
+import discord
 from aiohttp import web
 
 logger = logging.getLogger(__name__)
@@ -120,6 +121,89 @@ async def handle_action_stats(request):
     return web.json_response({"actions": action_stats()})
 
 
+# ── Per-guild bot profile (nickname / avatar / banner) ──
+
+MAX_IMAGE_DATA_CHARS = 14_000_000  # base64 data URI length cap (~10MB binary)
+
+
+def _profile_payload(me) -> dict:
+    """Current per-guild profile of the bot in a guild."""
+    user = _bot.user
+    return {
+        "ok": True,
+        "nick": me.nick,
+        "name": user.name if user else None,
+        "global_avatar_url": str(user.display_avatar.replace(size=256)) if user else None,
+        "avatar_url": str(me.guild_avatar) if me.guild_avatar else None,
+        "banner_url": str(me.guild_banner) if me.guild_banner else None,
+        "bio": getattr(me, "bio", None),
+    }
+
+
+async def handle_profile_get(request):
+    if not await _check_auth(request):
+        return web.json_response({"ok": False, "error": "unauthorized"}, status=401)
+    if _bot is None or not _bot.is_ready():
+        return web.json_response({"ok": False, "error": "bot not ready"}, status=503)
+    guild_id = request.query.get("guild_id", "")
+    guild = _bot.get_guild(int(guild_id)) if guild_id.isdigit() else None
+    if guild is None:
+        return web.json_response({"ok": False, "error": "bot not in guild"}, status=404)
+    return web.json_response(_profile_payload(guild.me))
+
+
+async def handle_profile_post(request):
+    if not await _check_auth(request):
+        return web.json_response({"ok": False, "error": "unauthorized"}, status=401)
+    if _bot is None or not _bot.is_ready():
+        return web.json_response({"ok": False, "error": "bot not ready"}, status=503)
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "error": "invalid json"}, status=400)
+
+    guild_id = str(body.get("guild_id", ""))
+    guild = _bot.get_guild(int(guild_id)) if guild_id.isdigit() else None
+    if guild is None:
+        return web.json_response({"ok": False, "error": "bot not in guild"}, status=404)
+
+    payload = {}
+    if "nick" in body:
+        nick = str(body.get("nick") or "").strip()
+        if len(nick) > 32:
+            return web.json_response({"ok": False, "error": "Nickname must be 32 characters or fewer."}, status=400)
+        payload["nick"] = nick or None
+    if "bio" in body:
+        bio = str(body.get("bio") or "").strip()
+        if len(bio) > 350:
+            return web.json_response({"ok": False, "error": "Bio must be 350 characters or fewer."}, status=400)
+        payload["bio"] = bio or None
+    for key in ("avatar", "banner"):
+        if body.get(f"reset_{key}"):
+            payload[key] = None
+            continue
+        data = body.get(key)
+        if data:
+            data = str(data)
+            if not data.startswith("data:image/"):
+                return web.json_response({"ok": False, "error": f"Invalid {key} image data."}, status=400)
+            if len(data) > MAX_IMAGE_DATA_CHARS:
+                return web.json_response({"ok": False, "error": f"{key.capitalize()} must be under 10MB."}, status=400)
+            payload[key] = data
+
+    if not payload:
+        return web.json_response({"ok": False, "error": "Nothing to update."}, status=400)
+
+    try:
+        me = await guild.me.edit(**payload, reason="Dashboard: bot profile update")
+    except discord.Forbidden:
+        return web.json_response({"ok": False, "error": "Discord denied the change (missing permission?)."}, status=403)
+    except discord.HTTPException as e:
+        logger.warning(f"Bot profile update failed in {guild_id}: {e}")
+        return web.json_response({"ok": False, "error": f"Discord rejected the update ({e.status})."}, status=400)
+    return web.json_response(_profile_payload(me))
+
+
 async def start_http_server():
     """Start the aiohttp bridge. No-op (with a warning) if BOT_HTTP_TOKEN unset."""
     token = _get_token()
@@ -130,6 +214,8 @@ async def start_http_server():
     app.router.add_get("/health", handle_health)
     app.router.add_post("/api/action", handle_action)
     app.router.add_get("/api/stats/actions", handle_action_stats)
+    app.router.add_get("/api/profile", handle_profile_get)
+    app.router.add_post("/api/profile", handle_profile_post)
     port = int(os.environ.get("BOT_HTTP_PORT", "24612"))
     runner = web.AppRunner(app)
     await runner.setup()

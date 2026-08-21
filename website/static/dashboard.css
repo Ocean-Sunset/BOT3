@@ -135,7 +135,7 @@ body {
 
 .sidebar-nav { padding-left: 0.75rem; }
 
-.sidebar-header { padding: 1rem 1rem 0; overflow: hidden; }
+.sidebar-header { padding: 1rem 1rem 0; }
 
 .sidebar-user { padding: 0.75rem; overflow: visible; }
 
@@ -244,6 +244,7 @@ body {
 /* ── Sidebar search ── */
 .sidebar-search-wrap {
   position: relative;
+  z-index: 120;
   padding: 0 0.5rem;
   margin-bottom: 0.75rem;
 }

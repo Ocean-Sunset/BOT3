@@ -258,6 +258,8 @@ body {
   padding: 0.45rem 0.6rem;
   transition: border-color 0.15s;
   cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
 }
 .sidebar-search:focus-within { border-color: rgba(255,255,255,0.22); }
 .sidebar-search > svg {
@@ -326,6 +328,17 @@ body {
   color: #fff;
   line-height: 1.2;
 }
+.ssr-block {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  background: rgba(54,211,153,0.12);
+  color: #36d399;
+  font-size: 0.6rem;
+  font-weight: 700;
+  vertical-align: 1px;
+}
 .ssr-desc {
   font-size: 0.64rem;
   font-weight: 500;
@@ -341,6 +354,16 @@ body {
   text-align: center;
 }
 .sidebar.is-collapsed .sidebar-search-wrap { display: none; }
+
+/* ── Search deep-link highlight (#hl=<block>) ── */
+.search-highlight {
+  animation: prowl-hl 5s ease-out;
+}
+@keyframes prowl-hl {
+  0%   { outline: 2px solid rgba(54,211,153,0.95); outline-offset: 2px; background: rgba(54,211,153,0.10); }
+  55%  { outline: 2px solid rgba(54,211,153,0.75); outline-offset: 2px; background: rgba(54,211,153,0.07); }
+  100% { outline: 2px solid rgba(54,211,153,0);   outline-offset: 2px; background: transparent; }
+}
 
 /* ── Navigation ── */
 .sidebar-nav {

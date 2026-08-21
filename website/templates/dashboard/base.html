@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="preload" href="https://unpkg.com/lucide@latest" as="script" />
-  <link rel="stylesheet" href="/static/dashboard.css?v=13" />
+  <link rel="stylesheet" href="/static/dashboard.css?v=14" />
   <script>
     // API subdomain routing: production calls go to api.prowlbot.xyz with cookies,
     // localhost keeps same-origin relative paths.
@@ -408,10 +408,38 @@
   </script>
 
   <script>
+    // ── Scroll-to + glow a settings block named in the URL (#hl=<title>) ──
+    window.__prowlHighlight = function(name) {
+      const norm = s => (s || '').trim().toLowerCase();
+      let target = null;
+      const cands = document.querySelectorAll('.md-section-title, .card-title, .section-title, h2, h3, h4');
+      for (const el of cands) { if (norm(el.textContent) === norm(name)) { target = el; break; } }
+      if (!target) for (const el of cands) { if (norm(el.textContent).includes(norm(name))) { target = el; break; } }
+      if (!target) return false;
+      const sec = target.closest('.md-section');
+      const box = (sec && sec.firstElementChild) || target.closest('[class*="card"], section') || target.parentElement;
+      if (!box) return false;
+      box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      box.classList.remove('search-highlight');
+      void box.offsetWidth; // restart the animation if it is already glowing
+      box.classList.add('search-highlight');
+      setTimeout(() => box.classList.remove('search-highlight'), 5000);
+      return true;
+    };
+    (function() {
+      const m = location.hash.match(/hl=([^&]+)/);
+      if (!m) return;
+      history.replaceState(null, '', location.pathname + location.search);
+      // wait one frame so server-rendered sections have layout
+      const raf = window.requestAnimationFrame || (cb => setTimeout(cb, 16));
+      raf(() => window.__prowlHighlight(decodeURIComponent(m[1])));
+    })();
+
     // ── Sidebar search (semantic via /api/v1/dashboard/search) ──
     (function() {
       const wrap = document.getElementById('sidebar-search-wrap');
       if (!wrap) return;
+      const box = wrap.querySelector('.sidebar-search');
       const input = document.getElementById('sidebar-search-input');
       const panel = document.getElementById('sidebar-search-results');
       let items = [], active = -1, debounce = null, controller = null;
@@ -429,12 +457,26 @@
         panel.innerHTML = items.map((it, i) =>
           '<a class="ssr-item' + (i === active ? ' is-active' : '') + '" href="' + esc(it.href) + '">' +
           '<i data-lucide="' + esc(it.icon) + '"></i>' +
-          '<span><span class="ssr-title">' + esc(it.title) + '</span>' +
+          '<span><span class="ssr-title">' + esc(it.title) +
+          (it.block ? '<span class="ssr-block">' + esc(it.block) + '</span>' : '') +
+          '</span>' +
           '<span class="ssr-desc">' + esc(it.description) + '</span></span></a>'
         ).join('');
         if (typeof lucide !== 'undefined') lucide.createIcons();
         [...panel.querySelectorAll('.ssr-item')].forEach((el, i) => {
-          el.addEventListener('mousedown', e => { e.preventDefault(); location.href = items[i].href; });
+          el.addEventListener('mousedown', e => {
+            e.preventDefault();
+            const it = items[i];
+            const hl = it.href.match(/#hl=([^&]+)/);
+            // already on that page? just scroll+glow instead of reloading
+            if (hl && location.pathname === it.href.split('#')[0]) {
+              history.replaceState(null, '', location.pathname + location.search + '#hl=' + hl[1]);
+              close(); input.blur();
+              window.__prowlHighlight(decodeURIComponent(hl[1]));
+              return;
+            }
+            location.href = it.href;
+          });
         });
       }
 
@@ -454,6 +496,11 @@
           items = []; render();
         }
       }
+
+      // the whole box focuses the input on first click (sidebar is user-select:none)
+      box.addEventListener('mousedown', e => {
+        if (e.target !== input) { e.preventDefault(); input.focus(); }
+      });
 
       input.addEventListener('input', () => {
         const q = input.value.trim();

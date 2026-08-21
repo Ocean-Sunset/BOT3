@@ -2696,40 +2696,52 @@ SEARCH_RESULT_MIN = 0.18  # drop anything scoring below this
 
 # Everything reachable from the sidebar. Descriptions are written so the
 # embedding model can map natural queries ("stop people spamming") onto them.
+# "blocks" are section titles inside each page - matching one deep-links the
+# user straight to that box via /guild/<id>/<panel>#hl=<block>.
 SEARCH_CATALOG = [
     {"panel": "overview", "icon": "layout-dashboard", "title": "Overview",
      "description": "Server statistics, recent activity feed and the quick setup checklist.",
-     "keywords": "home dashboard stats overview activity setup"},
+     "keywords": "home dashboard stats overview activity setup",
+     "blocks": ["Server Stats", "Feature Status", "Recent Activity", "Quick Links"]},
     {"panel": "ai", "icon": "sparkles", "title": "AI",
      "description": "AI chatbot, image generation, custom system prompt and model selection.",
-     "keywords": "ai chat bot openai gpt image generate prompt model chatbot"},
+     "keywords": "ai chat bot openai gpt image generate prompt model chatbot",
+     "blocks": ["Behavior & Personality", "Generation Controls", "Model", "API Keys"]},
     {"panel": "moderation", "icon": "shield", "title": "Moderation",
      "description": "Ban, kick, temp-ban, mute, timeout, warn, purge messages, modlog, emergency lockdown, mute evasion and action DMs.",
-     "keywords": "ban kick mute timeout warn purge modlog lockdown punish moderator"},
+     "keywords": "ban kick mute timeout warn purge modlog lockdown punish moderator",
+     "blocks": ["Actions", "Custom Embed"]},
     {"panel": "members", "icon": "users", "title": "Users",
      "description": "Member list, role management, notes and warnings per user.",
-     "keywords": "members users roles notes warnings list people"},
+     "keywords": "members users roles notes warnings list people",
+     "blocks": ["Add Role", "Change Nickname", "Actions"]},
     {"panel": "welcomer", "icon": "door-open", "title": "Welcomer",
      "description": "Welcome messages, goodbye messages, auto role, auto nickname and welcome DMs for new members.",
-     "keywords": "welcome goodbye greeting join leave auto role nickname dm greeter"},
+     "keywords": "welcome goodbye greeting join leave auto role nickname dm greeter",
+     "blocks": ["Welcome Channel", "Goodbye Channel", "Welcome Message", "Goodbye Message",
+                "Welcome Image Card", "Goodbye Image Card", "Welcome DM", "Auto Roles", "Placeholders"]},
     {"panel": "verification", "icon": "shield-check", "title": "Verification",
      "description": "Verify button panel, captcha (reCAPTCHA / Turnstile), reaction verification and the verified role.",
      "keywords": "verify verification captcha recaptcha turnstile reaction verified role anti alt"},
     {"panel": "leveling", "icon": "trending-up", "title": "Leveling",
      "description": "XP system, rank cards, leaderboard, level roles and level-up announcements.",
-     "keywords": "xp levels leveling rank leaderboard rewards voice text activity"},
+     "keywords": "xp levels leveling rank leaderboard rewards voice text activity",
+     "blocks": ["XP Settings", "Role XP Rates", "Level Roles", "Level-Up Message",
+                "Level-Up Announcements", "Leaderboard"]},
     {"panel": "automation", "icon": "workflow", "title": "Automation",
      "description": "Visual automation graph connecting triggers to actions.",
      "keywords": "automation workflow triggers actions graph events"},
     {"panel": "autoresponder", "icon": "reply", "title": "Autoresponder",
      "description": "Automatic responses whenever a message matches a trigger word or phrase.",
-     "keywords": "autoresponder auto response trigger words replies commands"},
+     "keywords": "autoresponder auto response trigger words replies commands",
+     "blocks": ["Triggers", "Add Trigger"]},
     {"panel": "global_chat", "icon": "globe", "title": "Global Chat",
      "description": "Link this server's channel with other servers into one shared global chat.",
      "keywords": "global chat link cross server network shared messaging"},
     {"panel": "aliases", "icon": "replace", "title": "Command Aliases",
      "description": "Custom alternative names for slash commands in this server.",
-     "keywords": "alias aliases command rename shortcut custom names slash"},
+     "keywords": "alias aliases command rename shortcut custom names slash",
+     "blocks": ["Aliases"]},
     {"panel": "social_alerts", "icon": "bell", "title": "Social Alerts",
      "description": "Notifications for YouTube uploads, Twitch streams going live and X/Twitter posts.",
      "keywords": "youtube twitch twitter x social alerts notifications posts uploads live stream"},
@@ -2738,22 +2750,28 @@ SEARCH_CATALOG = [
      "keywords": "tickets support help panel claim close category staff"},
     {"panel": "music", "icon": "music", "title": "Music",
      "description": "Play songs, queue management, skip, loop, shuffle and volume control.",
-     "keywords": "music play song queue skip loop shuffle volume youtube spotify player"},
+     "keywords": "music play song queue skip loop shuffle volume youtube spotify player",
+     "blocks": ["Music Commands", "DJ Permissions", "Default Settings"]},
     {"panel": "logs", "icon": "scroll-text", "title": "Logs",
      "description": "Message edits/deletes, member joins/leaves, voice activity, channel and role changes logging.",
-     "keywords": "logs logging audit message deleted edited joins leaves voice channels moderation trail"},
+     "keywords": "logs logging audit message deleted edited joins leaves voice channels moderation trail",
+     "blocks": ["Event Logs"]},
     {"panel": "automod", "icon": "bot", "title": "AutoMod",
      "description": "Anti-spam, invite filter, link filter, emoji spam, mention spam and banned words with automatic punishments.",
      "keywords": "automod auto filter spam links invites emoji mentions bad words swear censorship"},
     {"panel": "raid_protection", "icon": "shield-alert", "title": "Raid Protection",
      "description": "Detect join raids, block alt accounts, account-age gates and panic mode lockdown.",
-     "keywords": "raid protection raids alts alt detection panic lockdown wave attack security"},
+     "keywords": "raid protection raids alts alt detection panic lockdown wave attack security",
+     "blocks": ["Score Threshold", "Join Burst Detection", "Account Age Filter",
+                "Default Avatar Recognition", "Moderation Channel", "Auto Recovery"]},
     {"panel": "bot_profile", "icon": "user-cog", "title": "Bot Profile",
      "description": "Per-server bot nickname, avatar, banner and bio - how Prowl looks in this server.",
-     "keywords": "bot profile nickname avatar banner bio appearance name photo identity"},
+     "keywords": "bot profile nickname avatar banner bio appearance name photo identity",
+     "blocks": ["Preview"]},
     {"panel": "settings", "icon": "settings", "title": "Settings",
      "description": "General bot configuration for this server.",
-     "keywords": "settings configuration options general preferences config"},
+     "keywords": "settings configuration options general preferences config",
+     "blocks": ["Server Overview", "Bot Invite", "Danger Zone", "API Keys"]},
 ]
 
 _search_state = {"vecs": None, "failed_at": 0.0}
@@ -2785,6 +2803,21 @@ def _keyword_score(q, item):
     hits = sum(1 for t in qt if t in dt)
     prefix = any(any(w.startswith(t) for w in dt) for t in qt)
     return min(0.7, (hits / len(qt)) * 0.55 + (0.15 if prefix else 0.0))
+
+
+def _block_match(q, item):
+    """Return the page block (section) this query points at, if any."""
+    ql = q.lower().strip()
+    if len(ql) < 4:
+        return None
+    best = None
+    for b in item.get("blocks", ()):
+        bl = b.lower()
+        if ql == bl:
+            return b
+        if (ql in bl or bl in ql) and (best is None or len(bl) < len(best.lower())):
+            best = b
+    return best
 
 
 def _cosine(a, b):
@@ -2848,15 +2881,21 @@ async def dashboard_search(request: Request, q: str = "", guild_id: str = ""):
         kw = _keyword_score(q, item)
         sem = _cosine(q_vec, cat_vecs[i]) if (cat_vecs and q_vec) else 0.0
         score = max(kw, sem * 0.95)
+        block = _block_match(q, item)
+        if block:
+            score = max(score, 0.9)  # explicit section hit always ranks top
         if score < SEARCH_RESULT_MIN:
             continue
         href = f"/guild/{gid}/{item['panel']}" if gid else "/servers"
+        if block and gid:
+            href += "#hl=" + urllib.parse.quote(block)
         results.append({
             "panel": item["panel"],
             "icon": item["icon"],
             "title": item["title"],
             "description": item["description"],
             "href": href,
+            "block": block,
             "_score": round(score, 4),
         })
     results.sort(key=lambda r: r["_score"], reverse=True)

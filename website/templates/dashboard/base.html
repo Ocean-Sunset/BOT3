@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="preload" href="https://unpkg.com/lucide@latest" as="script" />
-  <link rel="stylesheet" href="/static/dashboard.css?v=15" />
+  <link rel="stylesheet" href="/static/dashboard.css?v=16" />
   <script>
     // API subdomain routing: production calls go to api.prowlbot.xyz with cookies,
     // localhost keeps same-origin relative paths.
@@ -452,9 +452,10 @@
       function close() { panel.classList.remove('is-open'); panel.style.height = '0px'; active = -1; }
 
       // in-flow panel: animate its height so the nav below slides smoothly
+      // (+6 = the container's padding-top gap, kept in sync with the CSS)
       function showPanel() {
         panel.classList.add('is-open');
-        panel.style.height = Math.min(list.scrollHeight, 320) + 'px';
+        panel.style.height = Math.min(list.scrollHeight, 320) + 6 + 'px';
       }
 
       function render() {

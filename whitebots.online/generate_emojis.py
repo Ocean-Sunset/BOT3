@@ -1,5 +1,9 @@
 """
-Prowl emoji generator - Lucide icon font glyphs on semi-transparent rounded-rect backgrounds.
+Prowl emoji generator - Lucide icon font glyphs.
+Two modes:
+  WHITE_MODE=True  -> solid white glyph on a fully transparent background (current)
+  WHITE_MODE=False -> colored glyph on a semi-transparent rounded-rect tile (legacy)
+
 Expanded set: 128 emojis covering moderation, leveling, welcomer, tickets, verification,
 invite tracker, global chat, anti-raid, status, and general UI icons.
 
@@ -9,11 +13,13 @@ Output: whitebots.online/emojis/  (128x128 PNGs named after EMBED_EMOJIS keys)
 import os
 from PIL import Image, ImageDraw, ImageFont
 
+WHITE_MODE = True   # white glyph + fully transparent background
 SIZE      = 128
-BG_RX     = 24
-BG_ALPHA  = 0.43
-FONT_SIZE = 72
-FONT_PATH = os.path.join(os.path.dirname(__file__), "lucide.ttf")
+BG_RX     = 24      # legacy tile only
+BG_ALPHA  = 0.43    # legacy tile only
+FONT_SIZE     = 96 if WHITE_MODE else 72
+FONT_PATH     = os.path.join(os.path.dirname(__file__), "lucide.ttf")
+WHITE_COLOR   = "#FFFFFF"
 
 # (lucide_char, color_hex)
 # All icons are unique Lucide codepoints - no two keys share a glyph.
@@ -178,14 +184,17 @@ def hex_to_rgb(h):
 
 
 def generate(char, color_hex):
-    rgb = hex_to_rgb(color_hex)
-    bg = rgb + (int(255 * BG_ALPHA),)
-    fg = rgb + (255,)
-
     img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    draw.rounded_rectangle([0, 0, SIZE - 1, SIZE - 1], radius=BG_RX, fill=bg)
+    if WHITE_MODE:
+        rgb = hex_to_rgb(WHITE_COLOR)
+        fg = rgb + (255,)
+    else:
+        rgb = hex_to_rgb(color_hex)
+        bg = rgb + (int(255 * BG_ALPHA),)
+        fg = rgb + (255,)
+        draw.rounded_rectangle([0, 0, SIZE - 1, SIZE - 1], radius=BG_RX, fill=bg)
 
     font = ImageFont.truetype(FONT_PATH, FONT_SIZE)
     bbox = font.getbbox(char)

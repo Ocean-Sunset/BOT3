@@ -7,7 +7,7 @@ from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
-from Ediscord.builders import embed_from_dict, emoji_title
+from Ediscord.builders import embed_from_dict, emoji_title, EMBED_EMOJIS
 
 
 TICKET_DEFAULTS = {
@@ -36,7 +36,7 @@ class TicketView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="Close Ticket", style=discord.ButtonStyle.danger, emoji="🔒", custom_id="ticket:close")
+    @discord.ui.button(label="Close Ticket", style=discord.ButtonStyle.danger, emoji=EMBED_EMOJIS["ticket_close"], custom_id="ticket:close")
     async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not interaction.channel or not interaction.channel.name.startswith("ticket-"):
             return await interaction.response.send_message(
@@ -105,7 +105,7 @@ class CreateTicketView(discord.ui.View):
         super().__init__(timeout=None)
         self.cog = cog
 
-    @discord.ui.button(label="Create Ticket", style=discord.ButtonStyle.primary, emoji="🎫", custom_id="ticket:create")
+    @discord.ui.button(label="Create Ticket", style=discord.ButtonStyle.primary, emoji=EMBED_EMOJIS["ticket_open"], custom_id="ticket:create")
     async def create(self, interaction: discord.Interaction, button: discord.ui.Button):
         settings = await get_ticket_settings(interaction.guild_id)
         if not settings.get("enabled"):

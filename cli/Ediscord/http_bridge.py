@@ -16,6 +16,7 @@ Set BOT_HTTP_TOKEN in cli/.env and the website env. Port defaults to 24612
 """
 
 import os
+import re
 import time
 import hmac
 import logging
@@ -125,6 +126,24 @@ async def handle_action_stats(request):
 
 MAX_IMAGE_DATA_CHARS = 14_000_000  # base64 data URI length cap (~10MB binary)
 
+# Appended under the bio server-side whenever a description is saved.
+BIO_SUFFIX = "powered by prowl"
+_BIO_SUFFIX_RE = re.compile(r"\s*" + re.escape(BIO_SUFFIX) + r"\s*$")
+
+
+def _apply_bio_suffix(bio: str) -> str:
+    """Append the branded footer under the user's bio, within Discord's 350 cap."""
+    bio = (bio or "").rstrip()
+    if not bio:
+        return ""
+    room = 350 - len(BIO_SUFFIX) - 2
+    return bio[:room].rstrip() + "\n\n" + BIO_SUFFIX
+
+
+def _strip_bio_suffix(bio):
+    """Inverse of _apply_bio_suffix so the editor never sees (or re-appends) it."""
+    return _BIO_SUFFIX_RE.sub("", bio).strip() if bio else None
+
 
 def _profile_payload(me) -> dict:
     """Current per-guild profile of the bot in a guild."""
@@ -136,7 +155,7 @@ def _profile_payload(me) -> dict:
         "global_avatar_url": str(user.display_avatar.replace(size=256)) if user else None,
         "avatar_url": str(me.guild_avatar) if me.guild_avatar else None,
         "banner_url": str(me.guild_banner) if me.guild_banner else None,
-        "bio": getattr(me, "bio", None),
+        "bio": _strip_bio_suffix(getattr(me, "bio", None)),
     }
 
 
@@ -177,7 +196,7 @@ async def handle_profile_post(request):
         bio = str(body.get("bio") or "").strip()
         if len(bio) > 350:
             return web.json_response({"ok": False, "error": "Bio must be 350 characters or fewer."}, status=400)
-        payload["bio"] = bio or None
+        payload["bio"] = _apply_bio_suffix(bio) or None
     for key in ("avatar", "banner"):
         if body.get(f"reset_{key}"):
             payload[key] = None

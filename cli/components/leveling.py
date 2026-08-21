@@ -9,7 +9,7 @@ from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
-from Ediscord.builders import embed_from_dict, emoji_title
+from Ediscord.builders import embed_from_dict, emoji_title, EMBED_EMOJIS
 
 
 LEVELING_DEFAULTS = {
@@ -20,7 +20,7 @@ LEVELING_DEFAULTS = {
     "random_xp": True,
     "level_roles": {},
     "role_xp_multipliers": {},
-    "level_up_message": "🎉 {user} reached **level {level}**!",
+    "level_up_message": f"{EMBED_EMOJIS['level_up']} {{user}} reached **level {{level}}**!",
     "level_up_message_mode": "basic", "level_up_embed": {},
     "xp_per_message_min": 15,
     "xp_per_message_max": 25,
@@ -184,7 +184,7 @@ class Leveling(commands.Cog, name="Leveling"):
             channel = message.guild.get_channel(int(channel_id)) if channel_id else message.channel
             if channel:
                 try:
-                    level_up_msg = settings.get("level_up_message", "🎉 {user} reached **level {level}**!")
+                    level_up_msg = settings.get("level_up_message") or f"{EMBED_EMOJIS['level_up']} {{user}} reached **level {{level}}**!"
                     xp_needed = xp_for_level(new_level + 1) - new_xp
                     mode = settings.get("level_up_message_mode", "basic")
                     if mode == "custom" and settings.get("level_up_embed"):

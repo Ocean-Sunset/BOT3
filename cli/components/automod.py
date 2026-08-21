@@ -7,7 +7,7 @@ import unicodedata
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
-from Ediscord.builders import embed_from_dict
+from Ediscord.builders import embed_from_dict, emoji_title
 from components.moderation import log_mod_action, render_embed_data, render_template
 
 
@@ -114,7 +114,7 @@ class AutoMod(commands.Cog, name="AutoMod"):
             return
         embed = (
             EmbedBuilder()
-            .title(f"🛡️ AutoMod: {filter_name}")
+            .title(emoji_title("shield", f"AutoMod: {filter_name}"))
             .color("orange")
             .field("User", f"{message.author.mention} (`{message.author.id}`)")
             .field("Channel", message.channel.mention)

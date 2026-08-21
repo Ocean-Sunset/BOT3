@@ -205,7 +205,7 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
         lines = [f"`{r['code']}` - {r['uses']} uses" for r in rows[:10]]
         embed = (
             EmbedBuilder()
-            .title(f"📊 {user.display_name}'s Invites")
+            .title(emoji_title("invite_stats", f"{user.display_name}'s Invites"))
             .description("\n".join(lines))
             .color("blue")
             .field("Total Invites", str(total))

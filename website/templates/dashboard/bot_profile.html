@@ -3,15 +3,26 @@
 <link rel="stylesheet" href="/static/moderation.css?v=16" />
 <style>
   .bp-card { border:1px solid rgba(255,255,255,0.08); border-radius:4px; background:rgba(255,255,255,0.015); padding:1rem; }
-  .bp-preview { position:relative; margin-bottom:1.25rem; }
-  .bp-banner { width:100%; aspect-ratio:4/1; border-radius:6px; overflow:hidden; background:linear-gradient(120deg,#5865f2,#eb459e); display:flex; align-items:center; justify-content:center; border:1px solid rgba(255,255,255,0.08); }
+  /* ── Preview: sized like Discord's real profile popout (300px wide,
+     600x210 banner, 80px avatar overlapping the banner edge) ── */
+  .bp-preview { margin-bottom:1.25rem; }
+  .bp-popout { width:100%; max-width:340px; border-radius:10px; overflow:hidden; background:#141517; border:1px solid rgba(255,255,255,0.08); box-shadow:0 8px 24px rgba(0,0,0,0.45); }
+  .bp-banner { position:relative; width:100%; aspect-ratio:600/210; overflow:hidden; background:linear-gradient(120deg,#5865f2,#eb459e); display:flex; align-items:center; justify-content:center; }
   .bp-banner img { width:100%; height:100%; object-fit:cover; display:block; }
   .bp-banner-empty { color:rgba(255,255,255,0.55); font-size:0.78rem; font-weight:700; letter-spacing:0.04em; }
-  .bp-avatar-wrap { position:absolute; left:1.25rem; bottom:-2.25rem; width:96px; height:96px; border-radius:50%; overflow:hidden; border:5px solid var(--bg-1,#0b0d12); background:#1a1d24; box-shadow:0 4px 16px rgba(0,0,0,0.45); }
+  .bp-body { padding:0 16px 14px; }
+  .bp-avatar-wrap { width:84px; height:84px; margin-top:-46px; border-radius:50%; overflow:hidden; border:6px solid #141517; background:#1a1d24; box-shadow:0 2px 8px rgba(0,0,0,0.4); position:relative; }
   .bp-avatar-wrap img { width:100%; height:100%; object-fit:cover; display:block; }
-  .bp-idrow { padding-left:8.25rem; min-height:3rem; display:flex; align-items:flex-end; gap:0.6rem; flex-wrap:wrap; }
-  .bp-name { font-size:1.05rem; font-weight:800; color:#fff; line-height:1.2; }
-  .bp-nicktag { font-size:0.68rem; font-weight:700; color:#c7cdff; background:rgba(88,101,242,0.14); border:1px solid rgba(88,101,242,0.35); border-radius:99px; padding:0.15rem 0.55rem; }
+  .bp-nameblock { display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; margin-top:0.55rem; }
+  .bp-name { font-size:1.25rem; font-weight:800; color:#fff; line-height:1.2; }
+  .bp-bottag { font-size:0.6rem; font-weight:800; letter-spacing:0.02em; color:#fff; background:#5865f2; border-radius:4px; padding:0.13rem 0.35rem; }
+  .bp-nicktag { font-size:0.66rem; font-weight:700; color:#c7cdff; background:rgba(88,101,242,0.14); border:1px solid rgba(88,101,242,0.35); border-radius:99px; padding:0.12rem 0.5rem; }
+  .bp-subname { font-size:0.7rem; color:rgba(255,255,255,0.35); font-weight:600; margin-top:0.15rem; min-height:1em; }
+  .bp-about { margin-top:0.85rem; border-top:1px solid rgba(255,255,255,0.07); padding-top:0.7rem; }
+  .bp-about-label { font-size:0.65rem; font-weight:800; letter-spacing:0.06em; color:rgba(255,255,255,0.4); margin-bottom:0.35rem; }
+  .bp-bio { font-size:0.8rem; line-height:1.5; color:rgba(255,255,255,0.72); white-space:pre-wrap; word-break:break-word; }
+  .bp-bio-empty { color:rgba(255,255,255,0.28); font-style:italic; }
+  .bp-powered { font-size:0.68rem; font-weight:600; color:rgba(255,255,255,0.32); margin-top:0.55rem; }
   .bp-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:1rem; margin-top:1rem; }
   .bp-tile { border:1px solid rgba(255,255,255,0.08); border-radius:6px; background:rgba(255,255,255,0.02); padding:0.85rem; display:flex; flex-direction:column; gap:0.65rem; }
   .bp-tile-head { display:flex; align-items:center; justify-content:space-between; }
@@ -48,14 +59,22 @@
       <div class="md-section-title" style="margin-bottom:0.15rem;">Preview</div>
       <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.5;">This is how members see Prowl in this server. Changes apply instantly here only &mdash; other servers keep their own look.</p>
       <div class="bp-preview" style="margin-top:0.9rem;">
-        <div class="bp-banner" id="bp-banner-view"><span class="bp-banner-empty">No banner set</span></div>
-        <div class="bp-avatar-wrap" id="bp-avatar-view"></div>
-        <div class="bp-idrow">
-          <div>
-            <div class="bp-name" id="bp-name">&hellip;</div>
-            <div style="font-size:0.7rem;color:rgba(255,255,255,0.35);font-weight:600;" id="bp-subname"></div>
+        <div class="bp-popout">
+          <div class="bp-banner" id="bp-banner-view"><span class="bp-banner-empty">No banner set</span></div>
+          <div class="bp-body">
+            <div class="bp-avatar-wrap" id="bp-avatar-view"></div>
+            <div class="bp-nameblock">
+              <span class="bp-name" id="bp-name">&hellip;</span>
+              <span class="bp-bottag">BOT</span>
+              <span class="bp-nicktag" id="bp-nicktag" style="display:none;"></span>
+            </div>
+            <div class="bp-subname" id="bp-subname"></div>
+            <div class="bp-about">
+              <div class="bp-about-label">ABOUT ME</div>
+              <div class="bp-bio bp-bio-empty" id="bp-bio-view">No bio set</div>
+              <div class="bp-powered" id="bp-powered" style="display:none;">powered by prowl</div>
+            </div>
           </div>
-          <span class="bp-nicktag" id="bp-nicktag" style="display:none;"></span>
         </div>
       </div>
     </div>
@@ -122,6 +141,7 @@ const esc = s => { const d=document.createElement('div'); d.textContent=s==null?
 const bust = u => u ? u + (u.includes('?') ? '&' : '?') + 't=' + Date.now() : u;
 
 let CURRENT = null;
+let BASE = { nick: '', bio: '' };
 let stagedAvatar = null;
 let stagedBanner = null;
 let resetAvatar = false;
@@ -142,11 +162,10 @@ function hideBar() {
 }
 
 function isDirty() {
-  if (!CURRENT) return false;
   if (stagedAvatar || stagedBanner || resetAvatar || resetBanner) return true;
   const nick = document.getElementById('bp-nick').value.trim();
   const bio = document.getElementById('bp-bio').value.trim();
-  return nick !== (CURRENT.nick || '') || bio !== (CURRENT.bio || '');
+  return nick !== BASE.nick || bio !== BASE.bio;
 }
 
 function render() {
@@ -182,6 +201,13 @@ function render() {
     tag.textContent = 'server nickname';
   }
 
+  // Bio mirrors the editor live; the server renders "powered by prowl" under it.
+  const bioText = document.getElementById('bp-bio').value.trim();
+  const bioView = document.getElementById('bp-bio-view');
+  bioView.textContent = bioText || 'No bio set';
+  bioView.classList.toggle('bp-bio-empty', !bioText);
+  document.getElementById('bp-powered').style.display = bioText ? '' : 'none';
+
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -190,7 +216,7 @@ function updateCounts() {
   document.getElementById('bp-bio-count').textContent = document.getElementById('bp-bio').value.length;
 }
 
-function changed() { updateCounts(); if (isDirty()) showBar(); else hideBar(); }
+function changed() { updateCounts(); render(); if (isDirty()) showBar(); else hideBar(); }
 
 function readImage(file) {
   return new Promise((resolve, reject) => {
@@ -235,21 +261,20 @@ async function loadProfile() {
     if (!res.ok) throw new Error(data.error || 'Failed to load');
     CURRENT = data;
     warn.style.display = 'none';
-    document.getElementById('bp-nick').value = CURRENT.nick || '';
-    document.getElementById('bp-bio').value = CURRENT.bio || '';
+    BASE = { nick: CURRENT.nick || '', bio: CURRENT.bio || '' };
   } catch (e) {
+    // Keep the page editable even when the bot bridge is unreachable -
+    // saving can still work later, and the save bar must react to edits.
     warn.textContent = e.message || 'Bot server unreachable - cannot load the current profile.';
     warn.style.display = '';
   }
+  document.getElementById('bp-nick').value = BASE.nick;
+  document.getElementById('bp-bio').value = BASE.bio;
   updateCounts();
   render();
 }
 
 async function saveChanges() {
-  if (!CURRENT) {
-    if (typeof showToast === 'function') showToast('Profile not loaded yet.', 'error', 5000);
-    return;
-  }
   const body = {
     nick: document.getElementById('bp-nick').value.trim(),
     bio: document.getElementById('bp-bio').value.trim(),
@@ -266,6 +291,7 @@ async function saveChanges() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Save failed');
     CURRENT = data;
+    BASE = { nick: CURRENT.nick || '', bio: CURRENT.bio || '' };
     stagedAvatar = null; stagedBanner = null; resetAvatar = false; resetBanner = false;
     document.getElementById('bp-nick').value = CURRENT.nick || '';
     document.getElementById('bp-bio').value = CURRENT.bio || '';
@@ -297,8 +323,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   saveBtn.addEventListener('click', saveChanges);
   document.getElementById('discard-btn').addEventListener('click', () => {
     stagedAvatar = null; stagedBanner = null; resetAvatar = false; resetBanner = false;
-    document.getElementById('bp-nick').value = (CURRENT && CURRENT.nick) || '';
-    document.getElementById('bp-bio').value = (CURRENT && CURRENT.bio) || '';
+    document.getElementById('bp-nick').value = BASE.nick;
+    document.getElementById('bp-bio').value = BASE.bio;
     hideBar(); updateCounts(); render();
   });
 

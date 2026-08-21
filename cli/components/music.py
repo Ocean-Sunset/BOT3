@@ -340,7 +340,7 @@ class Music(commands.Cog, name="Music"):
             .color("brand")
             .field("Total Tracks", str(len(q)))
             .field("Total Duration", total_str)
-            .field("Loop", "✅" if q.loop else "❌")
+            .field("Loop", emoji_title("check", "On") if q.loop else emoji_title("cross", "Off"))
             .timestamp(datetime.datetime.utcnow())
             .build()
         )

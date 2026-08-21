@@ -37,7 +37,7 @@ OAUTH_SCOPES = "identify guilds"
 MANAGE_SERVER = 0x20
 
 # ── Nerimity OAuth (nerimity.com) ──
-# Authorize: GET https://nerimity.com/oauth2/authorize?clientId=..&redirectUri=..&scopes=..
+# Authorize: GET https://nerimity.com/authorize?clientId=..&redirectUri=..&scopes=..
 # Token:    POST https://nerimity.com/api/oauth2/token?grantType=..&clientId=..&clientSecret=..
 NERIMITY_API = "https://nerimity.com/api"
 NERIMITY_CLIENT_ID = os.environ.get("NERIMITY_CLIENT_ID", "")
@@ -791,7 +791,7 @@ async def login_nerimity(request: Request):
         "scopes": NERIMITY_SCOPES,
     })
     return RedirectResponse(
-        f"https://nerimity.com/oauth2/authorize?{params}",
+        f"https://nerimity.com/authorize?{params}",
         status_code=302,
         headers={"Cache-Control": "no-store"},
     )

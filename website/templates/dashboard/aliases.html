@@ -14,27 +14,27 @@
   .al-remove { margin-left:auto; background:none; border:none; color:rgba(255,255,255,0.35); cursor:pointer; padding:0.35rem; border-radius:4px; display:flex; }
   .al-remove:hover { color:#f87171; background:rgba(248,113,113,0.08); }
   .al-add { display:flex; align-items:center; gap:0.75rem; margin-top:0.9rem; padding-top:0.9rem; border-top:1px dashed rgba(255,255,255,0.1); flex-wrap:wrap; }
-  .al-add input { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#fff; font-size:0.82rem; font-weight:600; padding:0.5rem 0.7rem; width:150px; outline:none; }
-  .al-add input:focus { border-color:rgba(88,101,242,0.5); }
-  .al-add-btn { display:flex; align-items:center; gap:0.35rem; background:rgba(88,101,242,0.15); border:1px solid rgba(88,101,242,0.4); color:#c7cdff; font-size:0.78rem; font-weight:700; padding:0.5rem 0.9rem; border-radius:4px; cursor:pointer; transition:background 0.15s; }
+  .al-add input { background:#1a1a1a; border:1px solid rgba(255,255,255,0.08); border-radius:4px; color:#e9edf5; font-family:'Lexend',system-ui,sans-serif; font-size:0.82rem; font-weight:600; padding:0.5rem 0.7rem; width:150px; outline:none; transition:border-color 0.15s; }
+  .al-add input:focus { border-color:rgba(255,255,255,0.2); }
+  .al-add-btn { display:flex; align-items:center; gap:0.35rem; background:rgba(88,101,242,0.15); border:1px solid rgba(88,101,242,0.4); color:#c7cdff; font-family:'Lexend',system-ui,sans-serif; font-size:0.82rem; font-weight:600; padding:0.5rem 0.9rem; border-radius:4px; cursor:pointer; outline:none; transition:background 0.15s; }
   .al-add-btn:hover { background:rgba(88,101,242,0.28); }
   .al-empty { text-align:center; padding:1.5rem; color:rgba(255,255,255,0.25); font-size:0.8rem; }
 </style>
 <div>
 
-  <div style="margin-bottom:1rem;animation-delay:.05s;">
-    <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Command Aliases</h1>
-    <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Create shorter or alternative names for Prowl's slash commands</p>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;animation-delay:.05s;">
+    <div>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Command Aliases</h1>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Create shorter or alternative names for Prowl's slash commands</p>
+    </div>
+    <label class="md-toggle md-toggle-xl"><input type="checkbox" id="al-enabled" /><span class="md-toggle-slider"></span></label>
   </div>
 
   <div class="md-section">
     <div class="al-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:0.5rem;">
-        <div>
-          <div class="md-section-title" style="margin-bottom:0.15rem;">Aliases</div>
-          <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.5;">Aliases appear as extra slash commands in this server only (e.g. /b runs /ban). Changes sync to Discord within a minute.</p>
-        </div>
-        <label class="md-toggle"><input type="checkbox" id="al-enabled" /><span class="md-toggle-slider"></span></label>
+      <div style="margin-bottom:0.5rem;">
+        <div class="md-section-title" style="margin-bottom:0.15rem;">Aliases</div>
+        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.5;">Aliases appear as extra slash commands in this server only (e.g. /b runs /ban). Changes sync to Discord within a minute. Try saving once to avoid having to wait multiple times.</p>
       </div>
 
       <div id="alias-list"><div class="al-empty">Loading...</div></div>

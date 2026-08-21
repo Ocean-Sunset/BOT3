@@ -265,6 +265,8 @@ CREATE TABLE IF NOT EXISTS users (
     github_id   TEXT DEFAULT '',
     github_username TEXT DEFAULT '',
     github_email TEXT DEFAULT '',
+    nerimity_id TEXT DEFAULT '',
+    nerimity_username TEXT DEFAULT '',
     created_at  REAL NOT NULL,
     last_login  REAL NOT NULL
 );
@@ -272,6 +274,8 @@ CREATE TABLE IF NOT EXISTS users (
 ALTER TABLE users ADD COLUMN IF NOT EXISTS github_id TEXT DEFAULT '';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS github_username TEXT DEFAULT '';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS github_email TEXT DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS nerimity_id TEXT DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS nerimity_username TEXT DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS alias_settings (
     guild_id    TEXT PRIMARY KEY,

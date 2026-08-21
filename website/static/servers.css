@@ -204,6 +204,33 @@ body {
   white-space: nowrap;
 }
 
+/* Platform badge (shown next to the server name when both Discord and
+   Nerimity are linked to the same Prowl account) */
+.guild-platform {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  color: rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+.guild-platform svg { width: 11px; height: 11px; }
+.guild-platform img { width: 12px; height: 12px; border-radius: 2px; object-fit: contain; }
+
+/* Nerimity servers - not manageable yet */
+.guild-btn.is-disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.guild-btn.is-disabled:hover {
+  background: rgba(255,255,255,0.025);
+  border-color: rgba(255,255,255,0.06);
+}
+
 .guild-arrow {
   width: 16px;
   height: 16px;

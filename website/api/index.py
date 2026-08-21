@@ -36,6 +36,15 @@ REDIRECT_URI = os.environ.get("REDIRECT_URI", "http://localhost:8000/callback")
 OAUTH_SCOPES = "identify guilds"
 MANAGE_SERVER = 0x20
 
+# ── Nerimity OAuth (nerimity.com) ──
+# Authorize: GET https://nerimity.com/oauth2/authorize?clientId=..&redirectUri=..&scopes=..
+# Token:    POST https://nerimity.com/api/oauth2/token?grantType=..&clientId=..&clientSecret=..
+NERIMITY_API = "https://nerimity.com/api"
+NERIMITY_CLIENT_ID = os.environ.get("NERIMITY_CLIENT_ID", "")
+NERIMITY_CLIENT_SECRET = os.environ.get("NERIMITY_CLIENT_SECRET", "")
+NERIMITY_REDIRECT_URI = os.environ.get("NERIMITY_REDIRECT_URI", "")
+NERIMITY_SCOPES = "USER_INFO USER_SERVERS"
+
 ROOT = Path(__file__).parent.parent
 
 _missing = []
@@ -574,6 +583,93 @@ async def get_user_guilds_filtered(request: Request):
 
 
 # ---------------------------------------------------------------------------
+#  Nerimity helpers
+# ---------------------------------------------------------------------------
+
+def _nerimity_redirect_uri(request: Request) -> str:
+    """Callback URL for the current request. Uses NERIMITY_REDIRECT_URI when
+    set, otherwise derives it from the request host (mirrors GitHub)."""
+    if NERIMITY_REDIRECT_URI:
+        return NERIMITY_REDIRECT_URI
+    host = request.headers.get("host", "")
+    proto = request.headers.get("x-forwarded-proto", "")
+    if not proto:
+        proto = "https" if "prowlbot.xyz" in host else "http"
+    return f"{proto}://{host}/callback/nerimity"
+
+
+async def nerimity_get(path: str, token: str):
+    """GET a Nerimity OAuth endpoint. Returns parsed JSON or None."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{NERIMITY_API}{path}", headers={"Authorization": token})
+            if r.status_code == 200:
+                return r.json()
+    except Exception as e:
+        logger.error("Nerimity GET %s failed: %s", path, e)
+    return None
+
+
+async def _nerimity_token_request(request: Request, params: dict):
+    """Exchange a code / refresh a token with Nerimity. Stores the new access +
+    refresh tokens in the session. Returns the access token or None."""
+    if not NERIMITY_CLIENT_ID or not NERIMITY_CLIENT_SECRET:
+        return None
+    query = {"clientId": NERIMITY_CLIENT_ID, "clientSecret": NERIMITY_CLIENT_SECRET, **params}
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(f"{NERIMITY_API}/oauth2/token", params=query)
+            if r.status_code != 200:
+                logger.error("Nerimity token exchange failed: %s %s", r.status_code, r.text[:200])
+                return None
+            data = r.json()
+    except Exception as e:
+        logger.error("Nerimity token request error: %s", e)
+        return None
+    access = data.get("accessToken")
+    if not access:
+        return None
+    scope_session = request.scope.get("session")
+    if scope_session is not None:
+        scope_session["nerimity_token"] = access
+        if data.get("refreshToken"):
+            scope_session["nerimity_refresh"] = data["refreshToken"]
+    return access
+
+
+async def get_nerimity_servers(request: Request):
+    """List the linked Nerimity account's servers via the OAuth API.
+    Refreshes the access token once on failure. Returns [] when not linked."""
+    token = request.session.get("nerimity_token")
+    if not token:
+        return []
+    data = await nerimity_get("/oauth2/users/current/servers", token)
+    if not isinstance(data, list):
+        refresh = request.session.get("nerimity_refresh")
+        if not refresh:
+            return []
+        token = await _nerimity_token_request(
+            request, {"grantType": "refresh_token", "refreshToken": refresh}
+        )
+        if not token:
+            return []
+        data = await nerimity_get("/oauth2/users/current/servers", token)
+    if not isinstance(data, list):
+        return []
+    return [
+        {
+            "id": str(s.get("id", "")),
+            "name": s.get("name", ""),
+            "icon": "",
+            "platform": "nerimity",
+            "disabled": True,  # Prowl can't manage Nerimity servers yet
+        }
+        for s in data
+        if isinstance(s, dict) and s.get("id")
+    ]
+
+
+# ---------------------------------------------------------------------------
 #  Routes - Pages
 # ---------------------------------------------------------------------------
 
@@ -677,10 +773,11 @@ def _github_redirect_uri(request: Request) -> str:
 
 
 @app.get("/login/nerimity")
-async def login_nerimity():
-    """Nerimity OAuth sign-in - placeholder until the Nerimity backend is built."""
-    nerimity_id = os.environ.get("NERIMITY_CLIENT_ID", "")
-    if not nerimity_id:
+async def login_nerimity(request: Request):
+    """Start Nerimity OAuth. When already signed in to Prowl this links the
+    Nerimity account to the current Prowl account (handled in the callback);
+    otherwise it can sign in to an account that already has it linked."""
+    if not NERIMITY_CLIENT_ID:
         return HTMLResponse(
             "<html><body style='background:#0a0a0a;color:#e9edf5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;'>"
             "<div style='text-align:center;'><h2>Nerimity sign-in is coming soon</h2>"
@@ -688,13 +785,72 @@ async def login_nerimity():
             "<p><a href='/' style='color:#a78bfa;'>← Back to Prowl</a></p></div></body></html>",
             status_code=200,
         )
-    redirect_uri = os.environ.get("NERIMITY_REDIRECT_URI", "http://localhost:8000/callback/nerimity")
     params = urllib.parse.urlencode({
-        "client_id": nerimity_id,
-        "redirect_uri": redirect_uri,
-        "response_type": "code",
+        "clientId": NERIMITY_CLIENT_ID,
+        "redirectUri": _nerimity_redirect_uri(request),
+        "scopes": NERIMITY_SCOPES,
     })
-    return RedirectResponse(f"https://nerimity.com/oauth2/authorize?{params}")
+    return RedirectResponse(
+        f"https://nerimity.com/oauth2/authorize?{params}",
+        status_code=302,
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/callback/nerimity")
+async def callback_nerimity(request: Request, code: str = None):
+    """Complete Nerimity OAuth. A logged-in dashboard user gets their Nerimity
+    account linked to their Prowl account. Otherwise the Nerimity account is
+    used to sign in, which only works if it's already connected (has a
+    matching nerimity_id in the users table)."""
+    if not code:
+        return RedirectResponse("/login")
+    if not NERIMITY_CLIENT_ID or not NERIMITY_CLIENT_SECRET:
+        return RedirectResponse("/login")
+
+    access = await _nerimity_token_request(
+        request,
+        {
+            "grantType": "authorization_code",
+            "redirectUri": _nerimity_redirect_uri(request),
+            "code": code,
+        },
+    )
+    if not access:
+        return RedirectResponse("/login")
+
+    profile = await nerimity_get("/oauth2/users/current", access)
+    nuser = profile.get("user") if isinstance(profile, dict) else None
+    if not isinstance(nuser, dict) or not nuser.get("id"):
+        return RedirectResponse("/login")
+
+    nid = str(nuser["id"])
+    nname = nuser.get("username", "") or ""
+    user = get_user(request)
+    if user and user.get("id"):
+        try:
+            await execute(
+                "UPDATE users SET nerimity_id = ?, nerimity_username = ? WHERE id = ?",
+                nid, nname, str(user.get("id")),
+            )
+        except Exception as e:
+            logger.error("Nerimity account link failed: %s", e)
+        return RedirectResponse("/servers")
+
+    # Sign-in via Nerimity: only works if the account already has this
+    # connection linked.
+    row = await fetchrow(
+        "SELECT id, username, global_name, avatar, email FROM users WHERE nerimity_id = ?",
+        nid,
+    )
+    if row:
+        request.session["user"] = dict(row)
+        try:
+            await execute("UPDATE users SET last_login = ? WHERE id = ?", time.time(), str(row["id"]))
+        except Exception as e:
+            logger.error("Nerimity login last_login update failed: %s", e)
+        return RedirectResponse("/servers")
+    return RedirectResponse("/login")
 
 
 @app.get("/login/github")
@@ -870,9 +1026,13 @@ async def servers_page(request: Request):
         return RedirectResponse("/login")
 
     request.session.pop("guild_cache", None)
-    guilds = await get_user_guilds_filtered(request)
+    discord_guilds = await get_user_guilds_filtered(request)
+    nerimity_guilds = await get_nerimity_servers(request)
+    # Platform badges only appear when both accounts are linked to Prowl
+    show_platform = bool(nerimity_guilds)
+    guilds = [dict(g, platform="discord") for g in discord_guilds] + nerimity_guilds
     return templates.TemplateResponse(request, "servers.html", {
-        "user": user, "guilds": guilds, "config": _cfg(),
+        "user": user, "guilds": guilds, "show_platform": show_platform, "config": _cfg(),
     })
 
 
@@ -1004,11 +1164,12 @@ async def _upsert_user(user: dict):
 @app.get("/api/v1/account")
 async def account_info(request: Request):
     user = await require_auth(request)
-    row = await fetchrow("SELECT id, username, global_name, created_at, last_login, github_id, github_username, github_email FROM users WHERE id = ?", str(user.get("id")))
+    FIELDS = "id, username, global_name, created_at, last_login, github_id, github_username, github_email, nerimity_id, nerimity_username"
+    row = await fetchrow(f"SELECT {FIELDS} FROM users WHERE id = ?", str(user.get("id")))
     if not row:
         # Account not recorded yet (e.g. logged in before this feature) - record it now
         await _upsert_user(user)
-        row = await fetchrow("SELECT id, username, global_name, created_at, last_login, github_id, github_username, github_email FROM users WHERE id = ?", str(user.get("id")))
+        row = await fetchrow(f"SELECT {FIELDS} FROM users WHERE id = ?", str(user.get("id")))
     return {"account": dict(row) if row else None}
 
 
@@ -1019,6 +1180,18 @@ async def account_github_unlink(request: Request):
         await execute("UPDATE users SET github_id = '', github_username = '', github_email = '' WHERE id = ?", str(user.get("id")))
     except Exception as e:
         logger.error("github unlink failed: %s", e)
+    return {"ok": True}
+
+
+@app.post("/api/v1/account/nerimity/unlink")
+async def account_nerimity_unlink(request: Request):
+    user = await require_auth(request)
+    try:
+        await execute("UPDATE users SET nerimity_id = '', nerimity_username = '' WHERE id = ?", str(user.get("id")))
+    except Exception as e:
+        logger.error("nerimity unlink failed: %s", e)
+    request.session.pop("nerimity_token", None)
+    request.session.pop("nerimity_refresh", None)
     return {"ok": True}
 
 

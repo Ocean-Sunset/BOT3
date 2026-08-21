@@ -1,5 +1,6 @@
 """Run once to create the database schema."""
 import os
+import re
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -298,8 +299,21 @@ def main():
     # Execute each statement individually (libsql doesn't support multi-statement)
     for stmt in SCHEMA.strip().split(";"):
         stmt = stmt.strip()
-        if stmt:
-            conn.execute(stmt)
+        if not stmt:
+            continue
+        # Turso's parser rejects ALTER TABLE ... ADD COLUMN IF NOT EXISTS;
+        # retry as a plain ADD COLUMN and tolerate "duplicate column" errors.
+        if stmt.upper().startswith("ALTER TABLE") and " IF NOT EXISTS " in stmt.upper():
+            plain = re.sub(r"\s+IF NOT EXISTS\s+", " ", stmt, flags=re.IGNORECASE)
+            try:
+                conn.execute(plain)
+                continue
+            except Exception as e:
+                msg = str(e).lower()
+                if "duplicate column" not in msg and "already exists" not in msg:
+                    print(f"warn: {stmt.splitlines()[0][:60]}... -> {e}")
+                continue
+        conn.execute(stmt)
     conn.commit()
     print("Schema created successfully.")
     conn.close()

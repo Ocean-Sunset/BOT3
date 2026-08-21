@@ -9,9 +9,20 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="icon" href="/static/favicon.png" />
-  <link rel="stylesheet" href="/static/status.css?v=6" />
+  <link rel="stylesheet" href="/static/status.css?v=7" />
 </head>
 <body>
+
+  <!-- Full-viewport loading overlay (same as dashboard) - hides layout/data
+       fill-in until the first status fetch resolves. -->
+  <div id="page-loader" aria-hidden="true">
+    <div class="page-loader-inner">
+      <div class="page-loader-ring-wrap">
+        <svg class="page-loader-ring" viewBox="0 0 68 68"><circle cx="34" cy="34" r="30"/></svg>
+        <img src="/static/favicon.png" alt="Prowl" />
+      </div>
+    </div>
+  </div>
 
   <div class="wave-field" id="wave-field"></div>
   <div class="vignette"></div>
@@ -78,9 +89,9 @@
     </div>
     <div class="footer-col">
       <h4>Product</h4>
-      <a href="#features">Features</a>
-      <a href="/login">Dashboard</a>
-      <a href="/changelog">Changelog</a>
+      <a href="https://prowlbot.xyz#features">Features</a>
+      <a href="https://prowlbot.xyz/login">Dashboard</a>
+      <a href="https://prowlbot.xyz/changelog">Changelog</a>
     </div>
     <div class="footer-col">
       <h4>Resources</h4>
@@ -94,8 +105,8 @@
     </div>
     <div class="footer-col">
       <h4>Legal</h4>
-      <a href="/privacy">Privacy Policy</a>
-      <a href="/terms">Terms of Service</a>
+      <a href="https://prowlbot.xyz/privacy">Privacy Policy</a>
+      <a href="https://prowlbot.xyz/terms">Terms of Service</a>
     </div>
   </div>
 
@@ -331,8 +342,20 @@
         const label = document.getElementById('overall-label');
         label.textContent = 'Status unavailable';
         document.getElementById('overall-pill').className = 'status-pill down';
+      } finally {
+        finishLoader();
       }
     }
+
+    // ── Loading overlay dismissal ──
+    const pageLoader = document.getElementById('page-loader');
+    let loaderDone = false;
+    function finishLoader() {
+      if (loaderDone) return;
+      loaderDone = true;
+      pageLoader.classList.add('is-done');
+    }
+    setTimeout(finishLoader, 8000); // safety net - never trap the user behind the loader
 
     loadStatus();
     setInterval(loadStatus, 15000);

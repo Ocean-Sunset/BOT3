@@ -1,54 +1,34 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
 <div class="music-blank">
-  <div class="music-blank-bg" style="background-image:url('https://img.magnific.com/free-photo/closeup-cute-kitten-resting-sofa_181624-37234.jpg?semt=ais_hybrid&w=740&q=80');"></div>
-  <div class="music-blank-inner">
-    <div class="music-blank-spinner"></div>
-    <div class="music-blank-text">working on it..</div>
-  </div>
+  <div class="music-blank-text">working on it..</div>
 </div>
 <style>
   .music-blank {
-    position: relative;
-    min-height: 62vh;
-    border-radius: 10px;
-    overflow: hidden;
+    min-height: calc(100vh - 6rem);
     display: flex;
     align-items: center;
     justify-content: center;
-  }
-  .music-blank-bg {
-    position: absolute;
-    inset: 0;
+    border-radius: 10px;
+    background-image: url('https://img.magnific.com/free-photo/closeup-cute-kitten-resting-sofa_181624-37234.jpg?semt=ais_hybrid&w=740&q=80');
     background-size: cover;
     background-position: center;
-    opacity: 0.7;
-  }
-  .music-blank-inner {
     position: relative;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-    padding: 2.25rem 3rem;
-    background: rgba(10,10,12,0.35);
-    border-radius: 14px;
-    backdrop-filter: blur(2px);
+  }
+  .music-blank::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(10,10,12,0.4);
+    border-radius: 10px;
   }
   .music-blank-text {
+    position: relative;
+    z-index: 1;
     font-size: 1.5rem;
     font-weight: 800;
     letter-spacing: -0.02em;
     color: #fff;
   }
-  .music-blank-spinner {
-    width: 40px; height: 40px;
-    border: 3px solid rgba(255,255,255,0.25);
-    border-top-color: #8B5CF6;
-    border-radius: 50%;
-    animation: music-spin 0.9s linear infinite;
-  }
-  @keyframes music-spin { to { transform: rotate(360deg); } }
 </style>
 {% endblock %}

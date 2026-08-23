@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="preload" href="https://unpkg.com/lucide@latest" as="script" />
-  <link rel="stylesheet" href="/static/dashboard.css?v=16" />
+  <link rel="stylesheet" href="/static/dashboard.css?v=17" />
   <script>
     // API subdomain routing: production calls go to api.prowlbot.xyz with cookies,
     // localhost keeps same-origin relative paths.
@@ -199,6 +199,25 @@
       </main>
     </div>
   </div>
+
+  <nav class="mobile-tab-bar">
+    <a href="/guild/{{ guild_id }}/overview" class="tab-item{% if active_panel == 'overview' %} is-active{% endif %}">
+      <i data-lucide="layout-dashboard"></i>
+      <span>Home</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/moderation" class="tab-item{% if active_panel == 'moderation' %} is-active{% endif %}">
+      <i data-lucide="shield"></i>
+      <span>Moderation</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/members" class="tab-item{% if active_panel == 'members' %} is-active{% endif %}">
+      <i data-lucide="users"></i>
+      <span>Users</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/settings" class="tab-item{% if active_panel == 'settings' %} is-active{% endif %}">
+      <i data-lucide="settings"></i>
+      <span>Settings</span>
+    </a>
+  </nav>
 
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>lucide.createIcons();</script>

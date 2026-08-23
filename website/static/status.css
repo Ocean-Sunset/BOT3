@@ -306,7 +306,7 @@ body {
   user-select: none;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 600px) {
   .status-grid { grid-template-columns: 1fr; }
   #services-panel        { grid-column: 1; grid-row: 1; }
   #graph-panel           { grid-column: 1; grid-row: 2; }

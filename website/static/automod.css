@@ -114,6 +114,6 @@
   width: 100%;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 600px) {
   .am-filters { grid-template-columns: 1fr; }
 }

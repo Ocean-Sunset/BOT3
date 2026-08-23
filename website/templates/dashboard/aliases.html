@@ -1,6 +1,6 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
-<link rel="stylesheet" href="/static/moderation.css?v=16" />
+<link rel="stylesheet" href="/static/moderation.css?v=17" />
 <style>
   .al-card { border:1px solid rgba(255,255,255,0.08); border-radius:4px; background:rgba(255,255,255,0.015); padding:1rem; }
   .al-row { display:flex; align-items:center; gap:0.75rem; padding:0.55rem 0.25rem; border-bottom:1px solid rgba(255,255,255,0.05); }
@@ -19,6 +19,10 @@
   .al-add-btn { display:flex; align-items:center; gap:0.35rem; background:rgba(88,101,242,0.15); border:1px solid rgba(88,101,242,0.4); color:#c7cdff; font-family:'Lexend',system-ui,sans-serif; font-size:0.82rem; font-weight:600; padding:0.5rem 0.9rem; border-radius:4px; cursor:pointer; outline:none; transition:background 0.15s; }
   .al-add-btn:hover { background:rgba(88,101,242,0.28); }
   .al-empty { text-align:center; padding:1.5rem; color:rgba(255,255,255,0.25); font-size:0.8rem; }
+  @media (max-width:600px){
+    .al-row{flex-wrap:wrap}
+    .al-select{max-width:none;flex-basis:100%}
+  }
 </style>
 <div>
 

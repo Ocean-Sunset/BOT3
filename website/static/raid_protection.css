@@ -17,6 +17,6 @@
   color: rgba(255,255,255,0.6);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 600px) {
   .rp-grid { grid-template-columns: 1fr; }
 }

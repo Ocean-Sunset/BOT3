@@ -1,6 +1,6 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
-<link rel="stylesheet" href="/static/moderation.css?v=16" />
+<link rel="stylesheet" href="/static/moderation.css?v=17" />
 <div style="padding:2rem 0;">
 
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem;">
@@ -122,7 +122,7 @@
   <div class="md-section" style="margin-top:1.5rem;">
     <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
       <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Ticket Panel Embed</div>
-      <div style="display:grid;grid-template-columns:1fr 320px;gap:1rem;">
+      <div class="tk-embed-grid" style="display:grid;grid-template-columns:1fr 320px;gap:1rem;">
         <div style="display:flex;flex-direction:column;gap:0.6rem;">
 
           <div>
@@ -226,6 +226,11 @@
   </div>
   </div>
 </div>
+<style>
+@media (max-width:600px){
+  .tk-embed-grid{grid-template-columns:1fr!important}
+}
+</style>
 {% endblock %}
 {% block scripts %}
 <script>

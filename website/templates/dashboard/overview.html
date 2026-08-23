@@ -42,7 +42,7 @@
     </div>
   </div>
 
-  <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;">
+  <div class="overview-split" style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;">
     <div  style="animation-delay:.12s">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.3);margin-bottom:0.75rem;">Recent Activity</h2>
@@ -81,7 +81,7 @@
     </div>
   </div>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
+  <div class="overview-charts" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
     <div>
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.3);margin-bottom:0.75rem;">Member Count (hourly)</h2>
@@ -98,6 +98,13 @@
     </div>
   </div>
 </div>
+<style>
+@media (max-width:600px){
+  .quick-grid{grid-template-columns:repeat(2,1fr)!important}
+  .overview-split{grid-template-columns:1fr!important}
+  .overview-charts{grid-template-columns:1fr!important}
+}
+</style>
 {% endblock %}
 {% block scripts %}
 <script>

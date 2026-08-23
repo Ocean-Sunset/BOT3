@@ -101,4 +101,7 @@
   border-radius: 3px;
   padding: 0.1rem 0.3rem;
 }
+@media (max-width:600px){
+  .ar-form-row > div{min-width:0;flex:1 1 100%}
+}
 

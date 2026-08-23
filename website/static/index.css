@@ -508,7 +508,7 @@ section {
 #wbanner-close:hover { color: rgba(251, 191, 36, 0.9); }
 
 @media (max-width: 600px) {
-  nav { width: 92%; padding: 0.8rem 1.2rem; }
+  nav { padding: 0.8rem 1.2rem; }
   .nav-links a:not(.btn-nav-primary):not(.btn-nav-secondary) { display: none; }
   .hero { padding: 7rem 1.5rem 3rem; }
   .hero-title { min-width: 0 !important; font-size: clamp(1.8rem, 8vw, 3rem) !important; }

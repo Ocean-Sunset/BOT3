@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="preload" href="https://unpkg.com/lucide@latest" as="script" />
-  <link rel="stylesheet" href="/static/dashboard.css?v=18" />
+  <link rel="stylesheet" href="/static/dashboard.css?v=19" />
   <script>
     // API subdomain routing: production calls go to api.prowlbot.xyz with cookies,
     // localhost keeps same-origin relative paths.
@@ -205,6 +205,10 @@
       <i data-lucide="layout-dashboard"></i>
       <span>Home</span>
     </a>
+    <a href="/guild/{{ guild_id }}/ai" class="tab-item{% if active_panel == 'ai' %} is-active{% endif %}">
+      <i data-lucide="sparkles"></i>
+      <span>AI</span>
+    </a>
     <a href="/guild/{{ guild_id }}/moderation" class="tab-item{% if active_panel == 'moderation' %} is-active{% endif %}">
       <i data-lucide="shield"></i>
       <span>Moderation</span>
@@ -212,6 +216,62 @@
     <a href="/guild/{{ guild_id }}/members" class="tab-item{% if active_panel == 'members' %} is-active{% endif %}">
       <i data-lucide="users"></i>
       <span>Users</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/welcomer" class="tab-item{% if active_panel == 'welcomer' %} is-active{% endif %}">
+      <i data-lucide="door-open"></i>
+      <span>Welcomer</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/verification" class="tab-item{% if active_panel == 'verification' %} is-active{% endif %}">
+      <i data-lucide="shield-check"></i>
+      <span>Verify</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/leveling" class="tab-item{% if active_panel == 'leveling' %} is-active{% endif %}">
+      <i data-lucide="trending-up"></i>
+      <span>Leveling</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/automation" class="tab-item{% if active_panel == 'automation' %} is-active{% endif %}">
+      <i data-lucide="workflow"></i>
+      <span>Auto</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/autoresponder" class="tab-item{% if active_panel == 'autoresponder' %} is-active{% endif %}">
+      <i data-lucide="reply"></i>
+      <span>AutoRes</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/global_chat" class="tab-item{% if active_panel == 'global_chat' %} is-active{% endif %}">
+      <i data-lucide="globe"></i>
+      <span>Global</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/aliases" class="tab-item{% if active_panel == 'aliases' %} is-active{% endif %}">
+      <i data-lucide="replace"></i>
+      <span>Aliases</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/social_alerts" class="tab-item{% if active_panel == 'social_alerts' %} is-active{% endif %}">
+      <i data-lucide="bell"></i>
+      <span>Social</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/tickets" class="tab-item{% if active_panel == 'tickets' %} is-active{% endif %}">
+      <i data-lucide="ticket"></i>
+      <span>Tickets</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/music" class="tab-item{% if active_panel == 'music' %} is-active{% endif %}">
+      <i data-lucide="music"></i>
+      <span>Music</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/logs" class="tab-item{% if active_panel == 'logs' %} is-active{% endif %}">
+      <i data-lucide="scroll-text"></i>
+      <span>Logs</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/automod" class="tab-item{% if active_panel == 'automod' %} is-active{% endif %}">
+      <i data-lucide="bot"></i>
+      <span>AutoMod</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/raid_protection" class="tab-item{% if active_panel == 'raid_protection' %} is-active{% endif %}">
+      <i data-lucide="shield-alert"></i>
+      <span>Raid</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/bot_profile" class="tab-item{% if active_panel == 'bot_profile' %} is-active{% endif %}">
+      <i data-lucide="user-cog"></i>
+      <span>Bot</span>
     </a>
     <a href="/guild/{{ guild_id }}/settings" class="tab-item{% if active_panel == 'settings' %} is-active{% endif %}">
       <i data-lucide="settings"></i>
@@ -426,6 +486,20 @@
       if (document.readyState === 'complete') { hide(); }
       else { window.addEventListener('load', hide); }
       setTimeout(hide, 5000);
+    })();
+  </script>
+
+  <script>
+    // ── Auto-scroll mobile tab bar to active tab ──
+    (function() {
+      const tabBar = document.querySelector('.mobile-tab-bar');
+      if (!tabBar) return;
+      const active = tabBar.querySelector('.tab-item.is-active');
+      if (active) {
+        const barRect = tabBar.getBoundingClientRect();
+        const tabRect = active.getBoundingClientRect();
+        tabBar.scrollLeft += tabRect.left - barRect.left - (barRect.width / 2) + (tabRect.width / 2);
+      }
     })();
   </script>
 

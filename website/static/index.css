@@ -1,6 +1,10 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { scroll-behavior: auto; }
 
+/* Lenis smooth-scroll wrapper: remove will-change:transform so
+   position:fixed elements (nav) stay relative to the viewport */
+html.lenis.lenis-smooth { will-change: auto; }
+
 body {
   background: #0a0a0a;
   color: #fff;

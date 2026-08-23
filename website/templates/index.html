@@ -15,7 +15,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
-  <link rel="stylesheet" href="/static/index.css?v=10" />
+  <link rel="stylesheet" href="/static/index.css?v=11" />
 </head>
 <body>
 
@@ -230,6 +230,16 @@
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
     });
+
+    // Fix: Lenis wraps body content in a div with will-change:transform,
+    // which breaks position:fixed on the nav. Move nav outside the wrapper.
+    const lenisWrapper = lenis.wrapper || lenis.content || document.querySelector('.lenis');
+    if (lenisWrapper) {
+      const nav = document.getElementById('nav');
+      if (nav && nav.parentElement !== document.body) {
+        document.body.insertBefore(nav, document.body.firstChild);
+      }
+    }
 
     function raf(time) {
       lenis.raf(time);

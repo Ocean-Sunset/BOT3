@@ -19,12 +19,18 @@ import os
 import re
 import time
 import hmac
+import asyncio
 import logging
 
 import discord
 from aiohttp import web
 
+from semantic_search import semantic_search_service
+
 logger = logging.getLogger(__name__)
+
+# Semantic search defensive limits (shared with the service's MAX_QUERY_CHARS).
+SEMANTIC_MAX_QUERY_CHARS = 500
 
 _bot = None
 
@@ -223,6 +229,39 @@ async def handle_profile_post(request):
     return web.json_response(_profile_payload(me))
 
 
+async def handle_semantic_search(request):
+    """POST /semantic-search - rank dashboard pages for a natural-language query.
+
+    Auth reuse: same BOT_HTTP_TOKEN (X-Prowl-Token) as the rest of the bridge.
+    Defensive validation only - never leak internal traces to the client.
+    """
+    if not await _check_auth(request):
+        return web.json_response({"ok": False, "error": "unauthorized"}, status=401)
+    if not semantic_search_service.enabled:
+        return web.json_response(
+            {"ok": False, "error": "semantic search disabled", "results": []}, status=503
+        )
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "error": "invalid json"}, status=400)
+
+    query = (body.get("query") or "").strip()
+    if not query:
+        return web.json_response({"ok": False, "error": "missing query"}, status=400)
+    if len(query) > SEMANTIC_MAX_QUERY_CHARS:
+        return web.json_response({"ok": False, "error": "query too long"}, status=413)
+
+    try:
+        results = await semantic_search_service.search(query)
+    except Exception as e:
+        logger.error("Semantic search request failed: %s", e)
+        return web.json_response(
+            {"ok": False, "error": "search failed", "results": []}, status=500
+        )
+    return web.json_response({"ok": True, "results": results})
+
+
 async def start_http_server():
     """Start the aiohttp bridge. No-op (with a warning) if BOT_HTTP_TOKEN unset."""
     token = _get_token()
@@ -235,9 +274,13 @@ async def start_http_server():
     app.router.add_get("/api/stats/actions", handle_action_stats)
     app.router.add_get("/api/profile", handle_profile_get)
     app.router.add_post("/api/profile", handle_profile_post)
+    app.router.add_post("/semantic-search", handle_semantic_search)
     port = int(os.environ.get("BOT_HTTP_PORT", "24612"))
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, host="0.0.0.0", port=port)
     await site.start()
     logger.info(f"HTTP bridge listening on 0.0.0.0:{port}.")
+    # Eagerly load the model in the background (never blocks the bot loop).
+    if semantic_search_service.enabled:
+        asyncio.ensure_future(semantic_search_service.ensure_loaded())

@@ -10,7 +10,7 @@ from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
-from Ediscord.builders import emoji_title, EMBED_EMOJIS
+from Ediscord.builders import emoji_title, EMBED_EMOJIS, BUTTON_EMOJIS
 
 
 SITE_URL = os.environ.get("SITE_URL") or "https://prowlbot.xyz"
@@ -81,7 +81,7 @@ class VerifyButtonView(discord.ui.View):
         super().__init__(timeout=None)
         self.role_id = role_id
 
-    @discord.ui.button(label="Verify", style=discord.ButtonStyle.success, emoji=EMBED_EMOJIS["check"], custom_id="verify:click")
+    @discord.ui.button(label="Verify", style=discord.ButtonStyle.success, emoji=BUTTON_EMOJIS["check"], custom_id="verify:click")
     async def verify(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Resolve the role fresh so persistent views keep working after restarts
         settings = await get_verify_settings(interaction.guild_id)
@@ -111,7 +111,7 @@ class CaptchaButtonView(discord.ui.View):
         super().__init__(timeout=None)
         self.role_id = role_id
 
-    @discord.ui.button(label="Verify", style=discord.ButtonStyle.success, emoji=EMBED_EMOJIS["lock"], custom_id="verify:captcha")
+    @discord.ui.button(label="Verify", style=discord.ButtonStyle.success, emoji=BUTTON_EMOJIS["lock"], custom_id="verify:captcha")
     async def verify(self, interaction: discord.Interaction, button: discord.ui.Button):
         settings = await get_verify_settings(interaction.guild_id)
         role_id = int(settings.get("verified_role_id") or self.role_id or 0)
@@ -126,7 +126,7 @@ class ExternalCaptchaButtonView(discord.ui.View):
         self.role_id = role_id
         self.provider = provider
         label = "Google reCAPTCHA" if provider == "recaptcha" else "Cloudflare Turnstile"
-        verify = discord.ui.Button(label=f"Verify with {label}", style=discord.ButtonStyle.success, emoji=EMBED_EMOJIS["shield"], custom_id=f"verify:{provider}")
+        verify = discord.ui.Button(label=f"Verify with {label}", style=discord.ButtonStyle.success, emoji=BUTTON_EMOJIS["shield"], custom_id=f"verify:{provider}")
         async def cb(i: discord.Interaction):
             settings = await get_verify_settings(i.guild_id)
             if not settings.get("enabled") or settings.get("type") != self.provider:

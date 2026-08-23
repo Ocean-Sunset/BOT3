@@ -9,7 +9,7 @@ from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
-from Ediscord.builders import embed_from_dict, emoji_title, basic_action_embed, EMBED_EMOJIS
+from Ediscord.builders import embed_from_dict, emoji_title, basic_action_embed, BUTTON_EMOJIS
 from Ediscord.utils import is_owner
 
 
@@ -248,7 +248,7 @@ class ConfirmationView(discord.ui.View):
         super().__init__(timeout=timeout)
         self.value = None
 
-    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.danger, emoji=EMBED_EMOJIS["check"])
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.danger, emoji=BUTTON_EMOJIS["check"])
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.value = True
         for child in self.children:
@@ -256,7 +256,7 @@ class ConfirmationView(discord.ui.View):
         await interaction.response.edit_message(view=self)
         self.stop()
 
-    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary, emoji=EMBED_EMOJIS["cross"])
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary, emoji=BUTTON_EMOJIS["cross"])
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.value = False
         for child in self.children:

@@ -40,15 +40,167 @@ WARN    = 0xF59E0B   # amber  - cautions / warnings
 INFO    = 0x3B82F6   # blue   - informational
 
 # ==================================================================================================
-#                                        EMBED TYPE EMOJIS
+#                                     EMBED / CONTENT EMOJIS
 # ==================================================================================================
 
-# Every embed "type" maps to an emoji prefixing its title (emoji + two spaces), plus the
-# button emojis used across cogs. Values are LIVE custom emojis hosted on the Prowl emoji
-# guild (Absolute Testing Server) - the bot must remain a member of it or these break.
-# Tier-0 guilds cap at 50 static emojis, so this dict intentionally holds exactly 50 keys.
-# Regenerate PNGs: python whitebots.online\generate_emojis.py   Re-upload: upload_emojis.py
+# EMBED_EMOJIS = the ORIGINAL developer-portal emoji set.
+# Used EVERYWHERE except buttons: embed title prefixes (emoji_title), action messages,
+# DM text, reactions, etc. These are the canonical Prowl emojis - do not replace them
+# with the lucide set below.
 EMBED_EMOJIS = {
+    # ── Moderation ──
+    "ban":        "<:ban:1538638670423392316>",
+    "tempban":    "<:tempban:1538638690224578621>",
+    "kick":       "<:kick:1538638679810252882>",
+    "mute":       "<:mute:1538638685317374032>",
+    "unmute":     "<:unmute:1538638696994050129>",
+    "warn":       "<:warn:1538638702950223892>",
+    "unban":      "<:unban:1538638695505076234>",
+    "purge":      "<:purge:1538638686428602408>",
+    "modlog":     "<:modlog:1538638684298158260>",
+    "dm":         "<:dm:1538638671740149871>",
+    "timeout":    "<:timeout:1538660560152043682>",
+    "softban":    "<:softban:1538660541357232179>",
+    "case":       "<:case:1538660436101169313>",
+    "evidence":   "<:evidence:1538660463318007830>",
+    # ── Leveling ──
+    "level_up":   "<:level_up:1538638682427367454>",
+    "rank":       "<:rank:1538638687611654225>",
+    "leaderboard":"<:leaderboard:1538638681102090340>",
+    "xp":         "<:xp:1538660575897329694>",
+    "streak":     "<:streak:1538660546398916649>",
+    "milestone":  "<:milestone:1538660508448591978>",
+    "reward":     "<:reward:1538660528229056562>",
+    # ── Welcomer ──
+    "welcome":    "<:welcome:1538638704069972059>",
+    "goodbye":    "<:goodbye:1538638674156064931>",
+    "auto_role":  "<:auto_role:1538638669198528623>",
+    "boost":      "<:boost:1538660428790370396>",
+    # ── Tickets ──
+    "ticket":       "<:ticket:1538638691399106661>",
+    "ticket_open":  "<:ticket_open:1538638694439985254>",
+    "ticket_close": "<:ticket_close:1538638692795682856>",
+    "ticket_claim": "<:ticket_claim:1538660555588636837>",
+    "ticket_reopen":"<:ticket_reopen:1538660558566334596>",
+    # ── Verification ──
+    "verify":         "<:verify:1538638698860511414>",
+    "verify_fail":    "<:verify_fail:1538638700978896906>",
+    "verify_pending": "<:verify_pending:1538660568267886642>",
+    # ── Invite Tracker ──
+    "invite_join":    "<:invite_join:1538638675389456564>",
+    "invite_stats":   "<:invite_stats:1538638678190985246>",
+    "invite_create":  "<:invite_create:1538660485652684910>",
+    "invite_revoke":  "<:invite_revoke:1538660487422546001>",
+    # ── Global Chat ──
+    "global_chat":    "<:global_chat:1538638672876937256>",
+    "global_msg":     "<:global_msg:1538660477838565406>",
+    "global_linked":  "<:global_linked:1538660476593119372>",
+    # ── Anti-Raid / Security ──
+    "anti_raid":     "<:anti_raid:1538638667692646430>",
+    "raid_detected": "<:raid_detected:1538660525020414072>",
+    "raid_blocked":  "<:raid_blocked:1538660523669987489>",
+    # ── Status / Feedback ──
+    "success":  "<:success:1538660547791429694>",
+    "error":    "<:error:1538660462068113438>",
+    "info":     "<:info:1538660484352311357>",
+    "warning":  "<:warning:1538660572386697236>",
+    "pending":  "<:pending:1538660516908765184>",
+    # ── UI / General ──
+    "settings":  "<:settings:1538638688806903938>",
+    "dashboard": "<:dashboard:1538660455365484544>",
+    "analytics": "<:analytics:1538660411786924065>",
+    "database":  "<:database:1538660457286602802>",
+    "server":    "<:server:1538660536344911893>",
+    "member":    "<:member:1538660501309890570>",
+    "members":   "<:members:1538660504426512525>",
+    "channel":   "<:channel:1538660437187371018>",
+    "role":      "<:role:1538660530628202637>",
+    "bot":       "<:bot:1538660430090739782>",
+    "link":      "<:link:1538660494481690624>",
+    "copy":      "<:copy:1538660449824931901>",
+    "save":      "<:save:1538660531781505144>",
+    "search":    "<:search:1538660534071853196>",
+    "refresh":   "<:refresh:1538660527096598609>",
+    "download":  "<:download:1538660460738642011>",
+    "upload":    "<:upload:1538660565042331758>",
+    "lock":      "<:lock:1538660495878258688>",
+    "unlock":    "<:unlock:1538660562223898714>",
+    "key":       "<:key:1538660489310249080>",
+    "star":      "<:star:1538660544356294747>",
+    "pin":       "<:pin:1538660519479742545>",
+    "clock":     "<:clock:1538660440245272596>",
+    "calendar":  "<:calendar:1538660433786052618>",
+    "bell":      "<:bell:1538660422251450468>",
+    "bell_off":  "<:bell_off:1538660423992344606>",
+    "eye":       "<:eye:1538660464723107870>",
+    "eye_off":   "<:eye_off:1538660465809432696>",
+    "check":     "<:check:1538660438626017370>",
+    "cross":     "<:cross:1538660452530393199>",
+    "heart":     "<:heart:1538660480711921856>",
+    "bolt":      "<:bolt:1538660426353614991>",
+    "fire":      "<:fire:1538660467931881623>",
+    "code":      "<:code:1538660442870653123>",
+    "terminal":  "<:terminal:1538660552988037311>",
+    "bug":       "<:bug:1538660431609208832>",
+    "rocket":    "<:rocket:1538660529508323328>",
+    "sparkle":   "<:sparkle:1538660542896672890>",
+    "cloud":     "<:cloud:1538660441759289344>",
+    "sun":       "<:sun:1538660549297053786>",
+    "moon":      "<:moon:1538660510478639155>",
+    "leaf":      "<:leaf:1538660492262772867>",
+    "mountain":  "<:mountain:1538660511493783562>",
+    "flag":      "<:flag:1538660469236175001>",
+    "compass":   "<:compass:1538660447459221535>",
+    "map":       "<:map:1538660498265084036>",
+    "globe":     "<:globe:1538660478879014983>",
+    "anchor":    "<:anchor:1538660413208793138>",
+    "tag":       "<:tag:1538660550932693032>",
+    "bookmark":  "<:bookmark:1538660427771154674>",
+    "folder":    "<:folder:1538660471958278246>",
+    "file":      "<:file:1538660466883035237>",
+    "archive":   "<:archive:1538660416555589672>",
+    "package":   "<:package:1538660515553878076>",
+    "cpu":       "<:cpu:1538660451259514991>",
+    "wifi":      "<:wifi:1538660574731313162>",
+    "bluetooth": "<:bluetooth:1538660425195987145>",
+    "power":     "<:power:1538660521652523199>",
+    "music":     "<:music:1538660512789958656>",
+    "image":     "<:image:1538660482221605027>",
+    "video":     "<:video:1538660569417252945>",
+    "camera":    "<:camera:1538660435073695975>",
+    "mic":       "<:mic:1538660507018596523>",
+    "phone":     "<:phone:1538660518162731078>",
+    "mail":      "<:mail:1538660496947806209>",
+    "message":   "<:message:1538660505827151943>",
+    "send":      "<:send:1538660535317561404>",
+    "inbox":     "<:inbox:1538660483291283516>",
+    "shield":    "<:shield:1538660540266709193>",
+    "scan":      "<:scan:1538660532977016842>",
+    "atom":      "<:atom:1538660417679794276>",
+    "dna":       "<:dna:1538660459425701938>",
+    "flask":     "<:flask:1538660470393671840>",
+    "award":     "<:award:1538660419483344957>",
+    "crown":     "<:crown:1538660454052921364>",
+    "gem":       "<:gem:1538660473174753360>",
+    "coffee":    "<:coffee:1538660444217278584>",
+    "cake":      "<:cake:1538660432787537921>",
+    "pizza":     "<:pizza:1538660520482045972>",
+    "cookie":    "<:cookie:1538660448725901363>",
+    "gift":      "<:gift:1538660474407878698>",
+}
+
+
+# ==================================================================================================
+#                                     BUTTON EMOJIS (lucide)
+# ==================================================================================================
+
+# BUTTON_EMOJIS = the white transparent lucide set hosted on the Prowl test/emoji guild
+# (Absolute Testing Server). These are ONLY for buttons (e.g. under embeds) - they have a
+# transparent background that looks clean on Discord's button surfaces. The bot must stay a
+# member of the emoji guild or they break. Tier-0 guilds cap at 50 static emojis, so this
+# dict intentionally holds exactly 50 keys.
+# Regenerate PNGs: python whitebots.online\generate_emojis.py   Re-upload: upload_emojis.py
+BUTTON_EMOJIS = {
     # ── Moderation / security ──
     "ban":              "<:ban:1540324596664901713>",
     "tempban":          "<:tempban:1540324599995047978>",
@@ -115,8 +267,20 @@ EMBED_EMOJIS = {
 
 
 def emoji_for(key: str) -> str:
-    """Return the emoji registered for an embed type ("" if none)."""
+    """Return the emoji registered for an embed type ("" if none).
+
+    Uses the canonical developer-portal set (EMBED_EMOJIS) - for embed titles,
+    messages, reactions, etc.
+    """
     return EMBED_EMOJIS.get(key, "")
+
+
+def button_emoji(key: str) -> str:
+    """Return the lucide/transparent emoji for a button ("" if none).
+
+    Uses the dedicated BUTTON_EMOJIS set - only for buttons, never for embeds.
+    """
+    return BUTTON_EMOJIS.get(key, "")
 
 
 def emoji_title(key: str, text: str) -> str:

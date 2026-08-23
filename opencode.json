@@ -1,0 +1,16 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "memelord": {
+      "type": "local",
+      "command": [
+        "memelord",
+        "serve"
+      ],
+      "environment": {
+        "MEMELORD_DIR": "F:\\coding\\discord\\bot3\\.memelord"
+      },
+      "enabled": true
+    }
+  }
+}

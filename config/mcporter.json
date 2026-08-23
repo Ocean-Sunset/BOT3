@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "memelord": {
+      "command": "memelord",
+      "args": [
+        "serve"
+      ],
+      "env": {
+        "MEMELORD_DIR": "F:\\coding\\discord\\bot3\\.memelord"
+      }
+    }
+  }
+}

@@ -99,6 +99,7 @@ async def lifespan(app: FastAPI):
     try:
         await get_pool()
         await _ensure_incidents()
+        await _ensure_user_columns()
     except Exception as e:
         logger.error("Failed to initialize database pool: %s", e)
     # Warm the sidebar-search embedding cache in the background (no-op if
@@ -587,15 +588,15 @@ async def get_user_guilds_filtered(request: Request):
 # ---------------------------------------------------------------------------
 
 def _nerimity_redirect_uri(request: Request) -> str:
-    """Callback URL for the current request. Uses NERIMITY_REDIRECT_URI when
-    set, otherwise derives it from the request host (mirrors GitHub)."""
+    """Nerimity caps the redirect URI at 20 characters, so we use the bare
+    short relay domain `https://prowl.xo.je` (18 chars). That relay simply 302s
+    the browser to the real callback on prowlbot.xyz, which does the token
+    exchange. Nerimity appends `?code=...&state=...` itself at redirect time -
+    that appended part is NOT counted against the 20-char limit. Override with
+    NERIMITY_REDIRECT_URI if you registered a different <=20-char URI."""
     if NERIMITY_REDIRECT_URI:
         return NERIMITY_REDIRECT_URI
-    host = request.headers.get("host", "")
-    proto = request.headers.get("x-forwarded-proto", "")
-    if not proto:
-        proto = "https" if "prowlbot.xyz" in host else "http"
-    return f"{proto}://{host}/callback/nerimity"
+    return "https://prowl.xo.je"
 
 
 async def nerimity_get(path: str, token: str):
@@ -675,6 +676,16 @@ async def get_nerimity_servers(request: Request):
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
+    # Nerimity redirects back to the bare site root (its 20-char redirect-URI
+    # cap forbids a /callback/nerimity sub-page). Detect that callback via the
+    # `code` query param plus the Nerimity `Referer` header (or a session flag
+    # set when we started the flow, in case the browser strips the Referer),
+    # then finish login.
+    code = request.query_params.get("code")
+    referer = request.headers.get("referer", "")
+    if code and ("nerimity" in referer.lower() or request.session.get("nerimity_oauth_state")):
+        state = request.query_params.get("state")
+        return await _finish_nerimity(request, code, state)
     user = get_user(request)
     return templates.TemplateResponse(request, "index.html", {
         "config": _cfg(),
@@ -776,7 +787,9 @@ def _github_redirect_uri(request: Request) -> str:
 async def login_nerimity(request: Request):
     """Start Nerimity OAuth. When already signed in to Prowl this links the
     Nerimity account to the current Prowl account (handled in the callback);
-    otherwise it can sign in to an account that already has it linked."""
+    otherwise it can sign in to an account that already has it linked.
+    The redirect URI is the bare site root because Nerimity caps it at 20
+    characters (see _nerimity_redirect_uri)."""
     if not NERIMITY_CLIENT_ID:
         return HTMLResponse(
             "<html><body style='background:#0a0a0a;color:#e9edf5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;'>"
@@ -785,10 +798,16 @@ async def login_nerimity(request: Request):
             "<p><a href='/' style='color:#a78bfa;'>← Back to Prowl</a></p></div></body></html>",
             status_code=200,
         )
+    # CSRF protection: bind this authorization attempt to the session and have
+    # Nerimity echo it back on the redirect. If it ever fails to echo, the
+    # callback still proceeds (state is only enforced when both sides send one).
+    state = secrets.token_urlsafe(16)
+    request.session["nerimity_oauth_state"] = state
     params = urllib.parse.urlencode({
         "clientId": NERIMITY_CLIENT_ID,
         "redirectUri": _nerimity_redirect_uri(request),
         "scopes": NERIMITY_SCOPES,
+        "state": state,
     })
     return RedirectResponse(
         f"https://nerimity.com/authorize?{params}",
@@ -797,12 +816,17 @@ async def login_nerimity(request: Request):
     )
 
 
-@app.get("/callback/nerimity")
-async def callback_nerimity(request: Request, code: str = None):
-    """Complete Nerimity OAuth. A logged-in dashboard user gets their Nerimity
-    account linked to their Prowl account. Otherwise the Nerimity account is
-    used to sign in, which only works if it's already connected (has a
-    matching nerimity_id in the users table)."""
+async def _finish_nerimity(request: Request, code: str = None, state: str = None):
+    """Complete Nerimity OAuth. Called from the root route (because Nerimity's
+    20-char redirect-URI cap forbids a /callback/nerimity sub-page) and from the
+    legacy /callback/nerimity route. A logged-in dashboard user gets their
+    Nerimity account linked; otherwise the Nerimity account signs in (only if
+    it's already connected). Verifies the CSRF `state` when both sides send one.
+    """
+    sess_state = request.session.get("nerimity_oauth_state")
+    request.session.pop("nerimity_oauth_state", None)
+    if state and sess_state and state != sess_state:
+        return RedirectResponse("/login")
     if not code:
         return RedirectResponse("/login")
     if not NERIMITY_CLIENT_ID or not NERIMITY_CLIENT_SECRET:
@@ -851,6 +875,14 @@ async def callback_nerimity(request: Request, code: str = None):
             logger.error("Nerimity login last_login update failed: %s", e)
         return RedirectResponse("/servers")
     return RedirectResponse("/login")
+
+
+@app.get("/callback/nerimity")
+async def callback_nerimity(request: Request, code: str = None, state: str = None):
+    """Legacy sub-page callback. Unused now that the redirect URI is the site
+    root (Nerimity's 20-char cap), but kept for backwards compatibility and for
+    when NERIMITY_REDIRECT_URI is explicitly set to this path."""
+    return await _finish_nerimity(request, code, state)
 
 
 @app.get("/login/github")
@@ -1341,6 +1373,22 @@ async def _ensure_incidents():
         await execute(_INCIDENTS_TABLE_SQL)
     except Exception as e:
         logger.error("incidents table failed: %s", e)
+
+
+async def _ensure_user_columns():
+    """Self-heal the users table. The nerimity_id / nerimity_username columns
+    were added to the schema after many prod DBs were created, and
+    setup_schema.py is not run on deploy - so link/unlink silently no-ops until
+    the columns exist. Add them idempotently at startup. Turso rejects
+    ADD COLUMN IF NOT EXISTS, so we use the plain form and tolerate an
+    already-existing column."""
+    for col in ("nerimity_id", "nerimity_username"):
+        try:
+            await execute(f"ALTER TABLE users ADD COLUMN {col} TEXT DEFAULT ''")
+        except Exception as e:
+            msg = str(e).lower()
+            if "duplicate column" not in msg and "already exists" not in msg:
+                logger.error("users.%s ensure failed: %s", col, e)
 
 
 async def _fetch_bot_action_stats():

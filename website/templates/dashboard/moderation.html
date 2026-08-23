@@ -765,7 +765,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const active = this.classList.toggle('is-active');
     document.getElementById('panic-card')?.classList.toggle('is-locked');
     const st = this.parentElement.querySelector('.md-panic-status');
-    if (active) { this.innerHTML = '<i data-lucide="shield"></i> Unlock Server'; st.textContent = '⚠ Server is LOCKED DOWN'; showToast('Server locked down.', 'warning'); }
+    if (active) { this.innerHTML = '<i data-lucide="shield"></i> Unlock Server'; st.innerHTML = '<i data-lucide="alert-triangle"></i> Server is LOCKED DOWN'; showToast('Server locked down.', 'warning'); }
     else { this.innerHTML = '<i data-lucide="shield-off"></i> Lock Down Server'; st.textContent = 'Server is running normally'; showToast('Server unlocked.', 'success'); }
     await api('/emergency', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({locked:active}) });
     lucide.createIcons();

@@ -209,13 +209,9 @@ class Verification(commands.Cog, name="Verification"):
             embed.set_image(url=pe["image_url"])
         if pe.get("thumbnail_url"):
             embed.set_thumbnail(url=pe["thumbnail_url"])
-        fields = pe.get("fields") or []
-        has_role_field = any((f.get("name") or "") == "After verifying" for f in fields)
-        for f in fields:
+        for f in (pe.get("fields") or []):
             if f.get("name"):
                 embed.add_field(name=f["name"], value=f.get("value") or "\u200b", inline=bool(f.get("inline")))
-        if not has_role_field:
-            embed.add_field(name="After verifying", value=f"You'll receive the **{settings.get('verified_role_id') and '<@&' + str(settings.get('verified_role_id')) + '>' or 'Verified'}** role.", inline=False)
         return embed
 
     async def _send_panel(self, guild: discord.Guild, settings) -> bool:

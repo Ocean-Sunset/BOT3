@@ -799,6 +799,32 @@ button, .save-btn, .discard-btn {
 .save-btn:hover { background: rgba(255,255,255,1); }
 .save-btn:disabled { opacity: 0.6; cursor: default; }
 
+/* ── Mobile profile button (top-right, visible on mobile only) ── */
+.mobile-profile-btn {
+  display: none;
+  position: fixed;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 200;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #1a1a1a;
+  border: 1px solid rgba(255,255,255,0.12);
+  text-decoration: none;
+  color: rgba(255,255,255,0.5);
+  font-size: 0.75rem;
+  font-weight: 700;
+  align-items: center;
+  justify-content: center;
+}
+.mobile-profile-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 /* ── Mobile tab bar (hidden on desktop) ── */
 .mobile-tab-bar {
   display: none;
@@ -824,7 +850,7 @@ button, .save-btn, .discard-btn {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 6px 10px;
+  padding: 6px 16px;
   color: rgba(255,255,255,0.4);
   text-decoration: none;
   font-size: 0.6rem;
@@ -848,12 +874,13 @@ button, .save-btn, .discard-btn {
 
   #app-content {
     padding: 1rem !important;
-    padding-bottom: 4.5rem !important;
+    padding-bottom: 5.5rem !important;
     overflow-y: auto;
     overflow-x: hidden;
   }
 
   .mobile-tab-bar { display: flex; }
+  .mobile-profile-btn { display: flex; }
 
   .save-bar { bottom: 56px; }
 

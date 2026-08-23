@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="preload" href="https://unpkg.com/lucide@latest" as="script" />
-  <link rel="stylesheet" href="/static/dashboard.css?v=19" />
+  <link rel="stylesheet" href="/static/dashboard.css?v=21" />
   <script>
     // API subdomain routing: production calls go to api.prowlbot.xyz with cookies,
     // localhost keeps same-origin relative paths.
@@ -194,6 +194,13 @@
     </aside>
 
     <div class="main-content">
+      <a href="/guild/profile" class="mobile-profile-btn">
+        {% if user and user.avatar %}
+          <img src="https://cdn.discordapp.com/avatars/{{ user.id }}/{{ user.avatar }}.png?size=64" alt="" />
+        {% else %}
+          {{ user.username[0] | upper if user else '?' }}
+        {% endif %}
+      </a>
       <main id="app-content">
         {% block content %}{% endblock %}
       </main>

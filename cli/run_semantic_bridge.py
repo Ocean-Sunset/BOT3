@@ -8,7 +8,7 @@ exercise the real model + cache + endpoint end-to-end.
 Usage:
     cd cli
     # in .env.local: SEMANTIC_SEARCH_ENABLED=true  BOT_HTTP_TOKEN=test
-    pip install sentence-transformers      # one-time, downloads BGE + torch
+    pip install requests aiohttp python-dotenv
     python run_semantic_bridge.py
 """
 import os

@@ -2,14 +2,13 @@
 Semantic search service (runs on the HidenCloud bot server).
 
 Design goals (see project brief):
-  * Model is loaded ONCE at startup and stays resident in memory.
   * Page embeddings are precomputed and cached to disk; only the *query* is
     embedded per request.
-  * CPU-bound embedding runs in a ThreadPoolExecutor so it never blocks the
+  * Embedding runs in a ThreadPoolExecutor so it never blocks the
     Discord bot's asyncio event loop.
   * The embedding cache survives restarts, detects metadata changes (hash) and
     regenerates only what changed. Corruption is handled gracefully.
-  * If the model fails to load, the service disables itself but the bot keeps
+  * If the HF API fails, the service disables itself but the bot keeps
     running - search just degrades to "no results".
 
 The public surface is intentionally tiny:
@@ -106,9 +105,9 @@ class SemanticSearchService:
     def _load_embedder(self):
         if self._embedder_override is not None:
             return self._embedder_override
-        from .embedder import SentenceTransformerEmbedder
+        from .embedder import HuggingFaceEmbedder
 
-        return SentenceTransformerEmbedder(self.model_name)
+        return HuggingFaceEmbedder(self.model_name)
 
     def _build_cache(self):
         """Load cached embeddings, regenerate only changed/missing pages."""

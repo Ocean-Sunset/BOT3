@@ -246,6 +246,7 @@ body {
   position: relative;
   padding: 0 0.5rem;
   margin-bottom: 0.75rem;
+  margin-top: 0.75rem;
 }
 .sidebar-search {
   display: flex;
@@ -291,18 +292,24 @@ body {
   line-height: 1.3;
 }
 .sidebar-search-results {
-  /* gap lives here as padding so it can be accounted for in the JS height
-     (child margins aren't included in scrollHeight -> used to clip the
-     bottom border/corners of the list box) */
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
   padding-top: 6px;
   height: 0;
   overflow: hidden;
   visibility: hidden;
-  transition: height 0.22s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.22s;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: height 0.22s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease, transform 0.18s ease, visibility 0s linear 0.22s;
 }
 .sidebar-search-results.is-open {
   visibility: visible;
-  transition: height 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 1;
+  transform: translateY(0);
+  transition: height 0.22s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease, transform 0.18s ease;
 }
 .ssr-list {
   background: #151515;

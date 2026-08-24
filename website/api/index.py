@@ -3179,7 +3179,28 @@ async def dashboard_search(request: Request, q: str = "", guild_id: str = ""):
             "_score": round(score, 4),
         })
     results.sort(key=lambda r: r["_score"], reverse=True)
-    return {"items": results[:6], "mode": mode}
+
+    # Smart filtering: if the top result is significantly better than the rest,
+    # only return it. Otherwise return up to 4 results.
+    MAX_RESULTS = 4
+    SCORE_GAP_THRESHOLD = 0.15  # if top score is this much higher than #2, drop #2+
+
+    if len(results) > 1:
+        top_score = results[0]["_score"]
+        second_score = results[1]["_score"]
+        if (top_score - second_score) >= SCORE_GAP_THRESHOLD:
+            # Top result is much better — only return it
+            filtered = [results[0]]
+        else:
+            filtered = results[:MAX_RESULTS]
+    else:
+        filtered = results[:MAX_RESULTS]
+
+    # Strip internal score before returning
+    for item in filtered:
+        item.pop("_score", None)
+
+    return {"items": filtered, "mode": mode}
 
 
 # ---------------------------------------------------------------------------

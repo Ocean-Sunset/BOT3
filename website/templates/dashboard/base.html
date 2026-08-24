@@ -645,7 +645,7 @@
           else close();
           return;
         }
-        debounce = setTimeout(() => run(q), 220);
+        debounce = setTimeout(() => run(q), 300);
       });
       input.addEventListener('focus', () => {
         if (input.value.trim().length >= 2 && items.length) showPanel();

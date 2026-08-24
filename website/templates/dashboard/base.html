@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="preload" href="https://unpkg.com/lucide@latest" as="script" />
-  <link rel="stylesheet" href="/static/dashboard.css?v=24" />
+  <link rel="stylesheet" href="/static/dashboard.css?v=25" />
   <script>
     // API subdomain routing: production calls go to api.prowlbot.xyz with cookies,
     // localhost keeps same-origin relative paths.
@@ -565,10 +565,11 @@
       const list = document.getElementById('sidebar-search-list');
       const aiBlock = document.getElementById('sidebar-search-ai');
       let items = [], active = -1, debounce = null, controller = null;
+      const cache = new Map(); // q|guild -> items (instant repeat/backspace)
 
       function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
 
-      function close() { aiBlock.hidden = true; panel.classList.remove('is-open'); active = -1; }
+      function close() { aiBlock.hidden = true; panel.classList.remove('is-open'); panel.style.height = '0px'; active = -1; }
 
       function showAI() {
         aiBlock.hidden = false;
@@ -580,6 +581,8 @@
 
       function showPanel() {
         panel.classList.add('is-open');
+        // animate to the exact content height so the box resizes smoothly
+        panel.style.height = Math.min(panel.scrollHeight, 380) + 'px';
       }
 
       function render() {
@@ -617,12 +620,23 @@
       async function run(q) {
         if (controller) controller.abort();
         controller = new AbortController();
+        const key = q + '|' + (window.__GUILD_ID || '');
+        // serve repeats/backspaces instantly from cache — no server round-trip
+        if (cache.has(key)) {
+          items = cache.get(key);
+          active = items.length ? 0 : -1;
+          aiBlock.hidden = true;
+          panel.classList.remove('hidden');
+          render();
+          return;
+        }
         try {
           const res = await fetch('/api/v1/dashboard/search?q=' + encodeURIComponent(q) + '&guild_id=' + window.__GUILD_ID, { signal: controller.signal });
           const data = await res.json();
           if (!res.ok) throw new Error(data.detail || 'failed');
           items = data.items || [];
           active = items.length ? 0 : -1;
+          cache.set(key, items);
           aiBlock.hidden = true;
           panel.classList.remove('hidden');
           render();
@@ -645,7 +659,7 @@
           else close();
           return;
         }
-        debounce = setTimeout(() => run(q), 300);
+        debounce = setTimeout(() => run(q), 150);
       });
       input.addEventListener('focus', () => {
         if (input.value.trim().length >= 2 && items.length) showPanel();

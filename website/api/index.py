@@ -3094,6 +3094,16 @@ async def _catalog_vectors():
         return None
 
 
+# Reused client so repeated semantic calls keep the TCP connection alive
+# (avoids a fresh handshake to the bot server on every keystroke).
+_semantic_client = None
+
+async def _semantic_http():
+    global _semantic_client
+    if _semantic_client is None or _semantic_client.is_closed:
+        _semantic_client = httpx.AsyncClient(timeout=4.0)
+    return _semantic_client
+
 async def _bot_semantic_scores(q: str):
     """Ask the HidenCloud BGE microservice for panel->score rankings.
 
@@ -3103,23 +3113,24 @@ async def _bot_semantic_scores(q: str):
     if not SEMANTIC_API_URL or not SEMANTIC_API_KEY:
         return None
     try:
-        async with httpx.AsyncClient(timeout=8) as client:
-            r = await client.post(
-                SEMANTIC_API_URL + "/semantic-search",
-                json={"query": q},
-                headers={"X-Prowl-Token": SEMANTIC_API_KEY},
-            )
-            if r.status_code != 200:
-                logger.warning("Semantic API returned %s - keyword fallback", r.status_code)
-                return None
-            data = r.json()
-            if not data.get("ok"):
-                return None
-            return {
-                res["route"]: res["score"]
-                for res in data.get("results", [])
-                if res.get("route")
-            }
+        client = await _semantic_http()
+        r = await client.post(
+            SEMANTIC_API_URL + "/semantic-search",
+            json={"query": q},
+            headers={"X-Prowl-Token": SEMANTIC_API_KEY},
+            timeout=4.0,
+        )
+        if r.status_code != 200:
+            logger.warning("Semantic API returned %s - keyword fallback", r.status_code)
+            return None
+        data = r.json()
+        if not data.get("ok"):
+            return None
+        return {
+            res["route"]: res["score"]
+            for res in data.get("results", [])
+            if res.get("route")
+        }
     except Exception as e:
         logger.warning("Semantic API call failed (%s) - keyword fallback", e)
         return None

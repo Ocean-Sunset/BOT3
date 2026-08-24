@@ -298,23 +298,26 @@ body {
   right: 0;
   z-index: 100;
   padding-top: 6px;
+  height: 0;
   max-height: 380px;
   overflow: hidden;
   visibility: hidden;
   opacity: 0;
-  transform: translateY(-8px) scaleY(0.95);
+  transform: translateY(-8px);
   transform-origin: top center;
-  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+  transition: height 0.26s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
               transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-              visibility 0s linear 0.2s;
+              visibility 0s linear 0.26s;
   pointer-events: none;
 }
 .sidebar-search-results.is-open {
   visibility: visible;
   opacity: 1;
-  transform: translateY(0) scaleY(1);
+  transform: translateY(0);
   pointer-events: auto;
-  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+  transition: height 0.26s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
               transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .ssr-list {

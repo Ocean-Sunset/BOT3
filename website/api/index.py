@@ -3190,20 +3190,30 @@ async def dashboard_search(request: Request, q: str = "", guild_id: str = "", ph
     gid = guild_id if guild_id.isdigit() else ""
 
     if phase != "semantic":
-        # Keyword-first pass (local + fast). If it finds anything we return
-        # immediately and skip the slower semantic service entirely.
+        # Keyword-first pass (local + fast).
         kw_map = {}
+        best_kw = 0.0
+        has_block = False
         for item in SEARCH_CATALOG:
             block = _block_match(q, item)
             kw = _keyword_score(q, item)
             score = max(kw, 0.9) if block else kw
+            if block:
+                has_block = True
+            best_kw = max(best_kw, score)
             kw_map[item["panel"]] = (score, block)
         kw_items = _build_search_items(q, gid, kw_map)
-        if kw_items:
+        semantic_available = bool(SEMANTIC_SEARCH_ENABLED and SEMANTIC_API_URL and SEMANTIC_API_KEY)
+        # A *strong* keyword hit (clear title/section match) is returned
+        # instantly. A weak single-token overlap should still defer to the
+        # semantic service so natural-language queries get proper AI ranking.
+        # If no semantic service is configured we keep the weak keyword match.
+        strong = kw_items and (has_block or best_kw >= 0.5)
+        if strong or not semantic_available:
             return {"items": kw_items, "mode": "keyword", "semantic": False}
-        # Nothing matched on keyword — tell the client to request the
-        # semantic phase (which talks to the bot server and is slower).
-        return {"items": [], "mode": "keyword", "semantic": False, "need_semantic": True}
+        # Weak keyword hit but semantic is available: let the client request
+        # the semantic phase. Include the weak items as a fallback.
+        return {"items": kw_items, "mode": "keyword", "semantic": False, "need_semantic": True}
 
     # phase == "semantic": run the (slower) semantic ranking as a fallback.
     sem_map = {}

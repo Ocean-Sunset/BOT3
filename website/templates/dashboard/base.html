@@ -638,23 +638,15 @@
         }
         const url = '/api/v1/dashboard/search?q=' + encodeURIComponent(q) + '&guild_id=' + window.__GUILD_ID;
         try {
-          // Phase 1: keyword search (local, fast — no loading icon needed).
+          // Phase 1: keyword search (local, fast).
           const res = await fetch(url, { signal: controller.signal });
           const data = await res.json();
           if (!res.ok) throw new Error(data.detail || 'failed');
-          if (data.items && data.items.length) {
-            items = data.items;
-            active = 0;
-            cache.set(key, items);
-            loading.hidden = true;
-            aiBlock.hidden = true;
-            panel.classList.remove('hidden');
-            render();
-            return;
-          }
+
           if (!data.need_semantic) {
-            // keyword found nothing and semantic isn't available — stop here
-            items = [];
+            // Strong keyword hit, or no semantic service: show as-is (instant).
+            items = data.items || [];
+            active = items.length ? 0 : -1;
             cache.set(key, items);
             loading.hidden = true;
             aiBlock.hidden = true;
@@ -662,17 +654,20 @@
             render();
             return;
           }
-          // Phase 2: keyword found nothing, so ask the (slower) semantic
-          // service. Keep the panel open and overlay a spinner so the smooth
-          // height animation is untouched (the spinner is absolutely positioned).
+
+          // need_semantic: keyword was a weak overlap, so ask the (slower)
+          // semantic service. Keep the panel open and overlay a spinner so the
+          // smooth height animation is untouched (spinner is absolutely
+          // positioned). Fall back to the weak keyword results if it's empty.
+          const fallback = data.items || [];
           loading.hidden = false;
           const res2 = await fetch(url + '&phase=semantic', { signal: controller.signal });
           const data2 = await res2.json();
+          loading.hidden = true;
           if (!res2.ok) throw new Error(data2.detail || 'failed');
-          items = data2.items || [];
+          items = (data2.items && data2.items.length) ? data2.items : fallback;
           active = items.length ? 0 : -1;
           cache.set(key, items);
-          loading.hidden = true;
           aiBlock.hidden = true;
           panel.classList.remove('hidden');
           render();

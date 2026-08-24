@@ -748,6 +748,79 @@ async def status_page(request: Request):
     return templates.TemplateResponse(request, "status.html", {"config": _cfg()})
 
 
+_FEEDBACK_META = {
+    "suggest": (
+        "Suggest an idea", "Got a feature you wish Prowl had? Tell us — we read every suggestion.",
+        "Your idea", "Describe your idea and why it would be useful…",
+    ),
+    "report": (
+        "Report a bug", "Something not working as expected? Let us know what happened.",
+        "What went wrong", "Describe the bug and the steps to reproduce it…",
+    ),
+    "feedback": (
+        "Give feedback", "We'd love to hear your thoughts on Prowl.",
+        "Your feedback", "Share what you love or what we could improve…",
+    ),
+}
+
+
+@app.get("/suggest", response_class=HTMLResponse)
+@app.get("/report-bug", response_class=HTMLResponse)
+@app.get("/feedback", response_class=HTMLResponse)
+async def feedback_page(request: Request):
+    kind = request.path.split("/")[-1]
+    if kind == "report-bug":
+        kind = "report"
+    title, intro, label, placeholder = _FEEDBACK_META.get(
+        kind, _FEEDBACK_META["feedback"]
+    )
+    return templates.TemplateResponse(request, "feedback.html", {
+        "config": _cfg(),
+        "kind": kind,
+        "title": title,
+        "desc": title + " - Prowl.",
+        "intro": intro,
+        "label": label,
+        "placeholder": placeholder,
+    })
+
+
+@app.post("/api/v1/feedback")
+async def submit_feedback(request: Request):
+    """Accept a suggestion / bug report / feedback submission.
+
+    Forwards to a Discord webhook when FEEDBACK_WEBHOOK_URL is configured,
+    otherwise just logs it. Never raises — always returns JSON.
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "invalid request"}, status_code=400)
+    kind = (data.get("kind") or "").strip().lower()
+    if kind not in ("suggest", "report", "feedback"):
+        return JSONResponse({"ok": False, "error": "invalid kind"}, status_code=400)
+    message = (data.get("message") or "").strip()
+    if len(message) < 3:
+        return JSONResponse({"ok": False, "error": "message too short"}, status_code=400)
+    if len(message) > 4000:
+        message = message[:4000]
+    name = (data.get("name") or "").strip()[:120]
+    email = (data.get("email") or "").strip()[:160]
+
+    wh = os.environ.get("FEEDBACK_WEBHOOK_URL")
+    if wh:
+        try:
+            label = {"suggest": "Idea", "report": "Bug", "feedback": "Feedback"}[kind]
+            content = f"**New {label}**" + (f" from {name}" if name else "") + \
+                      (f" ({email})" if email else "") + f"\n\n{message}"[:2000]
+            async with httpx.AsyncClient(timeout=8) as client:
+                await client.post(wh, json={"content": content})
+        except Exception as e:
+            logger.warning("Feedback webhook failed: %s", e)
+    logger.info("Feedback received (%s) from %s", kind, name or "anonymous")
+    return {"ok": True}
+
+
 @app.get("/captcha/{provider}", response_class=HTMLResponse)
 async def captcha_page(request: Request, provider: str):
     """Hosted captcha solve page: renders the widget and auto-verifies on solve."""

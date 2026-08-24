@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prowl - {{ title }}</title>
+  <meta name="description" content="{{ desc }}" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/static/favicon.png" />
+  <link rel="stylesheet" href="/static/legal.css?v=4" />
+  <link rel="stylesheet" href="/static/index.css?v=10" />
+  <link rel="stylesheet" href="/static/feedback.css?v=1" />
+</head>
+<body>
+  <div class="legal-page">
+    <a href="/" class="legal-brand">
+      <img src="/static/favicon.png" alt="Prowl" />
+      <span>Prowl</span>
+    </a>
+    <h1>{{ title }}</h1>
+    <p class="legal-updated">{{ intro }}</p>
+
+    <form id="feedback-form" class="feedback-form">
+      <div class="feedback-field">
+        <label for="fb-message">{{ label }}</label>
+        <textarea id="fb-message" name="message" rows="6" placeholder="{{ placeholder }}" required></textarea>
+      </div>
+      <div class="feedback-row">
+        <div class="feedback-field">
+          <label for="fb-name">Name (optional)</label>
+          <input id="fb-name" name="name" type="text" placeholder="Anonymous" />
+        </div>
+        <div class="feedback-field">
+          <label for="fb-email">Email (optional)</label>
+          <input id="fb-email" name="email" type="email" placeholder="you@example.com" />
+        </div>
+      </div>
+      <button type="submit" class="feedback-submit" id="fb-submit">Send</button>
+      <p class="feedback-note">We read every submission. Drop your Discord tag in the message if you'd like a reply.</p>
+      <div id="fb-result" class="feedback-result" hidden></div>
+    </form>
+  </div>
+
+  <div class="footer-links">
+    <div class="footer-brand">
+      <a href="/" class="footer-brand-link">
+        <img src="/static/favicon.png" alt="Prowl" />
+        <span>Prowl</span>
+      </a>
+      <p class="footer-brand-desc">THE cat Discord bot that does literally everything with one click! easy to setup, easy to use.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Product</h4>
+      <a href="#features">Features</a>
+      <a href="/login">Dashboard</a>
+      <a href="/changelog">Changelog</a>
+    </div>
+    <div class="footer-col">
+      <h4>Resources</h4>
+      <a href="https://docs.prowlbot.xyz">Documentation</a>
+      <a href="#">API Reference</a>
+      <a href="https://status.prowlbot.xyz">Status</a>
+    </div>
+    <div class="footer-col">
+      <h4>Community</h4>
+      <a href="https://discord.gg/KnRxYDP7zB" target="_blank" rel="noopener">Discord Server</a>
+    </div>
+    <div class="footer-col">
+      <h4>Legal</h4>
+      <a href="/privacy">Privacy Policy</a>
+      <a href="/terms">Terms of Service</a>
+    </div>
+  </div>
+
+  <div class="footer-bottom">
+    <span>&copy; 2026 Prowl. All rights reserved.</span>
+  </div>
+
+  <div class="big-prowl">
+    <h1>PROWL</h1>
+  </div>
+
+  <script>
+    const form = document.getElementById('feedback-form');
+    const result = document.getElementById('fb-result');
+    const btn = document.getElementById('fb-submit');
+    function show(type, text) {
+      result.hidden = false;
+      result.className = 'feedback-result ' + type;
+      result.textContent = text;
+    }
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const message = document.getElementById('fb-message').value.trim();
+      if (message.length < 3) { show('err', 'Please write a little more.'); return; }
+      btn.disabled = true; btn.textContent = 'Sending…';
+      try {
+        const res = await fetch('/api/v1/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            kind: '{{ kind }}',
+            message: message,
+            name: document.getElementById('fb-name').value.trim(),
+            email: document.getElementById('fb-email').value.trim()
+          })
+        });
+        const data = await res.json();
+        if (data.ok) { show('ok', 'Thanks! Your submission was sent.'); form.reset(); }
+        else { show('err', data.error || 'Something went wrong.'); }
+      } catch (err) {
+        show('err', 'Network error — please try again.');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Send';
+      }
+    });
+  </script>
+</body>
+</html>

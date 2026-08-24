@@ -35,8 +35,17 @@ MAX_QUERY_CHARS = 500
 
 
 def _page_text(page):
-    """Build the text we actually embed from page metadata (not raw HTML)."""
-    return f"{page['title']}.\n{page['description']}\n{page['keywords']}"
+    """Build the text we actually embed from page metadata (not raw HTML).
+
+    Includes the section/block names so queries that name a specific in-page
+    section (e.g. "auto roles", "score threshold", "DJ permissions") rank the
+    correct page.
+    """
+    parts = [page["title"], page["description"], page["keywords"]]
+    blocks = page.get("blocks")
+    if blocks:
+        parts.append("Sections: " + ", ".join(blocks))
+    return "\n".join(parts)
 
 
 def _text_hash(text, model):

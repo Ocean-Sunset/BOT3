@@ -360,6 +360,69 @@ body {
 }
 .sidebar.is-collapsed .sidebar-search-wrap { display: none; }
 
+/* ── "Search with AI" suggestion block ── */
+.ssr-tip {
+  padding: 0.4rem 0.65rem 0.5rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.3);
+}
+.ssr-tip kbd {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 4px;
+  padding: 0 0.3rem;
+  font-size: 0.62rem;
+}
+.ssr-ai { padding: 0.55rem 0.65rem 0.7rem; }
+.ssr-ai[hidden] { display: none; }
+.ssr-ai-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+.ssr-ai-head > svg {
+  width: 15px;
+  height: 15px;
+  color: #fff;
+}
+.ssr-ai-title {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.01em;
+}
+.ssr-ai-sub {
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.38);
+  margin-left: auto;
+  text-align: right;
+}
+.ssr-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.ssr-chip {
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.7);
+  font-family: inherit;
+  font-size: 0.66rem;
+  font-weight: 600;
+  padding: 0.32rem 0.6rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.ssr-chip:hover {
+  background: rgba(255,255,255,0.09);
+  color: #fff;
+  border-color: rgba(255,255,255,0.22);
+}
+
 /* ── Search deep-link highlight (#hl=<block>) ── */
 .search-highlight {
   animation: prowl-hl 5s ease-out;

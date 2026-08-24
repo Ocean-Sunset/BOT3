@@ -76,6 +76,20 @@ BOT_SERVER_URL = os.environ.get("BOT_SERVER_URL", "")
 BOT_HTTP_TOKEN = os.environ.get("BOT_HTTP_TOKEN", "")
 DIRECT_ACTIONS = ("mute", "unmute", "kick", "ban", "add_role", "remove_role", "nickname")
 
+# ── Remote semantic search (HidenCloud BGE microservice) ──
+# When enabled, the dashboard search asks the bot server's /semantic-search
+# endpoint and combines those rankings with the local keyword score. The auth
+# token reuses BOT_HTTP_TOKEN (same secret the bridge already uses). Falls back
+# to keyword-only if the microservice is unreachable or disabled.
+SEMANTIC_SEARCH_ENABLED = os.environ.get("SEMANTIC_SEARCH_ENABLED", "false").lower() in (
+    "1", "true", "yes", "on",
+)
+SEMANTIC_API_URL = (os.environ.get("SEMANTIC_API_URL", "") or BOT_SERVER_URL).rstrip("/")
+SEMANTIC_API_KEY = os.environ.get("SEMANTIC_API_KEY", BOT_HTTP_TOKEN)
+SEMANTIC_WEIGHT = float(os.environ.get("SEMANTIC_WEIGHT", "0.6"))
+KEYWORD_WEIGHT = float(os.environ.get("KEYWORD_WEIGHT", "0.4"))
+SEMANTIC_MIN_SCORE = float(os.environ.get("SEMANTIC_MIN_SCORE", "0.20"))
+
 
 def _parse_guild_data(row):
     """Safely extract guild data dict from a DB row."""
@@ -3080,6 +3094,37 @@ async def _catalog_vectors():
         return None
 
 
+async def _bot_semantic_scores(q: str):
+    """Ask the HidenCloud BGE microservice for panel->score rankings.
+
+    Returns a dict {panel: score} or None on any failure. Failure is silent:
+    the caller drops back to keyword-only search (never raises).
+    """
+    if not SEMANTIC_API_URL or not SEMANTIC_API_KEY:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            r = await client.post(
+                SEMANTIC_API_URL + "/semantic-search",
+                json={"query": q},
+                headers={"X-Prowl-Token": SEMANTIC_API_KEY},
+            )
+            if r.status_code != 200:
+                logger.warning("Semantic API returned %s - keyword fallback", r.status_code)
+                return None
+            data = r.json()
+            if not data.get("ok"):
+                return None
+            return {
+                res["route"]: res["score"]
+                for res in data.get("results", [])
+                if res.get("route")
+            }
+    except Exception as e:
+        logger.warning("Semantic API call failed (%s) - keyword fallback", e)
+        return None
+
+
 @app.get("/api/v1/dashboard/search")
 async def dashboard_search(request: Request, q: str = "", guild_id: str = ""):
     await require_auth(request)
@@ -3087,21 +3132,35 @@ async def dashboard_search(request: Request, q: str = "", guild_id: str = ""):
     if len(q) < 2:
         return {"items": [], "mode": "none"}
 
-    cat_vecs = await _catalog_vectors()
-    q_vec = None
-    if cat_vecs:
-        try:
-            q_vec = (await _openai_embed([q]))[0]
-        except Exception:
-            q_vec = None
-    mode = "semantic" if (cat_vecs and q_vec) else "keyword"
-
     gid = guild_id if guild_id.isdigit() else ""
+
+    # Remote BGE semantic ranking (preferred path when enabled).
+    sem_scores = {}
+    if SEMANTIC_SEARCH_ENABLED:
+        sem_scores = await _bot_semantic_scores(q) or {}
+        mode = "semantic" if sem_scores else "keyword"
+    else:
+        # Legacy OpenAI embedding path (kept as a fallback when BGE is off).
+        cat_vecs = await _catalog_vectors()
+        q_vec = None
+        if cat_vecs:
+            try:
+                q_vec = (await _openai_embed([q]))[0]
+            except Exception:
+                q_vec = None
+        mode = "semantic" if (cat_vecs and q_vec) else "keyword"
+
     results = []
     for i, item in enumerate(SEARCH_CATALOG):
         kw = _keyword_score(q, item)
-        sem = _cosine(q_vec, cat_vecs[i]) if (cat_vecs and q_vec) else 0.0
-        score = max(kw, sem * 0.95)
+        # Pick the semantic score source: remote BGE, else local OpenAI cosine.
+        if SEMANTIC_SEARCH_ENABLED:
+            sem = sem_scores.get(item["panel"], 0.0)
+        else:
+            sem = _cosine(q_vec, cat_vecs[i]) if (cat_vecs and q_vec) else 0.0
+        # An exact/strong keyword match must still be able to outrank others.
+        combined = KEYWORD_WEIGHT * kw + SEMANTIC_WEIGHT * sem
+        score = max(kw, combined)
         block = _block_match(q, item)
         if block:
             score = max(score, 0.9)  # explicit section hit always ranks top

@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="preload" href="https://unpkg.com/lucide@latest" as="script" />
-  <link rel="stylesheet" href="/static/dashboard.css?v=21" />
+  <link rel="stylesheet" href="/static/dashboard.css?v=22" />
   <script>
     // API subdomain routing: production calls go to api.prowlbot.xyz with cookies,
     // localhost keeps same-origin relative paths.
@@ -98,7 +98,24 @@
             <kbd>/</kbd>
           </div>
           <div id="sidebar-search-results" class="sidebar-search-results">
-            <div class="ssr-list" id="sidebar-search-list"></div>
+            <div class="ssr-list">
+              <div id="sidebar-search-ai" class="ssr-ai" hidden>
+                <div class="ssr-tip">Tip: press <kbd>/</kbd> anywhere to search</div>
+                <div class="ssr-ai-head">
+                  <i data-lucide="sparkles"></i>
+                  <span class="ssr-ai-title">Search with AI</span>
+                  <span class="ssr-ai-sub">Type in plain English &mdash; we'll find the page</span>
+                </div>
+                <div class="ssr-chips">
+                  <button type="button" class="ssr-chip">change my bot avatar</button>
+                  <button type="button" class="ssr-chip">configure moderation</button>
+                  <button type="button" class="ssr-chip">set up welcome messages</button>
+                  <button type="button" class="ssr-chip">where are the logging settings</button>
+                  <button type="button" class="ssr-chip">manage server security</button>
+                </div>
+              </div>
+              <div id="sidebar-search-list"></div>
+            </div>
           </div>
         </div>
         {% endif %}
@@ -546,17 +563,27 @@
       const input = document.getElementById('sidebar-search-input');
       const panel = document.getElementById('sidebar-search-results');
       const list = document.getElementById('sidebar-search-list');
+      const aiBlock = document.getElementById('sidebar-search-ai');
       let items = [], active = -1, debounce = null, controller = null;
 
       function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
 
-      function close() { panel.classList.remove('is-open'); panel.style.height = '0px'; active = -1; }
+      function close() { aiBlock.hidden = true; panel.classList.remove('is-open'); panel.style.height = '0px'; active = -1; }
+
+      function showAI() {
+        aiBlock.hidden = false;
+        list.innerHTML = '';
+        panel.classList.remove('hidden');
+        showPanel();
+      }
+      function hideAI() { aiBlock.hidden = true; }
 
       // in-flow panel: animate its height so the nav below slides smoothly
       // (+6 = the container's padding-top gap, kept in sync with the CSS)
       function showPanel() {
         panel.classList.add('is-open');
-        panel.style.height = Math.min(list.scrollHeight, 320) + 6 + 'px';
+        // measure the full panel content (tip + AI block + results list)
+        panel.style.height = Math.min(panel.scrollHeight, 360) + 'px';
       }
 
       function render() {
@@ -600,6 +627,7 @@
           if (!res.ok) throw new Error(data.detail || 'failed');
           items = data.items || [];
           active = items.length ? 0 : -1;
+          aiBlock.hidden = true;
           panel.classList.remove('hidden');
           render();
         } catch (e) {
@@ -616,10 +644,26 @@
       input.addEventListener('input', () => {
         const q = input.value.trim();
         clearTimeout(debounce);
-        if (q.length < 2) { close(); return; }
+        if (q.length < 2) {
+          if (document.activeElement === input) showAI();
+          else close();
+          return;
+        }
         debounce = setTimeout(() => run(q), 220);
       });
-      input.addEventListener('focus', () => { if (input.value.trim().length >= 2 && items.length) showPanel(); });
+      input.addEventListener('focus', () => {
+        if (input.value.trim().length >= 2 && items.length) showPanel();
+        else showAI();
+      });
+      // Example chips: fill the box and run a real (AI/semantic) search.
+      aiBlock.querySelectorAll('.ssr-chip').forEach(chip => {
+        chip.addEventListener('mousedown', e => {
+          e.preventDefault();
+          input.value = chip.textContent.trim();
+          hideAI();
+          run(input.value);
+        });
+      });
       input.addEventListener('keydown', e => {
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
           e.preventDefault();

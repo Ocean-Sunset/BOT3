@@ -104,7 +104,10 @@ class HuggingFaceEmbedder(Embedder):
                 if resp.status_code == 503:
                     # Model is loading — back off and retry.
                     data = resp.json()
-                    wait = data.get("estimated_time", 10)
+                    # API may return a list or a dict
+                    if isinstance(data, list) and data:
+                        data = data[0]
+                    wait = data.get("estimated_time", 10) if isinstance(data, dict) else 10
                     logger.info("HF model loading, retrying in %.0fs...", wait)
                     time.sleep(min(wait, 30))
                     continue
@@ -130,8 +133,11 @@ class HuggingFaceEmbedder(Embedder):
         if resp.status_code != 200:
             raise RuntimeError(f"HF Inference API error {resp.status_code}: {resp.text[:300]}")
         data = resp.json()
-        # Response shape: {"embeddings": [[...], [...], ...]}
-        return data.get("embeddings", data)
+        # Response may be: {"embeddings": [[...], ...]} or just [[...], ...]
+        if isinstance(data, dict):
+            return data.get("embeddings", data)
+        # If it's a list, it's already the embeddings
+        return data
 
     def embed(self, texts):
         all_vectors = []

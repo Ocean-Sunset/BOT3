@@ -26,6 +26,7 @@ import discord
 from aiohttp import web
 
 from semantic_search import semantic_search_service
+from Ediscord.cache import settings_cache
 
 logger = logging.getLogger(__name__)
 
@@ -262,6 +263,41 @@ async def handle_semantic_search(request):
     return web.json_response({"ok": True, "results": results})
 
 
+async def handle_cache_invalidate(request):
+    """POST /cache/invalidate - drop cached settings for a guild/table.
+
+    Triggered by the Vercel dashboard after it writes to Turso. Authorization
+    reuses the same shared secret (X-Prowl-Token) as the rest of the bridge.
+
+    Body options:
+      {"all": true}                       -> clear the entire cache
+      {"guild_id": "123"}                 -> clear all tables for a guild
+      {"table": "mod_settings", "guild_id": "123"} -> clear one table/guild
+    """
+    if not await _check_auth(request):
+        return web.json_response({"ok": False, "error": "unauthorized"}, status=401)
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "error": "invalid json"}, status=400)
+
+    if body.get("all"):
+        await settings_cache.invalidate_all()
+        return web.json_response({"ok": True, "invalidated": "all"})
+
+    guild_id = str(body.get("guild_id", ""))
+    if not guild_id:
+        return web.json_response({"ok": False, "error": "guild_id required"}, status=400)
+
+    table = body.get("table")
+    if table:
+        await settings_cache.invalidate((table, guild_id))
+        return web.json_response({"ok": True, "invalidated": [table, guild_id]})
+
+    await settings_cache.invalidate_prefix(guild_id)
+    return web.json_response({"ok": True, "invalidated": "guild:" + guild_id})
+
+
 async def start_http_server():
     """Start the aiohttp bridge. No-op (with a warning) if BOT_HTTP_TOKEN unset."""
     token = _get_token()
@@ -274,6 +310,7 @@ async def start_http_server():
     app.router.add_get("/api/stats/actions", handle_action_stats)
     app.router.add_get("/api/profile", handle_profile_get)
     app.router.add_post("/api/profile", handle_profile_post)
+    app.router.add_post("/cache/invalidate", handle_cache_invalidate)
     app.router.add_post("/semantic-search", handle_semantic_search)
     port = int(os.environ.get("BOT_HTTP_PORT", "24612"))
     runner = web.AppRunner(app)

@@ -13,11 +13,11 @@ from typing import Optional, List
 
 logger = logging.getLogger(__name__)
 
+from Ediscord.cache import settings_cache
+
 _url = None
 _token = None
 _ensure_done = False
-_SETTINGS_CACHE = {}
-_SETTINGS_CACHE_TTL = 30.0
 
 
 class Record:
@@ -243,39 +243,49 @@ def get_settings_cache_key(table: str, guild_id) -> tuple:
     return (table, str(guild_id))
 
 
-def get_cached_settings(table: str, guild_id, defaults: dict) -> dict:
-    key = get_settings_cache_key(table, guild_id)
-    entry = _SETTINGS_CACHE.get(key)
-    if entry and time.time() - entry["ts"] < _SETTINGS_CACHE_TTL:
-        return dict(entry["value"])
-    return dict(defaults)
-
-
 async def load_cached_settings(table: str, guild_id, defaults: dict) -> dict:
+    """Load settings from the cache, falling back to Turso on a miss.
+
+    Turso is the source of truth. A failed Turso read is NOT cached (the loader
+    returns ``None``), so a Turso outage cannot poison the cache; the next call
+    simply retries Turso. A missing row caches the effective defaults, which is
+    correct because defaults are the real value in that case.
+    """
     key = get_settings_cache_key(table, guild_id)
-    cached = get_cached_settings(table, guild_id, defaults)
-    if cached != defaults:
-        return cached
-    pool = await get_pool()
-    if not pool:
-        return dict(defaults)
-    try:
-        async with pool.acquire() as conn:
-            row = await conn.fetchrow(f"SELECT settings FROM {table} WHERE guild_id = ?", str(guild_id))
-            value = parse_settings(row["settings"], defaults) if row else dict(defaults)
-        _SETTINGS_CACHE[key] = {"value": value, "ts": time.time()}
-        return value
-    except Exception as e:
-        logger.debug(f"load_cached_settings failed for {table}/{guild_id}: {e}")
-        return dict(defaults)
+
+    async def _load():
+        pool = await get_pool()
+        if not pool:
+            return None
+        try:
+            async with pool.acquire() as conn:
+                row = await conn.fetchrow(
+                    f"SELECT settings FROM {table} WHERE guild_id = ?", str(guild_id)
+                )
+            if row is None:
+                return dict(defaults)
+            return parse_settings(row["settings"], defaults)
+        except Exception as e:
+            logger.debug(f"load_cached_settings failed for {table}/{guild_id}: {e}")
+            return None
+
+    value = await settings_cache.get_or_load(key, _load)
+    return dict(value) if value is not None else dict(defaults)
 
 
 async def save_cached_settings(table: str, guild_id, settings: dict):
+    """Persist settings to Turso and update the cache immediately.
+
+    The cache is updated before the DB write so the writer sees its own change
+    without a Turso round-trip. A failed Turso write is logged but does not
+    roll back the cache; the bot is the authoritative writer here and will
+    reconcile on retry.
+    """
     pool = await get_pool()
     if pool is None:
         return
     key = get_settings_cache_key(table, guild_id)
-    _SETTINGS_CACHE[key] = {"value": dict(settings), "ts": time.time()}
+    await settings_cache.set(key, dict(settings))
     try:
         async with pool.acquire() as conn:
             await conn.execute(

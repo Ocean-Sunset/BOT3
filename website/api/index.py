@@ -1845,6 +1845,35 @@ def _sanitize_setting(key: str, value, defaults: dict):
     return str(value), None
 
 
+async def _notify_bot_cache_invalidate(table, guild_id):
+    """Best-effort fire-and-forget: tell the bot to drop its cached settings.
+
+    The Turso write in ``_save_settings`` has already succeeded before this is
+    called, so a failure here must never roll back that write. A missed
+    invalidation self-heals via the bot's cache TTL, so this is purely an
+    optimization to push fresh settings to the bot faster than the TTL.
+    """
+    if not BOT_SERVER_URL or not BOT_HTTP_TOKEN:
+        return
+    url = BOT_SERVER_URL.rstrip("/") + "/cache/invalidate"
+
+    async def _post():
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                await client.post(
+                    url,
+                    json={"table": table, "guild_id": str(guild_id)},
+                    headers={"X-Prowl-Token": BOT_HTTP_TOKEN},
+                )
+        except Exception as e:
+            logger.debug(f"bot cache invalidate failed for {table}/{guild_id}: {e}")
+
+    try:
+        asyncio.create_task(_post())
+    except Exception:
+        pass
+
+
 async def _save_settings(table, guild_id, key, value, defaults):
     """Validate + persist a settings key with server-side checks."""
     clean, err = _sanitize_setting(key, value, defaults)
@@ -1868,6 +1897,7 @@ async def _save_settings(table, guild_id, key, value, defaults):
         str(guild_id), json.dumps(current), json.dumps(current),
     )
     _update_cache(table, guild_id, current)
+    _notify_bot_cache_invalidate(table, guild_id)
     return None
 
 

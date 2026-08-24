@@ -321,6 +321,7 @@ body {
               transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .ssr-list {
+  position: relative;
   background: #151515;
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 8px;
@@ -328,6 +329,32 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
 }
+/* Loading overlay — absolutely positioned so it NEVER changes the panel's
+   measured content height (keeps the smooth size animation intact). */
+.ssr-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: #151515;
+  color: rgba(255,255,255,0.6);
+  font-size: 0.82rem;
+  border-radius: 8px;
+  pointer-events: none;
+}
+.ssr-loading[hidden] { display: none; }
+.ssr-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: ssr-spin 0.7s linear infinite;
+}
+@keyframes ssr-spin { to { transform: rotate(360deg); } }
 .ssr-list::-webkit-scrollbar { width: 4px; }
 .ssr-list::-webkit-scrollbar-track { background: transparent; }
 .ssr-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 999px; }

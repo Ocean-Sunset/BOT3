@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="preload" href="https://unpkg.com/lucide@latest" as="script" />
-  <link rel="stylesheet" href="/static/dashboard.css?v=25" />
+  <link rel="stylesheet" href="/static/dashboard.css?v=26" />
   <script>
     // API subdomain routing: production calls go to api.prowlbot.xyz with cookies,
     // localhost keeps same-origin relative paths.
@@ -115,6 +115,10 @@
                 </div>
               </div>
               <div id="sidebar-search-list"></div>
+              <div id="sidebar-search-loading" class="ssr-loading" hidden>
+                <span class="ssr-spinner"></span>
+                <span>Searching with AI&hellip;</span>
+              </div>
             </div>
           </div>
         </div>
@@ -564,12 +568,13 @@
       const panel = document.getElementById('sidebar-search-results');
       const list = document.getElementById('sidebar-search-list');
       const aiBlock = document.getElementById('sidebar-search-ai');
+      const loading = document.getElementById('sidebar-search-loading');
       let items = [], active = -1, debounce = null, controller = null;
       const cache = new Map(); // q|guild -> items (instant repeat/backspace)
 
       function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
 
-      function close() { aiBlock.hidden = true; panel.classList.remove('is-open'); panel.style.height = '0px'; active = -1; }
+      function close() { aiBlock.hidden = true; loading.hidden = true; panel.classList.remove('is-open'); panel.style.height = '0px'; active = -1; }
 
       function showAI() {
         aiBlock.hidden = false;
@@ -626,21 +631,53 @@
           items = cache.get(key);
           active = items.length ? 0 : -1;
           aiBlock.hidden = true;
+          loading.hidden = true;
           panel.classList.remove('hidden');
           render();
           return;
         }
+        const url = '/api/v1/dashboard/search?q=' + encodeURIComponent(q) + '&guild_id=' + window.__GUILD_ID;
         try {
-          const res = await fetch('/api/v1/dashboard/search?q=' + encodeURIComponent(q) + '&guild_id=' + window.__GUILD_ID, { signal: controller.signal });
+          // Phase 1: keyword search (local, fast — no loading icon needed).
+          const res = await fetch(url, { signal: controller.signal });
           const data = await res.json();
           if (!res.ok) throw new Error(data.detail || 'failed');
-          items = data.items || [];
+          if (data.items && data.items.length) {
+            items = data.items;
+            active = 0;
+            cache.set(key, items);
+            loading.hidden = true;
+            aiBlock.hidden = true;
+            panel.classList.remove('hidden');
+            render();
+            return;
+          }
+          if (!data.need_semantic) {
+            // keyword found nothing and semantic isn't available — stop here
+            items = [];
+            cache.set(key, items);
+            loading.hidden = true;
+            aiBlock.hidden = true;
+            panel.classList.remove('hidden');
+            render();
+            return;
+          }
+          // Phase 2: keyword found nothing, so ask the (slower) semantic
+          // service. Keep the panel open and overlay a spinner so the smooth
+          // height animation is untouched (the spinner is absolutely positioned).
+          loading.hidden = false;
+          const res2 = await fetch(url + '&phase=semantic', { signal: controller.signal });
+          const data2 = await res2.json();
+          if (!res2.ok) throw new Error(data2.detail || 'failed');
+          items = data2.items || [];
           active = items.length ? 0 : -1;
           cache.set(key, items);
+          loading.hidden = true;
           aiBlock.hidden = true;
           panel.classList.remove('hidden');
           render();
         } catch (e) {
+          loading.hidden = true;
           if (e.name === 'AbortError') return;
           items = []; render();
         }

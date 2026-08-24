@@ -3136,8 +3136,52 @@ async def _bot_semantic_scores(q: str):
         return None
 
 
+def _build_search_items(q, gid, score_map):
+    """Build, sort and limit search result items from a {panel: (score, block)} map."""
+    items = []
+    for item in SEARCH_CATALOG:
+        res = score_map.get(item["panel"])
+        if not res:
+            continue
+        score, block = res
+        if score < SEARCH_RESULT_MIN:
+            continue
+        href = f"/guild/{gid}/{item['panel']}" if gid else "/servers"
+        if block and gid:
+            href += "#hl=" + urllib.parse.quote(block)
+        items.append({
+            "panel": item["panel"],
+            "icon": item["icon"],
+            "title": item["title"],
+            "description": item["description"],
+            "href": href,
+            "block": block,
+            "_score": round(score, 4),
+        })
+    items.sort(key=lambda r: r["_score"], reverse=True)
+
+    # Smart filtering: if the top result is significantly better than the rest,
+    # only return it. Otherwise return up to 4 results.
+    MAX_RESULTS = 4
+    SCORE_GAP_THRESHOLD = 0.15  # if top score is this much higher than #2, drop #2+
+
+    if len(items) > 1:
+        top_score = items[0]["_score"]
+        second_score = items[1]["_score"]
+        if (top_score - second_score) >= SCORE_GAP_THRESHOLD:
+            filtered = [items[0]]
+        else:
+            filtered = items[:MAX_RESULTS]
+    else:
+        filtered = items[:MAX_RESULTS]
+
+    for it in filtered:
+        it.pop("_score", None)
+    return filtered
+
+
 @app.get("/api/v1/dashboard/search")
-async def dashboard_search(request: Request, q: str = "", guild_id: str = ""):
+async def dashboard_search(request: Request, q: str = "", guild_id: str = "", phase: str = ""):
     await require_auth(request)
     q = (q or "").strip()
     if len(q) < 2:
@@ -3145,11 +3189,33 @@ async def dashboard_search(request: Request, q: str = "", guild_id: str = ""):
 
     gid = guild_id if guild_id.isdigit() else ""
 
-    # Remote BGE semantic ranking (preferred path when enabled).
-    sem_scores = {}
+    if phase != "semantic":
+        # Keyword-first pass (local + fast). If it finds anything we return
+        # immediately and skip the slower semantic service entirely.
+        kw_map = {}
+        for item in SEARCH_CATALOG:
+            block = _block_match(q, item)
+            kw = _keyword_score(q, item)
+            score = max(kw, 0.9) if block else kw
+            kw_map[item["panel"]] = (score, block)
+        kw_items = _build_search_items(q, gid, kw_map)
+        if kw_items:
+            return {"items": kw_items, "mode": "keyword", "semantic": False}
+        # Nothing matched on keyword — tell the client to request the
+        # semantic phase (which talks to the bot server and is slower).
+        return {"items": [], "mode": "keyword", "semantic": False, "need_semantic": True}
+
+    # phase == "semantic": run the (slower) semantic ranking as a fallback.
+    sem_map = {}
+    mode = "keyword"
     if SEMANTIC_SEARCH_ENABLED:
         sem_scores = await _bot_semantic_scores(q) or {}
         mode = "semantic" if sem_scores else "keyword"
+        for item in SEARCH_CATALOG:
+            block = _block_match(q, item)
+            sem = sem_scores.get(item["panel"], 0.0)
+            score = max(sem, 0.9) if block else sem
+            sem_map[item["panel"]] = (score, block)
     else:
         # Legacy OpenAI embedding path (kept as a fallback when BGE is off).
         cat_vecs = await _catalog_vectors()
@@ -3159,59 +3225,15 @@ async def dashboard_search(request: Request, q: str = "", guild_id: str = ""):
                 q_vec = (await _openai_embed([q]))[0]
             except Exception:
                 q_vec = None
-        mode = "semantic" if (cat_vecs and q_vec) else "keyword"
-
-    results = []
-    for i, item in enumerate(SEARCH_CATALOG):
-        kw = _keyword_score(q, item)
-        # Pick the semantic score source: remote BGE, else local OpenAI cosine.
-        if SEMANTIC_SEARCH_ENABLED:
-            sem = sem_scores.get(item["panel"], 0.0)
-        else:
-            sem = _cosine(q_vec, cat_vecs[i]) if (cat_vecs and q_vec) else 0.0
-        # An exact/strong keyword match must still be able to outrank others.
-        combined = KEYWORD_WEIGHT * kw + SEMANTIC_WEIGHT * sem
-        score = max(kw, combined)
-        block = _block_match(q, item)
-        if block:
-            score = max(score, 0.9)  # explicit section hit always ranks top
-        if score < SEARCH_RESULT_MIN:
-            continue
-        href = f"/guild/{gid}/{item['panel']}" if gid else "/servers"
-        if block and gid:
-            href += "#hl=" + urllib.parse.quote(block)
-        results.append({
-            "panel": item["panel"],
-            "icon": item["icon"],
-            "title": item["title"],
-            "description": item["description"],
-            "href": href,
-            "block": block,
-            "_score": round(score, 4),
-        })
-    results.sort(key=lambda r: r["_score"], reverse=True)
-
-    # Smart filtering: if the top result is significantly better than the rest,
-    # only return it. Otherwise return up to 4 results.
-    MAX_RESULTS = 4
-    SCORE_GAP_THRESHOLD = 0.15  # if top score is this much higher than #2, drop #2+
-
-    if len(results) > 1:
-        top_score = results[0]["_score"]
-        second_score = results[1]["_score"]
-        if (top_score - second_score) >= SCORE_GAP_THRESHOLD:
-            # Top result is much better — only return it
-            filtered = [results[0]]
-        else:
-            filtered = results[:MAX_RESULTS]
-    else:
-        filtered = results[:MAX_RESULTS]
-
-    # Strip internal score before returning
-    for item in filtered:
-        item.pop("_score", None)
-
-    return {"items": filtered, "mode": mode}
+        if cat_vecs and q_vec:
+            mode = "semantic"
+            for i, item in enumerate(SEARCH_CATALOG):
+                block = _block_match(q, item)
+                sem = _cosine(q_vec, cat_vecs[i])
+                score = max(sem, 0.9) if block else sem
+                sem_map[item["panel"]] = (score, block)
+    sem_items = _build_search_items(q, gid, sem_map)
+    return {"items": sem_items, "mode": mode, "semantic": True}
 
 
 # ---------------------------------------------------------------------------

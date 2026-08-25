@@ -714,6 +714,12 @@ body {
   min-height: 0;
   overflow-y: auto;
   padding: 1.5rem;
+  /* Promote the scroll container to its own compositor layer so scrolling is
+     GPU-composited instead of repainting on the main thread every frame
+     (fixes the "slow/laggy scroll" feel). No position:fixed descendants live
+     inside #app-content, so this is safe. */
+  will-change: transform;
+  contain: layout paint;
 }
 #app-content::-webkit-scrollbar { width: 6px; }
 #app-content::-webkit-scrollbar-track { background: transparent; }

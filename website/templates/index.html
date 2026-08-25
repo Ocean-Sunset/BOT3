@@ -238,12 +238,10 @@
       }
     }
 
-    function raf(time) {
-      lenis.raf(time);
-      requestAnimationFrame(raf);
-    }
-    requestAnimationFrame(raf);
-
+    // Drive Lenis from a SINGLE source (the GSAP ticker). A manual
+    // requestAnimationFrame loop was ALSO calling lenis.raf() every frame,
+    // double-driving it and pinning the main thread at ~60fps even when idle
+    // (massive CPU + jank). This is the standard Lenis+GSAP integration.
     lenis.on('scroll', ScrollTrigger.update);
     gsap.ticker.add((time) => lenis.raf(time * 1000));
     gsap.ticker.lagSmoothing(0);

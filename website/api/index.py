@@ -1260,6 +1260,59 @@ async def require_guild_access(request: Request, guild_id: str):
     return user
 
 
+async def is_guild_moderator(request: Request, guild_id: str) -> bool:
+    """True if the logged-in user can manage messages in this guild.
+
+    Mirrors the bot's slash-command gate (manage_messages). Checks guild owner,
+    configured mod_roles, or a role granting administrator / manage_messages.
+    """
+    user = request.session.get("user") or {}
+    uid = str(user.get("id") or "")
+    if not uid:
+        return False
+    try:
+        d = await get_guild_data(guild_id)
+    except Exception:
+        d = None
+    if not d:
+        return False
+    if str(d.get("owner_id")) == uid:
+        return True
+    member_roles = None
+    for m in (d.get("members") or []):
+        mid = str(m.get("user", {}).get("id") or m.get("id") or "")
+        if mid == uid:
+            member_roles = [str(r) for r in (m.get("roles") or [])]
+            break
+    if member_roles is None:
+        return False
+    try:
+        mod_settings = await _get_mod_settings(guild_id)
+        mod_role_ids = set(str(r) for r in (mod_settings.get("mod_roles") or []))
+        if mod_role_ids and set(member_roles) & mod_role_ids:
+            return True
+    except Exception:
+        pass
+    perms = 0
+    for r in (d.get("roles") or []):
+        if str(r.get("id")) in member_roles:
+            perms |= int(r.get("permissions", 0) or 0)
+    if perms & (1 << 3) or perms & (1 << 13):
+        return True
+    return False
+
+
+async def require_mod(request: Request, guild_id: str):
+    """FastAPI dependency: member must be a guild moderator (manage_messages+).
+
+    Uses the same check as the bot's slash-command gate. Prevents any dashboard
+    viewer from performing server-mutating/mod actions.
+    """
+    await require_guild_access(request, guild_id)
+    if not await is_guild_moderator(request, guild_id):
+        raise HTTPException(status_code=403, detail="Moderators only.")
+
+
 # ---------------------------------------------------------------------------
 #  Accounts
 # ---------------------------------------------------------------------------
@@ -2859,59 +2912,6 @@ def _parse_giveaway_end(text: str):
     if text.isdigit():
         return (datetime.datetime.now() + datetime.timedelta(minutes=int(text))).timestamp(), None
     return _parse_when(text)
-
-
-async def is_guild_moderator(request: Request, guild_id: str) -> bool:
-    """True if the logged-in user can manage messages in this guild.
-
-    Mirrors the bot's slash-command gate (manage_messages). Checks guild owner,
-    configured mod_roles, or a role granting administrator / manage_messages.
-    """
-    user = request.session.get("user") or {}
-    uid = str(user.get("id") or "")
-    if not uid:
-        return False
-    try:
-        d = await get_guild_data(guild_id)
-    except Exception:
-        d = None
-    if not d:
-        return False
-    if str(d.get("owner_id")) == uid:
-        return True
-    member_roles = None
-    for m in (d.get("members") or []):
-        mid = str(m.get("user", {}).get("id") or m.get("id") or "")
-        if mid == uid:
-            member_roles = [str(r) for r in (m.get("roles") or [])]
-            break
-    if member_roles is None:
-        return False
-    try:
-        mod_settings = await _get_mod_settings(guild_id)
-        mod_role_ids = set(str(r) for r in (mod_settings.get("mod_roles") or []))
-        if mod_role_ids and set(member_roles) & mod_role_ids:
-            return True
-    except Exception:
-        pass
-    perms = 0
-    for r in (d.get("roles") or []):
-        if str(r.get("id")) in member_roles:
-            perms |= int(r.get("permissions", 0) or 0)
-    if perms & (1 << 3) or perms & (1 << 13):
-        return True
-    return False
-
-
-async def require_mod(request: Request, guild_id: str):
-    """FastAPI dependency: member must be a guild moderator (manage_messages+).
-
-    Uses the same check as the bot's slash-command gate. Prevents any dashboard
-    viewer from performing server-mutating/mod actions.
-    """
-    await require_guild_access(request, guild_id)
-    if not await is_guild_moderator(request, guild_id):
-        raise HTTPException(status_code=403, detail="Moderators only.")
 
 
 @app.get("/api/v1/giveaways/{guild_id}")

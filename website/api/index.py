@@ -2004,7 +2004,7 @@ CREATE TABLE IF NOT EXISTS mod_actions (
     status TEXT NOT NULL DEFAULT 'pending',
     created_at REAL NOT NULL,
     processed_at REAL,
-    request_id TEXT UNIQUE
+    request_id TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_mod_actions_pending ON mod_actions (status, created_at);
 """
@@ -2014,7 +2014,12 @@ async def _ensure_mod_actions_table():
     await execute(_MOD_ACTIONS_TABLE_SQL)
     # Migration: add request_id if missing
     try:
-        await execute("ALTER TABLE mod_actions ADD COLUMN request_id TEXT UNIQUE")
+        await execute("ALTER TABLE mod_actions ADD COLUMN request_id TEXT")
+    except Exception:
+        pass
+    # Add unique index on request_id (can't use UNIQUE in ALTER TABLE ADD COLUMN)
+    try:
+        await execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_mod_actions_request_id ON mod_actions (request_id)")
     except Exception:
         pass
 

@@ -303,7 +303,7 @@ async def _ensure_tables():
         ("CREATE TABLE IF NOT EXISTS guild_data (guild_id TEXT PRIMARY KEY, data TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS mod_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS mod_log (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT, user_id TEXT, user_name TEXT, action TEXT, reason TEXT DEFAULT '', moderator TEXT DEFAULT '', created_at REAL)", ()),
-        ("CREATE TABLE IF NOT EXISTS mod_actions (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT, action TEXT, target_id TEXT, target_name TEXT DEFAULT '', reason TEXT DEFAULT '', moderator TEXT DEFAULT '', duration INTEGER, status TEXT DEFAULT 'pending', created_at REAL, request_id TEXT UNIQUE)", ()),
+        ("CREATE TABLE IF NOT EXISTS mod_actions (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT, action TEXT, target_id TEXT, target_name TEXT DEFAULT '', reason TEXT DEFAULT '', moderator TEXT DEFAULT '', duration INTEGER, status TEXT DEFAULT 'pending', created_at REAL, request_id TEXT)", ()),
         ("CREATE TABLE IF NOT EXISTS muted_users (guild_id TEXT, user_id TEXT, user_name TEXT DEFAULT '', reason TEXT DEFAULT '', end_ts REAL, PRIMARY KEY (guild_id, user_id))", ()),
         ("CREATE TABLE IF NOT EXISTS ai_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS welcome_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
@@ -337,7 +337,7 @@ async def _ensure_tables():
         "ALTER TABLE mod_actions ADD COLUMN moderator TEXT DEFAULT ''",
         "ALTER TABLE mod_actions ADD COLUMN error TEXT DEFAULT ''",
         "ALTER TABLE mod_actions ADD COLUMN processed_at REAL",
-        "ALTER TABLE mod_actions ADD COLUMN request_id TEXT UNIQUE",
+        "ALTER TABLE mod_actions ADD COLUMN request_id TEXT",
     ]
     try:
         await _execute_batch_http(statements)
@@ -352,6 +352,11 @@ async def _ensure_tables():
             await _execute_http(m_sql)
         except Exception:
             pass  # column already exists
+    # Add unique index on request_id (can't use UNIQUE in ALTER TABLE ADD COLUMN)
+    try:
+        await _execute_http("CREATE UNIQUE INDEX IF NOT EXISTS idx_mod_actions_request_id ON mod_actions (request_id)")
+    except Exception:
+        pass
 
 
 async def push_bot_stats(data: dict):

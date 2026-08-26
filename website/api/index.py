@@ -2,6 +2,7 @@ import os
 import re
 import json
 import time
+import uuid
 import asyncio
 import math
 import secrets
@@ -2002,7 +2003,8 @@ CREATE TABLE IF NOT EXISTS mod_actions (
     duration INTEGER,
     status TEXT NOT NULL DEFAULT 'pending',
     created_at REAL NOT NULL,
-    processed_at REAL
+    processed_at REAL,
+    request_id TEXT UNIQUE
 );
 CREATE INDEX IF NOT EXISTS idx_mod_actions_pending ON mod_actions (status, created_at);
 """
@@ -2010,6 +2012,11 @@ CREATE INDEX IF NOT EXISTS idx_mod_actions_pending ON mod_actions (status, creat
 
 async def _ensure_mod_actions_table():
     await execute(_MOD_ACTIONS_TABLE_SQL)
+    # Migration: add request_id if missing
+    try:
+        await execute("ALTER TABLE mod_actions ADD COLUMN request_id TEXT UNIQUE")
+    except Exception:
+        pass
 
 
 _CAPTCHA_CODES_TABLE_SQL = """
@@ -2058,13 +2065,22 @@ async def _consume_captcha_code(code: str, provider: str):
     return info
 
 
-async def _call_bot_direct(guild_id, action, user_id, user_name="", reason="", duration=None, moderator="", target=None):
+async def _call_bot_direct(guild_id, action, user_id, user_name="", reason="", duration=None, moderator="", target=None, request_id=""):
     """Send a moderation quick-action straight to the bot's HTTP bridge.
 
     Returns (ok: bool, message: str). Falls back is handled by the caller
     (the DB queue). The auth token never leaves the server."""
     if action not in DIRECT_ACTIONS or not BOT_SERVER_URL or not BOT_HTTP_TOKEN:
         return False, "bridge not configured"
+    # Mark as executing so the frontend sees progress
+    if request_id:
+        try:
+            await execute(
+                "UPDATE mod_actions SET status = 'executing' WHERE request_id = ?",
+                request_id,
+            )
+        except Exception:
+            pass
     try:
         payload = {
             "action": action,
@@ -2077,6 +2093,8 @@ async def _call_bot_direct(guild_id, action, user_id, user_name="", reason="", d
         }
         if target:
             payload["target"] = target
+        if request_id:
+            payload["request_id"] = request_id
         async with httpx.AsyncClient(timeout=15) as client:
             r = await client.post(
                 BOT_SERVER_URL.rstrip("/") + "/api/action",
@@ -2084,32 +2102,52 @@ async def _call_bot_direct(guild_id, action, user_id, user_name="", reason="", d
                 headers={"X-Prowl-Token": BOT_HTTP_TOKEN},
             )
             if r.status_code == 200:
-                return True, (r.json().get("message") or "ok")
-            return False, f"bot responded {r.status_code}"
+                ok = True
+                message = r.json().get("message") or "ok"
+            else:
+                ok = False
+                message = f"bot responded {r.status_code}"
     except Exception as e:
-        return False, str(e)
+        ok = False
+        message = str(e)
+    # Update final status
+    if request_id:
+        try:
+            await execute(
+                "UPDATE mod_actions SET status = ?, error = ?, processed_at = ? WHERE request_id = ?",
+                "completed" if ok else "failed",
+                "" if ok else message[:500],
+                time.time(),
+                request_id,
+            )
+        except Exception:
+            pass
+    return ok, message
 
 
 async def _queue_action(guild_id, action, target_id, target_name="", reason="", duration=None, moderator=""):
+    """Persist an action to mod_actions and return its request_id."""
+    request_id = uuid.uuid4().hex
     try:
         duration_int = int(duration) if duration is not None and duration != "" else None
     except (ValueError, TypeError):
         duration_int = None
     try:
         await execute(
-            "INSERT INTO mod_actions (guild_id, action, target_id, target_name, reason, moderator, duration, status, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)",
+            "INSERT INTO mod_actions (guild_id, action, target_id, target_name, reason, moderator, duration, status, created_at, request_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)",
             str(guild_id), action, str(target_id), target_name, reason, moderator,
-            duration_int, time.time(),
+            duration_int, time.time(), request_id,
         )
     except Exception:
         await _ensure_mod_actions_table()
         await execute(
-            "INSERT INTO mod_actions (guild_id, action, target_id, target_name, reason, moderator, duration, status, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)",
+            "INSERT INTO mod_actions (guild_id, action, target_id, target_name, reason, moderator, duration, status, created_at, request_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)",
             str(guild_id), action, str(target_id), target_name, reason, moderator,
-            duration_int, time.time(),
+            duration_int, time.time(), request_id,
         )
+    return request_id
 
 
 @app.get("/api/v1/mod/{guild_id}/debug")
@@ -2430,17 +2468,32 @@ async def mod_stats_daily(guild_id: str, request: Request):
 async def mod_actions_list(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     rows = await query(
-        "SELECT id, action, target_id, target_name, reason, moderator, duration, status, error, created_at, processed_at "
+        "SELECT id, action, target_id, target_name, reason, moderator, duration, status, error, created_at, processed_at, request_id "
         "FROM mod_actions WHERE guild_id = ? ORDER BY created_at DESC LIMIT 30",
         str(guild_id),
     )
     return {"actions": [dict(r) for r in rows]}
 
 
+@app.get("/api/v1/mod/{guild_id}/action/{request_id}")
+async def mod_action_status(guild_id: str, request_id: str, request: Request):
+    """Query the status of a single action by request_id."""
+    await require_guild_access(request, guild_id)
+    row = await fetchrow(
+        "SELECT id, action, target_id, target_name, reason, moderator, duration, status, error, created_at, processed_at, request_id "
+        "FROM mod_actions WHERE request_id = ? AND guild_id = ?",
+        request_id, str(guild_id),
+    )
+    if not row:
+        return JSONResponse({"error": "Action not found"}, status_code=404)
+    return dict(row)
+
+
 @app.post("/api/v1/mod/{guild_id}/action")
 async def mod_action(guild_id: str, request: Request):
-    """Execute a moderation action. Tries the bot's direct HTTP bridge first
-    (instant), falls back to the DB queue if the bridge is down/not configured."""
+    """Execute a moderation action. Persists to DB first for lifecycle tracking,
+    then tries the bot's direct HTTP bridge (instant). Falls back to the DB
+    queue poll if the bridge is down."""
     await require_guild_access(request, guild_id)
     body = await request.json()
     action = body.get("action")
@@ -2455,15 +2508,19 @@ async def mod_action(guild_id: str, request: Request):
     # For role/nickname actions, target_name carries the role ID or new nickname
     target_name = body.get("target") if action in ("add_role", "remove_role", "nickname") else user_name
 
+    # Always persist first so we have a request_id for lifecycle tracking
+    request_id = await _queue_action(guild_id, action, user_id, target_name, reason, duration, moderator)
+
+    # Try the direct bridge (instant execution)
     ok, message = await _call_bot_direct(
         guild_id, action, user_id, user_name, reason, duration, moderator, body.get("target"),
+        request_id=request_id,
     )
     if ok:
-        return {"ok": True, "direct": True}
+        return {"ok": True, "direct": True, "request_id": request_id}
 
-    # Bridge unavailable - fall back to the DB queue so actions never get lost.
-    await _queue_action(guild_id, action, user_id, target_name, reason, duration, moderator)
-    return {"ok": True, "queued": True, "direct": False, "fallback": message}
+    # Bridge unavailable - action is already in the DB queue, bot will pick it up
+    return {"ok": True, "queued": True, "direct": False, "fallback": message, "request_id": request_id}
 
 
 # ---------------------------------------------------------------------------

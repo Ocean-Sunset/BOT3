@@ -119,6 +119,7 @@ async def handle_action(request):
         reason=str(body.get("reason") or "No reason provided"),
         duration=body.get("duration"),
         moderator=str(body.get("moderator") or "Dashboard"),
+        request_id=str(body.get("request_id") or ""),
     )
     return web.json_response({"ok": ok, "message": message}, status=200 if ok else 400)
 

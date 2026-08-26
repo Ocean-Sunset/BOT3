@@ -339,7 +339,7 @@ async def get_guild_data(guild_id):
     key = _get_guild_data_cache_key(guild_id)
     entry = _GUILD_DATA_CACHE.get(key)
     if entry and time.time() - entry["ts"] < _GUILD_DATA_CACHE_TTL:
-        return entry["value"]
+        return dict(entry["value"])
 
     ok = await get_conn()
     if not ok:

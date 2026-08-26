@@ -272,4 +272,107 @@
   } else {
     init();
   }
+
+  // ========================= SAVE-BAR STATE MACHINE =========================
+  // Single source of truth for settings edit/save/discard across ALL dashboard
+  // pages. Centralizing here is what keeps the recurring "discard reverts to the
+  // pre-save value" bug from coming back: every page enforces the same rules.
+  //
+  //   on markChanged(k, v): store original[k] (first edit only), set pending[k]
+  //                         and SNAP[k], show the bar.
+  //   on save:             LOADED[k] = pending[k]; delete original[k];
+  //                         delete pending[k]   (per key).
+  //   on discard:          reverted = {...LOADED}; overlay original for keys still
+  //                         pending; clear pending + original; re-render from there.
+  //
+  // Pages supply: render()  -> apply window.SETTINGS_SNAPSHOT to the DOM
+  //                  saveOne(k, v) -> Promise that persists one changed key
+  window.ProwlSettings = (function () {
+    window.SETTINGS_SNAPSHOT = window.SETTINGS_SNAPSHOT || {};
+    window.LOADED = window.LOADED || {};
+    window._ps_original = window._ps_original || {};
+    window._ps_pending = window._ps_pending || {};
+
+    let _render = function () {};
+    let _saveOne = async function () {};
+    let _bound = false;
+
+    function _bar() { return document.getElementById("save-bar"); }
+    function showBar() { const b = _bar(); if (b) b.classList.remove("is-closed"); }
+    function hideBar() { const b = _bar(); if (b) b.classList.add("is-closed"); }
+
+    function markChanged(key, value) {
+      if (!(key in window._ps_original)) {
+        window._ps_original[key] = (key in window.SETTINGS_SNAPSHOT)
+          ? window.SETTINGS_SNAPSHOT[key]
+          : !value;
+      }
+      window._ps_pending[key] = value;
+      window.SETTINGS_SNAPSHOT[key] = value;
+      showBar();
+    }
+
+    async function saveChanges() {
+      const keys = Object.keys(window._ps_pending);
+      if (!keys.length) { hideBar(); return; }
+      const btn = document.getElementById("save-btn");
+      if (btn) btn.disabled = true;
+      try {
+        for (const key of keys) {
+          await _saveOne(key, window._ps_pending[key]);
+          window.LOADED[key] = window._ps_pending[key];
+          delete window._ps_original[key];
+          delete window._ps_pending[key];
+        }
+      } catch (e) {
+        if (typeof window.showToast === "function") {
+          window.showToast("Some changes failed to save.", "error");
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+        hideBar();
+      }
+    }
+
+    function discardChanges() {
+      const reverted = Object.assign({}, window.LOADED);
+      for (const k of Object.keys(window._ps_pending)) {
+        if (k in window._ps_original) reverted[k] = window._ps_original[k];
+        delete window._ps_pending[k];
+      }
+      for (const k of Object.keys(window._ps_original)) delete window._ps_original[k];
+      window.SETTINGS_SNAPSHOT = reverted;
+      _render();
+      hideBar();
+    }
+
+    function load(settings) {
+      window.SETTINGS_SNAPSHOT = Object.assign({}, settings);
+      window.LOADED = Object.assign({}, settings);
+      window._ps_original = {};
+      window._ps_pending = {};
+      _render();
+      hideBar();
+    }
+
+    function init(opts) {
+      _render = (opts && opts.render) ? opts.render : _render;
+      _saveOne = (opts && opts.saveOne) ? opts.saveOne : _saveOne;
+      if (!_bound) {
+        const sb = document.getElementById("save-btn");
+        const db = document.getElementById("discard-btn");
+        if (sb) sb.addEventListener("click", saveChanges);
+        if (db) db.addEventListener("click", discardChanges);
+        _bound = true;
+      }
+    }
+
+    // Bare-name aliases so existing page code calling markChanged()/saveChanges()
+    // without the ProwlSettings prefix keeps working during migration.
+    window.markChanged = markChanged;
+    window.saveChanges = saveChanges;
+    window.discardChanges = discardChanges;
+
+    return { init, markChanged, saveChanges, discardChanges, load, showBar, hideBar };
+  })();
 })();

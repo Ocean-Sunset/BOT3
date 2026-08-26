@@ -396,7 +396,7 @@
       }
     })();
   </script>
-  <script src="/static/dashboard.js?v=6"></script>
+  <script src="/static/dashboard.js?v=7"></script>
   <script src="/static/redirect.js?v=1"></script>
   <script>
     function showToast(message, type = 'info', duration = 4000) {
@@ -445,6 +445,8 @@
       let seen = {};
       try { seen = JSON.parse(localStorage.getItem(WATCH_KEY) || '{}'); } catch {}
       let pendingNow = false;
+      // Track request_ids we're actively watching for timeout recovery
+      const watching = {};
       function notifyActions() {
         fetch('/api/v1/mod/' + GID + '/actions').then(r => r.json()).then(d => {
           const now = Date.now();
@@ -452,9 +454,9 @@
           (d.actions || []).forEach(a => {
             const ts = a.created_at ? a.created_at * 1000 : 0;
             if (!ts || now - ts > 300000) return; // only recent (5 min)
-            if ((a.status || '') === 'pending') hasPending = true;
-            const prev = seen[a.id];
             const status = a.status || '';
+            if (status === 'pending' || status === 'executing') hasPending = true;
+            const prev = seen[a.id];
             if (status !== prev) {
               seen[a.id] = status;
               try { localStorage.setItem(WATCH_KEY, JSON.stringify(seen)); } catch {}
@@ -463,20 +465,40 @@
               } else if (status === 'completed' && typeof showToast === 'function') {
                 const act = a.action || '';
                 showToast('Action #' + a.id + ' ' + act + ' completed.', 'success');
-                // If a mute/unmute finished, refresh the muted list if visible
                 if ((act === 'mute' || act === 'unmute' || act === 'purge') && typeof window.loadMutedList === 'function') {
                   setTimeout(() => window.loadMutedList(), 800);
                 }
+              } else if (status === 'executing' && typeof showToast === 'function') {
+                showToast('Action #' + a.id + ' ' + (a.action || '') + ' executing...', 'info', 3000);
               }
+            }
+            // Timeout recovery: if action has been pending/executing for >30s, query directly
+            if (a.request_id && (status === 'pending' || status === 'executing') && ts && (now - ts > 30000) && !watching[a.id]) {
+              watching[a.id] = true;
+              fetch('/api/v1/mod/' + GID + '/action/' + a.request_id).then(r => r.json()).then(detail => {
+                if (detail && detail.status && detail.status !== 'pending' && detail.status !== 'executing') {
+                  seen[a.id] = detail.status;
+                  if (detail.status === 'failed' && typeof showToast === 'function') {
+                    showToast('Action #' + a.id + ' failed: ' + (detail.error || 'timeout'), 'error');
+                  } else if (detail.status === 'completed' && typeof showToast === 'function') {
+                    showToast('Action #' + a.id + ' ' + (detail.action || '') + ' completed.', 'success');
+                  }
+                } else if (detail && (!detail.status || detail.status === 'pending' || detail.status === 'executing') && ts && (now - ts > 120000)) {
+                  // Stale >2min: mark as unknown
+                  seen[a.id] = 'unknown';
+                  if (typeof showToast === 'function') {
+                    showToast('Action #' + a.id + ' status unknown — bot may have processed it but did not report back.', 'warning', 8000);
+                  }
+                }
+                try { localStorage.setItem(WATCH_KEY, JSON.stringify(seen)); } catch {}
+              }).catch(() => {});
             }
           });
           pendingNow = hasPending;
         }).catch(() => {});
       }
       window.notifyActions = notifyActions;
-      // When a page queues an action, check right away so toasts pop fast
       window.addEventListener('prowl:action-queued', notifyActions);
-      // Poll fast while actions are pending, slow otherwise, and stop entirely while hidden.
       (function schedule() {
         setTimeout(() => {
           if (!document.hidden) notifyActions();

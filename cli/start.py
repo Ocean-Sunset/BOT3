@@ -183,12 +183,36 @@ class ProwlBot(commands.Bot):
         await self.wait_until_ready()
         from components.verification import get_verify_settings  # noqa: F811
         self._processing_actions = False
+        self._last_stale_reap = 0
         while not self.is_closed():
             try:
+                await self._reap_stale_actions()
                 await self._process_pending()
             except Exception as e:
                 logger.error(f"Mod action processor failed: {e}")
             await asyncio.sleep(3)
+
+    async def _reap_stale_actions(self):
+        """Mark actions stuck in 'executing' for >2min as 'failed'."""
+        now = time.time()
+        if now - self._last_stale_reap < 60:
+            return
+        self._last_stale_reap = now
+        try:
+            pool = await neon_db.get_pool()
+            if pool is None:
+                return
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(
+                    "SELECT id, request_id, action, target_id, guild_id FROM mod_actions "
+                    "WHERE status = 'executing' AND created_at < ? LIMIT 20",
+                    now - 120,
+                )
+                for r in rows:
+                    await neon_db.update_action_status(r["request_id"] or "", "failed", "bot timed out")
+                    logger.warning(f"Reaped stale action {r['id']}: {r['action']} on {r['target_id']}")
+        except Exception as e:
+            logger.error(f"Stale action reap failed: {e}")
 
     async def _process_pending(self):
         if self._processing_actions:
@@ -205,15 +229,22 @@ class ProwlBot(commands.Bot):
                     await neon_db.complete_action(a["id"], "skipped")
                     logger.warning(f"Action {a['id']} skipped: guild not found.")
                     continue
+                req_id = a.get("request_id") or ""
                 ok, message = await self.execute_action(
                     a["guild_id"], act, a["target_id"], a.get("target_name") or "",
                     a.get("reason") or "", a.get("duration"), a.get("moderator") or "Dashboard",
+                    request_id=req_id,
                 )
+                # complete_action is a fallback for legacy rows without request_id;
+                # execute_action already updates status when request_id is present.
+                if not req_id:
+                    if ok:
+                        await neon_db.complete_action(a["id"], "completed")
+                    else:
+                        await neon_db.complete_action(a["id"], "failed", message)
                 if ok:
-                    await neon_db.complete_action(a["id"], "completed")
                     logger.info(f"Processed action {a['id']}: {act} -> {a['target_id']} in {a['guild_id']} ({message})")
                 else:
-                    await neon_db.complete_action(a["id"], "failed", message)
                     logger.error(f"Action {a['id']} ({act} on {a['target_id']}) failed: {message}")
         except Exception as e:
             logger.error(f"Mod action processor failed: {e}")
@@ -221,15 +252,28 @@ class ProwlBot(commands.Bot):
             self._processing_actions = False
 
     async def execute_action(self, guild_id, action, target_id, target_name="",
-                             reason="No reason provided", duration=None, moderator="Dashboard"):
+                             reason="No reason provided", duration=None, moderator="Dashboard",
+                             request_id=""):
         """Execute a single dashboard/moderation action immediately.
 
         Returns (ok: bool, message: str). Shared by the DB action processor and
         the direct HTTP bridge so dashboard actions complete instantly instead
-        of waiting on the queue poll."""
+        of waiting on the queue poll.
+
+        When request_id is provided, the action status is tracked in mod_actions
+        (executing -> completed/failed) for lifecycle visibility."""
         guild = self.get_guild(int(guild_id))
         if not guild:
+            if request_id:
+                await neon_db.update_action_status(request_id, "failed", "guild not found")
             return False, "guild not found"
+        # Idempotency: if this request_id already completed, skip re-execution
+        if request_id:
+            existing = await neon_db.get_action_by_request_id(request_id)
+            if existing and existing.get("status") in ("completed", "failed"):
+                logger.info(f"Action {request_id} already {existing['status']}, skipping.")
+                return existing["status"] == "completed", existing.get("error") or "already processed"
+            await neon_db.update_action_status(request_id, "executing")
         member = None
         try:
             member = await guild.fetch_member(int(target_id))
@@ -338,8 +382,12 @@ class ProwlBot(commands.Bot):
                 reason = "Account deletion - leaving server"
                 skip_log = True
             else:
+                if request_id:
+                    await neon_db.update_action_status(request_id, "failed", f"unknown action: {act}")
                 return False, f"unknown action: {act}"
         except Exception as e:
+            if request_id:
+                await neon_db.update_action_status(request_id, "failed", str(e)[:500])
             return False, str(e)[:500]
         # Log to mod_log only on actual success (skip for guild-leave)
         if not skip_log:
@@ -363,6 +411,8 @@ class ProwlBot(commands.Bot):
         # Push member data immediately so the dashboard reflects the change fast
         if act in ("add_role", "remove_role", "nickname"):
             self.loop.create_task(self._sync_guild_members(guild))
+        if request_id:
+            await neon_db.update_action_status(request_id, "completed")
         return True, reason
 
     async def _build_stats(self):

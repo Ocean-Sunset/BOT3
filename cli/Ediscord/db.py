@@ -303,7 +303,7 @@ async def _ensure_tables():
         ("CREATE TABLE IF NOT EXISTS guild_data (guild_id TEXT PRIMARY KEY, data TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS mod_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS mod_log (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT, user_id TEXT, user_name TEXT, action TEXT, reason TEXT DEFAULT '', moderator TEXT DEFAULT '', created_at REAL)", ()),
-        ("CREATE TABLE IF NOT EXISTS mod_actions (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT, action TEXT, target_id TEXT, target_name TEXT DEFAULT '', reason TEXT DEFAULT '', moderator TEXT DEFAULT '', duration INTEGER, status TEXT DEFAULT 'pending', created_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS mod_actions (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT, action TEXT, target_id TEXT, target_name TEXT DEFAULT '', reason TEXT DEFAULT '', moderator TEXT DEFAULT '', duration INTEGER, status TEXT DEFAULT 'pending', created_at REAL, request_id TEXT UNIQUE)", ()),
         ("CREATE TABLE IF NOT EXISTS muted_users (guild_id TEXT, user_id TEXT, user_name TEXT DEFAULT '', reason TEXT DEFAULT '', end_ts REAL, PRIMARY KEY (guild_id, user_id))", ()),
         ("CREATE TABLE IF NOT EXISTS ai_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS welcome_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
@@ -337,6 +337,7 @@ async def _ensure_tables():
         "ALTER TABLE mod_actions ADD COLUMN moderator TEXT DEFAULT ''",
         "ALTER TABLE mod_actions ADD COLUMN error TEXT DEFAULT ''",
         "ALTER TABLE mod_actions ADD COLUMN processed_at REAL",
+        "ALTER TABLE mod_actions ADD COLUMN request_id TEXT UNIQUE",
     ]
     try:
         await _execute_batch_http(statements)
@@ -447,7 +448,7 @@ async def fetch_pending_actions() -> list:
     try:
         async with pool.acquire() as conn:
             rows = await conn.fetch(
-                "SELECT id, guild_id, action, target_id, target_name, reason, duration "
+                "SELECT id, guild_id, action, target_id, target_name, reason, duration, request_id "
                 "FROM mod_actions WHERE status = 'pending' ORDER BY created_at ASC LIMIT 50"
             )
             return [dict(r) for r in rows]
@@ -468,6 +469,39 @@ async def complete_action(action_id: int, status: str = "completed", error: str 
             )
     except Exception as e:
         logger.error(f"complete_action failed: {e}")
+
+
+async def update_action_status(request_id: str, status: str, error: str = ""):
+    """Update action status by request_id (used by the direct bridge)."""
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE mod_actions SET status = ?, error = ?, processed_at = unixepoch() WHERE request_id = ?",
+                status, error, request_id,
+            )
+    except Exception as e:
+        logger.error(f"update_action_status failed: {e}")
+
+
+async def get_action_by_request_id(request_id: str):
+    """Fetch a single action row by request_id."""
+    pool = await get_pool()
+    if pool is None:
+        return None
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT id, guild_id, action, target_id, target_name, reason, moderator, duration, status, error, created_at, processed_at, request_id "
+                "FROM mod_actions WHERE request_id = ?",
+                request_id,
+            )
+            return dict(row) if row else None
+    except Exception as e:
+        logger.error(f"get_action_by_request_id failed: {e}")
+    return None
 
 
 async def set_muted_user(guild_id, user_id, user_name="", reason="", end_ts=0):

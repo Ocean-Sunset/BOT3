@@ -2073,19 +2073,15 @@ async def _consume_captcha_code(code: str, provider: str):
 async def _call_bot_direct(guild_id, action, user_id, user_name="", reason="", duration=None, moderator="", target=None, request_id=""):
     """Send a moderation quick-action straight to the bot's HTTP bridge.
 
-    Returns (ok: bool, message: str). Falls back is handled by the caller
-    (the DB queue). The auth token never leaves the server."""
+    The bot owns the action's terminal status (executing -> completed/failed),
+    keyed by request_id. We therefore never write a status here - doing so would
+    risk marking an action 'failed' on a transport timeout while the bot is still
+    executing, or racing the bot's own write. Returns (ok, message); the caller
+    treats !ok as 'queued' and lets the bot/queue own the outcome.
+
+    The auth token never leaves the server."""
     if action not in DIRECT_ACTIONS or not BOT_SERVER_URL or not BOT_HTTP_TOKEN:
         return False, "bridge not configured"
-    # Mark as executing so the frontend sees progress
-    if request_id:
-        try:
-            await execute(
-                "UPDATE mod_actions SET status = 'executing' WHERE request_id = ?",
-                request_id,
-            )
-        except Exception:
-            pass
     try:
         payload = {
             "action": action,
@@ -2107,27 +2103,14 @@ async def _call_bot_direct(guild_id, action, user_id, user_name="", reason="", d
                 headers={"X-Prowl-Token": BOT_HTTP_TOKEN},
             )
             if r.status_code == 200:
-                ok = True
-                message = r.json().get("message") or "ok"
-            else:
-                ok = False
-                message = f"bot responded {r.status_code}"
+                return True, (r.json().get("message") or "ok")
+            # Bot responded but explicitly rejected - surface its real message.
+            return False, (r.json().get("message") or f"bot responded {r.status_code}")
     except Exception as e:
-        ok = False
-        message = str(e)
-    # Update final status
-    if request_id:
-        try:
-            await execute(
-                "UPDATE mod_actions SET status = ?, error = ?, processed_at = ? WHERE request_id = ?",
-                "completed" if ok else "failed",
-                "" if ok else message[:500],
-                time.time(),
-                request_id,
-            )
-        except Exception:
-            pass
-    return ok, message
+        # Transport error (timeout / bot unreachable). Do NOT write a terminal
+        # status: if the bot received the request it will write its own; if it
+        # didn't, the row stays 'pending' and the bot's queue will retry it.
+        return False, str(e)
 
 
 async def _queue_action(guild_id, action, target_id, target_name="", reason="", duration=None, moderator=""):

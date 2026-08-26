@@ -130,7 +130,7 @@ class Members(commands.Cog, name="Members"):
         embed = EmbedBuilder().title(emoji_title("warn", f"Warnings for {member.display_name}")).description(f"Total: {len(rows)}").color("warn")
         for row in rows[:10]:
             reason = row["reason"] or "No reason"
-            embed.field(reason[:200], discord.utils.format_dt(row["created_at"], style="R"))
+            embed.field(reason[:200], discord.utils.format_dt(datetime.datetime.fromtimestamp(row["created_at"]), style="R"))
         embed.footer(f"User ID: {str(member.id)}").timestamp(datetime.datetime.utcnow())
         await interaction.response.send_message(embed=embed.build())
 

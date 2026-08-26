@@ -19,19 +19,14 @@
     // removes the api.prowlbot.xyz cross-origin calls that were being blocked
     // (no Access-Control-Allow-Origin) by the edge in front of that subdomain.
     (function(){
-      var host = location.hostname.toLowerCase();
-      window.__API = '';
-      if (window.__API) {
-        var origFetch = window.fetch.bind(window);
-        window.fetch = function(url, opts) {
-          if (typeof url === 'string' && url.indexOf('/api/') === 0) {
-            url = window.__API + url;
-            opts = opts || {};
-            if (!opts.credentials) opts.credentials = 'include';
-          }
-          return origFetch(url, opts);
-        };
-      }
+      var origFetch = window.fetch.bind(window);
+      window.fetch = function(url, opts) {
+        if (typeof url === 'string' && url.indexOf('/api/') === 0) {
+          opts = opts || {};
+          if (!opts.credentials) opts.credentials = 'include';
+        }
+        return origFetch(url, opts);
+      };
     })();
   </script>
   <script>

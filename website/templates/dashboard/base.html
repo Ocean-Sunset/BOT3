@@ -13,11 +13,14 @@
   <link rel="preload" href="https://unpkg.com/lucide@latest" as="script" />
   <link rel="stylesheet" href="/static/dashboard.css?v=27" />
   <script>
-    // API subdomain routing: production calls go to api.prowlbot.xyz with cookies,
-    // localhost keeps same-origin relative paths.
+    // All dashboard API calls are made same-origin. The FastAPI app is served
+    // at the current origin (vercel.json routes /(.*) -> api/index.py), so the
+    // dashboard can call /api/... directly without cross-origin CORS. This
+    // removes the api.prowlbot.xyz cross-origin calls that were being blocked
+    // (no Access-Control-Allow-Origin) by the edge in front of that subdomain.
     (function(){
       var host = location.hostname.toLowerCase();
-      window.__API = host.indexOf('prowlbot.xyz') !== -1 ? 'https://api.prowlbot.xyz' : '';
+      window.__API = '';
       if (window.__API) {
         var origFetch = window.fetch.bind(window);
         window.fetch = function(url, opts) {

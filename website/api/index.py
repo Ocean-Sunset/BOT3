@@ -961,7 +961,7 @@ async def _finish_nerimity(request: Request, code: str = None, state: str = None
         except Exception as e:
             logger.error("Nerimity login last_login update failed: %s", e)
         return RedirectResponse("/servers")
-    return RedirectResponse("/login")
+    return RedirectResponse("/login?error=no_account")
 
 
 @app.get("/callback/nerimity")
@@ -1104,7 +1104,7 @@ async def callback_github(request: Request, code: str = None, state: str = None)
         except Exception as e:
             logger.error("GitHub login last_login update failed: %s", e)
         return RedirectResponse("/dashboard")
-    return RedirectResponse("/login")
+    return RedirectResponse("/login?error=no_account")
 
 
 @app.get("/logout")
@@ -2389,7 +2389,10 @@ async def mod_stats_daily(guild_id: str, request: Request):
         await execute(_STATS_HISTORY_SQL)
     except Exception:
         pass
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
+    try:
+        row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
+    except Exception:
+        row = None
     d = _parse_guild_data(row)
     d = d or {}
     members = int(d.get("member_count", 0) or 0)

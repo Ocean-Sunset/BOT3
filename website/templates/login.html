@@ -12,7 +12,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script src="/static/lucide.min.js"></script>
   <script src="/static/redirect.js"></script>
-  <link rel="stylesheet" href="/static/login.css?v=4" />
+  <link rel="stylesheet" href="/static/login.css?v=5" />
 </head>
 <body>
 
@@ -59,6 +59,12 @@
           Continue with Nerimity
         </a>
       </div>
+
+      <div class="disclaimer gsap-disclaimer" id="disclaimer" style="display:none;">
+        By signing up, you agree to our <a href="/terms">Terms of Service</a> and <a href="/privacy">Privacy Policy</a>.
+      </div>
+
+      <div class="error-msg" id="error-msg" style="display:none;"></div>
 
     </div>
 
@@ -125,6 +131,7 @@
     // ── Determine initial mode from URL param ──
     const params = new URLSearchParams(window.location.search);
     const initialMode = params.get('mode') === 'signup' ? 'signup' : 'signin';
+    const errorParam = params.get('error');
 
     // ── Fix #1: Hide non-matching showcase blocks immediately so card doesn't stretch ──
     document.querySelectorAll('.showcase-block').forEach(b => {
@@ -139,6 +146,14 @@
       document.getElementById('btn-signup').classList.add('active');
       document.getElementById('github-btn').style.display = 'none';
       document.getElementById('nerimity-btn').style.display = 'none';
+      document.getElementById('disclaimer').style.display = '';
+    }
+
+    // Show error message if present
+    if (errorParam === 'no_account') {
+      const errorEl = document.getElementById('error-msg');
+      errorEl.textContent = 'No account was detected. Please create an account first by signing up.';
+      errorEl.style.display = '';
     }
 
     // Animate showcase blocks immediately (in parallel with card fade-in)
@@ -151,6 +166,7 @@
     gsap.set('.gsap-toggle',  { opacity: 0, y: 16 });
     gsap.set('.gsap-heading', { opacity: 0, y: 16 });
     gsap.set('.gsap-buttons', { opacity: 0, y: 16 });
+    gsap.set('.gsap-disclaimer', { opacity: 0, y: 10 });
 
     const loadTL = gsap.timeline({ defaults: { ease: 'power3.out' } });
     loadTL
@@ -159,7 +175,8 @@
       .to('.gsap-brand',   { opacity: 1, y: 0, duration: 0.45 }, '-=0.3')
       .to('.gsap-toggle',  { opacity: 1, y: 0, duration: 0.4 }, '-=0.3')
       .to('.gsap-heading', { opacity: 1, y: 0, duration: 0.4 }, '-=0.25')
-      .to('.gsap-buttons', { opacity: 1, y: 0, duration: 0.45 }, '-=0.2');
+      .to('.gsap-buttons', { opacity: 1, y: 0, duration: 0.45 }, '-=0.2')
+      .to('.gsap-disclaimer', { opacity: 1, y: 0, duration: 0.35 }, '-=0.2');
 
     // ── Mode toggle ──
     let currentMode = initialMode;
@@ -188,15 +205,19 @@
       const btnUp    = document.getElementById('btn-signup');
       const githubBtn = document.getElementById('github-btn');
       const nerimityBtn = document.getElementById('nerimity-btn');
+      const disclaimer = document.getElementById('disclaimer');
 
       btnIn.classList.toggle('active', m === 'signin');
       btnUp.classList.toggle('active', m === 'signup');
 
       if (m === 'signup') {
         gsap.to([githubBtn, nerimityBtn], { opacity: 0, height: 0, margin: 0, padding: 0, borderWidth: 0, duration: 0.25, ease: 'power2.in', onComplete: () => { githubBtn.style.display = 'none'; nerimityBtn.style.display = 'none'; } });
+        disclaimer.style.display = '';
+        gsap.fromTo(disclaimer, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' });
       } else {
         [githubBtn, nerimityBtn].forEach(b => { b.style.display = ''; });
         gsap.to([githubBtn, nerimityBtn], { opacity: 1, height: 'auto', padding: '0.9rem 1.5rem', borderWidth: 1, duration: 0.25, ease: 'power2.out' });
+        gsap.to(disclaimer, { opacity: 0, y: 8, duration: 0.2, ease: 'power2.in', onComplete: () => { disclaimer.style.display = 'none'; } });
       }
 
       const tl = gsap.timeline();

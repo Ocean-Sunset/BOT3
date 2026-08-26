@@ -152,6 +152,36 @@ body {
 
 .btn-discord svg, .btn-github svg { width: 20px; height: 20px; }
 
+.disclaimer {
+  font-size: 0.72rem;
+  color: #555;
+  font-weight: 500;
+  line-height: 1.5;
+  margin-top: -0.5rem;
+}
+
+.disclaimer a {
+  color: #888;
+  text-decoration: underline;
+  text-decoration-color: rgba(255,255,255,0.15);
+  transition: color 0.2s;
+}
+
+.disclaimer a:hover {
+  color: #bbb;
+}
+
+.error-msg {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.65rem 1rem;
+  border-radius: 4px;
+  line-height: 1.4;
+}
+
 .card-right {
   display: flex;
   flex-direction: column;

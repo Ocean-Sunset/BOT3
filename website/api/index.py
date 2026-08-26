@@ -21,7 +21,7 @@ from fastapi.templating import Jinja2Templates
 from api import session as rotating_session
 import httpx
 
-from api.db import get_pool, query, fetchrow, fetchval, execute, fetchrow_cached, _update_cache
+from api.db import get_pool, query, fetchrow, fetchval, execute, fetchrow_cached, _update_cache, get_guild_data, invalidate_guild_data
 
 logger = logging.getLogger(__name__)
 
@@ -1686,8 +1686,7 @@ async def api_guilds(request: Request):
 @app.get("/api/v1/guild/{guild_id}")
 async def api_guild(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    g = _parse_guild_data(row)
+    g = await get_guild_data(guild_id)
     if g is not None:
         return g
     return JSONResponse({"error": "Guild not found"}, status_code=404)
@@ -1945,8 +1944,7 @@ async def mod_feed(guild_id: str, request: Request):
     if rows:
         # Build channel-name lookup for purge events that stored raw IDs
         ch_map = {}
-        gd = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-        parsed = _parse_guild_data({"data": gd["data"]}) if gd else None
+        parsed = await get_guild_data(guild_id)
         if parsed and isinstance(parsed.get("channels"), list):
             for c in parsed["channels"]:
                 ch_map[str(c.get("id"))] = c.get("name", "")
@@ -2117,19 +2115,16 @@ async def _queue_action(guild_id, action, target_id, target_name="", reason="", 
 @app.get("/api/v1/mod/{guild_id}/debug")
 async def mod_debug(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d is not None:
         return {"has_data": True, "has_members": "members" in d, "has_channels": "channels" in d, "has_roles": "roles" in d, "keys": list(d.keys()), "member_count": len(d.get("members", [])), "channel_count": len(d.get("channels", [])), "role_count": len(d.get("roles", []))}
-    raw = row["data"] if row else None
-    return {"has_data": bool(row), "raw_type": str(type(raw)), "raw_value_preview": str(raw)[:200] if raw else None}
+    return {"has_data": False}
 
 
 @app.get("/api/v1/mod/{guild_id}/members")
 async def mod_members(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
 
     def avatar_url(m):
         av = m.get("avatar_url") or m.get("avatar")
@@ -2157,8 +2152,7 @@ async def mod_members(guild_id: str, request: Request):
 @app.get("/api/v1/mod/{guild_id}/channels")
 async def mod_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "channels" in d:
         # Coerce IDs to strings (JS-safe) - categories reported separately
         return {
@@ -2192,8 +2186,7 @@ async def mod_muted(guild_id: str, request: Request):
 
     # Avatar lookup from guild_data members
     avatar_map = {}
-    gd = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    parsed = _parse_guild_data({"data": gd["data"]}) if gd else None
+    parsed = await get_guild_data(guild_id)
     if parsed and isinstance(parsed.get("members"), list):
         for m in parsed["members"]:
             av = m.get("avatar_url") or m.get("avatar")
@@ -2220,11 +2213,8 @@ async def mod_muted(guild_id: str, request: Request):
 @app.get("/api/v1/mod/{guild_id}/roles")
 async def mod_roles(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     roles = d.get("roles", []) if d else []
-    if row and isinstance(row["data"], dict) and "roles" in row["data"]:
-        roles = row["data"]["roles"]
     settings = await _get_mod_settings(guild_id)
     mod_role_ids = settings.get("mod_roles", [])
 
@@ -2389,11 +2379,7 @@ async def mod_stats_daily(guild_id: str, request: Request):
         await execute(_STATS_HISTORY_SQL)
     except Exception:
         pass
-    try:
-        row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    except Exception:
-        row = None
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     d = d or {}
     members = int(d.get("member_count", 0) or 0)
     channels = sum(1 for c in (d.get("channels") or []) if c.get("type", 0) == 0)
@@ -2597,8 +2583,7 @@ async def leveling_leaderboard(guild_id: str, request: Request):
     if not rows:
         return {"members": []}
     # Join with cached member data for names/avatars
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     by_id = {}
     if d and "members" in d:
         for m in d["members"]:
@@ -2637,8 +2622,7 @@ async def leveling_leaderboard(guild_id: str, request: Request):
 @app.get("/api/v1/leveling/{guild_id}/channels")
 async def leveling_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
     return {"channels": [{"id": "2001", "name": "general"}]}
@@ -2647,11 +2631,8 @@ async def leveling_channels(guild_id: str, request: Request):
 @app.get("/api/v1/leveling/{guild_id}/roles")
 async def leveling_roles(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     roles = d.get("roles", []) if d else []
-    if row and isinstance(row["data"], dict) and "roles" in row["data"]:
-        roles = row["data"]["roles"]
     result = []
     for r in roles:
         if str(r.get("id", "")) == str(guild_id):
@@ -2725,8 +2706,7 @@ async def logging_settings_set(guild_id: str, request: Request):
 @app.get("/api/v1/logging/{guild_id}/channels")
 async def logging_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
     return {"channels": [{"id": "2001", "name": "general"}]}
@@ -2842,8 +2822,7 @@ async def automod_settings_set(guild_id: str, request: Request):
 @app.get("/api/v1/automod/{guild_id}/channels")
 async def automod_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
     return {"channels": [{"id": "2001", "name": "general"}]}
@@ -3415,8 +3394,7 @@ async def raid_settings_set(guild_id: str, request: Request):
 @app.get("/api/v1/raid/{guild_id}/channels")
 async def raid_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
     return {"channels": [{"id": "2001", "name": "general"}]}
@@ -3541,8 +3519,7 @@ async def welcomer_settings_set(guild_id: str, request: Request):
 async def welcomer_channels(guild_id: str, request: Request):
     """Text channels for the welcome channel dropdown."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
     return {"channels": []}
@@ -3552,8 +3529,7 @@ async def welcomer_channels(guild_id: str, request: Request):
 async def welcomer_roles(guild_id: str, request: Request):
     """All roles for the auto-role dropdown."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "roles" in d:
         return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
     return {"roles": []}
@@ -3578,8 +3554,7 @@ async def autoresponder_triggers(guild_id: str, request: Request):
 @app.get("/api/v1/autoresponder/{guild_id}/channels")
 async def autoresponder_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
     return {"channels": [{"id": "2001", "name": "general"}]}
@@ -3685,8 +3660,7 @@ async def social_settings_set(guild_id: str, request: Request):
 async def social_roles(guild_id: str, request: Request):
     """All roles for ping-role dropdowns."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "roles" in d:
         return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
     return {"roles": []}
@@ -3696,8 +3670,7 @@ async def social_roles(guild_id: str, request: Request):
 async def social_channels(guild_id: str, request: Request):
     """Text channels for the announce-channel dropdown."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
     return {"channels": []}
@@ -3839,8 +3812,7 @@ async def ticket_send_panel(guild_id: str, request: Request):
 async def ticket_categories(guild_id: str, request: Request):
     """Categories for the ticket category dropdown."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "channels" in d:
         return {"categories": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 4]}
     return {"categories": []}
@@ -3850,8 +3822,7 @@ async def ticket_categories(guild_id: str, request: Request):
 async def ticket_channels(guild_id: str, request: Request):
     """Text channels for the log-channel dropdown."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
     return {"channels": []}
@@ -3861,8 +3832,7 @@ async def ticket_channels(guild_id: str, request: Request):
 async def ticket_roles(guild_id: str, request: Request):
     """All roles for the support-role dropdown."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "roles" in d:
         return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
     return {"roles": []}
@@ -3918,8 +3888,7 @@ async def verify_deploy(guild_id: str, request: Request):
 @app.get("/api/v1/verify/{guild_id}/channels")
 async def verify_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name")} for c in d["channels"] if c.get("type", 0) == 0]}
     return {"channels": []}
@@ -3928,8 +3897,7 @@ async def verify_channels(guild_id: str, request: Request):
 @app.get("/api/v1/verify/{guild_id}/roles")
 async def verify_roles(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "roles" in d:
         return {"roles": [{"id": str(r.get("id")), "name": r.get("name")} for r in d["roles"]]}
     return {"roles": []}
@@ -4027,8 +3995,7 @@ async def captcha_complete(request: Request):
 async def members_roles(guild_id: str, request: Request):
     """All roles (unfiltered) with positions + managed flag for member management."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "roles" in d:
         return {"roles": [{"id": str(r.get("id")), "name": r.get("name", ""), "position": r.get("position", 0), "managed": bool(r.get("managed", False))} for r in d["roles"]]}
     return {"roles": []}
@@ -4038,8 +4005,7 @@ async def members_roles(guild_id: str, request: Request):
 async def members_bot_info(guild_id: str, request: Request):
     """Bot hierarchy/permission info for member management checks."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d:
         return {
             "bot_top_role_position": d.get("bot_top_role_position", 0),
@@ -4093,8 +4059,7 @@ async def gc_settings_set(guild_id: str, request: Request):
 @app.get("/api/v1/global_chat/{guild_id}/channels")
 async def gc_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name")} for c in d["channels"] if c.get("type", 0) == 0]}
     return {"channels": []}
@@ -4140,8 +4105,7 @@ async def server_settings_get(guild_id: str, request: Request):
 async def server_info(guild_id: str, request: Request):
     """Quick summary of the server + feature activation states (read-only)."""
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     features = {}
     for table in ALL_FEATURE_TABLES:
         if table in ("mod_log", "mod_actions", "ticket_logs", "captcha_codes", "guild_stats_history", "member_history", "message_history"):
@@ -4278,8 +4242,7 @@ async def music_settings_set(guild_id: str, request: Request):
 @app.get("/api/v1/music/{guild_id}/roles")
 async def music_roles(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "roles" in d:
         return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
     return {"roles": []}
@@ -4288,8 +4251,7 @@ async def music_roles(guild_id: str, request: Request):
 @app.get("/api/v1/music/{guild_id}/channels")
 async def music_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
     return {"channels": []}
@@ -4360,8 +4322,7 @@ async def ai_settings_set(guild_id: str, request: Request):
 @app.get("/api/v1/ai/{guild_id}/channels")
 async def ai_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
     return {"channels": []}
@@ -4516,8 +4477,7 @@ async def automation_overrides_set(guild_id: str, request: Request):
 @app.get("/api/v1/automation/{guild_id}/channels")
 async def automation_channels(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
     return {"channels": []}
@@ -4526,8 +4486,7 @@ async def automation_channels(guild_id: str, request: Request):
 @app.get("/api/v1/automation/{guild_id}/roles")
 async def automation_roles(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    row = await fetchrow("SELECT data FROM guild_data WHERE guild_id = ?", str(guild_id))
-    d = _parse_guild_data(row)
+    d = await get_guild_data(guild_id)
     if d and "roles" in d:
         return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
     return {"roles": []}

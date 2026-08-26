@@ -14,6 +14,9 @@ _token = None
 _SETTINGS_CACHE = {}
 _SETTINGS_CACHE_TTL = 30.0
 
+_GUILD_DATA_CACHE = {}
+_GUILD_DATA_CACHE_TTL = 60.0
+
 
 class Record:
     """Dict-like wrapper for DB rows, mimicking asyncpg Record access."""
@@ -303,3 +306,71 @@ async def execute(sql: str, *args):
     except Exception as e:
         logger.debug(f"execute failed: {e}")
         return None
+
+
+# ---------------------------------------------------------------------------
+#  Guild data cache (members, channels, roles — large JSON blobs)
+# ---------------------------------------------------------------------------
+
+import json as _json
+
+
+def _get_guild_data_cache_key(guild_id) -> str:
+    return str(guild_id)
+
+
+def _parse_guild_data(raw):
+    """Safely extract guild data dict from a raw value."""
+    if not raw:
+        return None
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str):
+        try:
+            d = _json.loads(raw)
+            return d if isinstance(d, dict) else None
+        except (_json.JSONDecodeError, TypeError):
+            return None
+    return None
+
+
+async def get_guild_data(guild_id):
+    """Fetch guild data with TTL cache. Returns parsed dict or None."""
+    key = _get_guild_data_cache_key(guild_id)
+    entry = _GUILD_DATA_CACHE.get(key)
+    if entry and time.time() - entry["ts"] < _GUILD_DATA_CACHE_TTL:
+        return entry["value"]
+
+    ok = await get_conn()
+    if not ok:
+        return None
+
+    try:
+        result = await _execute_http(
+            "SELECT data FROM guild_data WHERE guild_id = ?", (str(guild_id),)
+        )
+        records = _rows_to_records(result)
+        row = records[0] if records else None
+    except Exception as e:
+        logger.debug(f"get_guild_data failed for {guild_id}: {e}")
+        return None
+
+    if not row:
+        return None
+
+    d = _parse_guild_data(row["data"])
+    if d is not None:
+        _GUILD_DATA_CACHE[key] = {"value": d, "ts": time.time()}
+    return d
+
+
+def invalidate_guild_data(guild_id):
+    """Drop a single guild from the cache (called after bot pushes new data)."""
+    key = _get_guild_data_cache_key(guild_id)
+    _GUILD_DATA_CACHE.pop(key, None)
+
+
+def _update_guild_data_cache(guild_id, data: dict):
+    """Update the cache after a write."""
+    key = _get_guild_data_cache_key(guild_id)
+    _GUILD_DATA_CACHE[key] = {"value": data, "ts": time.time()}

@@ -8,6 +8,7 @@ import math
 import secrets
 import logging
 import urllib.parse
+import datetime
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -15,7 +16,7 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent / ".env.local")
 load_dotenv(Path(__file__).parent.parent / ".env")
 
-from fastapi import FastAPI, Request, Form, HTTPException
+from fastapi import FastAPI, Request, Form, HTTPException, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -1202,7 +1203,7 @@ async def dashboard(request: Request, guild_id: str, panel: str = "overview"):
         "music", "leveling", "verification", "automation",
         "social_alerts", "invite_tracker", "tickets", "global_chat",
         "autoresponder", "settings", "raid_protection", "profile",
-        "aliases", "bot_profile",
+        "aliases", "bot_profile", "reminders", "afk", "giveaways",
     ]
     if panel not in valid_panels:
         panel = "overview"
@@ -1907,7 +1908,7 @@ async def mod_settings(guild_id: str, request: Request):
     return {"settings": await _get_mod_settings(guild_id)}
 
 
-@app.post("/api/v1/mod/{guild_id}/settings")
+@app.post("/api/v1/mod/{guild_id}/settings", dependencies=[Depends(require_mod)])
 async def mod_settings_set(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
@@ -1970,7 +1971,7 @@ async def mod_feed(guild_id: str, request: Request):
     return {"events": []}
 
 
-@app.post("/api/v1/mod/{guild_id}/log")
+@app.post("/api/v1/mod/{guild_id}/log", dependencies=[Depends(require_mod)])
 async def mod_log_push(guild_id: str, request: Request):
     """Endpoint for the bot to push moderation events."""
     body = await request.json()
@@ -2283,7 +2284,7 @@ async def mod_roles(guild_id: str, request: Request):
     return {"roles": result}
 
 
-@app.post("/api/v1/mod/{guild_id}/roles")
+@app.post("/api/v1/mod/{guild_id}/roles", dependencies=[Depends(require_mod)])
 async def mod_roles_set(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
@@ -2306,7 +2307,7 @@ async def mod_roles_set(guild_id: str, request: Request):
     return {"ok": True}
 
 
-@app.post("/api/v1/mod/{guild_id}/roles/batch")
+@app.post("/api/v1/mod/{guild_id}/roles/batch", dependencies=[Depends(require_mod)])
 async def mod_roles_batch(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
@@ -2322,7 +2323,7 @@ async def mod_roles_batch(guild_id: str, request: Request):
     return {"ok": True, "mod_roles": role_ids}
 
 
-@app.post("/api/v1/mod/{guild_id}/emergency")
+@app.post("/api/v1/mod/{guild_id}/emergency", dependencies=[Depends(require_mod)])
 async def mod_emergency(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
@@ -2343,7 +2344,7 @@ async def mod_emergency(guild_id: str, request: Request):
     return {"ok": True}
 
 
-@app.post("/api/v1/mod/{guild_id}/purge")
+@app.post("/api/v1/mod/{guild_id}/purge", dependencies=[Depends(require_mod)])
 async def mod_purge(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
@@ -2477,7 +2478,7 @@ async def mod_action_status(guild_id: str, request_id: str, request: Request):
     return dict(row)
 
 
-@app.post("/api/v1/mod/{guild_id}/action")
+@app.post("/api/v1/mod/{guild_id}/action", dependencies=[Depends(require_mod)])
 async def mod_action(guild_id: str, request: Request):
     """Execute a moderation action. Persists to DB first for lifecycle tracking,
     then tries the bot's direct HTTP bridge (instant). Falls back to the DB
@@ -2509,6 +2510,540 @@ async def mod_action(guild_id: str, request: Request):
 
     # Bridge unavailable - action is already in the DB queue, bot will pick it up
     return {"ok": True, "queued": True, "direct": False, "fallback": message, "request_id": request_id}
+
+
+# ---------------------------------------------------------------------------
+#  Personal Reminders & To-Do (per-user)
+# ---------------------------------------------------------------------------
+
+_REL_RE = re.compile(
+    r"(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)",
+    re.I,
+)
+_WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+
+
+def _parse_clock(text):
+    """Parse '9', '9am', '9:30', '9:30pm' into (hour, minute) or None."""
+    text = (text or "").strip().lower()
+    m = re.fullmatch(r"(\d{1,2})(?::(\d{2}))?\s*(am|pm)?", text)
+    if not m:
+        return None
+    h = int(m.group(1)); mi = int(m.group(2) or 0); ap = (m.group(3) or "")
+    if ap == "pm" and h != 12:
+        h += 12
+    elif ap == "am" and h == 12:
+        h = 0
+    if h > 23 or mi > 59:
+        return None
+    return (h, mi)
+
+
+def _parse_when(text, now=None):
+    """Return (epoch_seconds, error_or_None). Mirrors the bot's parser."""
+    now = now or datetime.datetime.now()
+    s = (text or "").strip().lower()
+    if _REL_RE.search(s):
+        total = 0; matched = False
+        for num, unit in _REL_RE.findall(s):
+            u = unit.lower()[0]
+            if u not in "smhd":
+                continue
+            total += int(num) * {"s": 1, "m": 60, "h": 3600, "d": 86400}[u]
+            matched = True
+        if matched and total > 0:
+            return (now + datetime.timedelta(seconds=total)).timestamp(), None
+    m = re.fullmatch(r"(\d{1,2}):(\d{2})", s)
+    if m:
+        h, mi = int(m.group(1)), int(m.group(2))
+        if h <= 23 and mi <= 59:
+            t = now.replace(hour=h, minute=mi, second=0, microsecond=0)
+            if t <= now:
+                t += datetime.timedelta(days=1)
+            return t.timestamp(), None
+    if s.startswith("tomorrow"):
+        rest = s[len("tomorrow"):].strip()
+        base = now + datetime.timedelta(days=1)
+        if rest:
+            c = _parse_clock(rest)
+            if not c:
+                return None, "I couldn't parse the time after 'tomorrow'."
+            base = base.replace(hour=c[0], minute=c[1], second=0, microsecond=0)
+        else:
+            base = base.replace(hour=9, minute=0, second=0, microsecond=0)
+        return base.timestamp(), None
+    for i, wd in enumerate(_WEEKDAYS):
+        if s.startswith(wd[:3]) or s.startswith(wd):
+            rest = s[len(wd):].strip()
+            days = (i - now.weekday()) % 7
+            if days == 0:
+                days = 7
+            base = now + datetime.timedelta(days=days)
+            if rest:
+                c = _parse_clock(rest)
+                if c:
+                    base = base.replace(hour=c[0], minute=c[1], second=0, microsecond=0)
+            else:
+                base = base.replace(hour=9, minute=0, second=0, microsecond=0)
+            return base.timestamp(), None
+    return None, "I couldn't understand that time. Try something like '30m', '2h', 'tomorrow 9am', or 'fri 18:00'."
+
+
+_reminders_ensured = False
+
+
+async def _ensure_reminders_tables():
+    global _reminders_ensured
+    if _reminders_ensured:
+        return
+    try:
+        await execute(
+            "CREATE TABLE IF NOT EXISTS reminders ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, guild_id TEXT, "
+            "channel_id TEXT, message TEXT DEFAULT '', remind_at REAL NOT NULL, "
+            "created_at REAL, done INTEGER DEFAULT 0)"
+        )
+        await execute(
+            "CREATE TABLE IF NOT EXISTS todos ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, task TEXT NOT NULL, "
+            "created_at REAL, done INTEGER DEFAULT 0, done_at REAL)"
+        )
+        _reminders_ensured = True
+    except Exception as e:
+        logger.error("ensure_reminders_tables failed: %s", e)
+
+
+def _fmt_when(ts):
+    return datetime.datetime.fromtimestamp(ts).strftime("%b %d, %I:%M %p")
+
+
+@app.get("/api/v1/reminders/{guild_id}/reminders")
+async def get_reminders(request: Request, guild_id: str):
+    user = await require_guild_access(request, guild_id)
+    uid = str(user["id"])
+    await _ensure_reminders_tables()
+    rem = await query(
+        "SELECT id, message, remind_at FROM reminders WHERE user_id = ? AND done = 0 ORDER BY remind_at ASC",
+        uid,
+    )
+    todos = await query(
+        "SELECT id, task, done FROM todos WHERE user_id = ? ORDER BY done ASC, id ASC",
+        uid,
+    )
+    return {
+        "reminders": [
+            {"id": r["id"], "message": r["message"], "when": _fmt_when(r["remind_at"])} for r in rem
+        ],
+        "todos": [{"id": t["id"], "task": t["task"], "done": bool(t["done"])} for t in todos],
+    }
+
+
+@app.post("/api/v1/reminders/{guild_id}/reminders")
+async def create_reminder(request: Request, guild_id: str):
+    user = await require_guild_access(request, guild_id)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid request"}, status_code=400)
+    when = (body.get("when") or "").strip()
+    what = (body.get("what") or "").strip()
+    if not what:
+        return JSONResponse({"error": "Add a message for your reminder."}, status_code=400)
+    ts, err = _parse_when(when)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    if ts <= time.time():
+        return JSONResponse({"error": "That time is in the past."}, status_code=400)
+    await _ensure_reminders_tables()
+    await execute(
+        "INSERT INTO reminders (user_id, guild_id, channel_id, message, remind_at, created_at, done) "
+        "VALUES (?, ?, ?, ?, ?, ?, 0)",
+        str(user["id"]), str(guild_id), None, what[:900], ts, time.time(),
+    )
+    return {"ok": True}
+
+
+@app.delete("/api/v1/reminders/{guild_id}/reminders/{rid}")
+async def delete_reminder(request: Request, guild_id: str, rid: str):
+    user = await require_guild_access(request, guild_id)
+    try:
+        rid_i = int(rid)
+    except (TypeError, ValueError):
+        return JSONResponse({"error": "Invalid reminder id"}, status_code=404)
+    await execute("DELETE FROM reminders WHERE id = ? AND user_id = ?", rid_i, str(user["id"]))
+    return {"ok": True}
+
+
+@app.post("/api/v1/reminders/{guild_id}/todos")
+async def create_todo(request: Request, guild_id: str):
+    user = await require_guild_access(request, guild_id)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid request"}, status_code=400)
+    task = (body.get("task") or "").strip()
+    if not task:
+        return JSONResponse({"error": "Add a task first."}, status_code=400)
+    await _ensure_reminders_tables()
+    await execute(
+        "INSERT INTO todos (user_id, task, created_at, done) VALUES (?, ?, ?, 0)",
+        str(user["id"]), task[:900], time.time(),
+    )
+    return {"ok": True}
+
+
+@app.post("/api/v1/reminders/{guild_id}/todos/{tid}/done")
+async def done_todo(request: Request, guild_id: str, tid: str):
+    user = await require_guild_access(request, guild_id)
+    try:
+        tid_i = int(tid)
+    except (TypeError, ValueError):
+        return JSONResponse({"error": "Invalid todo id"}, status_code=404)
+    await execute(
+        "UPDATE todos SET done = 1, done_at = ? WHERE id = ? AND user_id = ?",
+        time.time(), tid_i, str(user["id"]),
+    )
+    return {"ok": True}
+
+
+@app.delete("/api/v1/reminders/{guild_id}/todos")
+async def clear_todos(request: Request, guild_id: str):
+    user = await require_guild_access(request, guild_id)
+    done_only = (request.query_params.get("done_only") == "1")
+    await _ensure_reminders_tables()
+    if done_only:
+        await execute("DELETE FROM todos WHERE user_id = ? AND done = 1", str(user["id"]))
+    else:
+        await execute("DELETE FROM todos WHERE user_id = ?", str(user["id"]))
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+#  Personal AFK status (per-user, per-guild)
+# ---------------------------------------------------------------------------
+
+AFK_DEFAULTS = {"enabled": True}
+_afk_ensured = False
+
+
+async def _ensure_afk_tables():
+    global _afk_ensured
+    if _afk_ensured:
+        return
+    try:
+        await execute(
+            "CREATE TABLE IF NOT EXISTS afk_status ("
+            "guild_id TEXT NOT NULL, user_id TEXT NOT NULL, reason TEXT DEFAULT '', "
+            "nickname TEXT DEFAULT '', since REAL NOT NULL, PRIMARY KEY (guild_id, user_id))"
+        )
+        await execute(
+            "CREATE TABLE IF NOT EXISTS afk_settings ("
+            "guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)"
+        )
+        _afk_ensured = True
+    except Exception as e:
+        logger.error("ensure_afk_tables failed: %s", e)
+
+
+async def _get_afk_settings(guild_id: str):
+    try:
+        row = await fetchrow("SELECT settings FROM afk_settings WHERE guild_id = ?", str(guild_id))
+    except Exception:
+        row = None
+    if not row:
+        return dict(AFK_DEFAULTS)
+    try:
+        return {**AFK_DEFAULTS, **json.loads(row["settings"])}
+    except Exception:
+        return dict(AFK_DEFAULTS)
+
+
+@app.get("/api/v1/afk/{guild_id}")
+async def get_afk_status(request: Request, guild_id: str):
+    user = await require_guild_access(request, guild_id)
+    uid = str(user["id"])
+    await _ensure_afk_tables()
+    settings = await _get_afk_settings(guild_id)
+    row = await fetchrow(
+        "SELECT reason, nickname, since FROM afk_status WHERE guild_id = ? AND user_id = ?",
+        str(guild_id), uid,
+    )
+    me = None
+    if row:
+        me = {"afk": True, "reason": row["reason"] or "", "since": row["since"]}
+    return {"enabled": settings.get("enabled", True), "me": me}
+
+
+@app.post("/api/v1/afk/{guild_id}")
+async def set_afk_status(request: Request, guild_id: str):
+    user = await require_guild_access(request, guild_id)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid request"}, status_code=400)
+    reason = (body.get("reason") or "").strip()
+    await _ensure_afk_tables()
+    if not reason:
+        await execute("DELETE FROM afk_status WHERE guild_id = ? AND user_id = ?", str(guild_id), str(user["id"]))
+    else:
+        name = (user.get("global_name") or user.get("username") or "")[:80]
+        await execute(
+            "INSERT INTO afk_status (guild_id, user_id, reason, nickname, since) VALUES (?, ?, ?, ?, ?) "
+            "ON CONFLICT (guild_id, user_id) DO UPDATE SET reason = ?, nickname = ?, since = ?",
+            str(guild_id), str(user["id"]), reason[:500], name, time.time(),
+            reason[:500], name, time.time(),
+        )
+    return {"ok": True}
+
+
+@app.delete("/api/v1/afk/{guild_id}")
+async def clear_afk_status(request: Request, guild_id: str):
+    user = await require_guild_access(request, guild_id)
+    await _ensure_afk_tables()
+    await execute("DELETE FROM afk_status WHERE guild_id = ? AND user_id = ?", str(guild_id), str(user["id"]))
+    return {"ok": True}
+
+
+@app.post("/api/v1/afk/{guild_id}/settings", dependencies=[Depends(require_mod)])
+async def update_afk_settings(request: Request, guild_id: str):
+    user = await require_guild_access(request, guild_id)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid request"}, status_code=400)
+    settings = await _get_afk_settings(guild_id)
+    if "enabled" in body and isinstance(body["enabled"], bool):
+        settings["enabled"] = body["enabled"]
+    await _ensure_afk_tables()
+    await execute(
+        "INSERT INTO afk_settings (guild_id, settings, updated_at) VALUES (?, ?, ?) "
+        "ON CONFLICT (guild_id) DO UPDATE SET settings = ?, updated_at = ?",
+        str(guild_id), json.dumps(settings), time.time(), json.dumps(settings), time.time(),
+    )
+    return {"ok": True, "settings": settings}
+
+
+# ---------------------------------------------------------------------------
+#  Giveaways (shared DB; bot loop posts / ends / rerolls)
+# ---------------------------------------------------------------------------
+
+_gw_ensured = False
+
+
+async def _ensure_giveaway_tables():
+    global _gw_ensured
+    if _gw_ensured:
+        return
+    try:
+        await execute(
+            "CREATE TABLE IF NOT EXISTS giveaways ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, channel_id TEXT NOT NULL, "
+            "message_id TEXT DEFAULT '', host_id TEXT DEFAULT '', prize TEXT NOT NULL, "
+            "description TEXT DEFAULT '', thumbnail TEXT DEFAULT '', winners_count INTEGER DEFAULT 1, "
+            "required_role_id TEXT DEFAULT '', end_ts REAL NOT NULL, start_ts REAL NOT NULL, "
+            "status TEXT DEFAULT 'pending', winners TEXT DEFAULT '', reroll_pending INTEGER DEFAULT 0, "
+            "created_at REAL)"
+        )
+        await execute(
+            "CREATE TABLE IF NOT EXISTS giveaway_entries ("
+            "giveaway_id INTEGER NOT NULL, user_id TEXT NOT NULL, joined_at REAL, "
+            "PRIMARY KEY (giveaway_id, user_id))"
+        )
+        _gw_ensured = True
+    except Exception as e:
+        logger.error("ensure_giveaway_tables failed: %s", e)
+
+
+def _parse_giveaway_end(text: str):
+    text = (text or "").strip()
+    if text.isdigit():
+        return (datetime.datetime.now() + datetime.timedelta(minutes=int(text))).timestamp(), None
+    return _parse_when(text)
+
+
+async def is_guild_moderator(request: Request, guild_id: str) -> bool:
+    """True if the logged-in user can manage messages in this guild.
+
+    Mirrors the bot's slash-command gate (manage_messages). Checks guild owner,
+    configured mod_roles, or a role granting administrator / manage_messages.
+    """
+    user = request.session.get("user") or {}
+    uid = str(user.get("id") or "")
+    if not uid:
+        return False
+    try:
+        d = await get_guild_data(guild_id)
+    except Exception:
+        d = None
+    if not d:
+        return False
+    if str(d.get("owner_id")) == uid:
+        return True
+    member_roles = None
+    for m in (d.get("members") or []):
+        mid = str(m.get("user", {}).get("id") or m.get("id") or "")
+        if mid == uid:
+            member_roles = [str(r) for r in (m.get("roles") or [])]
+            break
+    if member_roles is None:
+        return False
+    try:
+        mod_settings = await _get_mod_settings(guild_id)
+        mod_role_ids = set(str(r) for r in (mod_settings.get("mod_roles") or []))
+        if mod_role_ids and set(member_roles) & mod_role_ids:
+            return True
+    except Exception:
+        pass
+    perms = 0
+    for r in (d.get("roles") or []):
+        if str(r.get("id")) in member_roles:
+            perms |= int(r.get("permissions", 0) or 0)
+    if perms & (1 << 3) or perms & (1 << 13):
+        return True
+    return False
+
+
+async def require_mod(request: Request, guild_id: str):
+    """FastAPI dependency: member must be a guild moderator (manage_messages+).
+
+    Uses the same check as the bot's slash-command gate. Prevents any dashboard
+    viewer from performing server-mutating/mod actions.
+    """
+    await require_guild_access(request, guild_id)
+    if not await is_guild_moderator(request, guild_id):
+        raise HTTPException(status_code=403, detail="Moderators only.")
+
+
+@app.get("/api/v1/giveaways/{guild_id}")
+async def list_giveaways_endpoint(request: Request, guild_id: str):
+    await require_guild_access(request, guild_id)
+    await _ensure_giveaway_tables()
+    is_mod = await is_guild_moderator(request, guild_id)
+    rows = await query(
+        "SELECT * FROM giveaways WHERE guild_id = ? ORDER BY created_at DESC LIMIT 50", str(guild_id)
+    )
+    counts = {}
+    try:
+        cnt = await query(
+            "SELECT giveaway_id, COUNT(*) AS c FROM giveaway_entries "
+            "WHERE giveaway_id IN (SELECT id FROM giveaways WHERE guild_id = ?) GROUP BY giveaway_id",
+            str(guild_id),
+        )
+        for r in cnt:
+            counts[r["giveaway_id"]] = r["c"]
+    except Exception:
+        pass
+    # Resolve winner names from cached guild data (best-effort).
+    name_map = {}
+    try:
+        gd = await get_guild_data(guild_id)
+        for m in (gd.get("members") or []):
+            uid = str(m.get("user", {}).get("id") or m.get("id") or "")
+            nm = (
+                m.get("nick")
+                or m.get("user", {}).get("global_name")
+                or m.get("user", {}).get("username")
+                or uid
+            )
+            if uid:
+                name_map[uid] = nm
+    except Exception:
+        pass
+    out = []
+    for r in rows:
+        winners = [w for w in (r["winners"] or "").split(",") if w]
+        out.append({
+            "id": r["id"],
+            "prize": r["prize"],
+            "description": r["description"] or "",
+            "winners_count": r["winners_count"],
+            "required_role_id": r["required_role_id"] or "",
+            "end_ts": r["end_ts"],
+            "start_ts": r["start_ts"],
+            "status": r["status"],
+            "entries": counts.get(r["id"], 0),
+            "winners": [{"id": w, "name": name_map.get(w, w)} for w in winners],
+            "host_id": r["host_id"] or "",
+            "channel_id": r["channel_id"],
+        })
+    return {"giveaways": out, "is_mod": is_mod}
+
+
+@app.post("/api/v1/giveaways/{guild_id}")
+async def create_giveaway_endpoint(request: Request, guild_id: str):
+    user = await require_guild_access(request, guild_id)
+    if not await is_guild_moderator(request, guild_id):
+        return JSONResponse({"error": "Only moderators can create giveaways."}, status_code=403)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid request"}, status_code=400)
+    prize = (body.get("prize") or "").strip()
+    if not prize:
+        return JSONResponse({"error": "Prize is required."}, status_code=400)
+    duration = (body.get("duration") or "").strip()
+    ts, err = _parse_giveaway_end(duration)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    if ts <= time.time():
+        return JSONResponse({"error": "That end time is in the past."}, status_code=400)
+    try:
+        winners = int(body.get("winners", 1))
+    except (TypeError, ValueError):
+        winners = 1
+    if winners < 1:
+        winners = 1
+    if winners > 20:
+        winners = 20
+    channel = (body.get("channel_id") or "").strip()
+    if not channel:
+        return JSONResponse({"error": "Choose a channel."}, status_code=400)
+    desc = (body.get("description") or "").strip()
+    role = (body.get("required_role_id") or "").strip()
+    await _ensure_giveaway_tables()
+    await execute(
+        "INSERT INTO giveaways (guild_id, channel_id, host_id, prize, description, thumbnail, "
+        "winners_count, required_role_id, end_ts, start_ts, status, created_at) "
+        "VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, 'pending', ?)",
+        str(guild_id), str(channel), str(user["id"]), prize[:300], desc[:1000],
+        winners, str(role) if role else "", ts, time.time(), time.time(),
+    )
+    row = await fetchrow("SELECT id FROM giveaways WHERE guild_id = ? ORDER BY id DESC LIMIT 1", str(guild_id))
+    return {"ok": True, "id": row["id"] if row else None}
+
+
+@app.post("/api/v1/giveaways/{guild_id}/{gid}/end")
+async def end_giveaway_endpoint(request: Request, guild_id: str, gid: str):
+    await require_guild_access(request, guild_id)
+    if not await is_guild_moderator(request, guild_id):
+        return JSONResponse({"error": "Only moderators can end giveaways."}, status_code=403)
+    try:
+        gid_i = int(gid)
+    except (TypeError, ValueError):
+        return JSONResponse({"error": "Invalid giveaway id"}, status_code=404)
+    await _ensure_giveaway_tables()
+    await execute(
+        "UPDATE giveaways SET end_ts = ? WHERE id = ? AND guild_id = ? AND status = 'active'",
+        time.time(), gid_i, str(guild_id),
+    )
+    return {"ok": True}
+
+
+@app.post("/api/v1/giveaways/{guild_id}/{gid}/reroll")
+async def reroll_giveaway_endpoint(request: Request, guild_id: str, gid: str):
+    await require_guild_access(request, guild_id)
+    if not await is_guild_moderator(request, guild_id):
+        return JSONResponse({"error": "Only moderators can reroll giveaways."}, status_code=403)
+    try:
+        gid_i = int(gid)
+    except (TypeError, ValueError):
+        return JSONResponse({"error": "Invalid giveaway id"}, status_code=404)
+    await _ensure_giveaway_tables()
+    await execute(
+        "UPDATE giveaways SET reroll_pending = reroll_pending + 1 WHERE id = ? AND guild_id = ? AND status = 'ended'",
+        gid_i, str(guild_id),
+    )
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------
@@ -2580,7 +3115,7 @@ async def leveling_settings(guild_id: str, request: Request):
     return {"settings": await _get_leveling_settings(guild_id)}
 
 
-@app.post("/api/v1/leveling/{guild_id}/settings")
+@app.post("/api/v1/leveling/{guild_id}/settings", dependencies=[Depends(require_mod)])
 async def leveling_settings_set(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
@@ -2734,7 +3269,7 @@ async def logging_settings_get(guild_id: str, request: Request):
     return {"settings": await _get_logging_settings(guild_id)}
 
 
-@app.post("/api/v1/logging/{guild_id}/settings")
+@app.post("/api/v1/logging/{guild_id}/settings", dependencies=[Depends(require_mod)])
 async def logging_settings_set(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
@@ -2840,7 +3375,7 @@ async def automod_settings_get(guild_id: str, request: Request):
     return {"settings": await _get_automod_settings(guild_id)}
 
 
-@app.post("/api/v1/automod/{guild_id}/settings")
+@app.post("/api/v1/automod/{guild_id}/settings", dependencies=[Depends(require_mod)])
 async def automod_settings_set(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
@@ -2938,7 +3473,7 @@ async def alias_settings_get(guild_id: str, request: Request):
     return {"settings": settings}
 
 
-@app.post("/api/v1/aliases/{guild_id}/settings")
+@app.post("/api/v1/aliases/{guild_id}/settings", dependencies=[Depends(require_mod)])
 async def alias_settings_set(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
@@ -3020,7 +3555,7 @@ async def bot_profile_get(guild_id: str, request: Request):
     return r.json()
 
 
-@app.post("/api/v1/botprofile/{guild_id}")
+@app.post("/api/v1/botprofile/{guild_id}", dependencies=[Depends(require_mod)])
 async def bot_profile_set(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     if not BOT_SERVER_URL or not BOT_HTTP_TOKEN:
@@ -3418,7 +3953,7 @@ async def raid_settings_get(guild_id: str, request: Request):
     return {"settings": await _get_raid_settings(guild_id)}
 
 
-@app.post("/api/v1/raid/{guild_id}/settings")
+@app.post("/api/v1/raid/{guild_id}/settings", dependencies=[Depends(require_mod)])
 async def raid_settings_set(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
@@ -3479,7 +4014,7 @@ async def welcomer_settings_get(guild_id: str, request: Request):
     return {"settings": await _get_welcome_settings(guild_id)}
 
 
-@app.post("/api/v1/welcomer/{guild_id}/settings")
+@app.post("/api/v1/welcomer/{guild_id}/settings", dependencies=[Depends(require_mod)])
 async def welcomer_settings_set(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
@@ -3605,7 +4140,7 @@ async def autoresponder_channels(guild_id: str, request: Request):
     return {"channels": [{"id": "2001", "name": "general"}]}
 
 
-@app.post("/api/v1/autoresponder/{guild_id}/triggers")
+@app.post("/api/v1/autoresponder/{guild_id}/triggers", dependencies=[Depends(require_mod)])
 async def autoresponder_trigger_add(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
@@ -3641,7 +4176,7 @@ async def autoresponder_trigger_add(guild_id: str, request: Request):
     return {"ok": True, "trigger": dict(r[0]) if r else None}
 
 
-@app.delete("/api/v1/autoresponder/{guild_id}/triggers/{trigger_id}")
+@app.delete("/api/v1/autoresponder/{guild_id}/triggers/{trigger_id}", dependencies=[Depends(require_mod)])
 async def autoresponder_trigger_remove(guild_id: str, trigger_id: str, request: Request):
     await require_guild_access(request, guild_id)
     try:
@@ -3676,7 +4211,7 @@ async def social_settings(guild_id: str, request: Request):
     return {"settings": await _get_social_settings(guild_id)}
 
 
-@app.post("/api/v1/social/{guild_id}/settings")
+@app.post("/api/v1/social/{guild_id}/settings", dependencies=[Depends(require_mod)])
 async def social_settings_set(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
@@ -3809,7 +4344,7 @@ async def ticket_settings(guild_id: str, request: Request):
     return {"settings": await _get_ticket_settings(guild_id)}
 
 
-@app.post("/api/v1/tickets/{guild_id}/settings")
+@app.post("/api/v1/tickets/{guild_id}/settings", dependencies=[Depends(require_mod)])
 async def ticket_settings_set(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
@@ -3839,7 +4374,7 @@ async def ticket_settings_set(guild_id: str, request: Request):
     return {"ok": True}
 
 
-@app.post("/api/v1/tickets/{guild_id}/send_panel")
+@app.post("/api/v1/tickets/{guild_id}/send_panel", dependencies=[Depends(require_mod)])
 async def ticket_send_panel(guild_id: str, request: Request):
     """Queue the bot to send the ticket panel embed to a channel."""
     await require_guild_access(request, guild_id)
@@ -3909,7 +4444,7 @@ async def verify_settings(guild_id: str, request: Request):
     return {"settings": await _get_verify_settings(guild_id)}
 
 
-@app.post("/api/v1/verify/{guild_id}/settings")
+@app.post("/api/v1/verify/{guild_id}/settings", dependencies=[Depends(require_mod)])
 async def verify_settings_set(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
@@ -3923,7 +4458,7 @@ async def verify_settings_set(guild_id: str, request: Request):
     return {"ok": True}
 
 
-@app.post("/api/v1/verify/{guild_id}/deploy")
+@app.post("/api/v1/verify/{guild_id}/deploy", dependencies=[Depends(require_mod)])
 async def verify_deploy(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     await _queue_action(guild_id, "verify_panel", "0", "", "Deploy verification panel", None)
@@ -4084,7 +4619,7 @@ async def gc_settings(guild_id: str, request: Request):
     return {"settings": await _get_gc_settings(guild_id)}
 
 
-@app.post("/api/v1/global_chat/{guild_id}/settings")
+@app.post("/api/v1/global_chat/{guild_id}/settings", dependencies=[Depends(require_mod)])
 async def gc_settings_set(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
@@ -4166,7 +4701,7 @@ async def server_info(guild_id: str, request: Request):
     }
 
 
-@app.post("/api/v1/server/{guild_id}/reset")
+@app.post("/api/v1/server/{guild_id}/reset", dependencies=[Depends(require_mod)])
 async def server_reset(guild_id: str, request: Request):
     """Wipe all Prowl data for this guild."""
     await require_guild_access(request, guild_id)
@@ -4186,7 +4721,7 @@ _ALL_REMOVE_TABLES = ALL_FEATURE_TABLES + (
 )
 
 
-@app.post("/api/v1/server/{guild_id}/remove")
+@app.post("/api/v1/server/{guild_id}/remove", dependencies=[Depends(require_mod)])
 async def server_remove(guild_id: str, request: Request):
     """Completely remove this server from Prowl: wipe every row + make the bot leave."""
     user = await require_guild_access(request, guild_id)
@@ -4270,7 +4805,7 @@ async def music_settings_get(guild_id: str, request: Request):
     return {"settings": await _get_music_settings(guild_id)}
 
 
-@app.post("/api/v1/music/{guild_id}/settings")
+@app.post("/api/v1/music/{guild_id}/settings", dependencies=[Depends(require_mod)])
 async def music_settings_set(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
@@ -4333,7 +4868,7 @@ async def ai_settings_get(guild_id: str, request: Request):
     return {"settings": s}
 
 
-@app.post("/api/v1/ai/{guild_id}/settings")
+@app.post("/api/v1/ai/{guild_id}/settings", dependencies=[Depends(require_mod)])
 async def ai_settings_set(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     body = await request.json()
@@ -4437,7 +4972,7 @@ async def automation_rules_get(guild_id: str, request: Request):
     return {"rules": rules}
 
 
-@app.post("/api/v1/automation/{guild_id}/rules")
+@app.post("/api/v1/automation/{guild_id}/rules", dependencies=[Depends(require_mod)])
 async def automation_rule_add(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     await _ensure_automation_tables()
@@ -4457,7 +4992,7 @@ async def automation_rule_add(guild_id: str, request: Request):
     return {"ok": True, "id": row[0]["id"] if row else None}
 
 
-@app.put("/api/v1/automation/{guild_id}/rules/{rule_id}")
+@app.put("/api/v1/automation/{guild_id}/rules/{rule_id}", dependencies=[Depends(require_mod)])
 async def automation_rule_edit(guild_id: str, rule_id: str, request: Request):
     await require_guild_access(request, guild_id)
     await _ensure_automation_tables()
@@ -4481,7 +5016,7 @@ async def automation_rule_edit(guild_id: str, rule_id: str, request: Request):
     return {"ok": True}
 
 
-@app.delete("/api/v1/automation/{guild_id}/rules/{rule_id}")
+@app.delete("/api/v1/automation/{guild_id}/rules/{rule_id}", dependencies=[Depends(require_mod)])
 async def automation_rule_delete(guild_id: str, rule_id: str, request: Request):
     await require_guild_access(request, guild_id)
     try:
@@ -4502,7 +5037,7 @@ async def automation_overrides_get(guild_id: str, request: Request):
     return {"overrides": {r["feature"]: r["enabled"] for r in rows}}
 
 
-@app.post("/api/v1/automation/{guild_id}/overrides")
+@app.post("/api/v1/automation/{guild_id}/overrides", dependencies=[Depends(require_mod)])
 async def automation_overrides_set(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     await _ensure_automation_tables()
@@ -4567,7 +5102,7 @@ async def automation_graph_get(guild_id: str, request: Request):
     return {"nodes": [], "connections": []}
 
 
-@app.post("/api/v1/automation/{guild_id}/graph")
+@app.post("/api/v1/automation/{guild_id}/graph", dependencies=[Depends(require_mod)])
 async def automation_graph_save(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     # Rate-limit saves (5/min per guild) so the editor can't be spammed

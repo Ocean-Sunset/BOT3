@@ -283,6 +283,71 @@ CREATE TABLE IF NOT EXISTS alias_settings (
     settings    TEXT NOT NULL DEFAULT '{}',
     updated_at  REAL NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS reminders (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     TEXT NOT NULL,
+    guild_id    TEXT,
+    channel_id  TEXT,
+    message     TEXT DEFAULT '',
+    remind_at   REAL NOT NULL,
+    created_at  REAL,
+    done        INTEGER DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_reminders_user ON reminders (user_id, done);
+
+CREATE TABLE IF NOT EXISTS todos (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     TEXT NOT NULL,
+    task        TEXT NOT NULL,
+    created_at  REAL,
+    done        INTEGER DEFAULT 0,
+    done_at     REAL
+);
+
+CREATE INDEX IF NOT EXISTS idx_todos_user ON todos (user_id);
+
+CREATE TABLE IF NOT EXISTS afk_status (
+    guild_id    TEXT NOT NULL,
+    user_id     TEXT NOT NULL,
+    reason      TEXT DEFAULT '',
+    nickname    TEXT DEFAULT '',
+    since       REAL NOT NULL,
+    PRIMARY KEY (guild_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS afk_settings (
+    guild_id    TEXT PRIMARY KEY,
+    settings    TEXT NOT NULL DEFAULT '{}',
+    updated_at  REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS giveaways (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id    TEXT NOT NULL,
+    channel_id  TEXT NOT NULL,
+    message_id  TEXT DEFAULT '',
+    host_id     TEXT DEFAULT '',
+    prize       TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    thumbnail   TEXT DEFAULT '',
+    winners_count INTEGER DEFAULT 1,
+    required_role_id TEXT DEFAULT '',
+    end_ts      REAL NOT NULL,
+    start_ts    REAL NOT NULL,
+    status      TEXT DEFAULT 'pending',
+    winners     TEXT DEFAULT '',
+    reroll_pending INTEGER DEFAULT 0,
+    created_at  REAL
+);
+
+CREATE TABLE IF NOT EXISTS giveaway_entries (
+    giveaway_id INTEGER NOT NULL,
+    user_id     TEXT NOT NULL,
+    joined_at   REAL,
+    PRIMARY KEY (giveaway_id, user_id)
+);
 """
 
 

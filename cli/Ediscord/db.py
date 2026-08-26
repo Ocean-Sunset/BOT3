@@ -304,6 +304,8 @@ async def _ensure_tables():
         ("CREATE TABLE IF NOT EXISTS mod_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS mod_log (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT, user_id TEXT, user_name TEXT, action TEXT, reason TEXT DEFAULT '', moderator TEXT DEFAULT '', created_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS mod_actions (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT, action TEXT, target_id TEXT, target_name TEXT DEFAULT '', reason TEXT DEFAULT '', moderator TEXT DEFAULT '', duration INTEGER, status TEXT DEFAULT 'pending', created_at REAL, request_id TEXT)", ()),
+        ("CREATE TABLE IF NOT EXISTS reminders (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, guild_id TEXT, channel_id TEXT, message TEXT DEFAULT '', remind_at REAL NOT NULL, created_at REAL, done INTEGER DEFAULT 0)", ()),
+        ("CREATE TABLE IF NOT EXISTS todos (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, task TEXT NOT NULL, created_at REAL, done INTEGER DEFAULT 0, done_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS muted_users (guild_id TEXT, user_id TEXT, user_name TEXT DEFAULT '', reason TEXT DEFAULT '', end_ts REAL, PRIMARY KEY (guild_id, user_id))", ()),
         ("CREATE TABLE IF NOT EXISTS ai_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS welcome_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
@@ -324,6 +326,10 @@ async def _ensure_tables():
         ("CREATE TABLE IF NOT EXISTS automation_runs (guild_id TEXT NOT NULL, bucket_ts REAL NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, bucket_ts))", ()),
         ("CREATE TABLE IF NOT EXISTS automation_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, message TEXT NOT NULL DEFAULT '', created_at REAL NOT NULL DEFAULT 0)", ()),
         ("CREATE TABLE IF NOT EXISTS alias_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS afk_status (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, reason TEXT DEFAULT '', nickname TEXT DEFAULT '', since REAL NOT NULL, PRIMARY KEY (guild_id, user_id))", ()),
+        ("CREATE TABLE IF NOT EXISTS afk_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS giveaways (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, channel_id TEXT NOT NULL, message_id TEXT DEFAULT '', host_id TEXT DEFAULT '', prize TEXT NOT NULL, description TEXT DEFAULT '', thumbnail TEXT DEFAULT '', winners_count INTEGER DEFAULT 1, required_role_id TEXT DEFAULT '', end_ts REAL NOT NULL, start_ts REAL NOT NULL, status TEXT DEFAULT 'pending', winners TEXT DEFAULT '', reroll_pending INTEGER DEFAULT 0, created_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS giveaway_entries (giveaway_id INTEGER NOT NULL, user_id TEXT NOT NULL, joined_at REAL, PRIMARY KEY (giveaway_id, user_id))", ()),
         ("CREATE INDEX IF NOT EXISTS idx_automation_logs_guild ON automation_logs (guild_id, id DESC)", ()),
         ("CREATE INDEX IF NOT EXISTS idx_autoresponder_guild ON autoresponder (guild_id)", ()),
     ]
@@ -509,6 +515,541 @@ async def get_action_by_request_id(request_id: str):
     return None
 
 
+async def claim_action(request_id: str) -> bool:
+    """Atomically flip a pending action to 'executing'.
+
+    Returns True only for the single caller that performed the transition. This
+    makes the direct HTTP bridge and the DB queue processor mutually exclusive:
+    under concurrency exactly one wins the claim, the other skips, so an action
+    can never be executed twice (e.g. a double ban)."""
+    if not request_id:
+        return False
+    try:
+        out = await _execute_http(
+            "UPDATE mod_actions SET status = 'executing', processed_at = unixepoch() "
+            "WHERE request_id = ? AND status = 'pending'",
+            (request_id,),
+        )
+        result = (out or [{}])[0] or {}
+        return result.get("rows_affected", 0) == 1
+    except Exception as e:
+        logger.error(f"claim_action failed: {e}")
+        return False
+
+
+# ── Reminders & To-Do (per-user, not guild-scoped) ──
+
+async def add_reminder(user_id, guild_id, channel_id, message, remind_at):
+    """Persist a reminder. Returns the new row id or None on failure."""
+    pool = await get_pool()
+    if pool is None:
+        return None
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO reminders (user_id, guild_id, channel_id, message, remind_at, created_at, done) "
+                "VALUES (?, ?, ?, ?, ?, ?, 0)",
+                str(user_id), str(guild_id) if guild_id else None,
+                str(channel_id) if channel_id else None, message, remind_at, time.time(),
+            )
+            row = await conn.fetchrow(
+                "SELECT id FROM reminders WHERE user_id = ? ORDER BY id DESC LIMIT 1", str(user_id)
+            )
+            return row["id"] if row else None
+    except Exception as e:
+        logger.error(f"add_reminder failed: {e}")
+        return None
+
+
+async def get_due_reminders(now_ts: float):
+    pool = await get_pool()
+    if pool is None:
+        return []
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT id, user_id, guild_id, channel_id, message, remind_at "
+                "FROM reminders WHERE done = 0 AND remind_at <= ? ORDER BY remind_at ASC LIMIT 25",
+                now_ts,
+            )
+            return [dict(r) for r in rows]
+    except Exception as e:
+        logger.error(f"get_due_reminders failed: {e}")
+        return []
+
+
+async def mark_reminder_done(reminder_id: int):
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute("UPDATE reminders SET done = 1 WHERE id = ?", reminder_id)
+    except Exception as e:
+        logger.error(f"mark_reminder_done failed: {e}")
+
+
+async def list_reminders(user_id: str):
+    pool = await get_pool()
+    if pool is None:
+        return []
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT id, message, remind_at FROM reminders WHERE user_id = ? AND done = 0 "
+                "ORDER BY remind_at ASC LIMIT 25",
+                str(user_id),
+            )
+            return [dict(r) for r in rows]
+    except Exception as e:
+        logger.error(f"list_reminders failed: {e}")
+        return []
+
+
+async def cancel_reminder(reminder_id: int, user_id: str):
+    pool = await get_pool()
+    if pool is None:
+        return False
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT id FROM reminders WHERE id = ? AND user_id = ?", reminder_id, str(user_id)
+            )
+            if not row:
+                return False
+            await conn.execute("DELETE FROM reminders WHERE id = ? AND user_id = ?", reminder_id, str(user_id))
+            return True
+    except Exception as e:
+        logger.error(f"cancel_reminder failed: {e}")
+        return False
+
+
+async def add_todo(user_id: str, task: str):
+    pool = await get_pool()
+    if pool is None:
+        return None
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO todos (user_id, task, created_at, done) VALUES (?, ?, ?, 0)",
+                str(user_id), task, time.time(),
+            )
+            row = await conn.fetchrow(
+                "SELECT id FROM todos WHERE user_id = ? ORDER BY id DESC LIMIT 1", str(user_id)
+            )
+            return row["id"] if row else None
+    except Exception as e:
+        logger.error(f"add_todo failed: {e}")
+        return None
+
+
+async def list_todos(user_id: str):
+    pool = await get_pool()
+    if pool is None:
+        return []
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT id, task, done FROM todos WHERE user_id = ? ORDER BY done ASC, id ASC LIMIT 50",
+                str(user_id),
+            )
+            return [dict(r) for r in rows]
+    except Exception as e:
+        logger.error(f"list_todos failed: {e}")
+        return []
+
+
+async def complete_todo(todo_id: int, user_id: str):
+    pool = await get_pool()
+    if pool is None:
+        return False
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT id FROM todos WHERE id = ? AND user_id = ?", todo_id, str(user_id)
+            )
+            if not row:
+                return False
+            await conn.execute(
+                "UPDATE todos SET done = 1, done_at = ? WHERE id = ? AND user_id = ?",
+                time.time(), todo_id, str(user_id),
+            )
+            return True
+    except Exception as e:
+        logger.error(f"complete_todo failed: {e}")
+        return False
+
+
+async def clear_todos(user_id: str, done_only: bool = False):
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            if done_only:
+                await conn.execute("DELETE FROM todos WHERE user_id = ? AND done = 1", str(user_id))
+            else:
+                await conn.execute("DELETE FROM todos WHERE user_id = ?", str(user_id))
+    except Exception as e:
+        logger.error(f"clear_todos failed: {e}")
+
+
+AFK_DEFAULTS = {"enabled": True}
+
+
+async def set_afk(guild_id, user_id, reason, nickname):
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO afk_status (guild_id, user_id, reason, nickname, since) VALUES (?, ?, ?, ?, ?) "
+                "ON CONFLICT (guild_id, user_id) DO UPDATE SET reason = ?, nickname = ?, since = ?",
+                str(guild_id), str(user_id), reason[:500], nickname[:80], time.time(),
+                reason[:500], nickname[:80], time.time(),
+            )
+    except Exception as e:
+        logger.error(f"set_afk failed: {e}")
+
+
+async def get_afk(guild_id, user_id):
+    pool = await get_pool()
+    if pool is None:
+        return None
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT guild_id, user_id, reason, nickname, since FROM afk_status WHERE guild_id = ? AND user_id = ?",
+                str(guild_id), str(user_id),
+            )
+            return dict(row) if row else None
+    except Exception as e:
+        logger.error(f"get_afk failed: {e}")
+        return None
+
+
+async def clear_afk(guild_id, user_id):
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "DELETE FROM afk_status WHERE guild_id = ? AND user_id = ?",
+                str(guild_id), str(user_id),
+            )
+    except Exception as e:
+        logger.error(f"clear_afk failed: {e}")
+
+
+async def get_afk_settings(guild_id: str) -> dict:
+    pool = await get_pool()
+    if pool is None:
+        return dict(AFK_DEFAULTS)
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT settings FROM afk_settings WHERE guild_id = ?", str(guild_id))
+            if not row:
+                return dict(AFK_DEFAULTS)
+            return {**AFK_DEFAULTS, **parse_settings(row["settings"], AFK_DEFAULTS)}
+    except Exception as e:
+        logger.error(f"get_afk_settings failed: {e}")
+        return dict(AFK_DEFAULTS)
+
+
+async def set_afk_settings(guild_id: str, settings: dict):
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO afk_settings (guild_id, settings, updated_at) VALUES (?, ?, ?) "
+                "ON CONFLICT (guild_id) DO UPDATE SET settings = ?, updated_at = ?",
+                str(guild_id), json.dumps(settings), time.time(), json.dumps(settings), time.time(),
+            )
+    except Exception as e:
+        logger.error(f"set_afk_settings failed: {e}")
+
+
+# ── Giveaways ────────────────────────────────────────────────────────────────
+
+async def create_giveaway(guild_id, channel_id, host_id, prize, description, thumbnail,
+                          winners_count, required_role_id, end_ts, start_ts):
+    pool = await get_pool()
+    if pool is None:
+        return None
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO giveaways (guild_id, channel_id, host_id, prize, description, "
+                "thumbnail, winners_count, required_role_id, end_ts, start_ts, status, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)",
+                str(guild_id), str(channel_id), str(host_id), prize[:300], (description or "")[:1000],
+                (thumbnail or "")[:500], int(winners_count), str(required_role_id) if required_role_id else "",
+                float(end_ts), float(start_ts), time.time(),
+            )
+            row = await conn.fetchrow(
+                "SELECT id FROM giveaways WHERE guild_id = ? ORDER BY id DESC LIMIT 1", str(guild_id)
+            )
+            return row["id"] if row else None
+    except Exception as e:
+        logger.error(f"create_giveaway failed: {e}")
+        return None
+
+
+async def get_giveaway(giveaway_id: int):
+    pool = await get_pool()
+    if pool is None:
+        return None
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT * FROM giveaways WHERE id = ?", int(giveaway_id))
+            return dict(row) if row else None
+    except Exception as e:
+        logger.error(f"get_giveaway failed: {e}")
+        return None
+
+
+async def get_giveaway_by_message(guild_id, message_id):
+    pool = await get_pool()
+    if pool is None:
+        return None
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT * FROM giveaways WHERE guild_id = ? AND message_id = ?",
+                str(guild_id), str(message_id),
+            )
+            return dict(row) if row else None
+    except Exception as e:
+        logger.error(f"get_giveaway_by_message failed: {e}")
+        return None
+
+
+async def list_giveaways(guild_id):
+    pool = await get_pool()
+    if pool is None:
+        return []
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM giveaways WHERE guild_id = ? ORDER BY created_at DESC LIMIT 50",
+                str(guild_id),
+            )
+            return [dict(r) for r in rows]
+    except Exception as e:
+        logger.error(f"list_giveaways failed: {e}")
+        return []
+
+
+async def list_giveaways_pending():
+    pool = await get_pool()
+    if pool is None:
+        return []
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM giveaways WHERE status = 'pending' AND start_ts <= ? ORDER BY start_ts ASC LIMIT 20",
+                time.time(),
+            )
+            return [dict(r) for r in rows]
+    except Exception as e:
+        logger.error(f"list_giveaways_pending failed: {e}")
+        return []
+
+
+async def list_giveaways_due(now_ts: float):
+    pool = await get_pool()
+    if pool is None:
+        return []
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM giveaways WHERE status = 'active' AND end_ts <= ? ORDER BY end_ts ASC LIMIT 20",
+                now_ts,
+            )
+            return [dict(r) for r in rows]
+    except Exception as e:
+        logger.error(f"list_giveaways_due failed: {e}")
+        return []
+
+
+async def list_giveaways_reroll():
+    pool = await get_pool()
+    if pool is None:
+        return []
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM giveaways WHERE reroll_pending > 0 AND status = 'ended' LIMIT 20"
+            )
+            return [dict(r) for r in rows]
+    except Exception as e:
+        logger.error(f"list_giveaways_reroll failed: {e}")
+        return []
+
+
+async def set_giveaway_posted(giveaway_id, message_id):
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE giveaways SET status = 'active', message_id = ? WHERE id = ?",
+                str(message_id), int(giveaway_id),
+            )
+    except Exception as e:
+        logger.error(f"set_giveaway_posted failed: {e}")
+
+
+async def end_giveaway(giveaway_id, winners_csv):
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE giveaways SET status = 'ended', winners = ? WHERE id = ?",
+                winners_csv or "", int(giveaway_id),
+            )
+    except Exception as e:
+        logger.error(f"end_giveaway failed: {e}")
+
+
+async def set_winners(giveaway_id, winners_csv):
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE giveaways SET winners = ? WHERE id = ?",
+                winners_csv or "", int(giveaway_id),
+            )
+    except Exception as e:
+        logger.error(f"set_winners failed: {e}")
+
+
+async def decrement_reroll(giveaway_id):
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE giveaways SET reroll_pending = MAX(0, reroll_pending - 1) WHERE id = ?",
+                int(giveaway_id),
+            )
+    except Exception as e:
+        logger.error(f"decrement_reroll failed: {e}")
+
+
+async def set_end_time(giveaway_id, end_ts):
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE giveaways SET end_ts = ? WHERE id = ?", float(end_ts), int(giveaway_id)
+            )
+    except Exception as e:
+        logger.error(f"set_end_time failed: {e}")
+
+
+async def add_entry(giveaway_id, user_id):
+    pool = await get_pool()
+    if pool is None:
+        return False
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT OR IGNORE INTO giveaway_entries (giveaway_id, user_id, joined_at) VALUES (?, ?, ?)",
+                int(giveaway_id), str(user_id), time.time(),
+            )
+            return True
+    except Exception as e:
+        logger.error(f"add_entry failed: {e}")
+        return False
+
+
+async def get_entry(giveaway_id, user_id):
+    pool = await get_pool()
+    if pool is None:
+        return None
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT 1 FROM giveaway_entries WHERE giveaway_id = ? AND user_id = ?",
+                int(giveaway_id), str(user_id),
+            )
+            return dict(row) if row else None
+    except Exception as e:
+        logger.error(f"get_entry failed: {e}")
+        return None
+
+
+async def remove_entry(giveaway_id, user_id):
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "DELETE FROM giveaway_entries WHERE giveaway_id = ? AND user_id = ?",
+                int(giveaway_id), str(user_id),
+            )
+    except Exception as e:
+        logger.error(f"remove_entry failed: {e}")
+
+
+async def count_entries(giveaway_id):
+    pool = await get_pool()
+    if pool is None:
+        return 0
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT COUNT(*) AS c FROM giveaway_entries WHERE giveaway_id = ?", int(giveaway_id)
+            )
+            return int(row["c"]) if row else 0
+    except Exception as e:
+        logger.error(f"count_entries failed: {e}")
+        return 0
+
+
+async def get_entries(giveaway_id):
+    pool = await get_pool()
+    if pool is None:
+        return []
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT user_id FROM giveaway_entries WHERE giveaway_id = ?", int(giveaway_id)
+            )
+            return [str(r["user_id"]) for r in rows]
+    except Exception as e:
+        logger.error(f"get_entries failed: {e}")
+        return []
+
+
+async def request_reroll(giveaway_id):
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE giveaways SET reroll_pending = reroll_pending + 1 WHERE id = ?",
+                int(giveaway_id),
+            )
+    except Exception as e:
+        logger.error(f"request_reroll failed: {e}")
+
+
 async def set_muted_user(guild_id, user_id, user_name="", reason="", end_ts=0):
     pool = await get_pool()
     if pool is None:
@@ -561,6 +1102,7 @@ GUILD_TABLES = [
     "ai_settings", "welcome_settings", "verify_settings", "leveling_settings", "leveling_data",
     "automation_settings", "autoresponder", "social_settings", "invite_settings", "invite_stats",
     "ticket_settings", "ticket_logs", "member_history", "message_history", "verify_logs",
+    "afk_status", "giveaways", "giveaway_entries",
 ]
 
 

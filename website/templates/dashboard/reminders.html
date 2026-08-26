@@ -1,0 +1,199 @@
+{% extends "dashboard/base.html" %}
+{% block content %}
+<div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;animation-delay:.05s;">
+    <div>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Reminders &amp; To-Do</h1>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Set personal reminders and keep a to-do list — delivered by Prowl via DM.</p>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:start;">
+    <!-- Reminders -->
+    <div class="md-section">
+      <div class="rm-card">
+        <div class="md-section-title" style="margin-bottom:0.35rem;">Reminders</div>
+        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.5;margin-bottom:0.85rem;">
+          Prowl DMs you at the time you pick. Try <code>30m</code>, <code>2h</code>, <code>tomorrow 9am</code>, <code>fri 18:00</code>.
+        </p>
+        <div class="rm-add">
+          <input type="text" id="rem-when" maxlength="40" placeholder="when (e.g. 2h)" spellcheck="false" />
+          <input type="text" id="rem-what" maxlength="900" placeholder="what should I remind you?" spellcheck="false" />
+          <button type="button" class="rm-add-btn" id="rem-add"><i data-lucide="plus"></i> Add</button>
+        </div>
+        <div id="rem-list" class="rm-list"><div class="rm-empty">Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- To-Do -->
+    <div class="md-section">
+      <div class="rm-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.35rem;">
+          <div class="md-section-title">To-Do List</div>
+          <button type="button" class="rm-clear" id="todo-clear-done">Clear done</button>
+        </div>
+        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.5;margin-bottom:0.85rem;">
+          A private checklist just for you.
+        </p>
+        <div class="rm-add">
+          <input type="text" id="todo-task" maxlength="900" placeholder="add a task..." spellcheck="false" />
+          <button type="button" class="rm-add-btn" id="todo-add"><i data-lucide="plus"></i> Add</button>
+        </div>
+        <div id="todo-list" class="rm-list"><div class="rm-empty">Loading...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .rm-card { border:1px solid rgba(255,255,255,0.08); border-radius:4px; background:rgba(255,255,255,0.015); padding:1rem; }
+  .rm-add { display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; }
+  .rm-add input { background:#1a1a1a; border:1px solid rgba(255,255,255,0.08); border-radius:4px; color:#e9edf5; font-family:'Lexend',system-ui,sans-serif; font-size:0.82rem; font-weight:600; padding:0.5rem 0.7rem; flex:1; min-width:120px; outline:none; transition:border-color 0.15s; }
+  .rm-add input:focus { border-color:rgba(255,255,255,0.2); }
+  #rem-when { flex:0 0 130px; min-width:110px; }
+  .rm-add-btn { display:flex; align-items:center; gap:0.35rem; background:rgba(88,101,242,0.15); border:1px solid rgba(88,101,242,0.4); color:#c7cdff; font-family:'Lexend',system-ui,sans-serif; font-size:0.82rem; font-weight:600; padding:0.5rem 0.9rem; border-radius:4px; cursor:pointer; outline:none; transition:background 0.15s; white-space:nowrap; }
+  .rm-add-btn:hover { background:rgba(88,101,242,0.28); }
+  .rm-list { margin-top:0.85rem; display:flex; flex-direction:column; gap:0.4rem; }
+  .rm-empty { text-align:center; padding:1rem; color:rgba(255,255,255,0.25); font-size:0.8rem; }
+  .rm-row { display:flex; align-items:center; gap:0.6rem; padding:0.5rem 0.6rem; border:1px solid rgba(255,255,255,0.06); border-radius:4px; background:rgba(255,255,255,0.01); }
+  .rm-row .rm-when { font-size:0.68rem; font-weight:800; letter-spacing:0.03em; color:#c7cdff; background:rgba(88,101,242,0.12); border:1px solid rgba(88,101,242,0.3); border-radius:4px; padding:0.2rem 0.5rem; white-space:nowrap; }
+  .rm-row .rm-msg { flex:1; font-size:0.82rem; font-weight:600; color:#e9edf5; word-break:break-word; }
+  .rm-row .rm-remove, .rm-row .rm-done { margin-left:auto; background:none; border:none; color:rgba(255,255,255,0.35); cursor:pointer; padding:0.35rem; border-radius:4px; display:flex; }
+  .rm-row .rm-remove:hover { color:#f87171; background:rgba(248,113,113,0.08); }
+  .rm-row.todo .rm-done { color:rgba(255,255,255,0.35); }
+  .rm-row.todo .rm-done:hover { color:#34d399; background:rgba(52,211,153,0.08); }
+  .rm-row.todo.done { opacity:0.55; }
+  .rm-row.todo.done .rm-msg { text-decoration:line-through; }
+  .rm-row .rm-check { display:flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:4px; border:1.5px solid rgba(255,255,255,0.25); color:transparent; flex:0 0 auto; }
+  .rm-row.todo.done .rm-check { background:rgba(52,211,153,0.2); border-color:#34d399; color:#34d399; }
+  .rm-clear { background:none; border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.4); font-family:'Lexend',system-ui,sans-serif; font-size:0.7rem; font-weight:600; padding:0.3rem 0.55rem; border-radius:4px; cursor:pointer; }
+  .rm-clear:hover { color:#f87171; border-color:rgba(248,113,113,0.4); }
+  @media (max-width:760px){ .rm-cards-wrap, div[style*="grid-template-columns"]{ grid-template-columns:1fr !important; } }
+</style>
+<script>
+const GID = window.__GUILD_ID;
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+
+async function loadAll() {
+  try {
+    const res = await fetch(`/api/v1/reminders/${GID}/reminders`);
+    const data = await res.json();
+    renderReminders(data.reminders || []);
+    renderTodos(data.todos || []);
+  } catch (e) {
+    document.getElementById('rem-list').innerHTML = '<div class="rm-empty">Failed to load.</div>';
+    document.getElementById('todo-list').innerHTML = '<div class="rm-empty">Failed to load.</div>';
+  }
+}
+
+function renderReminders(items) {
+  const el = document.getElementById('rem-list');
+  if (!items.length) {
+    el.innerHTML = '<div class="rm-empty">No reminders yet.</div>';
+    return;
+  }
+  el.innerHTML = items.map(r => `
+    <div class="rm-row" data-id="${r.id}">
+      <span class="rm-when">${esc(r.when)}</span>
+      <span class="rm-msg">${esc(r.message)}</span>
+      <button class="rm-remove" data-remove="${r.id}" title="Cancel reminder"><i data-lucide="x"></i></button>
+    </div>`).join('');
+  el.querySelectorAll('[data-remove]').forEach(b => b.addEventListener('click', () => removeReminder(b.dataset.remove)));
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function renderTodos(items) {
+  const el = document.getElementById('todo-list');
+  if (!items.length) {
+    el.innerHTML = '<div class="rm-empty">Nothing here yet.</div>';
+    return;
+  }
+  el.innerHTML = items.map(t => `
+    <div class="rm-row todo ${t.done ? 'done' : ''}" data-id="${t.id}">
+      <button class="rm-done" data-done="${t.id}" title="Mark done"><span class="rm-check"><i data-lucide="check"></i></span></button>
+      <span class="rm-msg">${esc(t.task)}</span>
+    </div>`).join('');
+  el.querySelectorAll('[data-done]').forEach(b => b.addEventListener('click', () => completeTodo(b.dataset.done)));
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function addReminder() {
+  const when = document.getElementById('rem-when').value.trim();
+  const what = document.getElementById('rem-what').value.trim();
+  if (!what) { if (typeof showToast === 'function') showToast('Add a message for your reminder.', 'error', 4000); return; }
+  const btn = document.getElementById('rem-add');
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/api/v1/reminders/${GID}/reminders`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ when, what })
+    });
+    const data = await res.json().catch(()=>({}));
+    if (!res.ok) { if (typeof showToast === 'function') showToast(data.error || 'Could not add reminder.', 'error', 5000); }
+    else {
+      document.getElementById('rem-when').value = '';
+      document.getElementById('rem-what').value = '';
+      if (typeof showToast === 'function') showToast('Reminder set!', 'success');
+      await loadAll();
+    }
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('Network error.', 'error', 4000);
+  } finally { btn.disabled = false; }
+}
+
+async function removeReminder(id) {
+  try {
+    await fetch(`/api/v1/reminders/${GID}/reminders/${id}`, { method: 'DELETE' });
+    await loadAll();
+  } catch (e) {}
+}
+
+async function addTodo() {
+  const task = document.getElementById('todo-task').value.trim();
+  if (!task) { if (typeof showToast === 'function') showToast('Add a task first.', 'error', 4000); return; }
+  const btn = document.getElementById('todo-add');
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/api/v1/reminders/${GID}/todos`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ task })
+    });
+    const data = await res.json().catch(()=>({}));
+    if (!res.ok) { if (typeof showToast === 'function') showToast(data.error || 'Could not add task.', 'error', 5000); }
+    else {
+      document.getElementById('todo-task').value = '';
+      if (typeof showToast === 'function') showToast('Added to your list.', 'success');
+      await loadAll();
+    }
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('Network error.', 'error', 4000);
+  } finally { btn.disabled = false; }
+}
+
+async function completeTodo(id) {
+  try {
+    await fetch(`/api/v1/reminders/${GID}/todos/${id}/done`, { method: 'POST' });
+    await loadAll();
+  } catch (e) {}
+}
+
+async function clearDone() {
+  try {
+    await fetch(`/api/v1/reminders/${GID}/todos?done_only=1`, { method: 'DELETE' });
+    await loadAll();
+  } catch (e) {}
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('rem-add').addEventListener('click', addReminder);
+  document.getElementById('todo-add').addEventListener('click', addTodo);
+  document.getElementById('todo-clear-done').addEventListener('click', clearDone);
+  document.getElementById('rem-what').addEventListener('keydown', e => { if (e.key === 'Enter') addReminder(); });
+  document.getElementById('todo-task').addEventListener('keydown', e => { if (e.key === 'Enter') addTodo(); });
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  loadAll();
+});
+</script>
+{% endblock %}

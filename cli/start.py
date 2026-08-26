@@ -267,13 +267,16 @@ class ProwlBot(commands.Bot):
             if request_id:
                 await neon_db.update_action_status(request_id, "failed", "guild not found")
             return False, "guild not found"
-        # Idempotency: if this request_id already completed, skip re-execution
+        # Idempotency: atomically claim the action (pending -> executing) so that
+        # the direct bridge and the DB queue processor never run it twice.
         if request_id:
-            existing = await neon_db.get_action_by_request_id(request_id)
-            if existing and existing.get("status") in ("completed", "failed"):
-                logger.info(f"Action {request_id} already {existing['status']}, skipping.")
-                return existing["status"] == "completed", existing.get("error") or "already processed"
-            await neon_db.update_action_status(request_id, "executing")
+            if not await neon_db.claim_action(request_id):
+                existing = await neon_db.get_action_by_request_id(request_id)
+                if existing and existing.get("status") in ("completed", "failed"):
+                    logger.info(f"Action {request_id} already {existing['status']}, skipping.")
+                    return existing["status"] == "completed", existing.get("error") or "already processed"
+                # Another worker is executing it concurrently - do not double-run.
+                return True, "already processed by another worker"
         member = None
         try:
             member = await guild.fetch_member(int(target_id))

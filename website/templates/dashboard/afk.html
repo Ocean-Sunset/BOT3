@@ -1,0 +1,137 @@
+{% extends "dashboard/base.html" %}
+{% block content %}
+<div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;animation-delay:.05s;">
+    <div>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">AFK Status</h1>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Let your server know when you step away — anyone who pings you gets an automatic notice.</p>
+    </div>
+  </div>
+
+  <div class="md-section">
+    <div class="afk-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+        <div>
+          <div class="md-section-title" style="margin-bottom:0.15rem;">AFK responses</div>
+          <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.5;">When off, members can still set their own AFK but no automatic notices are sent.</p>
+        </div>
+        <label class="md-toggle md-toggle-xl"><input type="checkbox" id="afk-enabled" /><span class="md-toggle-slider"></span></label>
+      </div>
+    </div>
+  </div>
+
+  <div class="md-section">
+    <div class="afk-card" id="afk-personal">
+      <div class="md-section-title" style="margin-bottom:0.35rem;">Your AFK</div>
+      <div id="afk-body"><div class="afk-empty">Loading...</div></div>
+      <p style="font-size:0.72rem;color:rgba(255,255,255,0.3);line-height:1.5;margin-top:0.85rem;">
+        Sending any message in this server automatically clears your AFK.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .afk-card { border:1px solid rgba(255,255,255,0.08); border-radius:4px; background:rgba(255,255,255,0.015); padding:1rem; }
+  .afk-empty { text-align:center; padding:1rem; color:rgba(255,255,255,0.25); font-size:0.8rem; }
+  .afk-active { display:flex; flex-direction:column; gap:0.5rem; }
+  .afk-badge { display:inline-flex; align-items:center; gap:0.4rem; align-self:flex-start; font-size:0.72rem; font-weight:800; letter-spacing:0.04em; text-transform:uppercase; color:#fcd34d; background:rgba(252,211,77,0.12); border:1px solid rgba(252,211,77,0.3); border-radius:4px; padding:0.25rem 0.6rem; }
+  .afk-reason { font-size:0.9rem; font-weight:600; color:#e9edf5; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:4px; padding:0.6rem 0.7rem; word-break:break-word; }
+  .afk-meta { font-size:0.72rem; color:rgba(255,255,255,0.4); }
+  .afk-form { display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; }
+  .afk-form input { background:#1a1a1a; border:1px solid rgba(255,255,255,0.08); border-radius:4px; color:#e9edf5; font-family:'Lexend',system-ui,sans-serif; font-size:0.82rem; font-weight:600; padding:0.5rem 0.7rem; flex:1; min-width:180px; outline:none; transition:border-color 0.15s; }
+  .afk-form input:focus { border-color:rgba(255,255,255,0.2); }
+  .afk-btn { display:flex; align-items:center; gap:0.35rem; background:rgba(88,101,242,0.15); border:1px solid rgba(88,101,242,0.4); color:#c7cdff; font-family:'Lexend',system-ui,sans-serif; font-size:0.82rem; font-weight:600; padding:0.5rem 0.9rem; border-radius:4px; cursor:pointer; outline:none; transition:background 0.15s; white-space:nowrap; }
+  .afk-btn:hover { background:rgba(88,101,242,0.28); }
+  .afk-btn.danger { background:rgba(248,113,113,0.12); border-color:rgba(248,113,113,0.4); color:#fca5a5; }
+  .afk-btn.danger:hover { background:rgba(248,113,113,0.22); }
+</style>
+<script>
+const GID = window.__GUILD_ID;
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+
+function fmtSince(ts) {
+  if (!ts) return '';
+  try { return new Date(ts * 1000).toLocaleString(); } catch (e) { return ''; }
+}
+
+async function loadAll() {
+  try {
+    const res = await fetch(`/api/v1/afk/${GID}`);
+    const data = await res.json();
+    document.getElementById('afk-enabled').checked = data.enabled !== false;
+    renderPersonal(data.me);
+  } catch (e) {
+    document.getElementById('afk-body').innerHTML = '<div class="afk-empty">Failed to load.</div>';
+  }
+}
+
+function renderPersonal(me) {
+  const el = document.getElementById('afk-body');
+  if (me && me.afk) {
+    const since = fmtSince(me.since);
+    el.innerHTML = `
+      <div class="afk-active">
+        <span class="afk-badge"><i data-lucide="moon"></i> You're AFK</span>
+        <div class="afk-reason">${me.reason ? esc(me.reason) : '<em style="color:rgba(255,255,255,0.4);">No reason set</em>'}</div>
+        ${since ? `<div class="afk-meta">Since ${esc(since)}</div>` : ''}
+        <button type="button" class="afk-btn danger" id="afk-clear"><i data-lucide="x"></i> Clear AFK</button>
+      </div>`;
+    document.getElementById('afk-clear').addEventListener('click', clearAfk);
+  } else {
+    el.innerHTML = `
+      <div class="afk-form">
+        <input type="text" id="afk-reason" maxlength="500" placeholder="optional reason (e.g. eating dinner)" spellcheck="false" />
+        <button type="button" class="afk-btn" id="afk-set"><i data-lucide="moon"></i> Set AFK</button>
+      </div>`;
+    document.getElementById('afk-set').addEventListener('click', setAfk);
+    document.getElementById('afk-reason').addEventListener('keydown', (e) => { if (e.key === 'Enter') setAfk(); });
+  }
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function setAfk() {
+  const inp = document.getElementById('afk-reason');
+  const reason = inp ? inp.value.trim() : '';
+  const btn = document.getElementById('afk-set');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(`/api/v1/afk/${GID}`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ reason })
+    });
+    if (!res.ok) { if (typeof showToast === 'function') showToast('Could not set AFK.', 'error', 5000); }
+    else {
+      if (typeof showToast === 'function') showToast('You are now AFK.', 'success');
+      await loadAll();
+    }
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('Network error.', 'error', 4000);
+  } finally { if (btn) btn.disabled = false; }
+}
+
+async function clearAfk() {
+  try {
+    await fetch(`/api/v1/afk/${GID}`, { method: 'DELETE' });
+    if (typeof showToast === 'function') showToast('AFK cleared.', 'info');
+    await loadAll();
+  } catch (e) {}
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('afk-enabled').addEventListener('change', async function() {
+    try {
+      await fetch(`/api/v1/afk/${GID}/settings`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ enabled: this.checked })
+      });
+      if (typeof showToast === 'function') showToast('AFK responses ' + (this.checked ? 'enabled.' : 'disabled.'), 'info');
+    } catch (e) {}
+  });
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  loadAll();
+});
+</script>
+{% endblock %}

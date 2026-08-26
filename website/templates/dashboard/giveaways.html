@@ -1,0 +1,231 @@
+{% extends "dashboard/base.html" %}
+{% block content %}
+<div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;animation-delay:.05s;">
+    <div>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Giveaways</h1>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Run button-entry giveaways. Winners are picked automatically when the timer ends.</p>
+    </div>
+    <button type="button" class="gw-refresh" id="gw-refresh"><i data-lucide="refresh-cw"></i> Refresh</button>
+  </div>
+
+  <div class="md-section">
+    <div class="gw-card">
+      <div class="md-section-title" style="margin-bottom:0.5rem;">Create a giveaway</div>
+      <div class="gw-form">
+        <div class="gw-field gw-prize">
+          <label>Prize</label>
+          <input type="text" id="gw-prize" maxlength="300" placeholder="e.g. Discord Nitro" spellcheck="false" />
+        </div>
+        <div class="gw-field gw-dur">
+          <label>Duration</label>
+          <input type="text" id="gw-duration" maxlength="40" placeholder="2h, 1d, tomorrow 9pm" spellcheck="false" />
+        </div>
+        <div class="gw-field gw-win">
+          <label>Winners</label>
+          <input type="number" id="gw-winners" min="1" max="20" value="1" />
+        </div>
+        <div class="gw-field gw-chan">
+          <label>Channel</label>
+          <select id="gw-channel"></select>
+        </div>
+        <div class="gw-field gw-role">
+          <label>Required role</label>
+          <select id="gw-role"><option value="">None</option></select>
+        </div>
+        <div class="gw-field gw-desc" style="flex-basis:100%;">
+          <label>Description (optional)</label>
+          <input type="text" id="gw-description" maxlength="1000" placeholder="What are you giving away?" spellcheck="false" />
+        </div>
+      </div>
+      <button type="button" class="gw-create" id="gw-create"><i data-lucide="gift"></i> Start giveaway</button>
+      <div class="gw-hint">Giveaways post within ~10 seconds. Members use the Join button on the message.</div>
+    </div>
+  </div>
+
+  <div class="md-section">
+    <div class="gw-card">
+      <div class="md-section-title" style="margin-bottom:0.5rem;">Giveaways</div>
+      <div id="gw-list"><div class="gw-empty">Loading...</div></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .gw-refresh { display:flex; align-items:center; gap:0.35rem; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.7); font-family:'Lexend',system-ui,sans-serif; font-size:0.78rem; font-weight:600; padding:0.45rem 0.8rem; border-radius:4px; cursor:pointer; }
+  .gw-refresh:hover { background:rgba(255,255,255,0.08); }
+  .gw-card { border:1px solid rgba(255,255,255,0.08); border-radius:4px; background:rgba(255,255,255,0.015); padding:1rem; }
+  .gw-form { display:flex; flex-wrap:wrap; gap:0.75rem; }
+  .gw-field { display:flex; flex-direction:column; gap:0.3rem; flex:1; min-width:140px; }
+  .gw-field.gw-prize { flex:2; min-width:220px; }
+  .gw-field label { font-size:0.68rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:rgba(255,255,255,0.4); }
+  .gw-form input, .gw-form select { background:#1a1a1a; border:1px solid rgba(255,255,255,0.08); border-radius:4px; color:#e9edf5; font-family:'Lexend',system-ui,sans-serif; font-size:0.82rem; font-weight:600; padding:0.5rem 0.7rem; outline:none; transition:border-color 0.15s; }
+  .gw-form input:focus, .gw-form select:focus { border-color:rgba(255,255,255,0.2); }
+  .gw-create { display:flex; align-items:center; gap:0.4rem; margin-top:0.85rem; background:rgba(88,101,242,0.15); border:1px solid rgba(88,101,242,0.4); color:#c7cdff; font-family:'Lexend',system-ui,sans-serif; font-size:0.85rem; font-weight:700; padding:0.55rem 1.1rem; border-radius:4px; cursor:pointer; transition:background 0.15s; }
+  .gw-create:hover { background:rgba(88,101,242,0.28); }
+  .gw-create:disabled { opacity:0.6; cursor:default; }
+  .gw-hint { font-size:0.7rem; color:rgba(255,255,255,0.3); margin-top:0.6rem; line-height:1.5; }
+  .gw-empty { text-align:center; padding:1.25rem; color:rgba(255,255,255,0.25); font-size:0.8rem; }
+  .gw-row { border:1px solid rgba(255,255,255,0.06); border-radius:4px; padding:0.7rem 0.8rem; margin-bottom:0.6rem; background:rgba(255,255,255,0.01); }
+  .gw-row-top { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; }
+  .gw-prize-txt { font-size:0.92rem; font-weight:800; color:#fff; }
+  .gw-badge { font-size:0.66rem; font-weight:800; letter-spacing:0.05em; text-transform:uppercase; padding:0.2rem 0.55rem; border-radius:4px; white-space:nowrap; }
+  .gw-badge.active { color:#6ee7b7; background:rgba(52,211,153,0.12); border:1px solid rgba(52,211,153,0.3); }
+  .gw-badge.ended { color:rgba(255,255,255,0.5); background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); }
+  .gw-badge.pending { color:#fcd34d; background:rgba(252,211,77,0.12); border:1px solid rgba(252,211,77,0.3); }
+  .gw-meta { font-size:0.74rem; color:rgba(255,255,255,0.45); margin-top:0.35rem; display:flex; gap:1rem; flex-wrap:wrap; }
+  .gw-winners { margin-top:0.4rem; font-size:0.78rem; color:rgba(255,255,255,0.7); }
+  .gw-winners b { color:#fcd34d; }
+  .gw-actions { margin-top:0.55rem; display:flex; gap:0.5rem; }
+  .gw-btn { display:flex; align-items:center; gap:0.3rem; font-family:'Lexend',system-ui,sans-serif; font-size:0.74rem; font-weight:600; padding:0.35rem 0.7rem; border-radius:4px; cursor:pointer; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.75); }
+  .gw-btn:hover { background:rgba(255,255,255,0.09); }
+  .gw-btn.danger { border-color:rgba(248,113,113,0.4); color:#fca5a5; }
+  .gw-btn.danger:hover { background:rgba(248,113,113,0.12); }
+</style>
+<script>
+const GID = window.__GUILD_ID;
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+let IS_MOD = false;
+
+function relTime(ts) {
+  const diff = Math.max(0, ts - Date.now()/1000);
+  if (diff <= 0) return 'ended';
+  const d = Math.floor(diff/86400);
+  const h = Math.floor((diff%86400)/3600);
+  const m = Math.floor((diff%3600)/60);
+  if (d > 0) return `ends in ${d}d ${h}h`;
+  if (h > 0) return `ends in ${h}h ${m}m`;
+  return `ends in ${m}m`;
+}
+
+async function loadAll() {
+  try {
+    const [gw, ch, rl] = await Promise.all([
+      fetch(`/api/v1/giveaways/${GID}`).then(r => r.json()),
+      fetch(`/api/v1/welcomer/${GID}/channels`).then(r => r.json()).catch(() => ({channels: []})),
+      fetch(`/api/v1/welcomer/${GID}/roles`).then(r => r.json()).catch(() => ({roles: []})),
+    ]);
+    fillSelect('gw-channel', (ch.channels || []).map(c => ({id: c.id, name: c.name})), 'Select channel');
+    fillSelect('gw-role', (rl.roles || []).map(r => ({id: r.id, name: r.name})), 'None');
+    renderList(gw.giveaways || []);
+    IS_MOD = !!(gw && gw.is_mod);
+    applyModGate();
+  } catch (e) {
+    document.getElementById('gw-list').innerHTML = '<div class="gw-empty">Failed to load.</div>';
+  }
+}
+
+function applyModGate() {
+  const btn = document.getElementById('gw-create');
+  if (!btn) return;
+  if (!IS_MOD) {
+    btn.disabled = true;
+    btn.textContent = 'Moderators only';
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="gift"></i> Start giveaway';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+}
+
+function fillSelect(id, items, placeholder) {
+  const el = document.getElementById(id);
+  const cur = el.value;
+  el.innerHTML = (id === 'gw-role' ? '<option value="">None</option>' : '') +
+    `<option value="" ${id==='gw-channel'?'selected':''}>${placeholder}</option>` +
+    items.map(i => `<option value="${esc(i.id)}">${esc(i.name)}</option>`).join('');
+  if (cur) el.value = cur;
+}
+
+function renderList(items) {
+  const el = document.getElementById('gw-list');
+  if (!items.length) {
+    el.innerHTML = '<div class="gw-empty">No giveaways yet — create one above.</div>';
+    return;
+  }
+  el.innerHTML = items.map(g => {
+    const badge = g.status === 'active' ? '<span class="gw-badge active">Active</span>'
+      : g.status === 'ended' ? '<span class="gw-badge ended">Ended</span>'
+      : '<span class="gw-badge pending">Posting…</span>';
+    const timeTxt = g.status === 'ended' ? 'Ended' : relTime(g.end_ts);
+    const winnersTxt = g.winners && g.winners.length
+      ? `<div class="gw-winners">Winner(s): <b>${g.winners.map(w => esc(w.name)).join(', ')}</b></div>` : '';
+    const actions = (!IS_MOD) ? '' : (g.status === 'active'
+      ? `<button class="gw-btn danger" data-end="${g.id}">End now</button>`
+      : (g.status === 'ended' ? `<button class="gw-btn" data-reroll="${g.id}">Reroll</button>` : ''));
+    return `<div class="gw-row" data-id="${g.id}">
+      <div class="gw-row-top">
+        <span class="gw-prize-txt">${esc(g.prize)}</span>
+        ${badge}
+      </div>
+      <div class="gw-meta">
+        <span>${timeTxt}</span>
+        <span>${g.entries} entries</span>
+        <span>${g.winners_count} winner(s)</span>
+        ${g.required_role_id ? '<span>role required</span>' : ''}
+      </div>
+      ${winnersTxt}
+      ${actions ? `<div class="gw-actions">${actions}</div>` : ''}
+    </div>`;
+  }).join('');
+  el.querySelectorAll('[data-end]').forEach(b => b.addEventListener('click', () => endNow(b.dataset.end)));
+  el.querySelectorAll('[data-reroll]').forEach(b => b.addEventListener('click', () => reroll(b.dataset.reroll)));
+}
+
+async function createGiveaway() {
+  const prize = document.getElementById('gw-prize').value.trim();
+  const duration = document.getElementById('gw-duration').value.trim();
+  const winners = parseInt(document.getElementById('gw-winners').value, 10) || 1;
+  const channel = document.getElementById('gw-channel').value;
+  const role = document.getElementById('gw-role').value;
+  const description = document.getElementById('gw-description').value.trim();
+  const btn = document.getElementById('gw-create');
+  if (!prize) { if (typeof showToast === 'function') showToast('Prize is required.', 'error', 4000); return; }
+  if (!duration) { if (typeof showToast === 'function') showToast('Add a duration (e.g. 2h).', 'error', 4000); return; }
+  if (!channel) { if (typeof showToast === 'function') showToast('Choose a channel.', 'error', 4000); return; }
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/api/v1/giveaways/${GID}`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ prize, duration, winners, channel_id: channel, required_role_id: role, description })
+    });
+    const data = await res.json().catch(()=>({}));
+    if (!res.ok) { if (typeof showToast === 'function') showToast(data.error || 'Could not create giveaway.', 'error', 5000); }
+    else {
+      document.getElementById('gw-prize').value = '';
+      document.getElementById('gw-duration').value = '';
+      document.getElementById('gw-description').value = '';
+      if (typeof showToast === 'function') showToast('Giveaway created — it will post shortly.', 'success');
+      await loadAll();
+    }
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('Network error.', 'error', 4000);
+  } finally { btn.disabled = false; }
+}
+
+async function endNow(id) {
+  try {
+    await fetch(`/api/v1/giveaways/${GID}/${id}/end`, { method: 'POST' });
+    if (typeof showToast === 'function') showToast('Giveaway ending…', 'info');
+    await loadAll();
+  } catch (e) {}
+}
+
+async function reroll(id) {
+  try {
+    await fetch(`/api/v1/giveaways/${GID}/${id}/reroll`, { method: 'POST' });
+    if (typeof showToast === 'function') showToast('Rerolling…', 'info');
+    await loadAll();
+  } catch (e) {}
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('gw-create').addEventListener('click', createGiveaway);
+  document.getElementById('gw-refresh').addEventListener('click', loadAll);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  loadAll();
+});
+</script>
+{% endblock %}

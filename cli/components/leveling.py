@@ -117,6 +117,28 @@ async def set_user_xp(guild_id: int, user_id: int, xp: int):
     )
 
 
+async def get_user_messages(guild_id: int, user_id: int):
+    pool = await neon_db.get_pool()
+    if not pool:
+        return 0
+    row = await pool.fetchrow(
+        "SELECT messages FROM leveling_data WHERE guild_id = ? AND user_id = ?",
+        str(guild_id), str(user_id),
+    )
+    return int(row["messages"]) if row else 0
+
+
+async def increment_user_messages(guild_id: int, user_id: int):
+    pool = await neon_db.get_pool()
+    if not pool:
+        return
+    await pool.execute(
+        "INSERT INTO leveling_data (guild_id, user_id, xp, messages) VALUES (?, ?, 0, 1) "
+        "ON CONFLICT (guild_id, user_id) DO UPDATE SET messages = messages + 1",
+        str(guild_id), str(user_id),
+    )
+
+
 class Leveling(commands.Cog, name="Leveling"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -137,6 +159,10 @@ class Leveling(commands.Cog, name="Leveling"):
         if now - last < cooldown:
             return
         self.cooldowns[(message.guild.id, user_id)] = now
+        try:
+            await increment_user_messages(message.guild.id, user_id)
+        except Exception as e:
+            logger.warning(f"increment_user_messages failed: {e}")
 
         base_rate = settings.get("xp_rate", 1.0)
         xp_min = settings.get("xp_per_message_min", 15)

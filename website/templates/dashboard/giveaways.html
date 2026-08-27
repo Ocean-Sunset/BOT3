@@ -1,72 +1,8 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
-<div>
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;animation-delay:.05s;">
-    <div>
-      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Giveaways</h1>
-      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Run button-entry giveaways. Winners are picked automatically when the timer ends.</p>
-    </div>
-    <button type="button" class="gw-refresh" id="gw-refresh"><i data-lucide="refresh-cw"></i> Refresh</button>
-  </div>
-
-  <div class="md-section">
-    <div class="gw-card">
-      <div class="md-section-title" style="margin-bottom:0.5rem;">Create a giveaway</div>
-      <div class="gw-form">
-        <div class="gw-field gw-prize">
-          <label>Prize</label>
-          <input type="text" id="gw-prize" maxlength="300" placeholder="e.g. Discord Nitro" spellcheck="false" />
-        </div>
-        <div class="gw-field gw-dur">
-          <label>Duration</label>
-          <input type="text" id="gw-duration" maxlength="40" placeholder="2h, 1d, tomorrow 9pm" spellcheck="false" />
-        </div>
-        <div class="gw-field gw-win">
-          <label>Winners</label>
-          <input type="number" id="gw-winners" min="1" max="20" value="1" />
-        </div>
-        <div class="gw-field gw-chan">
-          <label>Channel</label>
-          <select id="gw-channel"></select>
-        </div>
-        <div class="gw-field gw-role">
-          <label>Required role</label>
-          <select id="gw-role"><option value="">None</option></select>
-        </div>
-        <div class="gw-field gw-desc" style="flex-basis:100%;">
-          <label>Description (optional)</label>
-          <input type="text" id="gw-description" maxlength="1000" placeholder="What are you giving away?" spellcheck="false" />
-        </div>
-      </div>
-      <button type="button" class="gw-create" id="gw-create"><i data-lucide="gift"></i> Start giveaway</button>
-      <div class="gw-hint">Giveaways post within ~10 seconds. Members use the Join button on the message.</div>
-    </div>
-  </div>
-
-  <div class="md-section">
-    <div class="gw-card">
-      <div class="md-section-title" style="margin-bottom:0.5rem;">Giveaways</div>
-      <div id="gw-list"><div class="gw-empty">Loading...</div></div>
-    </div>
-  </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
+<link rel="stylesheet" href="/static/moderation.css?v=19" />
+<link rel="stylesheet" href="/static/leveling.css?v=4" />
 <style>
-  .gw-refresh { display:flex; align-items:center; gap:0.35rem; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.7); font-family:'Lexend',system-ui,sans-serif; font-size:0.78rem; font-weight:600; padding:0.45rem 0.8rem; border-radius:4px; cursor:pointer; }
-  .gw-refresh:hover { background:rgba(255,255,255,0.08); }
-  .gw-card { border:1px solid rgba(255,255,255,0.08); border-radius:4px; background:rgba(255,255,255,0.015); padding:1rem; }
-  .gw-form { display:flex; flex-wrap:wrap; gap:0.75rem; }
-  .gw-field { display:flex; flex-direction:column; gap:0.3rem; flex:1; min-width:140px; }
-  .gw-field.gw-prize { flex:2; min-width:220px; }
-  .gw-field label { font-size:0.68rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:rgba(255,255,255,0.4); }
-  .gw-form input, .gw-form select { background:#1a1a1a; border:1px solid rgba(255,255,255,0.08); border-radius:4px; color:#e9edf5; font-family:'Lexend',system-ui,sans-serif; font-size:0.82rem; font-weight:600; padding:0.5rem 0.7rem; outline:none; transition:border-color 0.15s; }
-  .gw-form input:focus, .gw-form select:focus { border-color:rgba(255,255,255,0.2); }
-  .gw-create { display:flex; align-items:center; gap:0.4rem; margin-top:0.85rem; background:rgba(88,101,242,0.15); border:1px solid rgba(88,101,242,0.4); color:#c7cdff; font-family:'Lexend',system-ui,sans-serif; font-size:0.85rem; font-weight:700; padding:0.55rem 1.1rem; border-radius:4px; cursor:pointer; transition:background 0.15s; }
-  .gw-create:hover { background:rgba(88,101,242,0.28); }
-  .gw-create:disabled { opacity:0.6; cursor:default; }
-  .gw-hint { font-size:0.7rem; color:rgba(255,255,255,0.3); margin-top:0.6rem; line-height:1.5; }
   .gw-empty { text-align:center; padding:1.25rem; color:rgba(255,255,255,0.25); font-size:0.8rem; }
   .gw-row { border:1px solid rgba(255,255,255,0.06); border-radius:4px; padding:0.7rem 0.8rem; margin-bottom:0.6rem; background:rgba(255,255,255,0.01); }
   .gw-row-top { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; }
@@ -84,10 +20,212 @@
   .gw-btn.danger { border-color:rgba(248,113,113,0.4); color:#fca5a5; }
   .gw-btn.danger:hover { background:rgba(248,113,113,0.12); }
 </style>
+<div id="gw-wrap">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;animation-delay:.05s;">
+    <div>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Giveaways</h1>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Run button-entry giveaways with optional XP, level and message requirements. Winners are picked automatically when the timer ends.</p>
+    </div>
+    <button type="button" class="md-action-btn" id="gw-refresh" style="justify-content:center;"><i data-lucide="refresh-cw"></i> Refresh</button>
+  </div>
+
+  <div class="md-row">
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title" style="margin-bottom:0.75rem;">Create a giveaway</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item">
+            <div style="flex:1.4;">
+              <div class="md-behavior-label">Prize</div>
+              <input type="text" class="md-input" id="gw-prize" maxlength="300" placeholder="e.g. Discord Nitro" />
+            </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1;">
+              <div class="md-behavior-label">Duration</div>
+              <input type="text" class="md-input" id="gw-duration" maxlength="40" placeholder="2h, 1d, tomorrow 9pm" />
+            </div>
+            <div style="flex:1;">
+              <div class="md-behavior-label">Winners</div>
+              <input type="number" class="md-input" id="gw-winners" min="1" max="20" value="1" />
+            </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1;">
+              <div class="md-behavior-label">Channel</div>
+              <div class="md-custom-select" id="gw-channel-wrap">
+                <button class="md-custom-select-btn" id="gw-channel-btn">Select channel...</button>
+                <div class="md-custom-select-drop" id="gw-channel-drop"></div>
+              </div>
+            </div>
+            <div style="flex:1;">
+              <div class="md-behavior-label">Required role</div>
+              <div class="md-custom-select" id="gw-role-wrap">
+                <button class="md-custom-select-btn" id="gw-role-btn">None</button>
+                <div class="md-custom-select-drop" id="gw-role-drop"></div>
+              </div>
+            </div>
+          </div>
+          <div class="md-behavior-item">
+            <div style="flex:1;">
+              <div class="md-behavior-label">Required XP</div>
+              <input type="number" class="md-input" id="gw-reqxp" min="0" value="0" placeholder="0" />
+            </div>
+            <div style="flex:1;">
+              <div class="md-behavior-label">Required level</div>
+              <input type="number" class="md-input" id="gw-reqlvl" min="0" value="0" placeholder="0" />
+            </div>
+            <div style="flex:1;">
+              <div class="md-behavior-label">Required messages</div>
+              <input type="number" class="md-input" id="gw-reqmsg" min="0" value="0" placeholder="0" />
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start;">
+            <div style="flex:1;">
+              <div class="md-behavior-label">Description (optional)</div>
+              <input type="text" class="md-input" id="gw-description" maxlength="1000" placeholder="What are you giving away?" />
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start;">
+            <div style="flex:1;">
+              <div class="md-behavior-label">Thumbnail URL (optional)</div>
+              <input type="text" class="md-input" id="gw-thumbnail" placeholder="https://...png" />
+            </div>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid rgba(255,255,255,0.06);margin:0.9rem 0 0.6rem;padding-top:0.9rem;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;flex-wrap:wrap;gap:0.4rem;">
+            <div class="md-behavior-label" style="margin-bottom:0;">Giveaway Message</div>
+            <div class="md-segmented">
+              <button class="extra-tab gw-mode-tab is-active" data-mode="default">Default</button>
+              <button class="extra-tab gw-mode-tab" data-mode="basic">Basic</button>
+              <button class="extra-tab gw-mode-tab" data-mode="custom">Custom</button>
+            </div>
+          </div>
+          <div data-gw-view="default">
+            <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);line-height:1.5;margin:0;">Use the standard Prowl giveaway embed (shows prize, timer, entries and requirements).</p>
+          </div>
+          <div data-gw-view="basic" style="display:none;">
+            <div class="md-behavior-list" style="margin-top:0.5rem;">
+              <div class="md-behavior-item">
+                <div style="flex:1;">
+                  <div class="md-behavior-label">Emoji</div>
+                  <input type="text" class="md-input" id="gw-emoji" maxlength="8" placeholder="🎉" style="max-width:90px;" />
+                </div>
+              </div>
+              <div class="md-behavior-item" style="align-items:flex-start;">
+                <div style="flex:1;">
+                  <div class="md-behavior-label">Message</div>
+                  <textarea class="md-input md-textarea" id="gw-message" rows="3" placeholder="{prize} is being given away!"></textarea>
+                  <div class="md-vars-hint">Variables: {prize} {winners} {host} {servername} {channel}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div data-gw-view="custom" style="display:none;">
+            <button class="md-action-btn" id="gw-edit-embed" style="width:100%;justify-content:center;padding:0.5rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
+            <p style="font-size:0.7rem;color:rgba(255,255,255,0.35);margin-top:0.5rem;line-height:1.5;">Build a full embed. Use the same variables. The Join / Leave buttons are still attached.</p>
+          </div>
+        </div>
+
+        <button type="button" class="md-action-btn" id="gw-create" style="margin-top:1rem;justify-content:center;background:rgba(88,101,242,0.15);border-color:rgba(88,101,242,0.4);color:#c7cdff;"><i data-lucide="gift"></i> Start giveaway</button>
+        <div style="font-size:0.7rem;color:rgba(255,255,255,0.3);margin-top:0.6rem;line-height:1.5;">Giveaways post within ~10 seconds. Members use the Join button on the message.</div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title" style="margin-bottom:0.5rem;">Giveaways</div>
+        <div id="gw-list"><div class="gw-empty">Loading...</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Custom embed editor modal -->
+<div class="md-modal-overlay" id="embed-editor-modal">
+  <div class="md-modal" style="min-width:520px;max-width:560px;max-height:80vh;overflow-y:auto;">
+    <h3 id="embed-editor-title">Giveaway Embed</h3>
+    <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin:0.2rem 0 0.75rem;line-height:1.5;">Variables work in title, description and footer: <code>{prize}</code> <code>{winners}</code> <code>{host}</code> <code>{servername}</code> <code>{channel}</code></div>
+    <div style="display:flex;flex-direction:column;gap:0.6rem;margin:0.75rem 0;">
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Title</div>
+        <input type="text" class="md-input" id="ee-title" placeholder="🎉 {prize}" />
+      </div>
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Description</div>
+        <textarea class="md-input md-textarea" id="ee-desc" rows="3" placeholder="{prize} is being given away!"></textarea>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Color</div>
+          <div style="display:flex;align-items:center;gap:0.4rem;">
+            <input type="color" id="ee-color" value="#5865f2" style="width:36px;height:32px;border:none;background:none;cursor:pointer;" />
+            <input type="text" class="md-input" id="ee-color-hex" value="#5865f2" style="max-width:90px;" />
+          </div>
+          <div class="md-presets" id="ee-presets" style="margin:0.4rem 0 0 0;flex-wrap:wrap;"></div>
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">URL</div>
+          <input type="text" class="md-input" id="ee-url" placeholder="https://..." />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Author Name</div>
+          <input type="text" class="md-input" id="ee-author" placeholder="Author" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Author Icon URL</div>
+          <input type="text" class="md-input" id="ee-author-icon" placeholder="https://...png" />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Footer Text</div>
+          <input type="text" class="md-input" id="ee-footer" placeholder="Footer" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Footer Icon URL</div>
+          <input type="text" class="md-input" id="ee-footer-icon" placeholder="https://...png" />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Image URL</div>
+          <input type="text" class="md-input" id="ee-image" placeholder="https://...png" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Thumbnail URL</div>
+          <input type="text" class="md-input" id="ee-thumbnail" placeholder="https://...png" />
+        </div>
+      </div>
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Fields</div>
+        <div id="ee-fields" style="display:flex;flex-direction:column;gap:0.4rem;"></div>
+        <button class="md-action-btn" id="ee-add-field" style="margin-top:0.4rem;"><i data-lucide="plus"></i> Add Field</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="md-action-btn" id="ee-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save Embed</button>
+      <button class="md-action-btn" id="ee-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
 <script>
 const GID = window.__GUILD_ID;
 const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
 let IS_MOD = false;
+let selectedChannel = "";
+let selectedRole = "";
+let gwMsgMode = "default";
+let gwEmbed = {};
 
 function relTime(ts) {
   const diff = Math.max(0, ts - Date.now()/1000);
@@ -100,43 +238,20 @@ function relTime(ts) {
   return `ends in ${m}m`;
 }
 
-async function loadAll() {
-  try {
-    const [gw, ch, rl] = await Promise.all([
-      fetch(`/api/v1/giveaways/${GID}`).then(r => r.json()),
-      fetch(`/api/v1/welcomer/${GID}/channels`).then(r => r.json()).catch(() => ({channels: []})),
-      fetch(`/api/v1/welcomer/${GID}/roles`).then(r => r.json()).catch(() => ({roles: []})),
-    ]);
-    fillSelect('gw-channel', (ch.channels || []).map(c => ({id: c.id, name: c.name})), 'Select channel');
-    fillSelect('gw-role', (rl.roles || []).map(r => ({id: r.id, name: r.name})), 'None');
-    renderList(gw.giveaways || []);
-    IS_MOD = !!(gw && gw.is_mod);
-    applyModGate();
-  } catch (e) {
-    document.getElementById('gw-list').innerHTML = '<div class="gw-empty">Failed to load.</div>';
-  }
-}
-
-function applyModGate() {
-  const btn = document.getElementById('gw-create');
-  if (!btn) return;
-  if (!IS_MOD) {
-    btn.disabled = true;
-    btn.textContent = 'Moderators only';
-  } else {
-    btn.disabled = false;
-    btn.innerHTML = '<i data-lucide="gift"></i> Start giveaway';
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-  }
-}
-
-function fillSelect(id, items, placeholder) {
-  const el = document.getElementById(id);
-  const cur = el.value;
-  el.innerHTML = (id === 'gw-role' ? '<option value="">None</option>' : '') +
-    `<option value="" ${id==='gw-channel'?'selected':''}>${placeholder}</option>` +
-    items.map(i => `<option value="${esc(i.id)}">${esc(i.name)}</option>`).join('');
-  if (cur) el.value = cur;
+function bindSelect(wrapId, dropId, btnId, items, placeholder, onSelect) {
+  const wrap = document.getElementById(wrapId);
+  const drop = document.getElementById(dropId);
+  const btn = document.getElementById(btnId);
+  drop.innerHTML = (placeholder === 'None' ? '<button class="md-custom-opt" data-id="">None</button>' : '') +
+    items.map(i => `<button class="md-custom-opt" data-id="${esc(i.id)}">${esc(i.name)}</button>`).join('');
+  drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+    btn.textContent = b.dataset.id ? b.textContent : placeholder;
+    btn.dataset.val = b.dataset.id;
+    drop.classList.remove('is-open');
+    onSelect(b.dataset.id);
+  }));
+  btn.addEventListener('click', (e) => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+  document.addEventListener('click', (e) => { if (!e.target.closest('#' + wrapId)) drop.classList.remove('is-open'); });
 }
 
 function renderList(items) {
@@ -152,6 +267,12 @@ function renderList(items) {
     const timeTxt = g.status === 'ended' ? 'Ended' : relTime(g.end_ts);
     const winnersTxt = g.winners && g.winners.length
       ? `<div class="gw-winners">Winner(s): <b>${g.winners.map(w => esc(w.name)).join(', ')}</b></div>` : '';
+    const reqs = [];
+    if (g.required_role_id) reqs.push('role');
+    if (g.required_xp) reqs.push(g.required_xp + ' XP');
+    if (g.required_level) reqs.push('lvl ' + g.required_level);
+    if (g.required_msgs) reqs.push(g.required_msgs + ' msgs');
+    const reqTxt = reqs.length ? `<span>requires ${esc(reqs.join(', '))}</span>` : '';
     const actions = (!IS_MOD) ? '' : (g.status === 'active'
       ? `<button class="gw-btn danger" data-end="${g.id}">End now</button>`
       : (g.status === 'ended' ? `<button class="gw-btn" data-reroll="${g.id}">Reroll</button>` : ''));
@@ -164,7 +285,7 @@ function renderList(items) {
         <span>${timeTxt}</span>
         <span>${g.entries} entries</span>
         <span>${g.winners_count} winner(s)</span>
-        ${g.required_role_id ? '<span>role required</span>' : ''}
+        ${reqTxt}
       </div>
       ${winnersTxt}
       ${actions ? `<div class="gw-actions">${actions}</div>` : ''}
@@ -174,22 +295,76 @@ function renderList(items) {
   el.querySelectorAll('[data-reroll]').forEach(b => b.addEventListener('click', () => reroll(b.dataset.reroll)));
 }
 
+async function loadAll() {
+  try {
+    const [gw, ch, rl] = await Promise.all([
+      fetch(`/api/v1/giveaways/${GID}`).then(r => r.json()),
+      fetch(`/api/v1/welcomer/${GID}/channels`).then(r => r.json()).catch(() => ({channels: []})),
+      fetch(`/api/v1/welcomer/${GID}/roles`).then(r => r.json()).catch(() => ({roles: []})),
+    ]);
+    bindSelect('gw-channel-wrap', 'gw-channel-drop', 'gw-channel-btn', (ch.channels || []).map(c => ({id: c.id, name: c.name})), 'Select channel...', id => { selectedChannel = id; });
+    bindSelect('gw-role-wrap', 'gw-role-drop', 'gw-role-btn', (rl.roles || []).map(r => ({id: r.id, name: r.name})), 'None', id => { selectedRole = id; });
+    renderList(gw.giveaways || []);
+    IS_MOD = !!(gw && gw.is_mod);
+    applyModGate();
+  } catch (e) {
+    document.getElementById('gw-list').innerHTML = '<div class="gw-empty">Failed to load.</div>';
+  }
+}
+
+function applyModGate() {
+  const btn = document.getElementById('gw-create');
+  if (!btn) return;
+  if (!IS_MOD) {
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="lock"></i> Moderators only';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="gift"></i> Start giveaway';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+}
+
+function setGwMode(mode) {
+  gwMsgMode = mode;
+  document.querySelectorAll('.gw-mode-tab').forEach(t => t.classList.toggle('is-active', t.dataset.mode === mode));
+  document.querySelectorAll('[data-gw-view]').forEach(v => { v.style.display = v.dataset.gwView === mode ? '' : 'none'; });
+}
+
 async function createGiveaway() {
   const prize = document.getElementById('gw-prize').value.trim();
   const duration = document.getElementById('gw-duration').value.trim();
   const winners = parseInt(document.getElementById('gw-winners').value, 10) || 1;
-  const channel = document.getElementById('gw-channel').value;
-  const role = document.getElementById('gw-role').value;
   const description = document.getElementById('gw-description').value.trim();
+  const thumbnail = document.getElementById('gw-thumbnail').value.trim();
+  const reqxp = parseInt(document.getElementById('gw-reqxp').value, 10) || 0;
+  const reqlvl = parseInt(document.getElementById('gw-reqlvl').value, 10) || 0;
+  const reqmsg = parseInt(document.getElementById('gw-reqmsg').value, 10) || 0;
   const btn = document.getElementById('gw-create');
   if (!prize) { if (typeof showToast === 'function') showToast('Prize is required.', 'error', 4000); return; }
   if (!duration) { if (typeof showToast === 'function') showToast('Add a duration (e.g. 2h).', 'error', 4000); return; }
-  if (!channel) { if (typeof showToast === 'function') showToast('Choose a channel.', 'error', 4000); return; }
+  if (!selectedChannel) { if (typeof showToast === 'function') showToast('Choose a channel.', 'error', 4000); return; }
+  let msgType = "", msgEmoji = "", msgText = "", msgEmbed = {};
+  if (gwMsgMode === 'basic') {
+    msgType = 'basic';
+    msgEmoji = document.getElementById('gw-emoji').value.trim();
+    msgText = document.getElementById('gw-message').value.trim();
+    if (!msgText) { if (typeof showToast === 'function') showToast('Add a Basic message.', 'warning', 4000); return; }
+  } else if (gwMsgMode === 'custom') {
+    msgType = 'embed';
+    if (!Object.keys(gwEmbed).length) { if (typeof showToast === 'function') showToast('Configure the custom embed first.', 'warning', 4000); return; }
+    msgEmbed = gwEmbed;
+  }
   btn.disabled = true;
   try {
     const res = await fetch(`/api/v1/giveaways/${GID}`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ prize, duration, winners, channel_id: channel, required_role_id: role, description })
+      body: JSON.stringify({
+        prize, duration, winners, channel_id: selectedChannel, required_role_id: selectedRole,
+        description, thumbnail, required_xp: reqxp, required_level: reqlvl, required_msgs: reqmsg,
+        message_type: msgType, emoji: msgEmoji, message: msgText, embed: msgEmbed
+      })
     });
     const data = await res.json().catch(()=>({}));
     if (!res.ok) { if (typeof showToast === 'function') showToast(data.error || 'Could not create giveaway.', 'error', 5000); }
@@ -197,6 +372,7 @@ async function createGiveaway() {
       document.getElementById('gw-prize').value = '';
       document.getElementById('gw-duration').value = '';
       document.getElementById('gw-description').value = '';
+      document.getElementById('gw-thumbnail').value = '';
       if (typeof showToast === 'function') showToast('Giveaway created — it will post shortly.', 'success');
       await loadAll();
     }
@@ -212,7 +388,6 @@ async function endNow(id) {
     await loadAll();
   } catch (e) {}
 }
-
 async function reroll(id) {
   try {
     await fetch(`/api/v1/giveaways/${GID}/${id}/reroll`, { method: 'POST' });
@@ -221,9 +396,102 @@ async function reroll(id) {
   } catch (e) {}
 }
 
+// ── Custom embed editor ──
+const eeVal = id => document.getElementById(id)?.value ?? '';
+function collectEmbed() {
+  const e = {
+    title: eeVal('ee-title'), description: eeVal('ee-desc'), url: eeVal('ee-url'),
+    color: eeVal('ee-color-hex'),
+    author_name: eeVal('ee-author'), author_icon: eeVal('ee-author-icon'),
+    footer_text: eeVal('ee-footer'), footer_icon: eeVal('ee-footer-icon'),
+    image_url: eeVal('ee-image'), thumbnail_url: eeVal('ee-thumbnail'),
+  };
+  const fields = [];
+  document.querySelectorAll('#ee-fields .ee-field-row').forEach(row => {
+    const name = row.querySelector('.ee-field-name').value.trim();
+    const value = row.querySelector('.ee-field-value').value;
+    const inline = row.querySelector('.ee-field-inline').checked;
+    if (name) fields.push({ name, value, inline });
+  });
+  if (fields.length) e.fields = fields;
+  for (const k of ['title','description','url','author_name','author_icon','footer_text','footer_icon','image_url','thumbnail_url']) {
+    if (!e[k]) delete e[k];
+  }
+  if (!e.color || e.color.toLowerCase() === '#5865f2') delete e.color;
+  return e;
+}
+function addFieldRow(f) {
+  const row = document.createElement('div');
+  row.className = 'ee-field-row';
+  row.style.cssText = 'display:flex;gap:0.4rem;align-items:center;';
+  row.innerHTML = `<input type="text" class="md-input ee-field-name" placeholder="Name" style="flex:1.2" value="${esc(f?.name||'')}"/>
+    <input type="text" class="md-input ee-field-value" placeholder="Value" style="flex:2" value="${esc(f?.value||'')}"/>
+    <label class="md-toggle" data-tooltip="Inline"><input type="checkbox" class="ee-field-inline" ${f?.inline?'checked':''} /><span class="md-toggle-slider"></span></label>
+    <button type="button" class="md-action-btn ee-field-del" style="padding:0.25rem;"><i data-lucide="x"></i></button>`;
+  row.querySelector('.ee-field-del').addEventListener('click', () => row.remove());
+  document.getElementById('ee-fields').appendChild(row);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+function loadEmbedEditor(embed) {
+  const e = embed || {};
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+  set('ee-title', e.title); set('ee-desc', e.description); set('ee-url', e.url);
+  set('ee-author', e.author_name); set('ee-author-icon', e.author_icon);
+  set('ee-footer', e.footer_text); set('ee-footer-icon', e.footer_icon);
+  set('ee-image', e.image_url); set('ee-thumbnail', e.thumbnail_url);
+  const hex = (e.color && !/^#/.test(String(e.color))) ? '#' + e.color : (e.color || '#5865f2');
+  set('ee-color-hex', hex);
+  const colorInput = document.getElementById('ee-color');
+  if (colorInput) colorInput.value = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#5865f2';
+  const fw = document.getElementById('ee-fields');
+  fw.innerHTML = '';
+  (e.fields || []).forEach(fld => addFieldRow(fld));
+}
+const EMBED_DEFAULTS = { title:'🎉 {prize}', description:'{prize} is being given away!', color:'#5865f2' };
+
+document.querySelectorAll('.gw-mode-tab').forEach(t => t.addEventListener('click', () => setGwMode(t.dataset.mode)));
+document.getElementById('gw-edit-embed').addEventListener('click', () => {
+  loadEmbedEditor(Object.keys(gwEmbed).length ? gwEmbed : EMBED_DEFAULTS);
+  document.getElementById('embed-editor-modal').classList.add('is-open');
+});
+document.getElementById('ee-save').addEventListener('click', () => {
+  const e = collectEmbed();
+  if (Object.keys(e).length === 0) {
+    if (typeof showToast === 'function') showToast('The embed is empty - add a title, description, footer or a field first.', 'warning', 5000);
+    return;
+  }
+  gwEmbed = e;
+  if (typeof showToast === 'function') showToast('Giveaway embed saved to this giveaway.', 'success');
+  document.getElementById('embed-editor-modal').classList.remove('is-open');
+});
+document.getElementById('ee-cancel').addEventListener('click', () => document.getElementById('embed-editor-modal').classList.remove('is-open'));
+document.getElementById('ee-add-field').addEventListener('click', () => addFieldRow({}));
+const eeHex = document.getElementById('ee-color-hex');
+const eeColor = document.getElementById('ee-color');
+if (eeHex && eeColor) {
+  eeHex.addEventListener('input', () => { if (/^#[0-9a-fA-F]{6}$/.test(eeHex.value)) eeColor.value = eeHex.value; });
+  eeColor.addEventListener('input', () => { eeHex.value = eeColor.value; });
+}
+const EE_PRESETS = ['#57f287','#5865f2','#fee75c','#faa61a','#ed4245','#eb459e','#00c8ff','#b6a2e0','#ffffff','#313338','#000000'];
+const eePresets = document.getElementById('ee-presets');
+if (eePresets) {
+  EE_PRESETS.forEach(c => {
+    const sw = document.createElement('button');
+    sw.type = 'button';
+    sw.style.cssText = 'width:22px;height:22px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);background:' + c + ';cursor:pointer;padding:0;';
+    sw.title = c;
+    sw.addEventListener('click', () => {
+      if (eeHex) { eeHex.value = c; eeHex.dispatchEvent(new Event('input')); }
+      if (eeColor) eeColor.value = c;
+    });
+    eePresets.appendChild(sw);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('gw-create').addEventListener('click', createGiveaway);
   document.getElementById('gw-refresh').addEventListener('click', loadAll);
+  setGwMode('default');
   if (typeof lucide !== 'undefined') lucide.createIcons();
   loadAll();
 });

@@ -348,6 +348,15 @@ CREATE TABLE IF NOT EXISTS giveaway_entries (
     joined_at   REAL,
     PRIMARY KEY (giveaway_id, user_id)
 );
+
+ALTER TABLE leveling_data ADD COLUMN messages INTEGER DEFAULT 0;
+ALTER TABLE giveaways ADD COLUMN required_xp INTEGER DEFAULT 0;
+ALTER TABLE giveaways ADD COLUMN required_level INTEGER DEFAULT 0;
+ALTER TABLE giveaways ADD COLUMN required_msgs INTEGER DEFAULT 0;
+ALTER TABLE giveaways ADD COLUMN message_type TEXT DEFAULT '';
+ALTER TABLE giveaways ADD COLUMN message TEXT DEFAULT '';
+ALTER TABLE giveaways ADD COLUMN emoji TEXT DEFAULT '';
+ALTER TABLE giveaways ADD COLUMN embed TEXT DEFAULT '{}';
 """
 
 

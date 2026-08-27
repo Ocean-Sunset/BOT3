@@ -311,7 +311,7 @@ async def _ensure_tables():
         ("CREATE TABLE IF NOT EXISTS welcome_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS verify_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS leveling_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
-        ("CREATE TABLE IF NOT EXISTS leveling_data (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, xp INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, user_id))", ()),
+        ("CREATE TABLE IF NOT EXISTS leveling_data (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, xp INTEGER NOT NULL DEFAULT 0, messages INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, user_id))", ()),
         ("CREATE TABLE IF NOT EXISTS automation_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS autoresponder (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, trigger TEXT NOT NULL, response TEXT NOT NULL, match_type TEXT NOT NULL DEFAULT 'contains', channel_id TEXT, cooldown INTEGER DEFAULT 0, created_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS social_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
@@ -328,7 +328,7 @@ async def _ensure_tables():
         ("CREATE TABLE IF NOT EXISTS alias_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS afk_status (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, reason TEXT DEFAULT '', nickname TEXT DEFAULT '', since REAL NOT NULL, PRIMARY KEY (guild_id, user_id))", ()),
         ("CREATE TABLE IF NOT EXISTS afk_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
-        ("CREATE TABLE IF NOT EXISTS giveaways (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, channel_id TEXT NOT NULL, message_id TEXT DEFAULT '', host_id TEXT DEFAULT '', prize TEXT NOT NULL, description TEXT DEFAULT '', thumbnail TEXT DEFAULT '', winners_count INTEGER DEFAULT 1, required_role_id TEXT DEFAULT '', end_ts REAL NOT NULL, start_ts REAL NOT NULL, status TEXT DEFAULT 'pending', winners TEXT DEFAULT '', reroll_pending INTEGER DEFAULT 0, created_at REAL)", ()),
+        ("CREATE TABLE IF NOT EXISTS giveaways (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, channel_id TEXT NOT NULL, message_id TEXT DEFAULT '', host_id TEXT DEFAULT '', prize TEXT NOT NULL, description TEXT DEFAULT '', thumbnail TEXT DEFAULT '', winners_count INTEGER DEFAULT 1, required_role_id TEXT DEFAULT '', end_ts REAL NOT NULL, start_ts REAL NOT NULL, status TEXT DEFAULT 'pending', winners TEXT DEFAULT '', reroll_pending INTEGER DEFAULT 0, created_at REAL, required_xp INTEGER DEFAULT 0, required_level INTEGER DEFAULT 0, required_msgs INTEGER DEFAULT 0, message_type TEXT DEFAULT '', message TEXT DEFAULT '', emoji TEXT DEFAULT '', embed TEXT DEFAULT '{}')", ()),
         ("CREATE TABLE IF NOT EXISTS giveaway_entries (giveaway_id INTEGER NOT NULL, user_id TEXT NOT NULL, joined_at REAL, PRIMARY KEY (giveaway_id, user_id))", ()),
         ("CREATE INDEX IF NOT EXISTS idx_automation_logs_guild ON automation_logs (guild_id, id DESC)", ()),
         ("CREATE INDEX IF NOT EXISTS idx_autoresponder_guild ON autoresponder (guild_id)", ()),
@@ -344,6 +344,14 @@ async def _ensure_tables():
         "ALTER TABLE mod_actions ADD COLUMN error TEXT DEFAULT ''",
         "ALTER TABLE mod_actions ADD COLUMN processed_at REAL",
         "ALTER TABLE mod_actions ADD COLUMN request_id TEXT",
+        "ALTER TABLE leveling_data ADD COLUMN messages INTEGER DEFAULT 0",
+        "ALTER TABLE giveaways ADD COLUMN required_xp INTEGER DEFAULT 0",
+        "ALTER TABLE giveaways ADD COLUMN required_level INTEGER DEFAULT 0",
+        "ALTER TABLE giveaways ADD COLUMN required_msgs INTEGER DEFAULT 0",
+        "ALTER TABLE giveaways ADD COLUMN message_type TEXT DEFAULT ''",
+        "ALTER TABLE giveaways ADD COLUMN message TEXT DEFAULT ''",
+        "ALTER TABLE giveaways ADD COLUMN emoji TEXT DEFAULT ''",
+        "ALTER TABLE giveaways ADD COLUMN embed TEXT DEFAULT '{}'",
     ]
     try:
         await _execute_batch_http(statements)
@@ -776,7 +784,9 @@ async def set_afk_settings(guild_id: str, settings: dict):
 # ── Giveaways ────────────────────────────────────────────────────────────────
 
 async def create_giveaway(guild_id, channel_id, host_id, prize, description, thumbnail,
-                          winners_count, required_role_id, end_ts, start_ts):
+                          winners_count, required_role_id, end_ts, start_ts,
+                          required_xp=0, required_level=0, required_msgs=0,
+                          message_type="", message="", emoji="", embed=None):
     pool = await get_pool()
     if pool is None:
         return None
@@ -784,11 +794,15 @@ async def create_giveaway(guild_id, channel_id, host_id, prize, description, thu
         async with pool.acquire() as conn:
             await conn.execute(
                 "INSERT INTO giveaways (guild_id, channel_id, host_id, prize, description, "
-                "thumbnail, winners_count, required_role_id, end_ts, start_ts, status, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)",
+                "thumbnail, winners_count, required_role_id, end_ts, start_ts, status, created_at, "
+                "required_xp, required_level, required_msgs, message_type, message, emoji, embed) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)",
                 str(guild_id), str(channel_id), str(host_id), prize[:300], (description or "")[:1000],
                 (thumbnail or "")[:500], int(winners_count), str(required_role_id) if required_role_id else "",
                 float(end_ts), float(start_ts), time.time(),
+                int(required_xp or 0), int(required_level or 0), int(required_msgs or 0),
+                (message_type or "")[:20], (message or "")[:1000], (emoji or "")[:16],
+                json.dumps(embed or {}),
             )
             row = await conn.fetchrow(
                 "SELECT id FROM giveaways WHERE guild_id = ? ORDER BY id DESC LIMIT 1", str(guild_id)

@@ -2775,7 +2775,13 @@ async def clear_todos(request: Request, guild_id: str):
 #  Personal AFK status (per-user, per-guild)
 # ---------------------------------------------------------------------------
 
-AFK_DEFAULTS = {"enabled": True}
+AFK_DEFAULTS = {
+    "enabled": True,
+    "afk_message_type": "basic",
+    "afk_emoji": "\U0001F634",
+    "afk_message": "{mention} is currently AFK: {reason}",
+    "afk_embed": {},
+}
 _afk_ensured = False
 
 
@@ -2824,7 +2830,8 @@ async def get_afk_status(request: Request, guild_id: str):
     me = None
     if row:
         me = {"afk": True, "reason": row["reason"] or "", "since": row["since"]}
-    return {"enabled": settings.get("enabled", True), "me": me}
+    is_mod = await is_guild_moderator(request, guild_id)
+    return {"enabled": settings.get("enabled", True), "me": me, "settings": settings, "is_mod": is_mod}
 
 
 @app.post("/api/v1/afk/{guild_id}")
@@ -2865,8 +2872,13 @@ async def update_afk_settings(request: Request, guild_id: str):
     except Exception:
         return JSONResponse({"error": "Invalid request"}, status_code=400)
     settings = await _get_afk_settings(guild_id)
-    if "enabled" in body and isinstance(body["enabled"], bool):
-        settings["enabled"] = body["enabled"]
+    if "key" in body:
+        settings[body["key"]] = body.get("value")
+    else:
+        for k, v in body.items():
+            if k == "enabled" and not isinstance(v, bool):
+                continue
+            settings[k] = v
     await _ensure_afk_tables()
     await execute(
         "INSERT INTO afk_settings (guild_id, settings, updated_at) VALUES (?, ?, ?) "
@@ -2952,12 +2964,27 @@ async def list_giveaways_endpoint(request: Request, guild_id: str):
     out = []
     for r in rows:
         winners = [w for w in (r["winners"] or "").split(",") if w]
+        embed = r.get("embed") or ""
+        if isinstance(embed, str) and embed:
+            try:
+                embed = json.loads(embed)
+            except Exception:
+                embed = {}
+        if not isinstance(embed, dict):
+            embed = {}
         out.append({
             "id": r["id"],
             "prize": r["prize"],
             "description": r["description"] or "",
             "winners_count": r["winners_count"],
             "required_role_id": r["required_role_id"] or "",
+            "required_xp": r.get("required_xp") or 0,
+            "required_level": r.get("required_level") or 0,
+            "required_msgs": r.get("required_msgs") or 0,
+            "message_type": r.get("message_type") or "",
+            "emoji": r.get("emoji") or "",
+            "message": r.get("message") or "",
+            "embed": embed,
             "end_ts": r["end_ts"],
             "start_ts": r["start_ts"],
             "status": r["status"],
@@ -2999,14 +3026,44 @@ async def create_giveaway_endpoint(request: Request, guild_id: str):
     if not channel:
         return JSONResponse({"error": "Choose a channel."}, status_code=400)
     desc = (body.get("description") or "").strip()
+    thumbnail = (body.get("thumbnail") or "").strip()
     role = (body.get("required_role_id") or "").strip()
+    try:
+        required_xp = int(body.get("required_xp") or 0)
+    except (TypeError, ValueError):
+        required_xp = 0
+    try:
+        required_level = int(body.get("required_level") or 0)
+    except (TypeError, ValueError):
+        required_level = 0
+    try:
+        required_msgs = int(body.get("required_msgs") or 0)
+    except (TypeError, ValueError):
+        required_msgs = 0
+    if required_xp < 0:
+        required_xp = 0
+    if required_level < 0:
+        required_level = 0
+    if required_msgs < 0:
+        required_msgs = 0
+    message_type = (body.get("message_type") or "").strip()
+    if message_type not in ("basic", "embed"):
+        message_type = ""
+    emoji = (body.get("emoji") or "").strip()
+    message = (body.get("message") or "").strip()
+    embed = body.get("embed") or {}
+    if not isinstance(embed, dict):
+        embed = {}
     await _ensure_giveaway_tables()
     await execute(
         "INSERT INTO giveaways (guild_id, channel_id, host_id, prize, description, thumbnail, "
-        "winners_count, required_role_id, end_ts, start_ts, status, created_at) "
-        "VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, 'pending', ?)",
+        "winners_count, required_role_id, end_ts, start_ts, status, created_at, "
+        "required_xp, required_level, required_msgs, message_type, message, emoji, embed) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)",
         str(guild_id), str(channel), str(user["id"]), prize[:300], desc[:1000],
-        winners, str(role) if role else "", ts, time.time(), time.time(),
+        (thumbnail or "")[:500], winners, str(role) if role else "", ts, time.time(), time.time(),
+        required_xp, required_level, required_msgs, message_type[:20],
+        message[:1000], emoji[:16], json.dumps(embed),
     )
     row = await fetchrow("SELECT id FROM giveaways WHERE guild_id = ? ORDER BY id DESC LIMIT 1", str(guild_id))
     return {"ok": True, "id": row["id"] if row else None}

@@ -13,6 +13,7 @@ Slash commands (manage-messages required):
 
 import re
 import time
+import json
 import random
 import asyncio
 import datetime
@@ -23,7 +24,7 @@ from discord import app_commands
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
-from Ediscord.builders import emoji_title
+from Ediscord.builders import emoji_title, embed_from_dict
 
 
 _WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
@@ -126,17 +127,15 @@ class GiveawayView(discord.ui.View):
         gw = await neon_db.get_giveaway_by_message(str(interaction.guild_id), str(interaction.message.id))
         if not gw or gw["status"] != "active":
             return await interaction.response.send_message("This giveaway isn't active.", ephemeral=True)
-        if gw.get("required_role_id"):
-            member = interaction.user
-            if not any(str(r.id) == str(gw["required_role_id"]) for r in getattr(member, "roles", [])):
-                return await interaction.response.send_message(
-                    "You need the required role to join this giveaway.", ephemeral=True
-                )
+        cog = interaction.client.get_cog("GiveawayCog")
+        if cog:
+            req_err = await cog.check_requirements(str(interaction.guild_id), interaction.user, gw)
+            if req_err:
+                return await interaction.response.send_message(req_err, ephemeral=True)
         if await neon_db.get_entry(gw["id"], str(interaction.user.id)):
             return await interaction.response.send_message("You've already joined!", ephemeral=True)
         await neon_db.add_entry(gw["id"], str(interaction.user.id))
         await interaction.response.send_message("🎉 You're in — good luck!", ephemeral=True)
-        cog = interaction.client.get_cog("GiveawayCog")
         if cog:
             await cog.refresh_message(gw)
 
@@ -161,7 +160,106 @@ class GiveawayCog(commands.Cog):
     async def cog_load(self):
         self.bot.add_view(GiveawayView())
 
+    # ── Requirement enforcement ────────────────────────────────────────────
+
+    @staticmethod
+    def _level_from_xp(xp: int) -> int:
+        lvl = 1
+        while 100 * (lvl + 1) + 50 * lvl <= xp:
+            lvl += 1
+        return lvl
+
+    async def check_requirements(self, guild_id: str, user, gw: dict):
+        """Return an error string if the member can't join, else None."""
+        if gw.get("required_role_id"):
+            if not any(str(r.id) == str(gw["required_role_id"]) for r in getattr(user, "roles", [])):
+                return "You need the required role to join this giveaway."
+        need_xp = int(gw.get("required_xp") or 0)
+        need_lvl = int(gw.get("required_level") or 0)
+        need_msg = int(gw.get("required_msgs") or 0)
+        if not (need_xp or need_lvl or need_msg):
+            return None
+        xp = 0
+        msgs = 0
+        try:
+            pool = neon_db.get_pool()
+            if pool:
+                row = await pool.fetchrow(
+                    "SELECT xp, messages FROM leveling_data WHERE guild_id = ? AND user_id = ?",
+                    str(guild_id), str(user.id),
+                )
+                if row:
+                    xp = int(row["xp"] or 0)
+                    msgs = int(row["messages"] or 0)
+        except Exception:
+            pass
+        level = self._level_from_xp(xp)
+        if need_xp and xp < need_xp:
+            return f"You need at least **{need_xp:,} XP** to join (you have {xp:,})."
+        if need_lvl and level < need_lvl:
+            return f"You need to be at least **level {need_lvl}** to join (you are level {level})."
+        if need_msg and msgs < need_msg:
+            return f"You need at least **{need_msg:,} messages** to join (you have {msgs:,})."
+        return None
+
     # ── Embed / message helpers ──────────────────────────────────────────────
+
+    def _gw_vars(self, gw: dict, guild):
+        return {
+            "{prize}": gw.get("prize") or "",
+            "{winners}": str(gw.get("winners_count", 1)),
+            "{host}": f"<@{gw.get('host_id')}>" if gw.get("host_id") else "Unknown",
+            "{servername}": guild.name if guild else "",
+            "{channel}": guild.get_channel(int(gw["channel_id"])).mention
+            if guild and gw.get("channel_id") else "",
+        }
+
+    def _fmt_gw(self, text: str, gw: dict, guild):
+        t = text or ""
+        for k, v in self._gw_vars(gw, guild).items():
+            t = t.replace(k, v)
+        return t
+
+    def _fmt_gw_embed(self, data: dict, gw: dict, guild):
+        d = dict(data or {})
+        for key in ("title", "description", "footer_text", "author_name", "url"):
+            if d.get(key):
+                d[key] = self._fmt_gw(str(d[key]), gw, guild)
+        for f in (d.get("fields") or []):
+            if not isinstance(f, dict):
+                continue
+            if f.get("name"):
+                f["name"] = self._fmt_gw(str(f["name"]), gw, guild)
+            if f.get("value"):
+                f["value"] = self._fmt_gw(str(f["value"]), gw, guild)
+        return d
+
+    @staticmethod
+    def _parse_embed(raw):
+        if isinstance(raw, dict):
+            return raw
+        try:
+            return json.loads(raw) if raw else {}
+        except Exception:
+            return {}
+
+    def _render_gw_message(self, gw: dict, guild, ended: bool, winners, count: int):
+        mt = (gw.get("message_type") or "").strip()
+        if mt == "basic":
+            emoji = gw.get("emoji") or "\U0001F389"
+            txt = self._fmt_gw(gw.get("message") or "{prize}", gw, guild)
+            if ended and winners:
+                txt += "\n\n\U0001F3C6 Winner(s): " + ", ".join(f"<@{w}>" for w in winners)
+            desc = f"{emoji} {txt}" if emoji else txt
+            return EmbedBuilder().description(desc).build()
+        if mt == "custom" and gw.get("embed"):
+            data = self._fmt_gw_embed(self._parse_embed(gw.get("embed")), gw, guild)
+            if ended and winners:
+                data.setdefault("fields", []).append(
+                    {"name": "\U0001F3C6 Winner(s)", "value": ", ".join(f"<@{w}>" for w in winners), "inline": False}
+                )
+            return embed_from_dict(data)
+        return self._build_embed(gw, count, ended, winners)
 
     def _build_embed(self, gw: dict, count: int, ended: bool, winners):
         end_dt = datetime.datetime.fromtimestamp(gw["end_ts"])
@@ -179,6 +277,15 @@ class GiveawayCog(commands.Cog):
             embed.description(gw["description"][:900])
         if gw.get("required_role_id"):
             embed.field("Required role", f"<@&{gw['required_role_id']}>", inline=True)
+        if gw.get("required_xp") or gw.get("required_level") or gw.get("required_msgs"):
+            reqs = []
+            if gw.get("required_xp"):
+                reqs.append(f"{int(gw['required_xp']):,} XP")
+            if gw.get("required_level"):
+                reqs.append(f"Level {int(gw['required_level'])}")
+            if gw.get("required_msgs"):
+                reqs.append(f"{int(gw['required_msgs']):,} msgs")
+            embed.field("Requirements", " · ".join(reqs), inline=True)
         if winners:
             embed.field("Winner(s)", "\n".join(f"<@{w}>" for w in winners), inline=False)
         embed.footer(f"Giveaway #{gw['id']}")
@@ -199,7 +306,7 @@ class GiveawayCog(commands.Cog):
         ended = gw["status"] == "ended"
         try:
             await msg.edit(
-                embed=self._build_embed(gw, count, ended, winners),
+                embed=self._render_gw_message(gw, channel.guild, ended, winners, count),
                 view=None if ended else GiveawayView(),
             )
         except Exception as e:
@@ -211,7 +318,8 @@ class GiveawayCog(commands.Cog):
             logger.warning(f"Giveaway {gw['id']} channel {gw.get('channel_id')} not found; will retry.")
             return
         count = await neon_db.count_entries(gw["id"])
-        msg = await channel.send(embed=self._build_embed(gw, count, False, []), view=GiveawayView())
+        embed = self._render_gw_message(gw, channel.guild, False, [], count)
+        msg = await channel.send(embed=embed, view=GiveawayView())
         await neon_db.set_giveaway_posted(gw["id"], msg.id)
 
     async def end_giveaway(self, gw: dict):
@@ -226,7 +334,7 @@ class GiveawayCog(commands.Cog):
             try:
                 msg = await channel.fetch_message(int(gw["message_id"]))
                 await msg.edit(
-                    embed=self._build_embed(gw, len(entries), True, winner_ids),
+                    embed=self._render_gw_message(gw, channel.guild, True, winner_ids, len(entries)),
                     view=None,
                 )
             except Exception as e:
@@ -258,7 +366,7 @@ class GiveawayCog(commands.Cog):
             try:
                 msg = await channel.fetch_message(int(gw["message_id"]))
                 count = await neon_db.count_entries(gw["id"])
-                await msg.edit(embed=self._build_embed(gw2, count, True, winners), view=None)
+                await msg.edit(embed=self._render_gw_message(gw2, channel.guild, True, winners, count), view=None)
             except Exception as e:
                 logger.error(f"reroll edit failed: {e}")
             try:

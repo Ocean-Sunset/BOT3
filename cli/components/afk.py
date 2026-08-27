@@ -18,7 +18,7 @@ from discord import app_commands
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
-from Ediscord.builders import emoji_title
+from Ediscord.builders import emoji_title, embed_from_dict
 
 
 AFK_COOLDOWN = 30  # seconds between repeat notices for the same AFK user in a channel
@@ -128,6 +128,11 @@ class AFK(commands.Cog):
         if not settings.get("enabled", True):
             return
 
+        mode = (settings.get("afk_message_type") or "basic")
+        emoji = (settings.get("afk_emoji") or "\U0001F634")
+        tmpl = (settings.get("afk_message") or "{mention} is currently AFK: {reason}")
+        custom_embed = settings.get("afk_embed") or {}
+
         now = time.time()
         notices = []
         for cid in candidates:
@@ -138,18 +143,45 @@ class AFK(commands.Cog):
             if now - self._cooldowns.get(key, 0) < AFK_COOLDOWN:
                 continue
             self._cooldowns[key] = now
+            uid = str(row["user_id"])
             reason = (row.get("reason") or "").strip()
             since = row.get("since") or now
-            name = row.get("nickname") or f"<@{row['user_id']}>"
+            name = row.get("nickname") or f"<@{uid}>"
             since_txt = discord.utils.format_dt(datetime.datetime.fromtimestamp(since), "R")
-            if reason:
-                notices.append(f"\ud83d\udeab **{name}** is AFK: {reason} _(since {since_txt})_")
+            vars_ = {
+                "{user}": f"<@{uid}>",
+                "{mention}": f"<@{uid}>",
+                "{name}": name,
+                "{reason}": reason,
+                "{time}": since_txt,
+            }
+
+            def _fmt(t):
+                for k, v in vars_.items():
+                    t = t.replace(k, v)
+                return t
+
+            if mode == "custom" and custom_embed:
+                data = dict(custom_embed)
+                for fk in ("title", "description", "footer_text", "author_name", "url"):
+                    if data.get(fk):
+                        data[fk] = _fmt(str(data[fk]))
+                for f in (data.get("fields") or []):
+                    if not isinstance(f, dict):
+                        continue
+                    if f.get("name"):
+                        f["name"] = _fmt(str(f["name"]))
+                    if f.get("value"):
+                        f["value"] = _fmt(str(f["value"]))
+                notices.append(embed_from_dict(data))
             else:
-                notices.append(f"\ud83d\udeab **{name}** is AFK _(since {since_txt})_")
+                desc = _fmt(tmpl)
+                text = f"{emoji} {desc}" if emoji else desc
+                notices.append(EmbedBuilder().description(text).build())
 
         if notices:
             try:
-                await message.channel.send("\n".join(notices))
+                await message.channel.send(embeds=notices[:10])
             except Exception:
                 pass
 

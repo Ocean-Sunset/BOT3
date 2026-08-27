@@ -36,6 +36,7 @@
     <div class="nav-links">
       <a href="/invite" class="btn-nav-secondary">Invite</a>
       {% if user %}
+        <a href="/reminders" class="btn-nav-secondary">Reminders</a>
         <a href="/dashboard" class="btn-nav-primary">Open Dashboard</a>
       {% else %}
         <a href="/login" class="btn-nav-secondary">Login</a>
@@ -58,6 +59,7 @@
       </p>
       <div class="hero-actions anim-hero">
         {% if user %}
+          <a href="/reminders" class="btn-secondary">Reminders</a>
           <a href="/dashboard" class="btn-primary">Open Dashboard</a>
         {% else %}
           <a href="/login?mode=signup" class="btn-primary">Get Started</a>

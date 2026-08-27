@@ -750,6 +750,17 @@ async def status_page(request: Request):
     return templates.TemplateResponse(request, "status.html", {"config": _cfg()})
 
 
+@app.get("/reminders", response_class=HTMLResponse)
+async def reminders_page(request: Request):
+    user = get_user(request)
+    if not user:
+        return RedirectResponse("/login")
+    return templates.TemplateResponse(request, "reminders.html", {
+        "config": _cfg(),
+        "user": user,
+    })
+
+
 _FEEDBACK_META = {
     "suggest": (
         "Suggest an idea", "Got a feature you wish Prowl had? Tell us — we read every suggestion.",
@@ -2762,6 +2773,111 @@ async def done_todo(request: Request, guild_id: str, tid: str):
 @app.delete("/api/v1/reminders/{guild_id}/todos")
 async def clear_todos(request: Request, guild_id: str):
     user = await require_guild_access(request, guild_id)
+    done_only = (request.query_params.get("done_only") == "1")
+    await _ensure_reminders_tables()
+    if done_only:
+        await execute("DELETE FROM todos WHERE user_id = ? AND done = 1", str(user["id"]))
+    else:
+        await execute("DELETE FROM todos WHERE user_id = ?", str(user["id"]))
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+#  User Reminders & To-Do (standalone, no guild required)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/v1/user/reminders")
+async def user_get_reminders(request: Request):
+    user = await require_auth(request)
+    uid = str(user["id"])
+    await _ensure_reminders_tables()
+    rem = await query(
+        "SELECT id, message, remind_at FROM reminders WHERE user_id = ? AND done = 0 ORDER BY remind_at ASC",
+        uid,
+    )
+    todos = await query(
+        "SELECT id, task, done FROM todos WHERE user_id = ? ORDER BY done ASC, id ASC",
+        uid,
+    )
+    return {
+        "reminders": [
+            {"id": r["id"], "message": r["message"], "when": _fmt_when(r["remind_at"])} for r in rem
+        ],
+        "todos": [{"id": t["id"], "task": t["task"], "done": bool(t["done"])} for t in todos],
+    }
+
+
+@app.post("/api/v1/user/reminders")
+async def user_create_reminder(request: Request):
+    user = await require_auth(request)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid request"}, status_code=400)
+    when = (body.get("when") or "").strip()
+    what = (body.get("what") or "").strip()
+    if not what:
+        return JSONResponse({"error": "Add a message for your reminder."}, status_code=400)
+    ts, err = _parse_when(when)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    if ts <= time.time():
+        return JSONResponse({"error": "That time is in the past."}, status_code=400)
+    await _ensure_reminders_tables()
+    await execute(
+        "INSERT INTO reminders (user_id, guild_id, channel_id, message, remind_at, created_at, done) "
+        "VALUES (?, ?, ?, ?, ?, ?, 0)",
+        str(user["id"]), None, None, what[:900], ts, time.time(),
+    )
+    return {"ok": True}
+
+
+@app.delete("/api/v1/user/reminders/{rid}")
+async def user_delete_reminder(request: Request, rid: str):
+    user = await require_auth(request)
+    try:
+        rid_i = int(rid)
+    except (TypeError, ValueError):
+        return JSONResponse({"error": "Invalid reminder id"}, status_code=404)
+    await execute("DELETE FROM reminders WHERE id = ? AND user_id = ?", rid_i, str(user["id"]))
+    return {"ok": True}
+
+
+@app.post("/api/v1/user/todos")
+async def user_create_todo(request: Request):
+    user = await require_auth(request)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid request"}, status_code=400)
+    task = (body.get("task") or "").strip()
+    if not task:
+        return JSONResponse({"error": "Add a task first."}, status_code=400)
+    await _ensure_reminders_tables()
+    await execute(
+        "INSERT INTO todos (user_id, task, created_at, done) VALUES (?, ?, ?, 0)",
+        str(user["id"]), task[:900], time.time(),
+    )
+    return {"ok": True}
+
+
+@app.post("/api/v1/user/todos/{tid}/done")
+async def user_done_todo(request: Request, tid: str):
+    user = await require_auth(request)
+    try:
+        tid_i = int(tid)
+    except (TypeError, ValueError):
+        return JSONResponse({"error": "Invalid todo id"}, status_code=404)
+    await execute(
+        "UPDATE todos SET done = 1, done_at = ? WHERE id = ? AND user_id = ?",
+        time.time(), tid_i, str(user["id"]),
+    )
+    return {"ok": True}
+
+
+@app.delete("/api/v1/user/todos")
+async def user_clear_todos(request: Request):
+    user = await require_auth(request)
     done_only = (request.query_params.get("done_only") == "1")
     await _ensure_reminders_tables()
     if done_only:

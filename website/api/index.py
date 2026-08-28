@@ -781,7 +781,7 @@ _FEEDBACK_META = {
 @app.get("/report-bug", response_class=HTMLResponse)
 @app.get("/feedback", response_class=HTMLResponse)
 async def feedback_page(request: Request):
-    kind = request.path.split("/")[-1]
+    kind = request.url.path.split("/")[-1]
     if kind == "report-bug":
         kind = "report"
     title, intro, label, placeholder = _FEEDBACK_META.get(
@@ -824,8 +824,8 @@ async def submit_feedback(request: Request):
     if wh:
         try:
             label = {"suggest": "Idea", "report": "Bug", "feedback": "Feedback"}[kind]
-            content = f"**New {label}**" + (f" from {name}" if name else "") + \
-                      (f" ({email})" if email else "") + f"\n\n{message}"[:2000]
+            content = (f"**New {label}**" + (f" from {name}" if name else "") +
+                       (f" ({email})" if email else "") + f"\n\n{message}")[:2000]
             async with httpx.AsyncClient(timeout=8) as client:
                 await client.post(wh, json={"content": content})
         except Exception as e:

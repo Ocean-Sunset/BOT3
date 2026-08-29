@@ -1,6 +1,6 @@
 {% extends "dashboard/base.html" %}
 {% block content %}
-<link rel="stylesheet" href="/static/moderation.css?v=19" />
+<link rel="stylesheet" href="/static/moderation.css?v=21" />
 <style>
 .wl-code { font-size:0.72rem; font-weight:700; color:#e9edf5; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:4px; padding:0.2rem 0.45rem; font-family:monospace; }
 .wl-code-note { font-size:0.72rem; color:rgba(255,255,255,0.4); margin-right:0.6rem; }
@@ -72,11 +72,14 @@
             <div class="md-behavior-item">
               <div style="flex:1">
                 <div class="md-behavior-label">Message</div>
-                <div class="md-behavior-desc">Shown as the message text inside the welcome embed (Default &amp; Basic modes)</div>
+                <div class="md-behavior-desc">Shown as the message text inside the basic welcome embed</div>
                 <input type="text" class="md-input" id="wl-wmsg" placeholder="Welcome {member} to {server}!" />
               </div>
             </div>
           </div>
+        </div>
+        <div data-wl-default="welcome" style="display:none;">
+          <div class="md-behavior-desc" style="color:rgba(255,255,255,0.45);line-height:1.5;">Default is a preset styled embed &mdash; the message text is fixed. Switch to <b>Basic</b> to edit the message, or <b>Custom</b> to design your own embed.</div>
         </div>
         <div data-wl-custom="welcome" style="display:none;">
           <button class="md-action-btn" data-edit-embed="welcome" style="width:100%;justify-content:center;padding:0.5rem;margin-top:0.25rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
@@ -121,6 +124,9 @@
               </div>
             </div>
           </div>
+        </div>
+        <div data-wl-default="goodbye" style="display:none;">
+          <div class="md-behavior-desc" style="color:rgba(255,255,255,0.45);line-height:1.5;">Default is a preset styled embed &mdash; the message text is fixed. Switch to <b>Basic</b> to edit the message, or <b>Custom</b> to design your own embed.</div>
         </div>
         <div data-wl-custom="goodbye" style="display:none;">
           <button class="md-action-btn" data-edit-embed="goodbye" style="width:100%;justify-content:center;padding:0.5rem;margin-top:0.25rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
@@ -428,10 +434,11 @@ function updateDisabledState() {
 function setMessageMode(which, mode, dirty) {
   document.querySelectorAll('[data-wl-mode="' + which + '"]').forEach(b => b.classList.toggle('is-active', b.dataset.wlModeval === mode));
   const basic = document.querySelector('[data-wl-basic="' + which + '"]');
+  const defNote = document.querySelector('[data-wl-default="' + which + '"]');
   const custom = document.querySelector('[data-wl-custom="' + which + '"]');
-  const showBasic = (mode === 'basic' || mode === 'default');
-  if (basic) basic.style.display = showBasic ? '' : 'none';
-  if (custom) custom.style.display = mode === 'custom' ? '' : 'none';
+  if (basic) basic.style.display = (mode === 'basic') ? '' : 'none';
+  if (defNote) defNote.style.display = (mode === 'default') ? '' : 'none';
+  if (custom) custom.style.display = (mode === 'custom') ? '' : 'none';
   if (dirty) markChanged(which + '_mode', mode);
 }
 

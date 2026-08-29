@@ -166,7 +166,8 @@
 }
 .md-modal-overlay.is-open { display: flex; }
 .md-modal {
-  background: #151515;
+  --md-modal-bg: #151515;
+  background: var(--md-modal-bg);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 8px;
   padding: 1.5rem;
@@ -178,6 +179,32 @@
 .md-modal::-webkit-scrollbar-track { background: transparent; }
 .md-modal::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 999px; }
 .md-modal::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+
+/* Scroll-fade "invisible borders": gradient overlays at the top/bottom of a
+   scrollable modal so content appears cut off against the modal background.
+   Only shown when the modal is actually scrollable (.is-scrollable). */
+.md-modal::before,
+.md-modal::after {
+  content: "";
+  display: block;
+  position: sticky;
+  height: 34px;
+  pointer-events: none;
+  z-index: 6;
+  flex-shrink: 0;
+}
+.md-modal::before {
+  top: 0;
+  margin-bottom: -34px;
+  background: linear-gradient(to bottom, var(--md-modal-bg) 0%, rgba(21,21,21,0) 100%);
+}
+.md-modal::after {
+  bottom: 0;
+  margin-top: -34px;
+  background: linear-gradient(to top, var(--md-modal-bg) 0%, rgba(21,21,21,0) 100%);
+}
+.md-modal:not(.is-scrollable)::before,
+.md-modal:not(.is-scrollable)::after { display: none; }
 .md-modal h3 {
   font-size: 1rem;
   font-weight: 800;

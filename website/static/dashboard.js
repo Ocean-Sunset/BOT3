@@ -254,6 +254,34 @@
     } catch (e) {}
   }
 
+  // ========================= MODAL SCROLL-FADE =========================
+  // Adds .is-scrollable to any scrollable .md-modal so the CSS gradient
+  // "invisible borders" appear at the top/bottom of long popups (custom embed
+  // builders, image-card editors, etc.). Applies to every dashboard page.
+  function initModalScrollFades() {
+    function refresh(overlay) {
+      const m = overlay && overlay.querySelector(".md-modal");
+      if (m) m.classList.toggle("is-scrollable", m.scrollHeight > m.clientHeight + 2);
+    }
+    function watch(overlay) {
+      if (overlay.__fadeWatched) return;
+      overlay.__fadeWatched = true;
+      new MutationObserver(() => {
+        if (overlay.classList.contains("is-open")) requestAnimationFrame(() => refresh(overlay));
+      }).observe(overlay, { attributes: true, attributeFilter: ["class"] });
+      const m = overlay.querySelector(".md-modal");
+      if (m) new MutationObserver(() => refresh(overlay)).observe(m, { childList: true, subtree: true });
+      refresh(overlay);
+    }
+    function scan() { document.querySelectorAll(".md-modal-overlay").forEach(watch); }
+    scan();
+    // Modals injected after initial load still get wired up.
+    new MutationObserver(scan).observe(document.body, { childList: true, subtree: false });
+    window.addEventListener("resize", () => {
+      document.querySelectorAll(".md-modal-overlay.is-open").forEach(refresh);
+    });
+  }
+
   // ========================= INIT =========================
 
   function init() {
@@ -265,6 +293,7 @@
     initTooltips();
     initMasonry();
     initUsageTracking();
+    initModalScrollFades();
   }
 
   if (document.readyState === "loading") {

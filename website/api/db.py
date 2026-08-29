@@ -88,10 +88,29 @@ def _wrap_arg(value) -> dict:
     return {"type": "text", "value": str(value)}
 
 
-def _unwrap_cell(cell) -> str:
-    """Extract a plain Python value from a Turso pipeline cell {type, value}."""
+def _unwrap_cell(cell):
+    """Extract a plain Python value from a Turso pipeline cell {type, value}.
+
+    Turso's HTTP API returns EVERY column as a string (e.g. an INTEGER column
+    comes back as "1234", not 1234). Coerce INTEGER/FLOAT cells back to real
+    numeric Python types using the cell's own ``type`` so callers can do math
+    and comparisons without str-vs-int crashes."""
     if isinstance(cell, dict):
-        return cell.get("value", "")
+        t = cell.get("type")
+        v = cell.get("value", "")
+        if v is None:
+            return None
+        if t == "integer":
+            try:
+                return int(v)
+            except (ValueError, TypeError):
+                return v
+        if t == "float":
+            try:
+                return float(v)
+            except (ValueError, TypeError):
+                return v
+        return v
     return cell
 
 

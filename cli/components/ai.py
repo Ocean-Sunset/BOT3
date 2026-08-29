@@ -143,11 +143,14 @@ class AI(commands.Cog, name="AI"):
                         content=f"{interaction.user.mention}\n\n{reply[:4000]}",
                         embed=EmbedBuilder()
                         .color("blue")
-                        .field("Model", model)
-                        .field("Tokens Used", str(tokens_used))
+                        .row(
+                            ('Model', model),
+                            ('Tokens Used', str(tokens_used))
+                        )
                         .footer(f"Requested by {interaction.user.display_name}")
                         .timestamp(datetime.datetime.utcnow())
-                        .build()
+                        .build(),
+                        ephemeral=True,
                     )
         except aiohttp.ClientError as e:
             await interaction.followup.send(
@@ -225,11 +228,13 @@ class AI(commands.Cog, name="AI"):
             EmbedBuilder()
             .title(emoji_title("settings", "AI Configuration"))
             .color("brand")
-            .field("Enabled", "Yes" if settings.get("enabled") else "No")
-            .field("Model", settings.get("model", "gpt-3.5-turbo"))
-            .field("Max Tokens", str(settings.get("max_tokens", 500)))
-            .field("Temperature", str(settings.get("temperature", 0.7)))
-            .field("System Prompt", settings.get("system_prompt", AI_DEFAULTS["system_prompt"])[:1024])
+            .row(
+                ('Enabled', 'Yes' if settings.get('enabled') else 'No'),
+                ('Model', settings.get('model', 'gpt-3.5-turbo')),
+                ('Max Tokens', str(settings.get('max_tokens', 500))),
+                ('Temperature', str(settings.get('temperature', 0.7))),
+                ('System Prompt', settings.get('system_prompt', AI_DEFAULTS['system_prompt'])[:1024])
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )

@@ -206,7 +206,7 @@ class Reminders(commands.Cog):
                 embed=_info("You have no active reminders."), ephemeral=True
             )
         lines = [
-            f"`{r['id']}` — {discord.utils.format_dt(datetime.datetime.fromtimestamp(r['remind_at']), 'R')} — {r['message']}"
+            f"`{r['id']}` - {discord.utils.format_dt(datetime.datetime.fromtimestamp(r['remind_at']), 'R')} - {r['message']}"
             for r in rows
         ]
         await interaction.response.send_message(

@@ -489,7 +489,7 @@
                   // Stale >2min: mark as unknown
                   seen[a.id] = 'unknown';
                   if (typeof showToast === 'function') {
-                    showToast('Action #' + a.id + ' status unknown — bot may have processed it but did not report back.', 'warning', 8000);
+                    showToast('Action #' + a.id + ' status unknown - bot may have processed it but did not report back.', 'warning', 8000);
                   }
                 }
                 try { localStorage.setItem(WATCH_KEY, JSON.stringify(seen)); } catch {}
@@ -653,7 +653,7 @@
         if (controller) controller.abort();
         controller = new AbortController();
         const key = q + '|' + (window.__GUILD_ID || '');
-        // serve repeats/backspaces instantly from cache — no server round-trip
+        // serve repeats/backspaces instantly from cache - no server round-trip
         if (cache.has(key)) {
           items = cache.get(key);
           active = items.length ? 0 : -1;

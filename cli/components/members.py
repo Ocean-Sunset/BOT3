@@ -45,11 +45,13 @@ class Members(commands.Cog, name="Members"):
     async def member_info(self, interaction: discord.Interaction, member: discord.Member):
         roles = " ".join(r.mention for r in member.roles[1:]) or "None"
         embed = EmbedBuilder().title(emoji_title("member", member.display_name)).color("gray") \
-            .field("ID", member.id) \
-            .field("Joined", discord.utils.format_dt(member.joined_at, style="R") if member.joined_at else "Unknown") \
-            .field("Created", discord.utils.format_dt(member.created_at, style="R")) \
-            .field("Roles", roles[:1000]) \
-            .field("Top Role", member.top_role.mention) \
+            .row(
+                ("ID", member.id),
+                ("Joined", discord.utils.format_dt(member.joined_at, style="R") if member.joined_at else "Unknown"),
+                ("Created", discord.utils.format_dt(member.created_at, style="R")),
+                ("Roles", roles[:1000]),
+                ("Top Role", member.top_role.mention),
+            ) \
             .thumbnail(member.display_avatar.url)
         await interaction.response.send_message(embed=embed.build())
 

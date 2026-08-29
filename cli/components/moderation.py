@@ -496,8 +496,10 @@ class Moderation(commands.Cog, name="Moderation"):
                 EmbedBuilder().title(emoji_title("kick", "Member Kicked"))
                 .description(f"{member.mention} (`{member.id}`)")
                 .color("red")
-                .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
-                .field("Reason", reason)
+                .row(
+                    ('Moderator', f'{interaction.user.mention} (`{interaction.user.id}`)'),
+                    ('Reason', reason)
+                )
                 .timestamp(datetime.datetime.utcnow())
                 .build()
             )
@@ -546,9 +548,11 @@ class Moderation(commands.Cog, name="Moderation"):
                 EmbedBuilder().title(emoji_title("ban", "Member Banned"))
                 .description(f"{member.mention} (`{member.id}`)")
                 .color("red")
-                .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
-                .field("Reason", reason)
-                .field("Delete Days", str(delete_days))
+                .row(
+                    ('Moderator', f'{interaction.user.mention} (`{interaction.user.id}`)'),
+                    ('Reason', reason),
+                    ('Delete Days', str(delete_days))
+                )
                 .timestamp(datetime.datetime.utcnow())
                 .build()
             )
@@ -599,9 +603,11 @@ class Moderation(commands.Cog, name="Moderation"):
                 EmbedBuilder().title(emoji_title("tempban", "Member Temp-Banned"))
                 .description(f"{member.mention} (`{member.id}`)")
                 .color("red")
-                .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
-                .field("Duration", f"{duration} minutes ({format_duration(duration)})")
-                .field("Reason", reason)
+                .row(
+                    ('Moderator', f'{interaction.user.mention} (`{interaction.user.id}`)'),
+                    ('Duration', f'{duration} minutes ({format_duration(duration)})'),
+                    ('Reason', reason)
+                )
                 .timestamp(datetime.datetime.utcnow())
                 .build()
             )
@@ -669,19 +675,26 @@ class Moderation(commands.Cog, name="Moderation"):
             EmbedBuilder().title(emoji_title("unban", "User Unbanned"))
             .description(f"{user.mention} has been unbanned.")
             .color("green")
-            .field("Reason", reason)
-            .field("Moderator", interaction.user.mention)
+            .row(
+                ('Reason', reason),
+                ('Moderator', interaction.user.mention)
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
-        await interaction.followup.send(embed=embed)
+        # Sent as a standalone channel message (not a follow-up reply to the
+        # hidden ephemeral response) so it stays public without the
+        # "This message was deleted" ghost for other users.
+        await interaction.channel.send(embed=embed)
 
         log_embed = (
             EmbedBuilder().title(emoji_title("unban", "User Unbanned"))
             .description(f"{user.mention} (`{user.id}`)")
             .color("green")
-            .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
-            .field("Reason", reason)
+            .row(
+                ('Moderator', f'{interaction.user.mention} (`{interaction.user.id}`)'),
+                ('Reason', reason)
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -744,9 +757,11 @@ class Moderation(commands.Cog, name="Moderation"):
             EmbedBuilder().title(emoji_title("mute", "Member Muted"))
             .description(f"{member.mention} (`{member.id}`)")
             .color("orange")
-            .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
-            .field("Duration", f"{duration} minutes ({format_duration(duration)})")
-            .field("Reason", reason)
+            .row(
+                ('Moderator', f'{interaction.user.mention} (`{interaction.user.id}`)'),
+                ('Duration', f'{duration} minutes ({format_duration(duration)})'),
+                ('Reason', reason)
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -784,8 +799,10 @@ class Moderation(commands.Cog, name="Moderation"):
                 EmbedBuilder().title(emoji_title("unmute", "Member Unmuted"))
                 .description(f"{member.mention}'s mute has been removed.")
                 .color("green")
-                .field("Reason", reason)
-                .field("Moderator", interaction.user.mention)
+                .row(
+                    ('Reason', reason),
+                    ('Moderator', interaction.user.mention)
+                )
                 .timestamp(datetime.datetime.utcnow())
                 .build()
             )
@@ -805,8 +822,10 @@ class Moderation(commands.Cog, name="Moderation"):
             EmbedBuilder().title(emoji_title("unmute", "Member Unmuted"))
             .description(f"{member.mention} (`{member.id}`)")
             .color("green")
-            .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
-            .field("Reason", reason)
+            .row(
+                ('Moderator', f'{interaction.user.mention} (`{interaction.user.id}`)'),
+                ('Reason', reason)
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -853,8 +872,10 @@ class Moderation(commands.Cog, name="Moderation"):
             EmbedBuilder().title(emoji_title("warn", "Member Warned"))
             .description(f"{member.mention} (`{member.id}`)")
             .color("yellow")
-            .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
-            .field("Reason", reason)
+            .row(
+                ('Moderator', f'{interaction.user.mention} (`{interaction.user.id}`)'),
+                ('Reason', reason)
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -885,8 +906,10 @@ class Moderation(commands.Cog, name="Moderation"):
             EmbedBuilder().title(emoji_title("purge", "Messages Purged"))
             .description(f"Deleted {len(deleted)} messages.")
             .color("blue")
-            .field("Channel", interaction.channel.mention)
-            .field("Moderator", interaction.user.mention)
+            .row(
+                ('Channel', interaction.channel.mention),
+                ('Moderator', interaction.user.mention)
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -896,8 +919,10 @@ class Moderation(commands.Cog, name="Moderation"):
             EmbedBuilder().title(emoji_title("purge", "Messages Purged"))
             .description(f"Deleted **{len(deleted)}** messages in {interaction.channel.mention} (`{str(interaction.channel.id)}`)")
             .color("blue")
-            .field("Moderator", f"{interaction.user.mention} (`{str(interaction.user.id)}`)")
-            .field("Requested", str(count))
+            .row(
+                ('Moderator', f'{interaction.user.mention} (`{str(interaction.user.id)}`)'),
+                ('Requested', str(count))
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -938,29 +963,35 @@ class Moderation(commands.Cog, name="Moderation"):
             .title(emoji_title("info", "Moderation Settings"))
             .color("blue")
             .field("General", "\u200b", inline=False)
-            .field("DM on Action", b(settings.get("dm_on_action")))
-            .field("Require Reason", b(settings.get("require_reason")))
-            .field("Silent Mod", b(settings.get("silent_mod")))
-            .field("Track Stats", b(settings.get("track_stats")))
-            .field("Emergency Lock", "LOCKED" if settings.get("emergency_lock") else "Normal")
-            .field("Modlog Channel", modlog_channel.mention if modlog_channel else "Not set")
-            .field("Mod Roles", ", ".join(f"<@&{r}>" for r in mod_roles) if mod_roles else "None")
+            .row(
+                ('DM on Action', b(settings.get('dm_on_action'))),
+                ('Require Reason', b(settings.get('require_reason'))),
+                ('Silent Mod', b(settings.get('silent_mod'))),
+                ('Track Stats', b(settings.get('track_stats'))),
+                ('Emergency Lock', 'LOCKED' if settings.get('emergency_lock') else 'Normal'),
+                ('Modlog Channel', modlog_channel.mention if modlog_channel else 'Not set'),
+                ('Mod Roles', ', '.join((f'<@&{r}>' for r in mod_roles)) if mod_roles else 'None')
+            )
             .field("Commands", "\u200b", inline=False)
-            .field("/ban", b(settings.get("cmd_ban")))
-            .field("/tempban", b(settings.get("cmd_tempban")))
-            .field("/unban", b(settings.get("cmd_unban")))
-            .field("/kick", b(settings.get("cmd_kick")))
-            .field("/mute", b(settings.get("cmd_mute", settings.get("cmd_timeout", True))))
-            .field("/unmute", b(settings.get("cmd_unmute")))
-            .field("/warn", b(settings.get("cmd_warn")))
-            .field("/purge", b(settings.get("cmd_purge")))
+            .row(
+                ('/ban', b(settings.get('cmd_ban'))),
+                ('/tempban', b(settings.get('cmd_tempban'))),
+                ('/unban', b(settings.get('cmd_unban'))),
+                ('/kick', b(settings.get('cmd_kick'))),
+                ('/mute', b(settings.get('cmd_mute', settings.get('cmd_timeout', True)))),
+                ('/unmute', b(settings.get('cmd_unmute'))),
+                ('/warn', b(settings.get('cmd_warn'))),
+                ('/purge', b(settings.get('cmd_purge')))
+            )
             .field("DM Settings", "\u200b", inline=False)
-            .field("Ban DM", b(settings.get("ban_dm")))
-            .field("Tempban DM", b(settings.get("tempban_dm")))
-            .field("Kick DM", b(settings.get("kick_dm")))
-            .field("Mute DM", b(settings.get("mute_dm")))
-            .field("Warn DM", b(settings.get("warn_dm")))
-            .field("Mute Evasion", b(settings.get("mute_evasion")))
+            .row(
+                ('Ban DM', b(settings.get('ban_dm'))),
+                ('Tempban DM', b(settings.get('tempban_dm'))),
+                ('Kick DM', b(settings.get('kick_dm'))),
+                ('Mute DM', b(settings.get('mute_dm'))),
+                ('Warn DM', b(settings.get('warn_dm'))),
+                ('Mute Evasion', b(settings.get('mute_evasion')))
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -988,7 +1019,10 @@ class Moderation(commands.Cog, name="Moderation"):
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
-        await interaction.followup.send(embed=embed)
+        # Standalone channel message (not a follow-up reply to the hidden
+        # ephemeral response) so it stays public without the
+        # "This message was deleted" ghost for other users.
+        await interaction.channel.send(embed=embed)
         await log_mod_action(
             interaction.guild_id,
             str(interaction.user.id),

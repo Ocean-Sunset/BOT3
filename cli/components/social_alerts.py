@@ -288,9 +288,11 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
             EmbedBuilder()
             .title(emoji_title("bell", "YouTube Alerts Set Up"))
             .color("warn")
-            .field("Channel ID", f"`{youtube_channel_id}`")
-            .field("Ping Role", ping_role.mention if ping_role else "None")
-            .field("Announce Channel", announce_channel.mention if announce_channel else interaction.channel.mention)
+            .row(
+                ('Channel ID', f'`{youtube_channel_id}`'),
+                ('Ping Role', ping_role.mention if ping_role else 'None'),
+                ('Announce Channel', announce_channel.mention if announce_channel else interaction.channel.mention)
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -314,9 +316,11 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
             EmbedBuilder()
             .title(emoji_title("bell", "Twitch Alerts Set Up"))
             .color("warn")
-            .field("Channel", f"`{twitch_channel}`")
-            .field("Ping Role", ping_role.mention if ping_role else "None")
-            .field("Announce Channel", announce_channel.mention if announce_channel else interaction.channel.mention)
+            .row(
+                ('Channel', f'`{twitch_channel}`'),
+                ('Ping Role', ping_role.mention if ping_role else 'None'),
+                ('Announce Channel', announce_channel.mention if announce_channel else interaction.channel.mention)
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -340,9 +344,11 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
             EmbedBuilder()
             .title(emoji_title("bell", "Twitter/X Alerts Set Up"))
             .color("warn")
-            .field("Handle", f"@{handle.lstrip('@')}")
-            .field("Ping Role", ping_role.mention if ping_role else "None")
-            .field("Announce Channel", announce_channel.mention if announce_channel else interaction.channel.mention)
+            .row(
+                ('Handle', f"@{handle.lstrip('@')}"),
+                ('Ping Role', ping_role.mention if ping_role else 'None'),
+                ('Announce Channel', announce_channel.mention if announce_channel else interaction.channel.mention)
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -366,9 +372,11 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
             EmbedBuilder()
             .title(emoji_title("settings", "Social Alert Settings"))
             .color("brand")
-            .field("YouTube", f"Channel: `{settings.get('youtube_channel_id') or 'Not set'}`\nPing: {yt_role.mention if yt_role else 'None'}\nAnnounces: {yt_channel.mention if yt_channel else 'Not set'}")
-            .field("Twitch", f"Channel: `{settings.get('twitch_channel') or 'Not set'}`\nPing: {tw_role.mention if tw_role else 'None'}\nAnnounces: {tw_channel.mention if tw_channel else 'Not set'}")
-            .field("Twitter/X", f"Handle: `@{settings.get('twitter_handle') or 'Not set'}`\nPing: {x_role.mention if x_role else 'None'}\nAnnounces: {x_channel.mention if x_channel else 'Not set'}")
+            .row(
+                ('YouTube', f"Channel: `{settings.get('youtube_channel_id') or 'Not set'}`\nPing: {(yt_role.mention if yt_role else 'None')}\nAnnounces: {(yt_channel.mention if yt_channel else 'Not set')}"),
+                ('Twitch', f"Channel: `{settings.get('twitch_channel') or 'Not set'}`\nPing: {(tw_role.mention if tw_role else 'None')}\nAnnounces: {(tw_channel.mention if tw_channel else 'Not set')}"),
+                ('Twitter/X', f"Handle: `@{settings.get('twitter_handle') or 'Not set'}`\nPing: {(x_role.mention if x_role else 'None')}\nAnnounces: {(x_channel.mention if x_channel else 'Not set')}")
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )

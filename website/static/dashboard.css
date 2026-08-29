@@ -329,7 +329,7 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
 }
-/* Loading overlay — absolutely positioned so it NEVER changes the panel's
+/* Loading overlay - absolutely positioned so it NEVER changes the panel's
    measured content height (keeps the smooth size animation intact). */
 .ssr-loading {
   position: absolute;

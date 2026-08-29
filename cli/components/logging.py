@@ -73,8 +73,10 @@ class Logging(commands.Cog, name="Logging"):
             EmbedBuilder()
             .title(emoji_title("message", "Message Deleted"))
             .color("gray")
-            .field("Channel", message.channel.mention)
-            .field("Author", f"{message.author} (`{message.author.id}`)")
+            .row(
+                ('Channel', message.channel.mention),
+                ('Author', f'{message.author} (`{message.author.id}`)')
+            )
             .timestamp(message.created_at or datetime.datetime.utcnow())
             .build()
         )
@@ -91,8 +93,10 @@ class Logging(commands.Cog, name="Logging"):
             EmbedBuilder()
             .title(emoji_title("message", "Bulk Message Deleted"))
             .color("gray")
-            .field("Channel", first.channel.mention)
-            .field("Messages", str(len(messages)))
+            .row(
+                ('Channel', first.channel.mention),
+                ('Messages', str(len(messages)))
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -108,8 +112,10 @@ class Logging(commands.Cog, name="Logging"):
             EmbedBuilder()
             .title(emoji_title("message", "Message Edited"))
             .color("gray")
-            .field("Channel", after.channel.mention)
-            .field("Author", f"{after.author} (`{after.author.id}`)")
+            .row(
+                ('Channel', after.channel.mention),
+                ('Author', f'{after.author} (`{after.author.id}`)')
+            )
             .field("Before", (before.content or "*(embed only)*")[:1000], inline=False)
             .field("After", (after.content or "*(embed only)*")[:1000], inline=False)
             .timestamp(datetime.datetime.utcnow())
@@ -126,8 +132,10 @@ class Logging(commands.Cog, name="Logging"):
             .color("success")
             .description(f"{member.mention} - {member}")
             .thumbnail(member.display_avatar.url)
-            .field("Account Created", _fmt_time(member.created_at))
-            .field("Member #", str(len(member.guild.members)))
+            .row(
+                ('Account Created', _fmt_time(member.created_at)),
+                ('Member #', str(len(member.guild.members)))
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -141,8 +149,10 @@ class Logging(commands.Cog, name="Logging"):
             .color("error")
             .description(f"{member} (`{member.id}`)")
             .thumbnail(member.display_avatar.url)
-            .field("Joined", _fmt_time(member.joined_at))
-            .field("Roles", str(len(member.roles) - 1))
+            .row(
+                ('Joined', _fmt_time(member.joined_at)),
+                ('Roles', str(len(member.roles) - 1))
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -182,9 +192,11 @@ class Logging(commands.Cog, name="Logging"):
                 EmbedBuilder()
 .title(emoji_title("member", "Nickname Changed"))
             .color("gray")
-                .field("User", f"{after.mention} (`{after.id}`)")
-                .field("Before", before.nick or "*(none)*")
-                .field("After", after.nick or "*(none)*")
+                .row(
+                    ('User', f'{after.mention} (`{after.id}`)'),
+                    ('Before', before.nick or '*(none)*'),
+                    ('After', after.nick or '*(none)*')
+                )
                 .timestamp(datetime.datetime.utcnow())
                 .build()
             )
@@ -202,8 +214,10 @@ class Logging(commands.Cog, name="Logging"):
                 EmbedBuilder()
 .title(emoji_title("role", "Roles Updated"))
             .color("brand")
-                .field("User", f"{after.mention} (`{after.id}`)")
-                .field("Change", "\n".join(parts) or "*(none)*")
+                .row(
+                    ('User', f'{after.mention} (`{after.id}`)'),
+                    ('Change', '\n'.join(parts) or '*(none)*')
+                )
                 .timestamp(datetime.datetime.utcnow())
                 .build()
             )
@@ -218,8 +232,10 @@ class Logging(commands.Cog, name="Logging"):
                 EmbedBuilder()
 .title(emoji_title("mute", "Mute Changed"))
             .color("warn")
-                .field("User", f"{after.mention} (`{after.id}`)")
-                .field("Status", text)
+                .row(
+                    ('User', f'{after.mention} (`{after.id}`)'),
+                    ('Status', text)
+                )
                 .timestamp(datetime.datetime.utcnow())
                 .build()
             )
@@ -371,9 +387,11 @@ class Logging(commands.Cog, name="Logging"):
             EmbedBuilder()
             .title(emoji_title("invite_create", "Invite Created"))
             .color("success")
-            .field("Code", invite.code)
-            .field("Channel", invite.channel.mention if invite.channel else "-")
-            .field("Max Uses", str(invite.max_uses) if invite.max_uses else "∞")
+            .row(
+                ('Code', invite.code),
+                ('Channel', invite.channel.mention if invite.channel else '-'),
+                ('Max Uses', str(invite.max_uses) if invite.max_uses else '∞')
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -392,8 +410,10 @@ class Logging(commands.Cog, name="Logging"):
                 EmbedBuilder()
                 .title(emoji_title("mic", "Joined Voice"))
                 .color("gray")
-                .field("User", member.mention)
-                .field("Channel", after.channel.mention)
+                .row(
+                    ('User', member.mention),
+                    ('Channel', after.channel.mention)
+                )
                 .timestamp(datetime.datetime.utcnow())
                 .build()
             )
@@ -402,8 +422,10 @@ class Logging(commands.Cog, name="Logging"):
                 EmbedBuilder()
                 .title(emoji_title("mic", "Left Voice"))
                 .color("gray")
-                .field("User", member.mention)
-                .field("Channel", before.channel.mention)
+                .row(
+                    ('User', member.mention),
+                    ('Channel', before.channel.mention)
+                )
                 .timestamp(datetime.datetime.utcnow())
                 .build()
             )
@@ -412,9 +434,11 @@ class Logging(commands.Cog, name="Logging"):
                 EmbedBuilder()
                 .title(emoji_title("mic", "Moved Voice"))
                 .color("gray")
-                .field("User", member.mention)
-                .field("Before", before.channel.mention)
-                .field("After", after.channel.mention)
+                .row(
+                    ('User', member.mention),
+                    ('Before', before.channel.mention),
+                    ('After', after.channel.mention)
+                )
                 .timestamp(datetime.datetime.utcnow())
                 .build()
             )

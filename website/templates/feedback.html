@@ -38,7 +38,7 @@
         </div>
       </div>
       <button type="submit" class="feedback-submit" id="fb-submit">Send</button>
-      <p class="feedback-note">We read every submission. Drop your Discord tag in the message if you'd like a reply.</p>
+      <p class="feedback-note">We read every submission. Drop your Discord user in the message if you'd like a reply.</p>
       <div id="fb-result" class="feedback-result" hidden></div>
     </form>
   </div>
@@ -60,7 +60,7 @@
     <div class="footer-col">
       <h4>Resources</h4>
       <a href="https://docs.prowlbot.xyz">Documentation</a>
-      <a href="#">API Reference</a>
+      
       <a href="https://status.prowlbot.xyz">Status</a>
     </div>
     <div class="footer-col">
@@ -111,7 +111,7 @@
         if (data.ok) { show('ok', 'Thanks! Your submission was sent.'); form.reset(); }
         else { show('err', data.error || 'Something went wrong.'); }
       } catch (err) {
-        show('err', 'Network error — please try again.');
+        show('err', 'Network error - please try again.');
       } finally {
         btn.disabled = false; btn.textContent = 'Send';
       }

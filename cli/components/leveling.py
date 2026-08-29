@@ -252,10 +252,12 @@ class Leveling(commands.Cog, name="Leveling"):
             .title(emoji_title("rank", f"{target.display_name}'s Rank"))
             .color("blue")
             .thumbnail(target.display_avatar.url)
-            .field("Level", str(current_level))
-            .field("Total XP", f"{current_xp:,}")
-            .field("Progress", f"{progress_bar}\n{xp_in_level:,} / {xp_needed:,} XP to next level")
-            .field("Next Level", f"Level {current_level + 1} at {next_level_xp:,} XP")
+            .row(
+                ('Level', str(current_level)),
+                ('Total XP', f'{current_xp:,}'),
+                ('Progress', f'{progress_bar}\n{xp_in_level:,} / {xp_needed:,} XP to next level'),
+                ('Next Level', f'Level {current_level + 1} at {next_level_xp:,} XP')
+            )
             .footer(f"User ID: {str(target.id)}")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -347,8 +349,10 @@ class Leveling(commands.Cog, name="Leveling"):
             .title(emoji_title("success", "XP Updated"))
             .description(f"Set {member.mention}'s XP to **{xp:,}**")
             .color("green")
-            .field("New Level", str(new_level))
-            .field("Moderator", interaction.user.mention)
+            .row(
+                ('New Level', str(new_level)),
+                ('Moderator', interaction.user.mention)
+            )
             .footer(f"User ID: {str(member.id)}")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -392,12 +396,14 @@ class Leveling(commands.Cog, name="Leveling"):
             EmbedBuilder()
             .title(emoji_title("info", "Leveling Configuration"))
             .color("blue")
-            .field("Enabled", "Yes" if settings.get("enabled") else "No")
-            .field("XP Rate", f"{settings.get('xp_rate', 1.0)}x")
-            .field("XP Cooldown", f"{settings.get('xp_cooldown', 60)}s")
-            .field("XP per Message", f"{settings.get('xp_per_message_min', 15)}-{settings.get('xp_per_message_max', 25)}")
-            .field("Announce Channel", channel.mention if channel else "Current channel")
-            .field("Level Roles", roles_str[:1024])
+            .row(
+                ('Enabled', 'Yes' if settings.get('enabled') else 'No'),
+                ('XP Rate', f"{settings.get('xp_rate', 1.0)}x"),
+                ('XP Cooldown', f"{settings.get('xp_cooldown', 60)}s"),
+                ('XP per Message', f"{settings.get('xp_per_message_min', 15)}-{settings.get('xp_per_message_max', 25)}"),
+                ('Announce Channel', channel.mention if channel else 'Current channel'),
+                ('Level Roles', roles_str[:1024])
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )

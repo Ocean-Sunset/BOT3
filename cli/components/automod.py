@@ -116,10 +116,12 @@ class AutoMod(commands.Cog, name="AutoMod"):
             EmbedBuilder()
             .title(emoji_title("shield", f"AutoMod: {filter_name}"))
             .color("orange")
-            .field("User", f"{message.author.mention} (`{message.author.id}`)")
-            .field("Channel", message.channel.mention)
-            .field("Reason", reason)
-            .field("Action", action)
+            .row(
+                ('User', f'{message.author.mention} (`{message.author.id}`)'),
+                ('Channel', message.channel.mention),
+                ('Reason', reason),
+                ('Action', action)
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )

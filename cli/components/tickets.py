@@ -69,9 +69,11 @@ class TicketView(discord.ui.View):
                         .title(emoji_title("ticket", "Ticket Closed"))
                         .description(f"Ticket {i.channel.mention} has been closed.")
                         .color("red")
-                        .field("Closed By", interaction.user.mention)
-                        .field("Messages", str(len(transcript)))
-                        .field("Transcript", f"```\n{transcript_text[:1000]}\n```")
+                        .row(
+                            ('Closed By', interaction.user.mention),
+                            ('Messages', str(len(transcript))),
+                            ('Transcript', f'```\n{transcript_text[:1000]}\n```')
+                        )
                         .footer(f"Channel ID: {str(i.channel.id)}")
                         .timestamp(datetime.datetime.utcnow())
                         .build()
@@ -180,8 +182,10 @@ class Tickets(commands.Cog, name="Tickets"):
                 .title(emoji_title("ticket", "Ticket Created"))
                 .description(welcome)
                 .color("blue")
-                .field("User", interaction.user.mention)
-                .field("Created", discord.utils.format_dt(datetime.datetime.utcnow(), style="R"))
+                .row(
+                    ('User', interaction.user.mention),
+                    ('Created', discord.utils.format_dt(datetime.datetime.utcnow(), style='R'))
+                )
                 .footer(f"Ticket ID: {str(channel.id)}")
                 .timestamp(datetime.datetime.utcnow())
                 .build()
@@ -245,9 +249,11 @@ class Tickets(commands.Cog, name="Tickets"):
             .title(emoji_title("ticket", "Support Tickets"))
             .description("Click the button below to create a support ticket.")
             .color("blue")
-            .field("Category", category.mention)
-            .field("Support Role", role.mention if role else "None")
-            .field("Log Channel", log_channel.mention if log_channel else "None")
+            .row(
+                ('Category', category.mention),
+                ('Support Role', role.mention if role else 'None'),
+                ('Log Channel', log_channel.mention if log_channel else 'None')
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -366,9 +372,11 @@ class Tickets(commands.Cog, name="Tickets"):
             EmbedBuilder()
             .title(emoji_title("info", "Ticket Statistics"))
             .color("blue")
-            .field("Open Tickets", str(len(ticket_channels)))
-            .field("Closed Tickets", str(closed_count))
-            .field("Total", str(len(ticket_channels) + closed_count))
+            .row(
+                ('Open Tickets', str(len(ticket_channels))),
+                ('Closed Tickets', str(closed_count)),
+                ('Total', str(len(ticket_channels) + closed_count))
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )

@@ -763,7 +763,7 @@ async def reminders_page(request: Request):
 
 _FEEDBACK_META = {
     "suggest": (
-        "Suggest an idea", "Got a feature you wish Prowl had? Tell us — we read every suggestion.",
+        "Suggest an idea", "Got a feature you wish Prowl had? Tell us - we read every suggestion.",
         "Your idea", "Describe your idea and why it would be useful…",
     ),
     "report": (
@@ -803,7 +803,7 @@ async def submit_feedback(request: Request):
     """Accept a suggestion / bug report / feedback submission.
 
     Forwards to a Discord webhook when FEEDBACK_WEBHOOK_URL is configured,
-    otherwise just logs it. Never raises — always returns JSON.
+    otherwise just logs it. Never raises - always returns JSON.
     """
     try:
         data = await request.json()
@@ -2496,7 +2496,13 @@ async def mod_stats_daily(guild_id: str, request: Request):
             "FROM guild_stats_history WHERE guild_id = ? AND day = ?",
             str(guild_id), yesterday,
         )
-        prev = dict(yrow) if yrow else None
+        if yrow:
+            prev = {
+                "member_count": int(yrow["member_count"] or 0),
+                "channel_count": int(yrow["channel_count"] or 0),
+                "role_count": int(yrow["role_count"] or 0),
+                "category_count": int(yrow["category_count"] or 0),
+            }
     except Exception:
         pass
 
@@ -4162,11 +4168,11 @@ WELCOME_DEFAULTS = {
     "channel_id": None,
     "goodbye_channel_id": None,
     "welcome_message": "Welcome {member} to {server}!",
-    "welcome_mode": "basic",
+    "welcome_mode": "default",
     "welcome_embed_data": {},
     "welcome_image_config": None,
     "goodbye_message": "{member} has left {server}.",
-    "goodbye_mode": "basic",
+    "goodbye_mode": "default",
     "goodbye_embed_data": {},
     "goodbye_image_config": None,
     "welcome_dm": False,
@@ -4864,8 +4870,9 @@ async def server_info(guild_id: str, request: Request):
         if table in ("mod_log", "mod_actions", "ticket_logs", "captcha_codes", "guild_stats_history", "member_history", "message_history"):
             continue
         try:
-            cnt = await fetchval("SELECT COUNT(*) FROM " + table + " WHERE guild_id = ?", str(guild_id))
-            features[table] = (cnt > 0) if cnt is not None else False
+            raw = await fetchval("SELECT COUNT(*) FROM " + table + " WHERE guild_id = ?", str(guild_id))
+            cnt = int(raw) if raw is not None else 0
+            features[table] = cnt > 0
         except Exception:
             features[table] = False
     return {

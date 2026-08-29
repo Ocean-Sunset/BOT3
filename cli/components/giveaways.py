@@ -135,7 +135,7 @@ class GiveawayView(discord.ui.View):
         if await neon_db.get_entry(gw["id"], str(interaction.user.id)):
             return await interaction.response.send_message("You've already joined!", ephemeral=True)
         await neon_db.add_entry(gw["id"], str(interaction.user.id))
-        await interaction.response.send_message("🎉 You're in — good luck!", ephemeral=True)
+        await interaction.response.send_message("🎉 You're in - good luck!", ephemeral=True)
         if cog:
             await cog.refresh_message(gw)
 
@@ -370,7 +370,7 @@ class GiveawayCog(commands.Cog):
             except Exception as e:
                 logger.error(f"reroll edit failed: {e}")
             try:
-                await channel.send(f"🎉 Rerolled! Congratulations <@{new_winner}> — you won **{gw['prize']}**!")
+                await channel.send(f"🎉 Rerolled! Congratulations <@{new_winner}> - you won **{gw['prize']}**!")
             except Exception as e:
                 logger.error(f"reroll announce failed: {e}")
 
@@ -400,8 +400,22 @@ class GiveawayCog(commands.Cog):
 
     # ── Slash commands ───────────────────────────────────────────────────────
 
-    giveaway_group = app_commands.Group(name="giveaway", description="Run server giveaways")
-    giveaway_group.add_check(app_commands.checks.has_permissions(manage_messages=True))
+    class GiveawayGroup(app_commands.Group):
+        async def interaction_check(self, interaction: discord.Interaction) -> bool:
+            if not interaction.guild:
+                await interaction.response.send_message(
+                    "This command can only be used in a server.", ephemeral=True
+                )
+                return False
+            if not interaction.user.guild_permissions.manage_messages:
+                await interaction.response.send_message(
+                    "You need the **Manage Messages** permission to use giveaway commands.",
+                    ephemeral=True,
+                )
+                return False
+            return True
+
+    giveaway_group = GiveawayGroup(name="giveaway", description="Run server giveaways")
 
     @giveaway_group.command(name="start", description="Start a giveaway in this server.")
     @app_commands.describe(

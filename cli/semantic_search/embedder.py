@@ -1,7 +1,7 @@
 """
 Embedding abstraction for semantic search.
 
-Uses the Hugging Face Inference API for BGE embeddings — no local PyTorch
+Uses the Hugging Face Inference API for BGE embeddings - no local PyTorch
 required.  The API returns normalized vectors for BGE models, matching the
 behaviour the cache and cosine scorer expect.
 
@@ -102,7 +102,7 @@ class HuggingFaceEmbedder(Embedder):
                     logger.info("HF model %s is ready.", self._model)
                     return
                 if resp.status_code == 503:
-                    # Model is loading — back off and retry.
+                    # Model is loading - back off and retry.
                     data = resp.json()
                     # API may return a list or a dict
                     if isinstance(data, list) and data:
@@ -111,7 +111,7 @@ class HuggingFaceEmbedder(Embedder):
                     logger.info("HF model loading, retrying in %.0fs...", wait)
                     time.sleep(min(wait, 30))
                     continue
-                # Any other status — bail (will fail on first real call).
+                # Any other status - bail (will fail on first real call).
                 logger.warning("HF warmup returned %d: %s", resp.status_code, resp.text[:200])
                 return
             except requests.RequestException as e:

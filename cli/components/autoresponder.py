@@ -140,11 +140,13 @@ class Autoresponder(commands.Cog, name="Autoresponder"):
             EmbedBuilder()
             .title(emoji_title("success", "Auto-Response Added"))
             .color("success")
-            .field("Trigger", f"`{trigger}`")
-            .field("Response", response[:1024])
-            .field("Match Type", match_type.title())
-            .field("Channel", channel.mention if channel else "All channels")
-            .field("Cooldown", f"{cooldown}s" if cooldown else "None")
+            .row(
+                ('Trigger', f'`{trigger}`'),
+                ('Response', response[:1024]),
+                ('Match Type', match_type.title()),
+                ('Channel', channel.mention if channel else 'All channels'),
+                ('Cooldown', f'{cooldown}s' if cooldown else 'None')
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )

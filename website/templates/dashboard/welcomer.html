@@ -62,7 +62,8 @@
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;">
           <div class="md-section-title" style="margin-bottom:0;">Welcome Message</div>
           <div class="md-segmented">
-            <button type="button" class="extra-tab is-active" data-wl-mode="welcome" data-wl-modeval="basic">Basic</button>
+            <button type="button" class="extra-tab" data-wl-mode="welcome" data-wl-modeval="basic">Basic</button>
+            <button type="button" class="extra-tab is-active" data-wl-mode="welcome" data-wl-modeval="default">Default</button>
             <button type="button" class="extra-tab" data-wl-mode="welcome" data-wl-modeval="custom">Custom</button>
           </div>
         </div>
@@ -71,7 +72,7 @@
             <div class="md-behavior-item">
               <div style="flex:1">
                 <div class="md-behavior-label">Message</div>
-                <div class="md-behavior-desc">Shown inside the default welcome embed</div>
+                <div class="md-behavior-desc">Shown as the message text inside the welcome embed (Default &amp; Basic modes)</div>
                 <input type="text" class="md-input" id="wl-wmsg" placeholder="Welcome {member} to {server}!" />
               </div>
             </div>
@@ -105,7 +106,8 @@
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;">
           <div class="md-section-title" style="margin-bottom:0;">Goodbye Message</div>
           <div class="md-segmented">
-            <button type="button" class="extra-tab is-active" data-wl-mode="goodbye" data-wl-modeval="basic">Basic</button>
+            <button type="button" class="extra-tab" data-wl-mode="goodbye" data-wl-modeval="basic">Basic</button>
+            <button type="button" class="extra-tab is-active" data-wl-mode="goodbye" data-wl-modeval="default">Default</button>
             <button type="button" class="extra-tab" data-wl-mode="goodbye" data-wl-modeval="custom">Custom</button>
           </div>
         </div>
@@ -427,7 +429,8 @@ function setMessageMode(which, mode, dirty) {
   document.querySelectorAll('[data-wl-mode="' + which + '"]').forEach(b => b.classList.toggle('is-active', b.dataset.wlModeval === mode));
   const basic = document.querySelector('[data-wl-basic="' + which + '"]');
   const custom = document.querySelector('[data-wl-custom="' + which + '"]');
-  if (basic) basic.style.display = mode === 'basic' ? '' : 'none';
+  const showBasic = (mode === 'basic' || mode === 'default');
+  if (basic) basic.style.display = showBasic ? '' : 'none';
   if (custom) custom.style.display = mode === 'custom' ? '' : 'none';
   if (dirty) markChanged(which + '_mode', mode);
 }
@@ -532,9 +535,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('wl-wdmmsg').value = SETTINGS_SNAPSHOT.welcome_dm_message || '';
     document.getElementById('wl-wdmmsg').addEventListener('input', function(){ markChanged('welcome_dm_message', this.value); });
 
-    // Default/Custom message modes
-    setMessageMode('welcome', SETTINGS_SNAPSHOT.welcome_mode === 'custom' ? 'custom' : 'basic', false);
-    setMessageMode('goodbye', SETTINGS_SNAPSHOT.goodbye_mode === 'custom' ? 'custom' : 'basic', false);
+    // Default/Basic/Custom message modes
+    const wlWelcomeMode = SETTINGS_SNAPSHOT.welcome_mode === 'custom' ? 'custom' : (SETTINGS_SNAPSHOT.welcome_mode === 'default' ? 'default' : 'basic');
+    const wlGoodbyeMode = SETTINGS_SNAPSHOT.goodbye_mode === 'custom' ? 'custom' : (SETTINGS_SNAPSHOT.goodbye_mode === 'default' ? 'default' : 'basic');
+    setMessageMode('welcome', wlWelcomeMode, false);
+    setMessageMode('goodbye', wlGoodbyeMode, false);
     document.querySelectorAll('[data-wl-mode]').forEach(b => b.addEventListener('click', () => setMessageMode(b.dataset.wlMode, b.dataset.wlModeval, true)));
 
     // Channel dropdown
@@ -884,8 +889,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('wl-wmsg').value = reverted.welcome_message || '';
     document.getElementById('wl-gmsg').value = reverted.goodbye_message || '';
     document.getElementById('wl-wdmmsg').value = reverted.welcome_dm_message || '';
-    setMessageMode('welcome', reverted.welcome_mode === 'custom' ? 'custom' : 'basic', false);
-    setMessageMode('goodbye', reverted.goodbye_mode === 'custom' ? 'custom' : 'basic', false);
+    const revWelcomeMode = reverted.welcome_mode === 'custom' ? 'custom' : (reverted.welcome_mode === 'default' ? 'default' : 'basic');
+    const revGoodbyeMode = reverted.goodbye_mode === 'custom' ? 'custom' : (reverted.goodbye_mode === 'default' ? 'default' : 'basic');
+    setMessageMode('welcome', revWelcomeMode, false);
+    setMessageMode('goodbye', revGoodbyeMode, false);
     const chBtn = document.getElementById('wl-channel-btn');
     const m = CHANNELS.find(c => String(c.id) === String(reverted.channel_id));
     chBtn.textContent = m ? '#' + m.name : 'Select channel...';

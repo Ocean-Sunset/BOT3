@@ -93,9 +93,11 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
                 .title(emoji_title("invite_join", "Member Joined"))
                 .description(f"{member.mention} was invited by {inviter_name}")
                 .color("green")
-                .field("Invite Code", used.code)
-                .field("Uses", str(used.uses))
-                .field("Account Age", discord.utils.format_dt(member.created_at, style="R"))
+                .row(
+                    ('Invite Code', used.code),
+                    ('Uses', str(used.uses)),
+                    ('Account Age', discord.utils.format_dt(member.created_at, style='R'))
+                )
                 .thumbnail(member.display_avatar.url)
                 .footer(f"User ID: {str(member.id)}")
                 .timestamp(datetime.datetime.utcnow())
@@ -208,8 +210,10 @@ class InviteTracker(commands.Cog, name="InviteTracker"):
             .title(emoji_title("invite_stats", f"{user.display_name}'s Invites"))
             .description("\n".join(lines))
             .color("blue")
-            .field("Total Invites", str(total))
-            .field("Unique Codes", str(len(rows)))
+            .row(
+                ('Total Invites', str(total)),
+                ('Unique Codes', str(len(rows)))
+            )
             .footer(f"User ID: {str(user.id)}")
             .timestamp(datetime.datetime.utcnow())
             .build()

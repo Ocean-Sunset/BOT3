@@ -228,7 +228,44 @@ class Music(commands.Cog, name="Music"):
             return False
         return True
 
-    music_group = app_commands.Group(name="music", description="Music playback commands")
+    class MusicGroup(app_commands.Group):
+        async def interaction_check(self, interaction: discord.Interaction) -> bool:
+            if not interaction.guild:
+                await interaction.response.send_message(
+                    embed=EmbedBuilder().title(emoji_title("error", "Server Only"))
+                    .description("Music commands can only be used inside a server.").color("error")
+                    .timestamp(datetime.datetime.utcnow()).build(),
+                    ephemeral=True,
+                )
+                return False
+            try:
+                settings = await get_music_settings(interaction.guild.id)
+            except Exception:
+                settings = MUSIC_DEFAULTS
+            if not settings.get("enabled", False):
+                await interaction.response.send_message(
+                    embed=EmbedBuilder().title(emoji_title("error", "Music Disabled"))
+                    .description("Music is disabled in this server. An admin can enable it from the dashboard.")
+                    .color("error").timestamp(datetime.datetime.utcnow()).build(),
+                    ephemeral=True,
+                )
+                return False
+            dj_role_id = settings.get("dj_role_id")
+            if dj_role_id:
+                role = interaction.guild.get_role(int(dj_role_id))
+                is_dj = bool(role and role in interaction.user.roles)
+                is_admin = interaction.user.guild_permissions.manage_guild
+                if not (is_dj or is_admin):
+                    await interaction.response.send_message(
+                        embed=EmbedBuilder().title(emoji_title("error", "DJ Only"))
+                        .description("You need the DJ role to use music commands.").color("error")
+                        .timestamp(datetime.datetime.utcnow()).build(),
+                        ephemeral=True,
+                    )
+                    return False
+            return True
+
+    music_group = MusicGroup(name="music", description="Music playback commands")
 
     @music_group.command(name="play", description="Play a song from a URL or search query")
     @app_commands.describe(query="Song URL or search term")
@@ -270,8 +307,10 @@ class Music(commands.Cog, name="Music"):
                 .title(emoji_title("music", "Added to Queue"))
                 .description(query[:200])
                 .color("brand")
-                .field("Position", str(len(q)))
-                .field("Requested by", interaction.user.mention)
+                .row(
+                    ('Position', str(len(q))),
+                    ('Requested by', interaction.user.mention)
+                )
                 .footer(f"User ID: {str(interaction.user.id)}")
                 .timestamp(datetime.datetime.utcnow())
                 .build()
@@ -338,9 +377,11 @@ class Music(commands.Cog, name="Music"):
             .title(emoji_title("music", "Music Queue"))
             .description("\n".join(lines))
             .color("brand")
-            .field("Total Tracks", str(len(q)))
-            .field("Total Duration", total_str)
-            .field("Loop", emoji_title("check", "On") if q.loop else emoji_title("cross", "Off"))
+            .row(
+                ('Total Tracks', str(len(q))),
+                ('Total Duration', total_str),
+                ('Loop', emoji_title('check', 'On') if q.loop else emoji_title('cross', 'Off'))
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )

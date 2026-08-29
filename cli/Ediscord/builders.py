@@ -427,6 +427,38 @@ class EmbedBuilder:
         self._fields.clear()
         return self
 
+    def row(self, *fields, columns: int = 2) -> "EmbedBuilder":
+        """Add a row of inline fields rendered in a ``columns``-wide grid (default 2).
+
+        Each positional argument is a ``(name, value)`` tuple. Discord lays inline
+        fields out left-to-right and wraps, so passing pairs (or any multiple of
+        ``columns``) produces a clean grid of ``columns`` per row. A partial final
+        row is padded with a blank zero-width inline field so columns stay aligned.
+
+        Example::
+
+            EmbedBuilder().title("Server Stats").row(
+                ("Members", "1,204"),
+                ("Boosts", "3"),
+                ("Roles", "42"),
+                ("Emojis", "18"),
+            )  # -> two rows of two columns
+        """
+        if columns < 1:
+            columns = 1
+        for name, value in fields:
+            self._fields.append({
+                "name": str(name)[:256],
+                "value": str(value)[:1024],
+                "inline": True,
+            })
+        # pad the last row so columns remain aligned
+        remainder = len(fields) % columns
+        if remainder:
+            for _ in range(columns - remainder):
+                self._fields.append({"name": "\u200b", "value": "\u200b", "inline": True})
+        return self
+
     # --- build / send ----------------------------------------------------------
 
     def build(self) -> discord.Embed:

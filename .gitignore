@@ -20,3 +20,6 @@ backups/
 bot_data.txt
 nerimity.js/
 .memelord/
+.ven/
+AGENTS.md
+.gitignore

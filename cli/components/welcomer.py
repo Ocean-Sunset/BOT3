@@ -15,16 +15,19 @@ from Ediscord import db as neon_db
 from Ediscord.builders import embed_from_dict, emoji_title
 
 
+WELCOME_BASIC_EMOJI = "\U0001F44B"   # 👋
+GOODBYE_BASIC_EMOJI = "\U0001F494"  # 💔
+
 WELCOME_DEFAULTS = {
     "enabled": False,
     "channel_id": None,
     "goodbye_channel_id": None,
     "welcome_message": "Welcome {member} to {server}!",
-    "welcome_mode": "basic",
+    "welcome_mode": "default",
     "welcome_embed_data": {},
     "welcome_image_config": None,
     "goodbye_message": "{member} has left {server}.",
-    "goodbye_mode": "basic",
+    "goodbye_mode": "default",
     "goodbye_embed_data": {},
     "goodbye_image_config": None,
     "welcome_dm": False,
@@ -232,7 +235,21 @@ async def generate_card_image(member: discord.Member, config: dict) -> bytes:
 
 
 async def get_welcome_settings(guild_id: int):
-    return await neon_db.load_cached_settings("welcome_settings", guild_id, WELCOME_DEFAULTS)
+    settings = await neon_db.load_cached_settings("welcome_settings", guild_id, WELCOME_DEFAULTS)
+    # "basic" used to be the bot's default styled embed. Now "basic" is a minimal
+    # emoji+description embed, so existing servers that were using "basic" should
+    # keep their current look under the new "default" mode. Persist the migration
+    # once so an explicit future choice of "basic" is respected.
+    changed = False
+    if settings.get("welcome_mode") == "basic":
+        settings["welcome_mode"] = "default"
+        changed = True
+    if settings.get("goodbye_mode") == "basic":
+        settings["goodbye_mode"] = "default"
+        changed = True
+    if changed:
+        await save_welcome_settings(guild_id, settings)
+    return settings
 
 
 async def save_welcome_settings(guild_id: int, settings: dict):
@@ -262,6 +279,71 @@ def render_welcome_embed(data: dict, member: discord.Member) -> dict:
     return out
 
 
+def _styled_welcome_embed(member: discord.Member, settings: dict) -> discord.Embed:
+    """The bot's default styled welcome embed (what 'default' mode reproduces)."""
+    msg = render_welcome(settings.get("welcome_message", ""), member)
+    return (
+        EmbedBuilder()
+        .title(emoji_title("welcome", "Welcome!"))
+        .description(msg)
+        .color("green")
+        .thumbnail(member.display_avatar.url)
+        .row(
+            ('Account Created', discord.utils.format_dt(member.created_at, style='R')),
+            ('Member Count', f'{member.guild.member_count:,}')
+        )
+        .footer(f"User ID: {str(member.id)}")
+        .timestamp(datetime.datetime.utcnow())
+        .build()
+    )
+
+
+def _basic_welcome_embed(member: discord.Member, settings: dict) -> discord.Embed:
+    """Minimal welcome embed: just an emoji and the message, no title/author."""
+    msg = render_welcome(settings.get("welcome_message", ""), member)
+    return EmbedBuilder().description(f"{WELCOME_BASIC_EMOJI} {msg}").build()
+
+
+def _styled_goodbye_embed(member: discord.Member, settings: dict) -> discord.Embed:
+    """The bot's default styled goodbye embed (what 'default' mode reproduces)."""
+    msg = render_welcome(settings.get("goodbye_message", ""), member)
+    return (
+        EmbedBuilder()
+        .title(emoji_title("goodbye", "Goodbye"))
+        .description(msg)
+        .color("red")
+        .thumbnail(member.display_avatar.url)
+        .field("Member Count", f"{member.guild.member_count:,}")
+        .footer(f"User ID: {str(member.id)}")
+        .timestamp(datetime.datetime.utcnow())
+        .build()
+    )
+
+
+def _basic_goodbye_embed(member: discord.Member, settings: dict) -> discord.Embed:
+    """Minimal goodbye embed: just an emoji and the message, no title/author."""
+    msg = render_welcome(settings.get("goodbye_message", ""), member)
+    return EmbedBuilder().description(f"{GOODBYE_BASIC_EMOJI} {msg}").build()
+
+
+def _welcome_embed(member: discord.Member, settings: dict) -> discord.Embed:
+    mode = settings.get("welcome_mode", "default")
+    if mode == "custom" and settings.get("welcome_embed_data"):
+        return embed_from_dict(render_welcome_embed(settings["welcome_embed_data"], member))
+    if mode == "basic":
+        return _basic_welcome_embed(member, settings)
+    return _styled_welcome_embed(member, settings)
+
+
+def _goodbye_embed(member: discord.Member, settings: dict) -> discord.Embed:
+    mode = settings.get("goodbye_mode", "default")
+    if mode == "custom" and settings.get("goodbye_embed_data"):
+        return embed_from_dict(render_welcome_embed(settings["goodbye_embed_data"], member))
+    if mode == "basic":
+        return _basic_goodbye_embed(member, settings)
+    return _styled_goodbye_embed(member, settings)
+
+
 class Welcomer(commands.Cog, name="Welcomer"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -276,8 +358,9 @@ class Welcomer(commands.Cog, name="Welcomer"):
         if not channel or not isinstance(channel, discord.TextChannel):
             return
 
-        # Custom embed mode renders the user-configured embed; otherwise the default styled embed
-        mode = settings.get("welcome_mode", "basic")
+        # Custom embed mode renders the user-configured embed; "default" is the
+        # bot's styled embed; "basic" is a minimal emoji+description embed.
+        mode = settings.get("welcome_mode", "default")
         image_config = settings.get("welcome_image_config")
         card_file = None
         if image_config and image_config.get("enabled"):
@@ -287,34 +370,16 @@ class Welcomer(commands.Cog, name="Welcomer"):
             except Exception as e:
                 logger.warning(f"Failed to generate welcome card: {e}")
 
-        if mode == "custom" and settings.get("welcome_embed_data"):
-            try:
-                embed = embed_from_dict(render_welcome_embed(settings["welcome_embed_data"], member))
-                if card_file:
-                    embed.set_image(url="attachment://welcome.png")
-                await channel.send(embed=embed, file=card_file) if card_file else await channel.send(embed=embed)
-            except Exception as e:
-                logger.warning(f"Failed to send custom welcome embed: {e}")
-        else:
-            msg = render_welcome(settings.get("welcome_message", ""), member)
-            try:
-                embed = (
-                    EmbedBuilder()
-                    .title(emoji_title("welcome", "Welcome!"))
-                    .description(msg)
-                    .color("green")
-                    .thumbnail(member.display_avatar.url)
-                    .field("Account Created", discord.utils.format_dt(member.created_at, style="R"))
-                    .field("Member Count", f"{member.guild.member_count:,}")
-                    .footer(f"User ID: {str(member.id)}")
-                    .timestamp(datetime.datetime.utcnow())
-                    .build()
-                )
-                if card_file:
-                    embed.set_image(url="attachment://welcome.png")
-                await channel.send(embed=embed, file=card_file) if card_file else await channel.send(embed=embed)
-            except Exception as e:
-                logger.warning(f"Failed to send welcome message: {e}")
+        try:
+            embed = _welcome_embed(member, settings)
+            if card_file:
+                embed.set_image(url="attachment://welcome.png")
+            if card_file:
+                await channel.send(embed=embed, file=card_file)
+            else:
+                await channel.send(embed=embed)
+        except Exception as e:
+            logger.warning(f"Failed to send welcome message: {e}")
 
         if settings.get("welcome_dm"):
             dm_msg = render_welcome(settings.get("welcome_dm_message", "Welcome to **{server}**!"), member)
@@ -373,8 +438,7 @@ class Welcomer(commands.Cog, name="Welcomer"):
             return
         if not settings.get("goodbye_message"):
             return
-        msg = render_welcome(settings.get("goodbye_message", ""), member)
-        mode = settings.get("goodbye_mode", "basic")
+        mode = settings.get("goodbye_mode", "default")
         image_config = settings.get("goodbye_image_config")
         card_file = None
         if image_config and image_config.get("enabled"):
@@ -384,26 +448,13 @@ class Welcomer(commands.Cog, name="Welcomer"):
             except Exception as e:
                 logger.warning(f"Failed to generate goodbye card: {e}")
         try:
-            if mode == "custom" and settings.get("goodbye_embed_data"):
-                embed = embed_from_dict(render_welcome_embed(settings["goodbye_embed_data"], member))
-                if card_file:
-                    embed.set_image(url="attachment://goodbye.png")
-                await channel.send(embed=embed, file=card_file) if card_file else await channel.send(embed=embed)
+            embed = _goodbye_embed(member, settings)
+            if card_file:
+                embed.set_image(url="attachment://goodbye.png")
+            if card_file:
+                await channel.send(embed=embed, file=card_file)
             else:
-                embed = (
-                    EmbedBuilder()
-                    .title(emoji_title("goodbye", "Goodbye"))
-                    .description(msg)
-                    .color("red")
-                    .thumbnail(member.display_avatar.url)
-                    .field("Member Count", f"{member.guild.member_count:,}")
-                    .footer(f"User ID: {str(member.id)}")
-                    .timestamp(datetime.datetime.utcnow())
-                    .build()
-                )
-                if card_file:
-                    embed.set_image(url="attachment://goodbye.png")
-                await channel.send(embed=embed, file=card_file) if card_file else await channel.send(embed=embed)
+                await channel.send(embed=embed)
         except Exception as e:
             logger.warning(f"Failed to send goodbye message: {e}")
 
@@ -589,7 +640,6 @@ class Welcomer(commands.Cog, name="Welcomer"):
                 ephemeral=True
             )
         settings = await get_welcome_settings(interaction.guild_id)
-        msg = render_welcome(settings.get("welcome_message", "Welcome {member}!"), interaction.user)
         image_config = settings.get("welcome_image_config")
         card_file = None
         if image_config and image_config.get("enabled"):
@@ -598,30 +648,13 @@ class Welcomer(commands.Cog, name="Welcomer"):
                 card_file = discord.File(io.BytesIO(card_bytes), filename="welcome.png")
             except Exception as e:
                 logger.warning(f"Failed to generate test card: {e}")
-        if settings.get("welcome_embed", True):
-            embed = (
-                EmbedBuilder()
-                .title(emoji_title("success", "Welcome! (Test)"))
-                .description(msg)
-                .color("green")
-                .thumbnail(interaction.user.display_avatar.url)
-                .field("Account Created", discord.utils.format_dt(interaction.user.created_at, style="R"))
-                .field("Member Count", f"{interaction.guild.member_count:,}")
-                .footer(f"User ID: {str(interaction.user.id)}")
-                .timestamp(datetime.datetime.utcnow())
-                .build()
-            )
-            if card_file:
-                embed.set_image(url="attachment://welcome.png")
-            await interaction.response.send_message(embed=embed, file=card_file, ephemeral=True) if card_file else await interaction.response.send_message(embed=embed, ephemeral=True)
+        embed = _welcome_embed(interaction.user, settings)
+        if card_file:
+            embed.set_image(url="attachment://welcome.png")
+        if card_file:
+            await interaction.response.send_message(embed=embed, file=card_file, ephemeral=True)
         else:
-            await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("success", "Welcome! (Test)")).description(msg).color("green").timestamp(datetime.datetime.utcnow()).build(),
-                file=card_file, ephemeral=True
-            ) if card_file else await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("success", "Welcome! (Test)")).description(msg).color("green").timestamp(datetime.datetime.utcnow()).build(),
-                ephemeral=True
-            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @welcomer_group.command(name="config", description="View current welcomer configuration")
     async def config(self, interaction: discord.Interaction):
@@ -643,17 +676,19 @@ class Welcomer(commands.Cog, name="Welcomer"):
             EmbedBuilder()
             .title(emoji_title("info", "Welcomer Configuration"))
             .color("blue")
-            .field("Enabled", "Yes" if settings.get("enabled") else "No")
-            .field("Welcome Channel", channel.mention if channel else "Not set")
-            .field("Goodbye Channel", goodbye_channel.mention if goodbye_channel else "Same as welcome")
-            .field("Welcome Embed", "Yes" if settings.get("welcome_embed", True) else "No")
-            .field("Goodbye Embed", "Yes" if settings.get("goodbye_embed", True) else "No")
-            .field("Welcome DM", "Yes" if settings.get("welcome_dm") else "No")
-            .field("Auto-Role", auto_role.mention if auto_role else "None")
-            .field("Bot Auto-Role", bot_role.mention if bot_role else "None")
-            .field("Auto-Nickname", settings.get("auto_nickname") or "Disabled")
-            .field("Welcome Message", settings.get("welcome_message", "Not set")[:1024])
-            .field("Goodbye Message", settings.get("goodbye_message") or "Disabled")
+            .row(
+                ('Enabled', 'Yes' if settings.get('enabled') else 'No'),
+                ('Welcome Channel', channel.mention if channel else 'Not set'),
+                ('Goodbye Channel', goodbye_channel.mention if goodbye_channel else 'Same as welcome'),
+                ('Welcome Mode', settings.get('welcome_mode', 'default').title()),
+                ('Goodbye Mode', settings.get('goodbye_mode', 'default').title()),
+                ('Welcome DM', 'Yes' if settings.get('welcome_dm') else 'No'),
+                ('Auto-Role', auto_role.mention if auto_role else 'None'),
+                ('Bot Auto-Role', bot_role.mention if bot_role else 'None'),
+                ('Auto-Nickname', settings.get('auto_nickname') or 'Disabled'),
+                ('Welcome Message', settings.get('welcome_message', 'Not set')[:1024]),
+                ('Goodbye Message', settings.get('goodbye_message') or 'Disabled')
+            )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )

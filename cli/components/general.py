@@ -108,11 +108,13 @@ class General(commands.Cog):
             .field("Text Channels", str(text_channels), inline=True)
             .field("Voice Channels", str(voice_channels), inline=True)
             .field("Categories", str(categories), inline=True)
-            .field("Roles", str(len(guild.roles)))
-            .field("Emojis", str(len(guild.emojis)))
-            .field("Boost Level", f"Level {boost_level} ({boost_count} boosts)")
-            .field("Created", discord.utils.format_dt(guild.created_at, style="F"))
-            .field("Server ID", str(guild.id))
+            .row(
+                ('Roles', str(len(guild.roles))),
+                ('Emojis', str(len(guild.emojis))),
+                ('Boost Level', f'Level {boost_level} ({boost_count} boosts)'),
+                ('Created', discord.utils.format_dt(guild.created_at, style='F')),
+                ('Server ID', str(guild.id))
+            )
             .footer(f"Requested by {interaction.user.display_name}")
             .timestamp(datetime.datetime.utcnow())
             .build()

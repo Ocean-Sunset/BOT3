@@ -186,7 +186,7 @@ class _ConnWrapper:
 
 
 class _PoolWrapper:
-    """Mimics asyncpg pool interface — all callers use pool.acquire() as conn."""
+    """Mimics asyncpg pool interface - all callers use pool.acquire() as conn."""
 
     def acquire(self):
         return self
@@ -333,7 +333,7 @@ async def _ensure_tables():
         ("CREATE INDEX IF NOT EXISTS idx_automation_logs_guild ON automation_logs (guild_id, id DESC)", ()),
         ("CREATE INDEX IF NOT EXISTS idx_autoresponder_guild ON autoresponder (guild_id)", ()),
     ]
-    # Migration: ALTER TABLE ADD COLUMN (no IF NOT EXISTS — run individually, ignore "duplicate column")
+    # Migration: ALTER TABLE ADD COLUMN (no IF NOT EXISTS - run individually, ignore "duplicate column")
     migrations = [
         "ALTER TABLE autoresponder ADD COLUMN channel_id TEXT",
         "ALTER TABLE autoresponder ADD COLUMN cooldown INTEGER DEFAULT 0",

@@ -257,7 +257,7 @@ function bindSelect(wrapId, dropId, btnId, items, placeholder, onSelect) {
 function renderList(items) {
   const el = document.getElementById('gw-list');
   if (!items.length) {
-    el.innerHTML = '<div class="gw-empty">No giveaways yet — create one above.</div>';
+    el.innerHTML = '<div class="gw-empty">No giveaways yet - create one above.</div>';
     return;
   }
   el.innerHTML = items.map(g => {
@@ -373,7 +373,7 @@ async function createGiveaway() {
       document.getElementById('gw-duration').value = '';
       document.getElementById('gw-description').value = '';
       document.getElementById('gw-thumbnail').value = '';
-      if (typeof showToast === 'function') showToast('Giveaway created — it will post shortly.', 'success');
+      if (typeof showToast === 'function') showToast('Giveaway created - it will post shortly.', 'success');
       await loadAll();
     }
   } catch (e) {

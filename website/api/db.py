@@ -288,8 +288,8 @@ async def fetchval(sql: str, *args):
         return None
     try:
         records = await query(sql, *args)
-        if records:
-            return records[0][0] if len(records[0]) > 0 else None
+        if records and len(records[0]) > 0:
+            return next(iter(records[0].values()))
         return None
     except Exception as e:
         logger.debug(f"fetchval failed: {e}")
@@ -309,7 +309,7 @@ async def execute(sql: str, *args):
 
 
 # ---------------------------------------------------------------------------
-#  Guild data cache (members, channels, roles — large JSON blobs)
+#  Guild data cache (members, channels, roles - large JSON blobs)
 # ---------------------------------------------------------------------------
 
 import json as _json

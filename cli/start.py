@@ -348,7 +348,10 @@ class ProwlBot(commands.Bot):
                 if not cog:
                     raise Exception("Verification cog not loaded")
                 settings = await get_verify_settings(guild.id)
-                if not await cog._send_panel(guild, settings):
+                logger.info(f"verify_panel: channel_id={settings.get('channel_id')}, type={settings.get('type')}, role={settings.get('verified_role_id')}")
+                ok_panel = await cog._send_panel(guild, settings)
+                logger.info(f"verify_panel: _send_panel returned {ok_panel}")
+                if not ok_panel:
                     raise Exception("verify panel send failed")
                 reason = "Verification panel deployed"
             elif act == "verify_panel_remove":

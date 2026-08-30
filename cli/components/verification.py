@@ -215,8 +215,11 @@ class Verification(commands.Cog, name="Verification"):
         return embed
 
     async def _send_panel(self, guild: discord.Guild, settings) -> bool:
+        import logging
+        logger = logging.getLogger("Ediscord")
         channel = guild.get_channel(int(settings.get("channel_id") or 0))
         if not channel or not isinstance(channel, discord.TextChannel):
+            logger.warning(f"_send_panel: channel not found (channel_id={settings.get('channel_id')}, guild_channels={len(guild.channels)})")
             return False
 
         # Delete the previous panel message if one exists

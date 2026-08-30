@@ -4,18 +4,18 @@ A multifunctional Discord bot with a web dashboard, built with Python and discor
 
 ## Features
 
-- **Moderation** — ban, kick, mute, warn, autoMod, raid protection
-- **Leveling & XP** — message XP, voice XP, leaderboard, role rewards
-- **AI** — chat, image generation, multi-provider (OpenAI, Groq, OpenRouter)
-- **Giveaways** — timed giveaways with role/XP requirements
-- **AFK & Reminders** — away status, timed reminders
-- **Tickets** — support ticket system with panels
-- **Verification** — CAPTCHA-based member verification
-- **Global Chat** — cross-server message relay
-- **Welcomer** — join/leave messages, auto-roles
-- **Invite Tracker** — track who invites whom
-- **Social Alerts** — monitor social media links
-- **Automation Engine** — custom trigger/action rules
+- **Moderation** - ban, kick, mute, warn, autoMod, raid protection
+- **Leveling & XP** - message XP, voice XP, leaderboard, role rewards
+- **AI** - chat, image generation, multi-provider (OpenAI, Groq, OpenRouter)
+- **Giveaways** - timed giveaways with role/XP requirements
+- **AFK & Reminders** - away status, timed reminders
+- **Tickets** - support ticket system with panels
+- **Verification** - CAPTCHA-based member verification
+- **Global Chat** - cross-server message relay
+- **Welcomer** - join/leave messages, auto-roles
+- **Invite Tracker** - track who invites whom
+- **Social Alerts** - monitor social media links
+- **Automation Engine** - custom trigger/action rules
 
 ## Tech
 
@@ -57,6 +57,3 @@ uvicorn api.index:app --reload
 
 - [Invite Prowl](https://discord.com/oauth2/authorize?client_id=1323734010345689189)
 - [Dashboard](https://prowlbot.xyz)
-
----
-*Created with love by th3_t1sm*

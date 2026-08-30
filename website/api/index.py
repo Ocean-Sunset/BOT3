@@ -4653,7 +4653,15 @@ async def verify_settings_set(guild_id: str, request: Request):
     if err: return JSONResponse({"error": err}, 400)
     # Disabling verification should also remove the deployed panel
     if key == "enabled" and not value:
-        await _queue_action(str(guild_id), "verify_panel_remove", "0", "", "Verification disabled - panel removed", None)
+        session_user = request.session.get("user") or {}
+        moderator = session_user.get("username", "Unknown")
+        request_id = await _queue_action(str(guild_id), "verify_panel_remove", "0", "", "Verification disabled - panel removed", None, moderator)
+        ok, message = await _call_bot_direct(
+            guild_id, "verify_panel_remove", "0", "", "Verification disabled - panel removed", None, moderator,
+            request_id=request_id,
+        )
+        if not ok:
+            return {"ok": True, "queued": True, "fallback": message}
     return {"ok": True}
 
 

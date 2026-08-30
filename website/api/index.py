@@ -76,7 +76,7 @@ def _cfg():
 # server-side only, never exposed to the browser) and falls back to the queue.
 BOT_SERVER_URL = os.environ.get("BOT_SERVER_URL", "")
 BOT_HTTP_TOKEN = os.environ.get("BOT_HTTP_TOKEN", "")
-DIRECT_ACTIONS = ("mute", "unmute", "kick", "ban", "add_role", "remove_role", "nickname")
+DIRECT_ACTIONS = ("mute", "unmute", "kick", "ban", "purge", "emergency_lock", "emergency_unlock", "add_role", "remove_role", "nickname", "verify_panel", "verify_panel_remove", "verify_user", "panel_send")
 
 # ── Remote semantic search (HidenCloud BGE microservice) ──
 # When enabled, the dashboard search asks the bot server's /semantic-search
@@ -2404,8 +2404,14 @@ async def mod_emergency(guild_id: str, request: Request):
     session_user = request.session.get("user") or {}
     moderator = session_user.get("username", "Unknown")
     action = "emergency_lock" if locked else "emergency_unlock"
-    await _queue_action(guild_id, action, "", "", "Emergency lockdown" if locked else "Emergency unlock", None, moderator)
-    return {"ok": True}
+    request_id = await _queue_action(guild_id, action, "", "", "Emergency lockdown" if locked else "Emergency unlock", None, moderator)
+    ok, message = await _call_bot_direct(
+        guild_id, action, "0", "", "Emergency lockdown" if locked else "Emergency unlock", None, moderator,
+        request_id=request_id,
+    )
+    if ok:
+        return {"ok": True, "direct": True, "request_id": request_id}
+    return {"ok": True, "queued": True, "direct": False, "fallback": message, "request_id": request_id}
 
 
 @app.post("/api/v1/mod/{guild_id}/purge", dependencies=[Depends(require_mod)])
@@ -2418,8 +2424,16 @@ async def mod_purge(guild_id: str, request: Request):
         return JSONResponse({"error": "missing channel_id"}, status_code=400)
     if count < 1 or count > 100:
         return JSONResponse({"error": "count must be 1-100"}, status_code=400)
-    await _queue_action(guild_id, "purge", channel_id, "", f"Purge {count} messages", count)
-    return {"ok": True, "queued": True, "purged": count}
+    session_user = request.session.get("user") or {}
+    moderator = session_user.get("username", "Unknown")
+    request_id = await _queue_action(guild_id, "purge", channel_id, "", f"Purge {count} messages", count, moderator)
+    ok, message = await _call_bot_direct(
+        guild_id, "purge", channel_id, "", f"Purge {count} messages", count, moderator,
+        request_id=request_id,
+    )
+    if ok:
+        return {"ok": True, "direct": True, "request_id": request_id, "purged": count}
+    return {"ok": True, "queued": True, "direct": False, "fallback": message, "request_id": request_id, "purged": count}
 
 
 @app.get("/api/v1/mod/{guild_id}/stats/members")
@@ -3181,7 +3195,7 @@ async def create_giveaway_endpoint(request: Request, guild_id: str):
         "INSERT INTO giveaways (guild_id, channel_id, host_id, prize, description, thumbnail, "
         "winners_count, required_role_id, end_ts, start_ts, status, created_at, "
         "required_xp, required_level, required_msgs, message_type, message, emoji, embed) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)",
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         str(guild_id), str(channel), str(user["id"]), prize[:300], desc[:1000],
         (thumbnail or "")[:500], winners, str(role) if role else "", ts, time.time(), time.time(),
         required_xp, required_level, required_msgs, message_type[:20],
@@ -4563,8 +4577,14 @@ async def ticket_send_panel(guild_id: str, request: Request):
         return JSONResponse({"error": "missing channel_id"}, status_code=400)
     session_user = request.session.get("user") or {}
     moderator = session_user.get("username", "Unknown")
-    await _queue_action(guild_id, "panel_send", channel_id, "panel", "Ticket panel", None, moderator)
-    return {"ok": True, "queued": True}
+    request_id = await _queue_action(guild_id, "panel_send", channel_id, "panel", "Ticket panel", None, moderator)
+    ok, message = await _call_bot_direct(
+        guild_id, "panel_send", channel_id, "panel", "Ticket panel", None, moderator,
+        request_id=request_id,
+    )
+    if ok:
+        return {"ok": True, "direct": True, "request_id": request_id}
+    return {"ok": True, "queued": True, "direct": False, "fallback": message, "request_id": request_id}
 
 
 @app.get("/api/v1/tickets/{guild_id}/categories")
@@ -4640,8 +4660,16 @@ async def verify_settings_set(guild_id: str, request: Request):
 @app.post("/api/v1/verify/{guild_id}/deploy", dependencies=[Depends(require_mod)])
 async def verify_deploy(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    await _queue_action(guild_id, "verify_panel", "0", "", "Deploy verification panel", None)
-    return {"ok": True, "queued": True}
+    session_user = request.session.get("user") or {}
+    moderator = session_user.get("username", "Unknown")
+    request_id = await _queue_action(guild_id, "verify_panel", "0", "", "Deploy verification panel", None, moderator)
+    ok, message = await _call_bot_direct(
+        guild_id, "verify_panel", "0", "", "Deploy verification panel", None, moderator,
+        request_id=request_id,
+    )
+    if ok:
+        return {"ok": True, "direct": True, "request_id": request_id}
+    return {"ok": True, "queued": True, "direct": False, "fallback": message, "request_id": request_id}
 
 
 @app.get("/api/v1/verify/{guild_id}/channels")

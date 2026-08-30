@@ -36,7 +36,7 @@ SEMANTIC_MAX_QUERY_CHARS = 500
 _bot = None
 
 # Actions that may be executed directly. Everything else keeps using the queue.
-DIRECT_ACTIONS = ("mute", "unmute", "kick", "ban", "add_role", "remove_role", "nickname", "verify_panel", "verify_panel_remove", "verify_user", "ticket_panel")
+DIRECT_ACTIONS = ("mute", "unmute", "kick", "ban", "add_role", "remove_role", "nickname", "purge", "emergency_lock", "emergency_unlock", "verify_panel", "verify_panel_remove", "verify_user", "panel_send")
 
 # In-memory per-hour dashboard action counters. The status page polls these via
 # /api/stats/actions so it can render a "bot actions" graph. Not persisted on

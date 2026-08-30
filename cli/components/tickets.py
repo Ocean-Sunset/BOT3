@@ -12,13 +12,12 @@ from Ediscord.builders import embed_from_dict, emoji_title, BUTTON_EMOJIS
 
 TICKET_DEFAULTS = {
     "enabled": False,
-    "category_id": None,
+    "channel_id": None,
     "support_role_id": None,
     "log_channel_id": None,
     "welcome_message": "Support will be with you shortly. Please describe your issue.",
     "ticket_limit": 3,
-    "auto_close_hours": 0,
-    "panel_channel_id": None,
+    "auto_archive_hours": 72,
     "panel_embed": {},
     "questions": [],
 }
@@ -36,56 +35,74 @@ class TicketView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="Close Ticket", style=discord.ButtonStyle.danger, emoji=BUTTON_EMOJIS["ticket_close"], custom_id="ticket:close")
+    @discord.ui.button(label="Close Ticket", style=discord.ButtonStyle.danger, emoji=BUTTON_EMOJIS.get("ticket_close", "\U0001f6ab"), custom_id="ticket:close")
     async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not interaction.channel or not interaction.channel.name.startswith("ticket-"):
+        channel = interaction.channel
+        if not isinstance(channel, discord.Thread):
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Error")).description("This is not a ticket channel.").color("red").timestamp(datetime.datetime.utcnow()).build(),
-                ephemeral=True
+                embed=EmbedBuilder().title(emoji_title("error", "Not a Ticket")).description("This command can only be used inside a ticket thread.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
             )
 
         confirm_view = discord.ui.View()
+
         async def confirm_cb(i: discord.Interaction):
             await i.response.defer()
             transcript = []
-            async for msg in i.channel.history(limit=200, oldest_first=True):
+            async for msg in channel.history(limit=200, oldest_first=True):
                 transcript.append(f"[{msg.created_at.strftime('%Y-%m-%d %H:%M:%S')}] {msg.author.name}: {msg.content}")
             transcript_text = "\n".join(transcript[-100:])
 
             pool = await neon_db.get_pool()
             if pool:
-                await pool.execute(
-                    "INSERT INTO ticket_logs (guild_id, channel_id, user_id, transcript, closed_at) VALUES (?, ?, ?, ?, ?)",
-                    str(i.guild_id), str(i.channel.id), str(interaction.user.id), transcript_text[:5000], datetime.datetime.utcnow().isoformat(),
-                )
+                try:
+                    await pool.execute(
+                        "INSERT INTO ticket_logs (guild_id, channel_id, user_id, transcript, closed_at) VALUES (?, ?, ?, ?, ?)",
+                        str(i.guild_id), str(channel.id), str(interaction.user.id), transcript_text[:5000], datetime.datetime.utcnow().isoformat(),
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to log ticket: {e}")
 
             settings = await get_ticket_settings(i.guild_id)
             log_channel_id = settings.get("log_channel_id")
             if log_channel_id:
                 log_channel = i.guild.get_channel(int(log_channel_id))
                 if log_channel:
+                    owner = channel.owner
                     log_embed = (
                         EmbedBuilder()
                         .title(emoji_title("ticket", "Ticket Closed"))
-                        .description(f"Ticket {i.channel.mention} has been closed.")
+                        .description(f"Ticket **{channel.name}** has been closed.")
                         .color("red")
                         .row(
-                            ('Closed By', interaction.user.mention),
-                            ('Messages', str(len(transcript))),
-                            ('Transcript', f'```\n{transcript_text[:1000]}\n```')
+                            ("Opened By", owner.mention if owner else "Unknown"),
+                            ("Closed By", i.user.mention),
+                            ("Messages", str(len(transcript))),
                         )
-                        .footer(f"Channel ID: {str(i.channel.id)}")
+                        .field("Transcript", f"```\n{transcript_text[:1000]}\n```" if transcript else "No messages.")
+                        .footer(f"Thread ID: {channel.id}")
                         .timestamp(datetime.datetime.utcnow())
                         .build()
                     )
                     await log_channel.send(embed=log_embed)
 
-            await i.channel.delete(reason="Ticket closed")
+            await channel.edit(archived=True, locked=True, reason=f"Ticket closed by {i.user}")
+            try:
+                await i.user.send(
+                    embed=EmbedBuilder()
+                    .title(emoji_title("ticket", "Ticket Closed"))
+                    .description(f"Your ticket in **{i.guild.name}** has been closed.")
+                    .color("grey")
+                    .timestamp(datetime.datetime.utcnow())
+                    .build()
+                )
+            except discord.Forbidden:
+                pass
 
         async def cancel_cb(i: discord.Interaction):
             await i.response.edit_message(
                 embed=EmbedBuilder().title(emoji_title("info", "Cancelled")).description("Ticket close cancelled.").color("grey").timestamp(datetime.datetime.utcnow()).build(),
-                view=None
+                view=None,
             )
 
         confirm_btn = discord.ui.Button(label="Confirm Close", style=discord.ButtonStyle.danger)
@@ -96,9 +113,9 @@ class TicketView(discord.ui.View):
         confirm_view.add_item(confirm_btn)
         confirm_view.add_item(cancel_btn)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("warning", "Close Ticket?")).description("Are you sure you want to close this ticket?").color("orange").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title(emoji_title("warning", "Close Ticket?")).description("This will archive the thread and lock it.").color("orange").timestamp(datetime.datetime.utcnow()).build(),
             view=confirm_view,
-            ephemeral=True
+            ephemeral=True,
         )
 
 
@@ -107,13 +124,13 @@ class CreateTicketView(discord.ui.View):
         super().__init__(timeout=None)
         self.cog = cog
 
-    @discord.ui.button(label="Create Ticket", style=discord.ButtonStyle.primary, emoji=BUTTON_EMOJIS["ticket_open"], custom_id="ticket:create")
+    @discord.ui.button(label="Open Ticket", style=discord.ButtonStyle.primary, emoji=BUTTON_EMOJIS.get("ticket_open", "\U0001f3ab"), custom_id="ticket:create")
     async def create(self, interaction: discord.Interaction, button: discord.ui.Button):
         settings = await get_ticket_settings(interaction.guild_id)
         if not settings.get("enabled"):
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Not Configured")).description("Ticket system is not configured.").color("red").timestamp(datetime.datetime.utcnow()).build(),
-                ephemeral=True
+                embed=EmbedBuilder().title(emoji_title("error", "Not Configured")).description("Ticket system is not set up yet.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
             )
         questions = settings.get("questions") or []
         if questions:
@@ -124,13 +141,11 @@ class CreateTicketView(discord.ui.View):
 
 
 class TicketQuestionsModal(discord.ui.Modal):
-    """Modal that asks the configured ticket questions before opening a ticket."""
-
     def __init__(self, cog, questions):
         super().__init__(title="Open a Ticket")
         self.cog = cog
         self._inputs = []
-        for q in questions[:5]:  # Discord allows max 5 modal inputs
+        for q in questions[:5]:
             item = discord.ui.TextInput(
                 label=(q.get("label") or "Question")[:45],
                 placeholder=(q.get("placeholder") or "")[:100] or None,
@@ -151,130 +166,139 @@ class Tickets(commands.Cog, name="Tickets"):
 
     async def _create_ticket(self, interaction: discord.Interaction, answers: list):
         settings = await get_ticket_settings(interaction.guild_id)
-        existing_tickets = [c for c in interaction.guild.text_channels if c.name.startswith(f"ticket-{interaction.user.name.lower()[:20]}")]
-        ticket_limit = settings.get("ticket_limit", 3)
-        if len(existing_tickets) >= ticket_limit:
+        channel_id = settings.get("channel_id")
+        if not channel_id:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Limit Reached")).description(f"You already have {len(existing_tickets)} open tickets (limit: {ticket_limit}).").color("red").timestamp(datetime.datetime.utcnow()).build(),
-                ephemeral=True
+                embed=EmbedBuilder().title(emoji_title("error", "Not Configured")).description("No ticket channel has been set. Ask an admin to run `/ticket setup`.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
             )
-        category = interaction.guild.get_channel(int(settings.get("category_id") or 0))
-        overwrites = {
-            interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False),
-            interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True, attach_files=True),
-            interaction.guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True),
-        }
+
+        parent = interaction.guild.get_channel(int(channel_id))
+        if not parent or not isinstance(parent, discord.TextChannel):
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Channel Not Found")).description("The configured ticket channel no longer exists.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
+            )
+
+        ticket_limit = settings.get("ticket_limit", 3)
+        active_threads = [t for t in parent.threads if not t.archived and t.owner_id == interaction.user.id]
+        if len(active_threads) >= ticket_limit:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Limit Reached")).description(f"You already have **{len(active_threads)}** open tickets (limit: {ticket_limit}).").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
+            )
+
+        await interaction.response.defer(ephemeral=True)
+
+        name = f"ticket-{interaction.user.name[:20].lower().replace(' ', '-')}"
+        archive_duration = settings.get("auto_archive_hours", 72)
+
+        try:
+            thread = await parent.create_thread(
+                name=name,
+                auto_archive_duration=min(archive_duration, 10080),
+                reason=f"Ticket created by {interaction.user}",
+            )
+        except Exception as e:
+            logger.error(f"Failed to create ticket thread: {e}")
+            return await interaction.followup.send(
+                embed=EmbedBuilder().title(emoji_title("error", "Error")).description(f"Could not create ticket: {str(e)[:100]}").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
+            )
+
+        welcome = settings.get("welcome_message", "Support will be with you shortly.")
+        embed = (
+            EmbedBuilder()
+            .title(emoji_title("ticket", "Support Ticket"))
+            .description(welcome)
+            .color("blue")
+            .row(
+                ("Opened By", interaction.user.mention),
+                ("Thread", thread.mention),
+            )
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+
+        content = interaction.user.mention
+        questions = settings.get("questions") or []
+        if answers and questions:
+            qa = "\n".join(f"**{q.get('label', 'Question')}:** {a}" for q, a in zip(questions[:5], answers) if a)
+            if qa:
+                content = f"{interaction.user.mention}\n\n{qa}"
+
         support_role_id = settings.get("support_role_id")
         if support_role_id:
             role = interaction.guild.get_role(int(support_role_id))
             if role:
-                overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
-        try:
-            channel = await interaction.guild.create_text_channel(
-                f"ticket-{interaction.user.name[:20].lower().replace(' ', '-')}",
-                category=category,
-                overwrites=overwrites,
-                reason=f"Ticket created by {interaction.user}",
-            )
-            welcome = settings.get("welcome_message", "Support will be with you shortly.")
-            embed = (
-                EmbedBuilder()
-                .title(emoji_title("ticket", "Ticket Created"))
-                .description(welcome)
-                .color("blue")
-                .row(
-                    ('User', interaction.user.mention),
-                    ('Created', discord.utils.format_dt(datetime.datetime.utcnow(), style='R'))
-                )
-                .footer(f"Ticket ID: {str(channel.id)}")
-                .timestamp(datetime.datetime.utcnow())
-                .build()
-            )
-            view = TicketView()
-            content = interaction.user.mention
-            # If custom questions were answered, post them in the ticket
-            questions = settings.get("questions") or []
-            if answers and questions:
-                qa = "\n".join(f"**{q.get('label','Question')}:** {a}" for q, a in zip(questions[:5], answers) if a)
-                if qa:
-                    content = f"{interaction.user.mention}\n{qa}"
-            await channel.send(content=content, embed=embed, view=view)
-            await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("success", "Ticket Created")).description(f"Your ticket has been created: {channel.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
-                ephemeral=True
-            )
-        except Exception as e:
-            logger.error(f"Failed to create ticket: {e}")
-            await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Error")).description(f"Could not create ticket: {str(e)[:100]}").color("red").timestamp(datetime.datetime.utcnow()).build(),
-                ephemeral=True
-            )
+                content = f"{role.mention} {content}"
 
-    async def _send_panel(self, guild, channel_id) -> bool:
-        """Send the ticket panel (embed + create button) to a channel."""
-        channel = guild.get_channel(int(channel_id))
-        if not channel or not isinstance(channel, discord.TextChannel):
-            return False
-        settings = await get_ticket_settings(guild.id)
-        embed = embed_from_dict(settings.get("panel_embed") or {})
-        view = CreateTicketView(self)
-        try:
-            await channel.send(embed=embed, view=view)
-            settings["panel_channel_id"] = str(channel_id)
-            await save_ticket_settings(guild.id, settings)
-            return True
-        except Exception as e:
-            logger.error(f"Failed to send ticket panel: {e}")
-            return False
+        await thread.send(content=content, embed=embed, view=TicketView())
+
+        await interaction.followup.send(
+            embed=EmbedBuilder().title(emoji_title("success", "Ticket Opened")).description(f"Your ticket is ready: {thread.mention}").color("green").timestamp(datetime.datetime.utcnow()).build(),
+            ephemeral=True,
+        )
 
     ticket_group = app_commands.Group(name="ticket", description="Ticket system commands")
 
-    @ticket_group.command(name="setup", description="Set up the ticket system")
-    @app_commands.describe(category="Category for ticket channels", role="Support role", log_channel="Channel for transcripts")
-    async def setup(self, interaction: discord.Interaction, category: discord.CategoryChannel, role: Optional[discord.Role] = None, log_channel: Optional[discord.TextChannel] = None):
+    @ticket_group.command(name="setup", description="Set up the ticket system using threads")
+    @app_commands.describe(
+        channel="Channel where the ticket panel lives",
+        role="Support role to ping on new tickets",
+        log_channel="Channel for ticket transcripts",
+    )
+    async def setup(
+        self,
+        interaction: discord.Interaction,
+        channel: discord.TextChannel,
+        role: Optional[discord.Role] = None,
+        log_channel: Optional[discord.TextChannel] = None,
+    ):
         if not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message(
                 embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Administrator permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
-                ephemeral=True
+                ephemeral=True,
             )
         settings = {
             "enabled": True,
-            "category_id": str(category.id),
+            "channel_id": str(channel.id),
             "support_role_id": str(role.id) if role else None,
             "log_channel_id": str(log_channel.id) if log_channel else None,
         }
         await save_ticket_settings(interaction.guild_id, settings)
+
         embed = (
             EmbedBuilder()
             .title(emoji_title("ticket", "Support Tickets"))
-            .description("Click the button below to create a support ticket.")
+            .description("Need help? Click the button below to open a support ticket.\nA private thread will be created for you.")
             .color("blue")
             .row(
-                ('Category', category.mention),
-                ('Support Role', role.mention if role else 'None'),
-                ('Log Channel', log_channel.mention if log_channel else 'None')
+                ("Channel", channel.mention),
+                ("Support Role", role.mention if role else "None"),
+                ("Transcripts", log_channel.mention if log_channel else "None"),
             )
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
         view = CreateTicketView(self)
-        await interaction.channel.send(embed=embed, view=view)
+        await channel.send(embed=embed, view=view)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("success", "Setup Complete")).description(f"Ticket system set up in {category.mention}.").color("green").timestamp(datetime.datetime.utcnow()).build(),
-            ephemeral=True
+            embed=EmbedBuilder().title(emoji_title("success", "Setup Complete")).description(f"Ticket panel sent to {channel.mention}. Tickets will open as threads there.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+            ephemeral=True,
         )
 
-    @ticket_group.command(name="panel", description="Send the ticket creation panel to the current channel")
+    @ticket_group.command(name="panel", description="Send the ticket panel to the current channel")
     async def panel(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message(
                 embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Administrator permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
-                ephemeral=True
+                ephemeral=True,
             )
         embed = (
             EmbedBuilder()
             .title(emoji_title("ticket", "Support Tickets"))
-            .description("Click below to create a ticket.")
+            .description("Need help? Click the button below to open a support ticket.")
             .color("blue")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -282,105 +306,148 @@ class Tickets(commands.Cog, name="Tickets"):
         view = CreateTicketView(self)
         await interaction.channel.send(embed=embed, view=view)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("success", "Panel Sent")).description("Ticket panel sent to this channel.").color("green").timestamp(datetime.datetime.utcnow()).build(),
-            ephemeral=True
+            embed=EmbedBuilder().title(emoji_title("success", "Panel Sent")).description("Ticket panel sent.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+            ephemeral=True,
         )
 
-    @ticket_group.command(name="add", description="Add a user to the current ticket")
+    @ticket_group.command(name="add", description="Add a user to the current ticket thread")
     @app_commands.describe(user="The user to add")
     async def add_user(self, interaction: discord.Interaction, user: discord.Member):
-        if not interaction.channel or not interaction.channel.name.startswith("ticket-"):
+        if not isinstance(interaction.channel, discord.Thread):
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Error")).description("This is not a ticket channel.").color("red").timestamp(datetime.datetime.utcnow()).build(),
-                ephemeral=True
+                embed=EmbedBuilder().title(emoji_title("error", "Not a Ticket")).description("Use this inside a ticket thread.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
             )
-        await interaction.channel.set_permissions(user, read_messages=True, send_messages=True)
-        embed = (
-            EmbedBuilder()
+        try:
+            await interaction.channel.add_member(user)
+        except Exception as e:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Failed")).description(f"Could not add user: {str(e)[:100]}").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
+            )
+        await interaction.response.send_message(
+            embed=EmbedBuilder()
             .title(emoji_title("success", "User Added"))
             .description(f"{user.mention} has been added to this ticket.")
             .color("green")
             .field("Added By", interaction.user.mention)
             .timestamp(datetime.datetime.utcnow())
-            .build()
+            .build(),
         )
-        await interaction.response.send_message(embed=embed)
 
-    @ticket_group.command(name="remove", description="Remove a user from the current ticket")
+    @ticket_group.command(name="remove", description="Remove a user from the current ticket thread")
     @app_commands.describe(user="The user to remove")
     async def remove_user(self, interaction: discord.Interaction, user: discord.Member):
-        if not interaction.channel or not interaction.channel.name.startswith("ticket-"):
+        if not isinstance(interaction.channel, discord.Thread):
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Error")).description("This is not a ticket channel.").color("red").timestamp(datetime.datetime.utcnow()).build(),
-                ephemeral=True
+                embed=EmbedBuilder().title(emoji_title("error", "Not a Ticket")).description("Use this inside a ticket thread.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
             )
-        await interaction.channel.set_permissions(user, overwrite=None)
-        embed = (
-            EmbedBuilder()
+        try:
+            await interaction.channel.remove_member(user)
+        except Exception as e:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Failed")).description(f"Could not remove user: {str(e)[:100]}").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
+            )
+        await interaction.response.send_message(
+            embed=EmbedBuilder()
             .title(emoji_title("success", "User Removed"))
             .description(f"{user.mention} has been removed from this ticket.")
             .color("orange")
             .field("Removed By", interaction.user.mention)
             .timestamp(datetime.datetime.utcnow())
-            .build()
+            .build(),
         )
-        await interaction.response.send_message(embed=embed)
 
-    @ticket_group.command(name="rename", description="Rename the current ticket")
+    @ticket_group.command(name="rename", description="Rename the current ticket thread")
     @app_commands.describe(name="The new ticket name")
     async def rename(self, interaction: discord.Interaction, name: str):
-        if not interaction.channel or not interaction.channel.name.startswith("ticket-"):
+        if not isinstance(interaction.channel, discord.Thread):
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Error")).description("This is not a ticket channel.").color("red").timestamp(datetime.datetime.utcnow()).build(),
-                ephemeral=True
-            )
-        if not interaction.user.guild_permissions.manage_channels:
-            return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Channels permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
-                ephemeral=True
+                embed=EmbedBuilder().title(emoji_title("error", "Not a Ticket")).description("Use this inside a ticket thread.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
             )
         new_name = f"ticket-{name[:30].lower().replace(' ', '-')}"
-        await interaction.channel.edit(name=new_name, reason=f"Ticket renamed by {interaction.user}")
-        embed = (
-            EmbedBuilder()
-            .title(emoji_title("success", "Ticket Renamed"))
+        await interaction.channel.edit(name=new_name, reason=f"Renamed by {interaction.user}")
+        await interaction.response.send_message(
+            embed=EmbedBuilder()
+            .title(emoji_title("success", "Renamed"))
             .description(f"Ticket renamed to **{new_name}**")
             .color("blue")
             .field("Renamed By", interaction.user.mention)
             .timestamp(datetime.datetime.utcnow())
-            .build()
+            .build(),
         )
-        await interaction.response.send_message(embed=embed)
 
     @ticket_group.command(name="stats", description="View ticket statistics")
     async def stats(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
                 embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
-                ephemeral=True
+                ephemeral=True,
             )
-        ticket_channels = [c for c in interaction.guild.text_channels if c.name.startswith("ticket-")]
-        pool = await neon_db.get_pool()
+        settings = await get_ticket_settings(interaction.guild_id)
+        channel_id = settings.get("channel_id")
+        open_count = 0
+        if channel_id:
+            parent = interaction.guild.get_channel(int(channel_id))
+            if parent:
+                open_count = sum(1 for t in parent.threads if not t.archived)
+
         closed_count = 0
+        pool = await neon_db.get_pool()
         if pool:
-            row = await pool.fetchrow(
-                "SELECT COUNT(*) as count FROM ticket_logs WHERE guild_id = ?",
-                str(interaction.guild_id)
-            )
-            closed_count = row["count"] if row else 0
-        embed = (
-            EmbedBuilder()
+            try:
+                row = await pool.fetchrow(
+                    "SELECT COUNT(*) as count FROM ticket_logs WHERE guild_id = ?",
+                    str(interaction.guild_id),
+                )
+                closed_count = row["count"] if row else 0
+            except Exception:
+                pass
+
+        await interaction.response.send_message(
+            embed=EmbedBuilder()
             .title(emoji_title("info", "Ticket Statistics"))
             .color("blue")
             .row(
-                ('Open Tickets', str(len(ticket_channels))),
-                ('Closed Tickets', str(closed_count)),
-                ('Total', str(len(ticket_channels) + closed_count))
+                ("Open Tickets", str(open_count)),
+                ("Closed Tickets", str(closed_count)),
+                ("Total", str(open_count + closed_count)),
             )
             .timestamp(datetime.datetime.utcnow())
-            .build()
+            .build(),
+            ephemeral=True,
         )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @ticket_group.command(name="config", description="View current ticket configuration")
+    async def config(self, interaction: discord.Interaction):
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
+            )
+        settings = await get_ticket_settings(interaction.guild_id)
+        channel = interaction.guild.get_channel(int(settings.get("channel_id") or 0))
+        role = interaction.guild.get_role(int(settings.get("support_role_id") or 0))
+        log_ch = interaction.guild.get_channel(int(settings.get("log_channel_id") or 0))
+        await interaction.response.send_message(
+            embed=EmbedBuilder()
+            .title(emoji_title("settings", "Ticket Configuration"))
+            .color("blue")
+            .row(
+                ("Enabled", "Yes" if settings.get("enabled") else "No"),
+                ("Ticket Channel", channel.mention if channel else "Not set"),
+                ("Support Role", role.mention if role else "None"),
+                ("Log Channel", log_ch.mention if log_ch else "None"),
+                ("Ticket Limit", str(settings.get("ticket_limit", 3))),
+                ("Auto-Archive", f"{settings.get('auto_archive_hours', 72)}h"),
+            )
+            .timestamp(datetime.datetime.utcnow())
+            .build(),
+            ephemeral=True,
+        )
 
 
 async def setup(bot: commands.Bot):

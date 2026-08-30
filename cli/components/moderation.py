@@ -298,7 +298,7 @@ class Moderation(commands.Cog, name="Moderation"):
                 msg = render_template(settings.get(f"{action}_message", ""), member, reason, msg_count, time_str)
                 if not msg:
                     msg = f"{member.mention} has been {action}ed."
-                await interaction.followup.send(embed=basic_action_embed(action, msg, color))
+                await interaction.channel.send(embed=basic_action_embed(action, msg, color))
         except Exception as e:
             logger.error(f"send_confirm failed for {action}: {e}")
 

@@ -218,5 +218,30 @@ class General(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
 
+    @app_commands.command(name="refreshcommands", description="Force re-sync all slash commands with Discord (admin only)")
+    async def refreshcommands(self, interaction: discord.Interaction):
+        if not interaction.user.guild_permissions.administrator:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Administrator permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
+            )
+        await interaction.response.defer(ephemeral=True)
+        try:
+            tree = self.bot.tree
+            saved = list(tree.get_commands())
+            tree.clear_commands(guild=None)
+            await tree.sync()
+            for cmd in saved:
+                tree.add_command(cmd)
+            synced = await tree.sync()
+            msg = f"Synced **{len(synced)}** global commands. Stale commands removed."
+        except Exception as e:
+            msg = f"Sync failed: {e}"
+        await interaction.followup.send(
+            embed=EmbedBuilder().title(emoji_title("refresh", "Commands Refreshed")).description(msg).color("green").timestamp(datetime.datetime.utcnow()).build(),
+            ephemeral=True,
+        )
+
+
 async def setup(bot):
     await bot.add_cog(General(bot))

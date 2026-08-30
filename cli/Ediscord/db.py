@@ -561,9 +561,9 @@ async def claim_action(request_id: str) -> bool:
         )
         rows_affected = 0
         if isinstance(out, dict):
-            rows_affected = out.get("rows_affected", 0)
+            rows_affected = int(out.get("rows_affected", 0))
         elif isinstance(out, list) and out:
-            rows_affected = (out[0] if isinstance(out[0], dict) else {}).get("rows_affected", 0)
+            rows_affected = int((out[0] if isinstance(out[0], dict) else {}).get("rows_affected", 0))
         won = rows_affected == 1
         if not won:
             logger.debug(f"claim_action: lost race for {request_id[:16]}... (claimed by another worker)")

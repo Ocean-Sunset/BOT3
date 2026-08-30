@@ -111,32 +111,17 @@ async def handle_action(request):
     if guild is None:
         return web.json_response({"ok": False, "error": "bot not in guild"}, status=404)
 
-    # Fire-and-forget: run execute_action as a background task so that if the
-    # website's HTTP client disconnects/times out, aiohttp won't cancel the
-    # coroutine mid-execution (which leaves the action stuck in 'executing').
-    req_id_str = str(body.get("request_id") or "")
-    async def _run():
-        try:
-            await _bot.execute_action(
-                guild_id, action, user_id,
-                target_name=str(body.get("target") or body.get("user_name") or ""),
-                reason=str(body.get("reason") or "No reason provided"),
-                duration=body.get("duration"),
-                moderator=str(body.get("moderator") or "Dashboard"),
-                request_id=req_id_str,
-            )
-        except Exception as e:
-            import logging
-            logging.getLogger("Ediscord").error(f"HTTP bridge action {action} failed: {e}")
-            if req_id_str:
-                try:
-                    await neon_db.update_action_status(req_id_str, "failed", str(e)[:500])
-                except Exception:
-                    pass
-
-    import asyncio
-    asyncio.create_task(_run())
-    return web.json_response({"ok": True, "message": "action queued"})
+    ok, message = await _bot.execute_action(
+        guild_id,
+        action,
+        user_id,
+        target_name=str(body.get("target") or body.get("user_name") or ""),
+        reason=str(body.get("reason") or "No reason provided"),
+        duration=body.get("duration"),
+        moderator=str(body.get("moderator") or "Dashboard"),
+        request_id=str(body.get("request_id") or ""),
+    )
+    return web.json_response({"ok": ok, "message": message}, status=200 if ok else 400)
 
 
 async def handle_action_stats(request):

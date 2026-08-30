@@ -229,7 +229,26 @@ class Leveling(commands.Cog, name="Leveling"):
                             xp_needed=xp_needed,
                             granted_role=granted_role,
                         )
-                        await channel.send(msg)
+                        progress = create_progress_bar(
+                            new_xp - xp_for_level(new_level),
+                            xp_for_level(new_level + 1) - xp_for_level(new_level),
+                            15,
+                        )
+                        embed = (
+                            EmbedBuilder()
+                            .description(msg)
+                            .color("green")
+                            .row(
+                                ("Level", f"**{new_level}**"),
+                                ("XP", f"{new_xp:,}"),
+                                ("Next Level", f"{xp_needed:,} XP needed"),
+                            )
+                            .field("Progress", f"`{progress}`")
+                        )
+                        if granted_role:
+                            embed.field("Role Earned", granted_role.mention)
+                        embed.timestamp(datetime.datetime.utcnow())
+                        await channel.send(embed=embed.build())
                 except Exception as e:
                     logger.warning(f"Failed to send level up message: {e}")
 
@@ -294,7 +313,7 @@ class Leveling(commands.Cog, name="Leveling"):
             user = interaction.guild.get_member(int(row["user_id"]))
             name = user.display_name if user else f"User {row['user_id'][:8]}"
             lvl = level_from_xp(row["xp"])
-            medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"**{i}.**"
+            medal = "<:leaderboard_1:1543620430181433344>" if i == 1 else "<:leaderboard_2:1543620614508781660>" if i == 2 else "<:leaderboard_3:1543620931501555812>" if i == 3 else f"**{i}.**"
             lines.append(f"{medal} {name} - Level {lvl} ({row['xp']:,} XP)")
         embed = (
             EmbedBuilder()
@@ -318,7 +337,7 @@ class Leveling(commands.Cog, name="Leveling"):
         settings["enabled"] = not settings.get("enabled", True)
         await save_leveling_settings(interaction.guild_id, settings)
         status = "enabled" if settings["enabled"] else "disabled"
-        color = "green" if settings["enabled"] else "red"
+        color = "green"
         embed = (
             EmbedBuilder()
             .title(emoji_title("success", "XP System Toggled"))
@@ -372,7 +391,7 @@ class Leveling(commands.Cog, name="Leveling"):
             EmbedBuilder()
             .title(emoji_title("info", "XP Reset"))
             .description(f"Reset {member.mention}'s XP to 0")
-            .color("orange")
+            .color("blue")
             .field("Moderator", interaction.user.mention)
             .footer(f"User ID: {str(member.id)}")
             .timestamp(datetime.datetime.utcnow())

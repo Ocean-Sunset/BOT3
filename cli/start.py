@@ -249,7 +249,10 @@ class ProwlBot(commands.Bot):
                     else:
                         await neon_db.complete_action(a["id"], "failed", message)
                 if ok:
-                    logger.info(f"Processed action {a['id']}: {act} -> {a['target_id']} in {a['guild_id']} ({message})")
+                    if "already processed" in message:
+                        logger.info(f"Action {a['id']} ({act}): {message}")
+                    else:
+                        logger.info(f"Processed action {a['id']}: {act} -> {a['target_id']} in {a['guild_id']} ({message})")
                 else:
                     logger.error(f"Action {a['id']} ({act} on {a['target_id']}) failed: {message}")
         except Exception as e:

@@ -102,7 +102,7 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
             EmbedBuilder()
             .title(emoji_title("global_chat", "Global Chat Linked"))
             .description(f"This channel ({interaction.channel.mention}) is now linked to the global chat!")
-            .color("green")
+            .color("blue")
             .field("Channel ID", str(interaction.channel_id))
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -118,7 +118,7 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
             )
         await self.set_linked_channel(interaction.guild.id, "0")
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("success", "Global Chat Unlinked")).description("This channel has been unlinked from global chat.").color("orange").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().title(emoji_title("success", "Global Chat Unlinked")).description("This channel has been unlinked from global chat.").color("green").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -131,7 +131,7 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
                 EmbedBuilder()
                 .title(emoji_title("global_chat", "Global Chat Status"))
                 .description(f"Global chat is linked to {channel.mention if channel else f'<#{hub_channel_id}>'}")
-                .color("green")
+                .color("blue")
                 .field("Channel ID", str(hub_channel_id))
                 .timestamp(datetime.datetime.utcnow())
                 .build()

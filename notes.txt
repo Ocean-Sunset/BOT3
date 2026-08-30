@@ -49,3 +49,11 @@ nil
 5.99€ for MAX
 per Month Each.
 Changes based on event
+
+
+
+
+        <button class="invite-btn soon-btn" disabled>
+          <img src="https://img.itch.zone/aW1nLzE1OTU3OTMzLnBuZw==/original/ocCxEs.png" alt="Nerimity" style="width:18px;height:18px;object-fit:contain;" />
+          Add to Nerimity <span class="soon">Soon</span>
+        </button>

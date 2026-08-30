@@ -17,19 +17,41 @@ class General(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="ping", description="Check Prowl's latency.")
+    @app_commands.command(name="ping", description="Check Prowl's latency and stats.")
     async def ping(self, interaction: discord.Interaction):
+        import psutil, os
+        await interaction.response.defer()
         latency = round(self.bot.latency * 1000)
+        uptime = utils.get_uptime()
+        guilds = len(self.bot.guilds)
+        users = sum(g.member_count or 0 for g in self.bot.guilds)
+        process = psutil.Process(os.getpid())
+        mem = process.memory_info().rss / 1024 / 1024
+        cpu = process.cpu_percent(interval=0.1)
         embed = (
             EmbedBuilder()
             .title(emoji_title("bolt", "Pong!"))
-            .description(f"**Latency:** {latency}ms\n**API Latency:** {round(self.bot.latency * 1000)}ms")
             .color("warn")
-            .footer(f"Prowl v{variables.__version__}")
+            .row(
+                ("Latency", f"{latency}ms"),
+                ("Uptime", uptime),
+                ("Servers", f"{guilds:,}"),
+            )
+            .row(
+                ("Users", f"{users:,}"),
+                ("Memory", f"{mem:.1f} MB"),
+                ("CPU", f"{cpu:.1f}%"),
+            )
+            .row(
+                ("Python", f"{__import__('sys').version.split()[0]}"),
+                ("discord.py", f"{__import__('discord').__version__}"),
+                ("Version", variables.__version__),
+            )
+            .footer(f"Requested by {interaction.user.display_name}")
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
 
     @app_commands.command(name="info", description="Show Prowl's info.")
     async def info(self, interaction: discord.Interaction):

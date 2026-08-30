@@ -418,7 +418,8 @@ class TestGeneralCog(unittest.IsolatedAsyncioTestCase):
     async def test_ping(self):
         interaction = make_mock_interaction(command_name="ping")
         await _cmd(self.cog.ping)(self.cog, interaction)
-        interaction.response.send_message.assert_called_once()
+        interaction.response.defer.assert_called_once()
+        interaction.followup.send.assert_called_once()
 
     async def test_info(self):
         interaction = make_mock_interaction(command_name="info")

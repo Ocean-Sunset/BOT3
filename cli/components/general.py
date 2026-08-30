@@ -4,6 +4,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import datetime
+from typing import Optional
 
 from Ediscord import variables, utils, EmbedBuilder
 from Ediscord.builders import emoji_title
@@ -241,6 +242,185 @@ class General(commands.Cog):
             embed=EmbedBuilder().title(emoji_title("refresh", "Commands Refreshed")).description(msg).color("green").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True,
         )
+
+
+HELP_CATEGORIES = {
+    "General": {
+        "emoji": "wrench",
+        "commands": [
+            ("/ping", "Check bot latency"),
+            ("/info", "Show bot info & stats"),
+            ("/avatar", "Show a user's avatar"),
+            ("/serverinfo", "Show server information"),
+            ("/userinfo", "Show information about a user"),
+            ("/roleinfo", "Show information about a role"),
+            ("/channelinfo", "Show information about a channel"),
+            ("/say", "Echo back your message"),
+        ],
+    },
+    "Moderation": {
+        "emoji": "shield",
+        "commands": [
+            ("/kick", "Kick a member"),
+            ("/ban", "Ban a member"),
+            ("/tempban", "Temporarily ban a member"),
+            ("/unban", "Unban a user by ID"),
+            ("/mute", "Mute a member"),
+            ("/unmute", "Remove a mute"),
+            ("/warn", "Warn a member"),
+            ("/purge", "Bulk delete messages"),
+            ("/muteevasion", "Toggle mute evasion detection"),
+            ("/lockdown", "Toggle emergency server lockdown"),
+            ("/settings", "View moderation settings"),
+        ],
+    },
+    "Welcomer": {
+        "emoji": "wave",
+        "commands": [
+            ("/welcomer toggle", "Enable/disable welcome messages"),
+            ("/welcomer channel", "Set welcome channel"),
+            ("/welcomer goodbyechannel", "Set goodbye channel"),
+            ("/welcomer message", "Set welcome message"),
+            ("/welcomer goodbye", "Set goodbye message"),
+            ("/welcomer autorole", "Set auto-role for new members"),
+            ("/welcomer botrole", "Set role for bots on join"),
+            ("/welcomer nickname", "Set auto-nickname template"),
+            ("/welcomer dm", "Configure welcome DM messages"),
+            ("/welcomer test", "Test the welcome message"),
+            ("/welcomer config", "View welcomer config"),
+        ],
+    },
+    "Leveling": {
+        "emoji": "chart",
+        "commands": [
+            ("/level rank", "Check your or another member's rank"),
+            ("/level leaderboard", "Show the XP leaderboard"),
+            ("/level setxp", "Set a user's XP (admin)"),
+            ("/level reset", "Reset a user's XP (admin)"),
+            ("/level setrole", "Set a role reward for a level"),
+            ("/level toggle", "Enable/disable XP gain"),
+            ("/level config", "View leveling config"),
+        ],
+    },
+    "Tickets": {
+        "emoji": "ticket",
+        "commands": [
+            ("/ticket setup", "Set up the ticket system"),
+            ("/ticket panel", "Send the ticket panel"),
+            ("/ticket add", "Add a user to a ticket"),
+            ("/ticket remove", "Remove a user from a ticket"),
+            ("/ticket rename", "Rename a ticket"),
+            ("/ticket stats", "View ticket statistics"),
+        ],
+    },
+    "Giveaways": {
+        "emoji": "gift",
+        "commands": [
+            ("/giveaway start", "Start a giveaway"),
+            ("/giveaway end", "End a giveaway early"),
+            ("/giveaway reroll", "Pick a new winner"),
+            ("/giveaway list", "List active giveaways"),
+        ],
+    },
+    "AI": {
+        "emoji": "robot",
+        "commands": [
+            ("/ai chat", "Chat with the AI"),
+            ("/ai imagine", "Generate an image from text"),
+            ("/ai clear", "Clear AI conversation history"),
+            ("/ai model", "Set the AI model"),
+            ("/ai prompt", "Set the AI system prompt"),
+            ("/ai config", "View AI configuration"),
+        ],
+    },
+    "Utilities": {
+        "emoji": "bulb",
+        "commands": [
+            ("/afk", "Mark yourself as AFK"),
+            ("/remind set", "Set a reminder"),
+            ("/remind list", "List your reminders"),
+            ("/remind cancel", "Cancel a reminder"),
+            ("/todo add", "Add a to-do item"),
+            ("/todo list", "List your to-dos"),
+            ("/todo done", "Mark a to-do as done"),
+            ("/todo clear", "Clear your to-do list"),
+            ("/invites stats", "Show invite leaderboard"),
+            ("/invites user", "Show invite stats for a user"),
+            ("/members list", "List members with a role"),
+            ("/members info", "Get member details"),
+            ("/members note", "Add a note about a member"),
+            ("/members warnings", "View a member's warnings"),
+        ],
+    },
+    "Other": {
+        "emoji": "grid",
+        "commands": [
+            ("/globalchat link", "Link to global chat network"),
+            ("/globalchat unlink", "Unlink from global chat"),
+            ("/verify setup", "Set up verification panel"),
+            ("/autoresponder add", "Add an auto-response"),
+            ("/autoresponder remove", "Remove an auto-response"),
+            ("/social youtube", "Set YouTube upload alerts"),
+            ("/social twitch", "Set Twitch stream alerts"),
+        ],
+    },
+}
+
+
+class HelpView(discord.ui.View):
+    def __init__(self, author_id: int):
+        super().__init__(timeout=120)
+        self.author_id = author_id
+        self.page = 0
+        self.pages = list(HELP_CATEGORIES.keys())
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("Only the command invoker can use these buttons.", ephemeral=True)
+            return False
+        return True
+
+    def build_embed(self):
+        cat_name = self.pages[self.page]
+        cat = HELP_CATEGORIES[cat_name]
+        lines = [f"`{cmd}` — {desc}" for cmd, desc in cat["commands"]]
+        embed = (
+            EmbedBuilder()
+            .title(emoji_title(cat["emoji"], f"Help — {cat_name}"))
+            .description("\n".join(lines))
+            .color("blue")
+            .footer(f"Page {self.page + 1}/{len(self.pages)}")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        return embed
+
+    @discord.ui.button(label="Previous", style=discord.ButtonStyle.secondary)
+    async def prev_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.page = (self.page - 1) % len(self.pages)
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
+
+    @discord.ui.button(label="Next", style=discord.ButtonStyle.secondary)
+    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.page = (self.page + 1) % len(self.pages)
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
+
+    @discord.ui.select(
+        placeholder="Jump to category...",
+        options=[
+            discord.SelectOption(label=name, value=str(i), emoji=cat["emoji"])
+            for i, (name, cat) in enumerate(HELP_CATEGORIES.items())
+        ],
+    )
+    async def jump_to(self, interaction: discord.Interaction, select: discord.ui.Select):
+        self.page = int(select.values[0])
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
+
+
+    @app_commands.command(name="help", description="Show all available commands")
+    async def help_command(self, interaction: discord.Interaction):
+        view = HelpView(interaction.user.id)
+        await interaction.response.send_message(embed=view.build_embed(), view=view)
 
 
 async def setup(bot):

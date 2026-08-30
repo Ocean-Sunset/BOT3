@@ -7,6 +7,7 @@ import datetime
 from typing import Optional
 
 from Ediscord import variables, utils, EmbedBuilder
+from Ediscord import db as neon_db
 from Ediscord.builders import emoji_title
 
 
@@ -244,6 +245,180 @@ class General(commands.Cog):
         )
 
 
+    # ── Reaction Roles ────────────────────────────────────────────────────
+
+    reactionrole_group = app_commands.Group(name="reactionrole", description="Set up reaction roles")
+
+    @reactionrole_group.command(name="add", description="Add a reaction role to a message")
+    @app_commands.describe(message_link="Link to the message", emoji="The emoji to react with", role="The role to give")
+    async def rr_add(self, interaction: discord.Interaction, message_link: str, emoji: str, role: discord.Role):
+        if not interaction.user.guild_permissions.manage_roles:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Roles permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
+            )
+        parsed = self._parse_message_link(message_link)
+        if not parsed:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Invalid Link")).description("Provide a valid message link (right-click > Copy Message Link).").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
+            )
+        guild_id, channel_id, message_id = parsed
+        if guild_id != str(interaction.guild_id):
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Wrong Server")).description("That message is not in this server.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
+            )
+        channel = interaction.guild.get_channel(int(channel_id))
+        if not channel:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Channel Not Found")).description("Could not find that channel.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
+            )
+        try:
+            message = await channel.fetch_message(int(message_id))
+        except discord.NotFound:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Message Not Found")).description("Could not find that message.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
+            )
+        if role >= interaction.user.top_role and interaction.user != interaction.guild.owner:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Role Too High")).description("That role is higher than or equal to your highest role.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
+            )
+        await neon_db.add_reaction_role(interaction.guild_id, channel_id, message_id, emoji, role.id)
+        try:
+            await message.add_reaction(emoji)
+        except discord.HTTPException:
+            pass
+        await interaction.response.send_message(
+            embed=EmbedBuilder()
+            .title(emoji_title("success", "Reaction Role Added"))
+            .description(f"Reacting with {emoji} on [that message]({message_link}) will now give {role.mention}.")
+            .color("green")
+            .timestamp(datetime.datetime.utcnow())
+            .build(),
+            ephemeral=True,
+        )
+
+    @reactionrole_group.command(name="remove", description="Remove a reaction role from a message")
+    @app_commands.describe(message_link="Link to the message", emoji="The emoji to remove")
+    async def rr_remove(self, interaction: discord.Interaction, message_link: str, emoji: str):
+        if not interaction.user.guild_permissions.manage_roles:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Roles permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
+            )
+        parsed = self._parse_message_link(message_link)
+        if not parsed:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Invalid Link")).description("Provide a valid message link.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
+            )
+        _, channel_id, message_id = parsed
+        await neon_db.remove_reaction_role(interaction.guild_id, message_id, emoji)
+        await interaction.response.send_message(
+            embed=EmbedBuilder()
+            .title(emoji_title("success", "Reaction Role Removed"))
+            .description(f"Removed reaction role for {emoji}.")
+            .color("green")
+            .timestamp(datetime.datetime.utcnow())
+            .build(),
+            ephemeral=True,
+        )
+
+    @reactionrole_group.command(name="list", description="List all reaction roles in this server")
+    async def rr_list(self, interaction: discord.Interaction):
+        rows = await neon_db.get_all_reaction_roles(interaction.guild_id)
+        if not rows:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("info", "No Reaction Roles")).description("No reaction roles set up yet.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
+            )
+        lines = []
+        for r in rows[:25]:
+            ch = interaction.guild.get_channel(int(r["channel_id"]))
+            role = interaction.guild.get_role(int(r["role_id"]))
+            ch_name = ch.mention if ch else f"`{r['channel_id']}`"
+            role_name = role.mention if role else f"`{r['role_id']}`"
+            lines.append(f"{r['emoji']} {role_name} in {ch_name}")
+        await interaction.response.send_message(
+            embed=EmbedBuilder()
+            .title(emoji_title("hash", "Reaction Roles"))
+            .description("\n".join(lines))
+            .color("blue")
+            .timestamp(datetime.datetime.utcnow())
+            .build(),
+            ephemeral=True,
+        )
+
+    @reactionrole_group.command(name="clear", description="Remove all reaction roles in this server")
+    async def rr_clear(self, interaction: discord.Interaction):
+        if not interaction.user.guild_permissions.administrator:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Administrator permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
+            )
+        await neon_db.clear_reaction_roles(interaction.guild_id)
+        await interaction.response.send_message(
+            embed=EmbedBuilder()
+            .title(emoji_title("success", "Cleared"))
+            .description("All reaction roles have been removed.")
+            .color("green")
+            .timestamp(datetime.datetime.utcnow())
+            .build(),
+            ephemeral=True,
+        )
+
+    def _parse_message_link(self, link: str):
+        """Parse a Discord message link into (guild_id, channel_id, message_id) or None."""
+        import re
+        m = re.match(r"https?://(?:www\.)?(?:discord\.com|discord\.app)/channels/(\d+)/(\d+)/(\d+)", link)
+        if m:
+            return m.group(1), m.group(2), m.group(3)
+        return None
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+        if payload.guild_id is None:
+            return
+        if payload.member.bot:
+            return
+        rr = await neon_db.get_reaction_role_by_emoji(payload.guild_id, payload.message_id, str(payload.emoji))
+        if not rr:
+            return
+        guild = self.bot.get_guild(payload.guild_id)
+        if not guild:
+            return
+        role = guild.get_role(int(rr["role_id"]))
+        if role:
+            try:
+                await payload.member.add_roles(role, reason="Reaction role")
+            except discord.Forbidden:
+                pass
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
+        if payload.guild_id is None:
+            return
+        rr = await neon_db.get_reaction_role_by_emoji(payload.guild_id, payload.message_id, str(payload.emoji))
+        if not rr:
+            return
+        guild = self.bot.get_guild(payload.guild_id)
+        if not guild:
+            return
+        member = guild.get_member(payload.user_id)
+        if not member or member.bot:
+            return
+        role = guild.get_role(int(rr["role_id"]))
+        if role:
+            try:
+                await member.remove_roles(role, reason="Reaction role removed")
+            except discord.Forbidden:
+                pass
+
+
 HELP_CATEGORIES = {
     "General": {
         "emoji": "wrench",
@@ -256,6 +431,10 @@ HELP_CATEGORIES = {
             ("/roleinfo", "Show information about a role"),
             ("/channelinfo", "Show information about a channel"),
             ("/say", "Echo back your message"),
+            ("/reactionrole add", "Add a reaction role to a message"),
+            ("/reactionrole remove", "Remove a reaction role"),
+            ("/reactionrole list", "List all reaction roles"),
+            ("/reactionrole clear", "Clear all reaction roles"),
         ],
     },
     "Moderation": {

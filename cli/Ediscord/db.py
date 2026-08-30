@@ -349,8 +349,10 @@ async def _ensure_tables():
         ("CREATE TABLE IF NOT EXISTS afk_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS giveaways (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, channel_id TEXT NOT NULL, message_id TEXT DEFAULT '', host_id TEXT DEFAULT '', prize TEXT NOT NULL, description TEXT DEFAULT '', thumbnail TEXT DEFAULT '', winners_count INTEGER DEFAULT 1, required_role_id TEXT DEFAULT '', end_ts REAL NOT NULL, start_ts REAL NOT NULL, status TEXT DEFAULT 'pending', winners TEXT DEFAULT '', reroll_pending INTEGER DEFAULT 0, created_at REAL, required_xp INTEGER DEFAULT 0, required_level INTEGER DEFAULT 0, required_msgs INTEGER DEFAULT 0, message_type TEXT DEFAULT '', message TEXT DEFAULT '', emoji TEXT DEFAULT '', embed TEXT DEFAULT '{}')", ()),
         ("CREATE TABLE IF NOT EXISTS giveaway_entries (giveaway_id INTEGER NOT NULL, user_id TEXT NOT NULL, joined_at REAL, PRIMARY KEY (giveaway_id, user_id))", ()),
+        ("CREATE TABLE IF NOT EXISTS reaction_roles (guild_id TEXT NOT NULL, channel_id TEXT NOT NULL, message_id TEXT NOT NULL, emoji TEXT NOT NULL, role_id TEXT NOT NULL, PRIMARY KEY (guild_id, message_id, emoji))", ()),
         ("CREATE INDEX IF NOT EXISTS idx_automation_logs_guild ON automation_logs (guild_id, id DESC)", ()),
         ("CREATE INDEX IF NOT EXISTS idx_autoresponder_guild ON autoresponder (guild_id)", ()),
+        ("CREATE INDEX IF NOT EXISTS idx_reaction_roles_guild ON reaction_roles (guild_id)", ()),
     ]
     # Migration: ALTER TABLE ADD COLUMN (no IF NOT EXISTS - run individually, ignore "duplicate column")
     migrations = [
@@ -798,6 +800,98 @@ async def set_afk_settings(guild_id: str, settings: dict):
             )
     except Exception as e:
         logger.error(f"set_afk_settings failed: {e}")
+
+
+# ── Reaction Roles ────────────────────────────────────────────────────────────
+
+async def add_reaction_role(guild_id, channel_id, message_id, emoji, role_id):
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT OR REPLACE INTO reaction_roles (guild_id, channel_id, message_id, emoji, role_id) VALUES (?, ?, ?, ?, ?)",
+                str(guild_id), str(channel_id), str(message_id), emoji, str(role_id),
+            )
+    except Exception as e:
+        logger.error(f"add_reaction_role failed: {e}")
+
+
+async def remove_reaction_role(guild_id, message_id, emoji):
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "DELETE FROM reaction_roles WHERE guild_id = ? AND message_id = ? AND emoji = ?",
+                str(guild_id), str(message_id), emoji,
+            )
+    except Exception as e:
+        logger.error(f"remove_reaction_role failed: {e}")
+
+
+async def get_reaction_roles_for_message(guild_id, message_id):
+    pool = await get_pool()
+    if pool is None:
+        return []
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT emoji, role_id, channel_id FROM reaction_roles WHERE guild_id = ? AND message_id = ?",
+                str(guild_id), str(message_id),
+            )
+            return [dict(r) for r in rows] if rows else []
+    except Exception as e:
+        logger.error(f"get_reaction_roles_for_message failed: {e}")
+        return []
+
+
+async def get_reaction_role_by_emoji(guild_id, message_id, emoji):
+    pool = await get_pool()
+    if pool is None:
+        return None
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT role_id, channel_id FROM reaction_roles WHERE guild_id = ? AND message_id = ? AND emoji = ?",
+                str(guild_id), str(message_id), emoji,
+            )
+            return dict(row) if row else None
+    except Exception as e:
+        logger.error(f"get_reaction_role_by_emoji failed: {e}")
+        return None
+
+
+async def get_all_reaction_roles(guild_id):
+    pool = await get_pool()
+    if pool is None:
+        return []
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT channel_id, message_id, emoji, role_id FROM reaction_roles WHERE guild_id = ? ORDER BY rowid",
+                str(guild_id),
+            )
+            return [dict(r) for r in rows] if rows else []
+    except Exception as e:
+        logger.error(f"get_all_reaction_roles failed: {e}")
+        return []
+
+
+async def clear_reaction_roles(guild_id):
+    pool = await get_pool()
+    if pool is None:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "DELETE FROM reaction_roles WHERE guild_id = ?",
+                str(guild_id),
+            )
+    except Exception as e:
+        logger.error(f"clear_reaction_roles failed: {e}")
 
 
 # ── Giveaways ────────────────────────────────────────────────────────────────

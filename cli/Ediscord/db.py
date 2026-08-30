@@ -564,9 +564,10 @@ async def claim_action(request_id: str) -> bool:
             rows_affected = int(out.get("rows_affected", 0))
         elif isinstance(out, list) and out:
             rows_affected = int((out[0] if isinstance(out[0], dict) else {}).get("rows_affected", 0))
+        logger.info(f"claim_action DEBUG: request_id={request_id[:16]}... out_type={type(out).__name__} out={out} rows_affected={rows_affected}")
         won = rows_affected == 1
         if not won:
-            logger.debug(f"claim_action: lost race for {request_id[:16]}... (claimed by another worker)")
+            logger.warning(f"claim_action: failed to claim {request_id[:16]}... rows_affected={rows_affected}")
         return won
     except Exception as e:
         logger.error(f"claim_action failed: {e}")

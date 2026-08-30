@@ -279,8 +279,12 @@ class ProwlBot(commands.Bot):
         # Idempotency: atomically claim the action (pending -> executing) so that
         # the direct bridge and the DB queue processor never run it twice.
         if request_id:
-            if not await neon_db.claim_action(request_id):
+            logger.info(f"execute_action DEBUG: attempting claim for request_id={request_id[:16]}... action={action}")
+            claim_result = await neon_db.claim_action(request_id)
+            logger.info(f"execute_action DEBUG: claim_result={claim_result}")
+            if not claim_result:
                 existing = await neon_db.get_action_by_request_id(request_id)
+                logger.info(f"execute_action DEBUG: existing status={existing.get('status') if existing else 'None'}")
                 if existing and existing.get("status") in ("completed", "failed"):
                     logger.info(f"Action {request_id} already {existing['status']}, skipping.")
                     return existing["status"] == "completed", existing.get("error") or "already processed"

@@ -50,6 +50,37 @@ async def _resolve_base(provider):
     return "https://api.openai.com/v1"
 
 
+AI_MODELS = [
+    # OpenAI
+    ("gpt-4o (OpenAI)", "gpt-4o"),
+    ("gpt-4o-mini (OpenAI)", "gpt-4o-mini"),
+    ("gpt-4-turbo (OpenAI)", "gpt-4-turbo"),
+    ("gpt-4 (OpenAI)", "gpt-4"),
+    ("gpt-3.5-turbo (OpenAI)", "gpt-3.5-turbo"),
+    ("o1-preview (OpenAI)", "o1-preview"),
+    ("o1-mini (OpenAI)", "o1-mini"),
+    # Groq
+    ("Llama 3.3 70B (Groq)", "llama-3.3-70b-versatile"),
+    ("Llama 3.1 8B (Groq)", "llama-3.1-8b-instant"),
+    ("Gemma 2 9B (Groq)", "gemma2-9b-it"),
+    ("Mixtral 8x7B (Groq)", "mixtral-8x7b-32768"),
+    ("Llama3 8B Tool Use (Groq)", "llama3-groq-8b-8192-tool-use-preview"),
+    ("Llama3 70B Tool Use (Groq)", "llama3-groq-70b-8192-tool-use-preview"),
+    # OpenRouter
+    ("Claude 3.5 Sonnet (OpenRouter)", "anthropic/claude-3.5-sonnet"),
+    ("Claude 3 Haiku (OpenRouter)", "anthropic/claude-3-haiku"),
+    ("Gemini 2.0 Flash (OpenRouter)", "google/gemini-2.0-flash-exp:free"),
+    ("Gemini Pro 1.5 (OpenRouter)", "google/gemini-pro-1.5"),
+    ("Llama 3.1 70B (OpenRouter)", "meta-llama/llama-3.1-70b-instruct"),
+    ("GPT-4o (OpenRouter)", "openai/gpt-4o"),
+    ("GPT-4o Mini (OpenRouter)", "openai/gpt-4o-mini"),
+    ("Mistral Large (OpenRouter)", "mistralai/mistral-large-latest"),
+    ("DeepSeek Chat (OpenRouter)", "deepseek/deepseek-chat"),
+    ("Command R+ (OpenRouter)", "cohere/command-r-plus"),
+    ("Qwen 2.5 72B (OpenRouter)", "qwen/qwen-2.5-72b-instruct"),
+    ("Phi 3 Medium (OpenRouter)", "microsoft/phi-3-medium-128k-instruct"),
+]
+
 AI_DEFAULTS = {
     "enabled": True,
     "model": "gpt-3.5-turbo",
@@ -57,6 +88,29 @@ AI_DEFAULTS = {
     "max_tokens": 500,
     "temperature": 0.7,
 }
+
+IMAGE_MODELS = [
+    ("DALL-E 3 (OpenAI)", "dall-e-3"),
+    ("DALL-E 2 (OpenAI)", "dall-e-2"),
+]
+
+
+async def _autocomplete_models(interaction: discord.Interaction, current: str):
+    current_lower = current.lower()
+    return [
+        app_commands.Choice(name=name, value=value)
+        for name, value in AI_MODELS
+        if current_lower in name.lower() or current_lower in value.lower()
+    ][:25]
+
+
+async def _autocomplete_image_models(interaction: discord.Interaction, current: str):
+    current_lower = current.lower()
+    return [
+        app_commands.Choice(name=name, value=value)
+        for name, value in IMAGE_MODELS
+        if current_lower in name.lower() or current_lower in value.lower()
+    ][:25]
 
 
 async def get_ai_settings(guild_id: int):
@@ -173,21 +227,31 @@ class AI(commands.Cog, name="AI"):
         )
 
     @ai_group.command(name="imagine", description="Generate an image from a text prompt")
-    @app_commands.describe(prompt="Describe the image you want to generate")
-    async def imagine(self, interaction: discord.Interaction, prompt: str):
-        api_key, _ = await _resolve_key()
+    @app_commands.describe(
+        prompt="Describe the image you want to generate",
+        model="The image model to use"
+    )
+    @app_commands.autocomplete(model=_autocomplete_image_models)
+    async def imagine(self, interaction: discord.Interaction, prompt: str, model: str = "dall-e-3"):
+        api_key, provider, _ = await _resolve_key(str(interaction.guild_id))
         if not api_key:
             return await interaction.response.send_message(
                 embed=EmbedBuilder().title(emoji_title("error", "AI Not Configured")).description("No API key set.").color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
+        if provider == "groq":
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Not Supported")).description("Groq does not support image generation. Use an OpenAI or OpenRouter key.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         await interaction.response.defer()
         try:
+            api_base = await _resolve_base(provider)
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    "https://api.openai.com/v1/images/generations",
-                    headers={"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"},
-                    json={"model": "dall-e-3", "prompt": prompt, "n": 1, "size": "1024x1024"},
+                    f"{api_base}/images/generations",
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    json={"model": model, "prompt": prompt, "n": 1, "size": "1024x1024"},
                 ) as resp:
                     if resp.status != 200:
                         error_data = await resp.json()
@@ -204,7 +268,10 @@ class AI(commands.Cog, name="AI"):
                         .description(prompt[:1000])
                         .image(image_url)
                         .color("gray")
-                        .footer(f"Requested by {interaction.user.display_name}")
+                        .row(
+                            ('Model', f"`{model}` ({provider.title()})"),
+                            ('Requested by', interaction.user.display_name),
+                        )
                         .timestamp(datetime.datetime.utcnow())
                         .build()
                     )
@@ -242,13 +309,7 @@ class AI(commands.Cog, name="AI"):
 
     @ai_group.command(name="model", description="Set the AI model to use")
     @app_commands.describe(model="The model name")
-    @app_commands.choices(model=[
-        app_commands.Choice(name="GPT-3.5 Turbo", value="gpt-3.5-turbo"),
-        app_commands.Choice(name="GPT-4", value="gpt-4"),
-        app_commands.Choice(name="GPT-4 Turbo", value="gpt-4-turbo"),
-        app_commands.Choice(name="GPT-4o", value="gpt-4o"),
-        app_commands.Choice(name="GPT-4o Mini", value="gpt-4o-mini"),
-    ])
+    @app_commands.autocomplete(model=_autocomplete_models)
     async def set_model(self, interaction: discord.Interaction, model: str):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(

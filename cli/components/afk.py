@@ -9,6 +9,7 @@ Commands:
   /afk [reason]   mark yourself AFK (no reason clears it if already set)
 """
 
+import asyncio
 import time
 import datetime
 
@@ -87,7 +88,7 @@ class AFK(commands.Cog):
 
         await neon_db.set_afk(guild_id, uid, reason, interaction.user.display_name)
         await interaction.response.send_message(
-            embed=_ok(f"I'll let people know you're AFK:\n> {reason}", "AFK set"),
+            embed=_ok(f"I'll let people know you're AFK:\n\n**{reason}**", "AFK set"),
             ephemeral=True,
         )
 
@@ -106,9 +107,11 @@ class AFK(commands.Cog):
         if me:
             await neon_db.clear_afk(guild_id, author_id)
             try:
-                await message.channel.send(
+                msg = await message.channel.send(
                     f"Welcome back, {message.author.mention}! I've removed your AFK."
                 )
+                await asyncio.sleep(3)
+                await msg.delete()
             except Exception:
                 pass
 

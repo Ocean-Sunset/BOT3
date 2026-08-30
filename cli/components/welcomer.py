@@ -35,6 +35,10 @@ WELCOME_DEFAULTS = {
     "auto_role_ids": [],
     "bot_auto_role": None,
     "auto_nickname": None,
+    "boost_enabled": False,
+    "boost_channel_id": None,
+    "boost_message": "{user} just boosted **{server}**! {emoji} Thank you for the boost!",
+    "boost_emoji": "<:boost:1538660428790370396>",
 }
 
 DEFAULT_IMAGE_CONFIG = {
@@ -344,6 +348,17 @@ def _goodbye_embed(member: discord.Member, settings: dict) -> discord.Embed:
     return _styled_goodbye_embed(member, settings)
 
 
+def render_boost(template: str, member: discord.Member, emoji: str = "") -> str:
+    return (template
+            .replace("{user}", member.mention)
+            .replace("{member}", member.mention)
+            .replace("{name}", member.display_name)
+            .replace("{server}", member.guild.name)
+            .replace("{emoji}", emoji)
+            .replace("{boost_count}", str(member.guild.premium_subscription_count or 0))
+            .replace("{boost_tier}", str(member.guild.premium_tier)))
+
+
 class Welcomer(commands.Cog, name="Welcomer"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -457,6 +472,43 @@ class Welcomer(commands.Cog, name="Welcomer"):
                 await channel.send(embed=embed)
         except Exception as e:
             logger.warning(f"Failed to send goodbye message: {e}")
+
+    @commands.Cog.listener()
+    async def on_member_update(self, before: discord.Member, after: discord.Member):
+        if before.premium_since and not after.premium_since:
+            return
+        if not (not before.premium_since and after.premium_since):
+            return
+        settings = await get_welcome_settings(after.guild.id)
+        if not settings.get("boost_enabled"):
+            return
+        ch_id = settings.get("boost_channel_id") or settings.get("channel_id")
+        channel = after.guild.get_channel(int(ch_id or 0)) if ch_id else None
+        if not channel or not isinstance(channel, discord.TextChannel):
+            return
+        emoji = settings.get("boost_emoji") or "<:boost:1538660428790370396>"
+        msg = render_boost(
+            settings.get("boost_message") or "{user} just boosted **{server}**! {emoji} Thank you for the boost!",
+            after, emoji,
+        )
+        embed = (
+            EmbedBuilder()
+            .title(emoji_title("boost", "Server Boost!"))
+            .description(msg)
+            .color("f47fff")
+            .thumbnail(after.display_avatar.url)
+            .row(
+                ('Total Boosts', str(after.guild.premium_subscription_count or 0)),
+                ('Boost Tier', f"Tier {after.guild.premium_tier}"),
+            )
+            .footer(f"User ID: {after.id}")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        try:
+            await channel.send(embed=embed)
+        except Exception as e:
+            logger.warning(f"Failed to send boost message: {e}")
 
     welcomer_group = app_commands.Group(name="welcomer", description="Welcome message settings")
 
@@ -672,6 +724,8 @@ class Welcomer(commands.Cog, name="Welcomer"):
         auto_role = interaction.guild.get_role(int(auto_role_id)) if auto_role_id else None
         bot_role_id = settings.get("bot_auto_role")
         bot_role = interaction.guild.get_role(int(bot_role_id)) if bot_role_id else None
+        boost_ch_id = settings.get("boost_channel_id")
+        boost_ch = interaction.guild.get_channel(int(boost_ch_id)) if boost_ch_id else None
         embed = (
             EmbedBuilder()
             .title(emoji_title("info", "Welcomer Configuration"))
@@ -687,7 +741,10 @@ class Welcomer(commands.Cog, name="Welcomer"):
                 ('Bot Auto-Role', bot_role.mention if bot_role else 'None'),
                 ('Auto-Nickname', settings.get('auto_nickname') or 'Disabled'),
                 ('Welcome Message', settings.get('welcome_message', 'Not set')[:1024]),
-                ('Goodbye Message', settings.get('goodbye_message') or 'Disabled')
+                ('Goodbye Message', settings.get('goodbye_message') or 'Disabled'),
+                ('Boost Enabled', 'Yes' if settings.get('boost_enabled') else 'No'),
+                ('Boost Channel', boost_ch.mention if boost_ch else 'Same as welcome'),
+                ('Boost Message', settings.get('boost_message', 'Not set')[:1024])
             )
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -719,6 +776,68 @@ class Welcomer(commands.Cog, name="Welcomer"):
         )
         if enabled and message:
             embed.add_field(name="DM Message", value=message[:1024])
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @welcomer_group.command(name="boost", description="Configure the boost announcement")
+    @app_commands.describe(enabled="Enable or disable", channel="Channel for boost messages", message="Boost message template")
+    async def boost(self, interaction: discord.Interaction, enabled: bool = None, channel: discord.TextChannel = None, message: str = None):
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        settings = await get_welcome_settings(interaction.guild_id)
+        if enabled is not None:
+            settings["boost_enabled"] = enabled
+        if channel is not None:
+            settings["boost_channel_id"] = str(channel.id)
+        if message is not None:
+            settings["boost_message"] = message
+        await save_welcome_settings(interaction.guild_id, settings)
+        boost_ch_id = settings.get("boost_channel_id")
+        boost_ch = interaction.guild.get_channel(int(boost_ch_id)) if boost_ch_id else None
+        embed = (
+            EmbedBuilder()
+            .title(emoji_title("boost", "Boost Announcement"))
+            .color("f47fff")
+            .row(
+                ('Enabled', 'Yes' if settings.get('boost_enabled') else 'No'),
+                ('Channel', boost_ch.mention if boost_ch else 'Same as welcome'),
+                ('Emoji', settings.get('boost_emoji', '<:boost:1538660428790370396>')),
+            )
+            .field("Message", settings.get('boost_message', '(default)')[:1024], inline=False)
+            .field("Placeholders", "`{user}` `{server}` `{emoji}` `{boost_count}` `{boost_tier}`", inline=False)
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @welcomer_group.command(name="boosttest", description="Test the boost announcement")
+    async def boosttest(self, interaction: discord.Interaction):
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        settings = await get_welcome_settings(interaction.guild_id)
+        emoji = settings.get("boost_emoji") or "<:boost:1538660428790370396>"
+        msg = render_boost(
+            settings.get("boost_message") or "{user} just boosted **{server}**! {emoji} Thank you for the boost!",
+            interaction.user, emoji,
+        )
+        embed = (
+            EmbedBuilder()
+            .title(emoji_title("boost", "Server Boost!"))
+            .description(msg)
+            .color("f47fff")
+            .thumbnail(interaction.user.display_avatar.url)
+            .row(
+                ('Total Boosts', str(interaction.guild.premium_subscription_count or 0)),
+                ('Boost Tier', f"Tier {interaction.guild.premium_tier}"),
+            )
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 

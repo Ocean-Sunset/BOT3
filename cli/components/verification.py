@@ -310,13 +310,17 @@ class Verification(commands.Cog, name="Verification"):
         settings = await get_verify_settings(interaction.guild_id)
         channel = interaction.guild.get_channel(settings.get("channel_id") or 0)
         role = interaction.guild.get_role(settings.get("verified_role_id") or 0)
+        log_channel = interaction.guild.get_channel(settings.get("log_channel_id") or 0)
         embed = EmbedBuilder().title(emoji_title("settings", "Verification Settings")).color("brand") \
             .row(
                 ("Status", "Active" if settings.get("enabled") else "Inactive"),
                 ("Channel", channel.mention if channel else "Not set"),
                 ("Verified Role", role.mention if role else "Not set"),
-                ("Type", settings.get("type", "button")),
+                ("Log Channel", log_channel.mention if log_channel else "None"),
+                ("Type", settings.get("type", "button").title()),
+                ("CAPTCHA", "On" if settings.get("captcha") else "Off"),
             ) \
+            .field("Welcome Message", (settings.get("message") or "None")[:100]) \
             .timestamp(datetime.datetime.utcnow()) \
             .build()
         await interaction.response.send_message(embed=embed, ephemeral=True)

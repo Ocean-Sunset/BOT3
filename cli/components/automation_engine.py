@@ -90,7 +90,7 @@ class AutomationEngine(commands.Cog, name="AutomationEngine"):
                 conns_raw = json.loads(conns_raw)
             except (json.JSONDecodeError, TypeError):
                 conns_raw = []
-        graph = {"nodes": nodes_raw if isinstance(nodes_raw, list) else [], "connections": conns_raw if isinstance(conns_raw, list) else []}
+        graph = {"nodes": [n for n in nodes_raw if isinstance(n, dict) and "type" in n], "connections": conns_raw if isinstance(conns_raw, list) else []}
         self._graph_cache[guild_id] = graph
         self._graph_cache_ts[guild_id] = now
         return graph
@@ -110,7 +110,7 @@ class AutomationEngine(commands.Cog, name="AutomationEngine"):
 
     def _node_by_id(self, graph, nid):
         for n in graph["nodes"]:
-            if n["id"] == nid:
+            if isinstance(n, dict) and n.get("id") == nid:
                 return n
         return None
 
@@ -126,7 +126,9 @@ class AutomationEngine(commands.Cog, name="AutomationEngine"):
         return [c for c in graph["connections"] if c["to"] == node_id]
 
     def _matches_trigger(self, node, event_type, member=None, message=None, before=None, after=None):
-        t = node["type"]
+        if not isinstance(node, dict):
+            return False
+        t = node.get("type", "")
         cfg = node.get("config", {})
         if t == "member_join":
             return event_type == "member_join"
@@ -200,7 +202,7 @@ class AutomationEngine(commands.Cog, name="AutomationEngine"):
             var_node = self._node_by_id(graph, conn["from"])
             if not var_node:
                 continue
-            vdef = NODE_DEFS.get(var_node["type"], {})
+            vdef = NODE_DEFS.get(var_node.get("type", ""), {})
             if vdef.get("kind") != "variable":
                 continue
             cfg = var_node.get("config", {})
@@ -252,10 +254,10 @@ class AutomationEngine(commands.Cog, name="AutomationEngine"):
         visited.add(start_id)
 
         node = self._node_by_id(graph, start_id)
-        if not node:
+        if not node or not isinstance(node, dict):
             return
 
-        ntype = node["type"]
+        ntype = node.get("type", "")
         cfg = node.get("config", {})
         kind = NODE_DEFS.get(ntype, {}).get("kind", "")
 

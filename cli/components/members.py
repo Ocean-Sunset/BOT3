@@ -33,11 +33,11 @@ class Members(commands.Cog, name="Members"):
                 ephemeral=True
             )
         chunks = [members[i:i+20] for i in range(0, len(members), 20)]
-        embed = EmbedBuilder().title(emoji_title("members", f"Members with {role.name}")).description(f"Total: {len(members)}").color("gray")
+        embed = EmbedBuilder().title(emoji_title("members", f"Members with <@&{role.id}>")).description(f"Total: {len(members)}").color("gray")
         for chunk in chunks[:5]:
             names = "\n".join(f"{m.mention} - {m.display_name}" for m in chunk)
-            embed.field(role.name, names[:1000])
-        embed.footer(f"Role ID: {str(role.id)}").timestamp(datetime.datetime.utcnow())
+            embed.field("<@&role.id>", names[:1000])
+        embed.footer(f"Role ID: ```{str(role.id)}```").timestamp(datetime.datetime.utcnow())
         await interaction.response.send_message(embed=embed.build())
 
     @members_group.command(name="info", description="Get detailed info about a member")
@@ -51,6 +51,7 @@ class Members(commands.Cog, name="Members"):
                 ("Created", discord.utils.format_dt(member.created_at, style="R")),
                 ("Roles", roles[:1000]),
                 ("Top Role", member.top_role.mention),
+                ("Administrator", "Yes" if member.guild_permissions.administrator else "No"),
             ) \
             .thumbnail(member.display_avatar.url)
         await interaction.response.send_message(embed=embed.build())

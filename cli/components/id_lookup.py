@@ -63,7 +63,7 @@ class IdLookup(commands.Cog, name="ID"):
 
         embed = (
             EmbedBuilder()
-            .title(emoji_title("hash", "ID Lookup"))
+                .title(emoji_title("tag", "ID Lookup"))
             .color("blue")
             .timestamp(datetime.datetime.utcnow())
         )
@@ -91,7 +91,7 @@ class IdLookup(commands.Cog, name="ID"):
     async def role_id(self, interaction: discord.Interaction, role: discord.Role):
         await interaction.response.send_message(
             embed=EmbedBuilder()
-            .title(emoji_title("hash", "Role ID"))
+            .title(emoji_title("tag", "Role ID"))
             .description(f"**{role.name}**\n`{role.id}`")
             .color(role.color if role.color != discord.Color.default() else "blue")
             .timestamp(datetime.datetime.utcnow())
@@ -105,7 +105,7 @@ class IdLookup(commands.Cog, name="ID"):
         target = channel or interaction.channel
         await interaction.response.send_message(
             embed=EmbedBuilder()
-            .title(emoji_title("hash", "Channel ID"))
+            .title(emoji_title("tag", "Channel ID"))
             .description(f"**{target.name}**\n`{target.id}`")
             .color("blue")
             .timestamp(datetime.datetime.utcnow())
@@ -117,7 +117,7 @@ class IdLookup(commands.Cog, name="ID"):
     async def server_id(self, interaction: discord.Interaction):
         await interaction.response.send_message(
             embed=EmbedBuilder()
-            .title(emoji_title("hash", "Server ID"))
+            .title(emoji_title("tag", "Server ID"))
             .description(f"**{interaction.guild.name}**\n`{interaction.guild.id}`")
             .color("blue")
             .timestamp(datetime.datetime.utcnow())

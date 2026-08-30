@@ -57,21 +57,30 @@ def format_level_up_message(
     granted_role=None,
 ) -> str:
     """Replace {vars} in the level-up message with real values."""
-    member = message.author
+    if message is None:
+        member_name, member_mention, member_avatar = "User", "@User", ""
+        guild_name, member_count = "Server", "0"
+    else:
+        member = message.author
+        member_name = member.display_name
+        member_mention = member.mention
+        member_avatar = str(member.display_avatar.url)
+        guild_name = message.guild.name if message.guild else ""
+        member_count = str(message.guild.member_count or 0) if message.guild else "0"
     role_str = granted_role.mention if granted_role else "none"
     replacements = {
-        "{user}": member.mention,
-        "{mention}": member.mention,
-        "{name}": member.display_name,
-        "{avatar}": str(member.display_avatar.url),
+        "{user}": member_mention,
+        "{mention}": member_mention,
+        "{name}": member_name,
+        "{avatar}": member_avatar,
         "{level}": str(level),
         "{next_level}": str(level + 1),
         "{xp}": str(xp),
         "{xp_needed}": str(xp_needed),
         "{role}": role_str,
-        "{servername}": message.guild.name,
-        "{server}": message.guild.name,
-        "{membercount}": str(message.guild.member_count or 0),
+        "{servername}": guild_name,
+        "{server}": guild_name,
+        "{membercount}": member_count,
     }
     out = template
     for key, value in replacements.items():
@@ -454,6 +463,59 @@ class Leveling(commands.Cog, name="Leveling"):
             .build()
         )
         await interaction.response.send_message(embed=embed)
+
+    @level_group.command(name="announcement", description="Set the level-up announcement message")
+    @app_commands.describe(message="The message template (use {user}, {level}, {xp}, etc.)")
+    async def announcement(self, interaction: discord.Interaction, message: str = None):
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        settings = await get_leveling_settings(interaction.guild_id)
+        if message is None:
+            current = settings.get("level_up_message", "")
+            mode = settings.get("level_up_message_mode", "basic")
+            embed = (
+                EmbedBuilder()
+                .title(emoji_title("info", "Level-Up Announcement"))
+                .color("blue")
+                .field("Current Mode", f"`{mode}`", inline=False)
+                .field("Current Message", current or "(default)", inline=False)
+                .field("Available Variables", "`{user}` `{name}` `{mention}` `{level}` `{xp}` `{xp_needed}` `{next_level}` `{role}` `{server}` `{membercount}`", inline=False)
+                .field("Usage", "Set message to `reset` to restore the default.", inline=False)
+                .timestamp(datetime.datetime.utcnow())
+                .build()
+            )
+            return await interaction.response.send_message(embed=embed, ephemeral=True)
+        if message.lower() == "reset":
+            settings["level_up_message"] = LEVELING_DEFAULTS["level_up_message"]
+            settings["level_up_message_mode"] = "basic"
+            settings["level_up_embed"] = {}
+            await save_leveling_settings(interaction.guild_id, settings)
+            embed = (
+                EmbedBuilder()
+                .title(emoji_title("success", "Announcement Reset"))
+                .description("Level-up announcement has been reset to the default.")
+                .color("green")
+                .timestamp(datetime.datetime.utcnow())
+                .build()
+            )
+            return await interaction.response.send_message(embed=embed, ephemeral=True)
+        settings["level_up_message"] = message
+        settings["level_up_message_mode"] = "basic"
+        await save_leveling_settings(interaction.guild_id, settings)
+        preview = format_level_up_message(message, message=None, level=5, xp=500, xp_needed=100)
+        embed = (
+            EmbedBuilder()
+            .title(emoji_title("success", "Announcement Updated"))
+            .description(f"Level-up message set to:\n{message}")
+            .color("green")
+            .field("Preview", preview)
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 async def setup(bot: commands.Bot):

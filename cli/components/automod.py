@@ -202,7 +202,7 @@ class AutoMod(commands.Cog, name="AutoMod"):
         elif base == "ban":
             try:
                 days = int(cfg.get("ban_days") or 0)
-                await guild.ban(discord.Object(id=author.id), reason=cfg.get("ban_message") or reason, delete_message_days=max(0, min(7, days)))
+                await guild.ban(discord.Object(id=author.id), reason=cfg.get("ban_message") or reason, delete_message_seconds=max(0, min(7, days)) * 86400)
             except Exception as e:
                 logger.warning(f"AutoMod ban failed: {e}")
             await log_mod_action(guild.id, str(author.id), author.name, "ban", cfg.get("ban_message") or reason, "AutoMod")

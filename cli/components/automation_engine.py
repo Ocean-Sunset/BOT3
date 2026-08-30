@@ -408,7 +408,7 @@ class AutomationEngine(commands.Cog, name="AutomationEngine"):
                 if not member:
                     return
                 reason = self._resolve(cfg.get("text", "Automation ban"), ctx)
-                await member.ban(reason=reason[:512], delete_message_days=0)
+                await member.ban(reason=reason[:512], delete_message_seconds=0)
 
             elif ntype == "mute":
                 if not member:

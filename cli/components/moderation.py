@@ -540,7 +540,7 @@ class Moderation(commands.Cog, name="Moderation"):
                     "red",
                 )
                 await safe_dm(member, embed=dm_embed)
-            await member.ban(reason=reason, delete_message_days=delete_days)
+            await member.ban(reason=reason, delete_message_seconds=delete_days * 86400)
 
             await self.send_confirm(interaction, settings, "ban", emoji_title("ban", "Member Banned"), "red", member, reason)
 
@@ -595,7 +595,7 @@ class Moderation(commands.Cog, name="Moderation"):
                     "red",
                 )
                 await safe_dm(member, embed=dm_embed)
-            await member.ban(reason=f"Temp ban ({duration}m): {reason}", delete_message_days=delete_days)
+            await member.ban(reason=f"Temp ban ({duration}m): {reason}", delete_message_seconds=delete_days * 86400)
 
             await self.send_confirm(interaction, settings, "tempban", "⏳ Member Temp-Banned", "red", member, reason, format_duration(duration))
 

@@ -560,7 +560,10 @@ async def claim_action(request_id: str) -> bool:
             (request_id,),
         )
         result = (out or [{}])[0] or {}
-        return result.get("rows_affected", 0) == 1
+        won = result.get("rows_affected", 0) == 1
+        if not won:
+            logger.debug(f"claim_action: lost race for {request_id[:16]}... (claimed by another worker)")
+        return won
     except Exception as e:
         logger.error(f"claim_action failed: {e}")
         return False

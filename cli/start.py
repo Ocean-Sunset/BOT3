@@ -40,6 +40,12 @@ class ProwlBot(commands.Bot):
         self.version = __version__
         self.launch_time = 0
 
+    async def on_message(self, message: discord.Message):
+        if message.author.bot:
+            return
+        # Skip prefix-command processing — Prowl uses slash commands only.
+        # Cog on_message listeners still fire via dispatch.
+
     async def setup_hook(self):
         await self.load_cogs()
         synced = await self.tree.sync()

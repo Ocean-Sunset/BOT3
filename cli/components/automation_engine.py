@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import asyncio
 import datetime
+import json
 import re
 import time
 
@@ -77,7 +78,19 @@ class AutomationEngine(commands.Cog, name="AutomationEngine"):
             self._graph_cache[guild_id] = None
             self._graph_cache_ts[guild_id] = now
             return None
-        graph = {"nodes": row["nodes"] or [], "connections": row["connections"] or []}
+        nodes_raw = row["nodes"] or []
+        conns_raw = row["connections"] or []
+        if isinstance(nodes_raw, str):
+            try:
+                nodes_raw = json.loads(nodes_raw)
+            except (json.JSONDecodeError, TypeError):
+                nodes_raw = []
+        if isinstance(conns_raw, str):
+            try:
+                conns_raw = json.loads(conns_raw)
+            except (json.JSONDecodeError, TypeError):
+                conns_raw = []
+        graph = {"nodes": nodes_raw if isinstance(nodes_raw, list) else [], "connections": conns_raw if isinstance(conns_raw, list) else []}
         self._graph_cache[guild_id] = graph
         self._graph_cache_ts[guild_id] = now
         return graph
@@ -492,7 +505,8 @@ class AutomationEngine(commands.Cog, name="AutomationEngine"):
 
         triggers = [
             n for n in graph["nodes"]
-            if NODE_DEFS.get(n["type"], {}).get("kind") == "trigger"
+            if isinstance(n, dict)
+            and NODE_DEFS.get(n.get("type"), {}).get("kind") == "trigger"
             and self._matches_trigger(n, event_type, member, message, before, after)
         ]
 

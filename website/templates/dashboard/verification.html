@@ -369,11 +369,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.disabled = true; btn.innerHTML = '<i data-lucide="loader" class="spin"></i> Deploying...';
     lucide.createIcons();
     try {
-      const res = await fetch(`/api/v1/verify/${GID}/deploy`, { method:'POST', headers:{'Content-Type':'application/json'} });
-      if (!res.ok) throw new Error('bad status');
-      if (typeof showToast==='function') showToast('Panel deploy queued for the bot.', 'info');
+      const res = await fetch(`/api/v1/verify/${GID}/deploy`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      const j = await res.json();
+      if (!res.ok || j.error) throw new Error(j.error || 'bad status');
+      if (typeof showToast === 'function') showToast(j.direct ? 'Panel deployed.' : 'Panel deploy queued for the bot.', j.direct ? 'success' : 'info');
     } catch (e) {
-      if (typeof showToast==='function') showToast('Failed to queue deploy.', 'error');
+      if (typeof showToast === 'function') showToast('Failed to deploy panel.', 'error');
     }
     btn.disabled = false; btn.innerHTML = '<i data-lucide="send"></i> Deploy Panel';
     lucide.createIcons();

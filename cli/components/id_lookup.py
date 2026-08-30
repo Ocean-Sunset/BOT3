@@ -64,7 +64,7 @@ class IdLookup(commands.Cog, name="ID"):
         embed = (
             EmbedBuilder()
                 .title(emoji_title("tag", "ID Lookup"))
-            .color("blue")
+            .color("gray")
             .timestamp(datetime.datetime.utcnow())
         )
         for name, value, inline in fields:
@@ -93,7 +93,7 @@ class IdLookup(commands.Cog, name="ID"):
             embed=EmbedBuilder()
             .title(emoji_title("tag", "Role ID"))
             .description(f"**{role.name}**\n`{role.id}`")
-            .color(role.color if role.color != discord.Color.default() else "blue")
+            .color(role.color if role.color != discord.Color.default() else "gray")
             .timestamp(datetime.datetime.utcnow())
             .build(),
             ephemeral=True,
@@ -107,7 +107,7 @@ class IdLookup(commands.Cog, name="ID"):
             embed=EmbedBuilder()
             .title(emoji_title("tag", "Channel ID"))
             .description(f"**{target.name}**\n`{target.id}`")
-            .color("blue")
+            .color("gray")
             .timestamp(datetime.datetime.utcnow())
             .build(),
             ephemeral=True,
@@ -119,7 +119,7 @@ class IdLookup(commands.Cog, name="ID"):
             embed=EmbedBuilder()
             .title(emoji_title("tag", "Server ID"))
             .description(f"**{interaction.guild.name}**\n`{interaction.guild.id}`")
-            .color("blue")
+            .color("gray")
             .timestamp(datetime.datetime.utcnow())
             .build(),
             ephemeral=True,

@@ -480,9 +480,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!selected) { showToast('Select a channel first.', 'error'); return; }
       this.textContent = 'Sending...'; this.disabled = true;
       try {
-        await fetch(`/api/v1/tickets/${GID}/send_panel`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({channel_id: selected}) });
-        showToast('Panel queued - check the channel.', 'info');
-      } catch { showToast('Failed to queue panel.', 'error'); }
+        const res = await fetch(`/api/v1/tickets/${GID}/send_panel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ channel_id: selected }) });
+        const j = await res.json();
+        if (!res.ok || j.error) throw new Error(j.error || 'bad status');
+        showToast(j.direct ? 'Panel sent.' : 'Panel queued - check the channel.', j.direct ? 'success' : 'info');
+      } catch { showToast('Failed to send panel.', 'error'); }
       this.innerHTML = '<i data-lucide="send"></i> Send Panel'; this.disabled = false;
       lucide.createIcons();
     });

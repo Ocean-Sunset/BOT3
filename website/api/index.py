@@ -1956,11 +1956,14 @@ async def _save_settings(table, guild_id, key, value, defaults):
         if isinstance(stored, dict):
             current.update(stored)
     current[key] = clean
-    await execute(
-        f"INSERT INTO {table} (guild_id, settings) VALUES (?, ?) "
-        f"ON CONFLICT (guild_id) DO UPDATE SET settings = ?",
-        str(guild_id), json.dumps(current), json.dumps(current),
+    result = await execute(
+        f"INSERT INTO {table} (guild_id, settings, updated_at) VALUES (?, ?, ?) "
+        f"ON CONFLICT (guild_id) DO UPDATE SET settings = ?, updated_at = ?",
+        str(guild_id), json.dumps(current), time.time(),
+        json.dumps(current), time.time(),
     )
+    if result is None:
+        return "database write failed"
     _update_cache(table, guild_id, current)
     _notify_bot_cache_invalidate(table, guild_id)
     return None
@@ -2364,9 +2367,10 @@ async def mod_roles_set(guild_id: str, request: Request):
         mod_roles.remove(role_id)
     current["mod_roles"] = mod_roles
     await execute(
-        "INSERT INTO mod_settings (guild_id, settings) VALUES (?, ?) "
-        "ON CONFLICT (guild_id) DO UPDATE SET settings = ?",
-        str(guild_id), json.dumps(current), json.dumps(current),
+        "INSERT INTO mod_settings (guild_id, settings, updated_at) VALUES (?, ?, ?) "
+        "ON CONFLICT (guild_id) DO UPDATE SET settings = ?, updated_at = ?",
+        str(guild_id), json.dumps(current), time.time(),
+        json.dumps(current), time.time(),
     )
     return {"ok": True}
 
@@ -2379,9 +2383,10 @@ async def mod_roles_batch(guild_id: str, request: Request):
     current = await _get_mod_settings(guild_id)
     current["mod_roles"] = role_ids
     await execute(
-        "INSERT INTO mod_settings (guild_id, settings) VALUES (?, ?) "
-        "ON CONFLICT (guild_id) DO UPDATE SET settings = ?",
-        str(guild_id), json.dumps(current), json.dumps(current),
+        "INSERT INTO mod_settings (guild_id, settings, updated_at) VALUES (?, ?, ?) "
+        "ON CONFLICT (guild_id) DO UPDATE SET settings = ?, updated_at = ?",
+        str(guild_id), json.dumps(current), time.time(),
+        json.dumps(current), time.time(),
     )
     logger.info(f"Mod roles saved for guild {guild_id}: {role_ids}")
     return {"ok": True, "mod_roles": role_ids}
@@ -2396,9 +2401,10 @@ async def mod_emergency(guild_id: str, request: Request):
     current = await _get_mod_settings(guild_id)
     current["emergency_lock"] = locked
     await execute(
-        "INSERT INTO mod_settings (guild_id, settings) VALUES (?, ?) "
-        "ON CONFLICT (guild_id) DO UPDATE SET settings = ?",
-        str(guild_id), json.dumps(current), json.dumps(current),
+        "INSERT INTO mod_settings (guild_id, settings, updated_at) VALUES (?, ?, ?) "
+        "ON CONFLICT (guild_id) DO UPDATE SET settings = ?, updated_at = ?",
+        str(guild_id), json.dumps(current), time.time(),
+        json.dumps(current), time.time(),
     )
     # Queue the actual lockdown/restore for the bot to execute
     session_user = request.session.get("user") or {}

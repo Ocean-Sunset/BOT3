@@ -221,7 +221,6 @@ class AutoMod(commands.Cog, name="AutoMod"):
         if message.author.bot or not message.guild or not message.content:
             return
         settings = await get_automod_settings(message.guild.id)
-        logger.info(f"automod DEBUG: guild={message.guild.id} enabled={settings.get('enabled')} keys={list(settings.keys())[:8]}")
         if not settings.get("enabled"):
             return
         if await self._is_mod(message.author, message.guild):

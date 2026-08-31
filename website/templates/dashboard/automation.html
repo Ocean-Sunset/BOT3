@@ -133,9 +133,28 @@
     <div class="aut-palette-block" data-palette="list_channels" draggable="true">Channel List</div>
   </div>
 
-  <div id="aut-canvas-wrap">
+  <div id="aut-canvas-wrap" style="position:relative;">
     <div id="aut-canvas">
       <svg id="aut-svg"></svg>
+    </div>
+    <div id="aut-loading-overlay" style="position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(10,10,10,0.85);backdrop-filter:blur(4px);border-radius:6px;transition:opacity 0.4s, visibility 0.4s;">
+      <div style="text-align:center;">
+        <div style="width:48px;height:48px;border:3px solid rgba(251,191,36,0.2);border-top-color:#fbbf24;border-radius:50%;animation:aut-spin 0.8s linear infinite;margin:0 auto 1rem;"></div>
+        <div style="font-size:0.85rem;font-weight:700;color:rgba(255,255,255,0.7);">Loading Automation Editor...</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="aut-exp-warning" style="display:none;margin-bottom:0.75rem;">
+    <div style="border:1px solid rgba(251,191,36,0.3);border-radius:6px;background:rgba(251,191,36,0.06);padding:0.85rem 1rem;display:flex;align-items:flex-start;gap:0.75rem;">
+      <div style="width:40px;height:40px;border-radius:50%;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i data-lucide="alert-triangle" style="width:20px;height:20px;color:#fbbf24;"></i>
+      </div>
+      <div>
+        <div style="font-size:0.85rem;font-weight:800;color:#fbbf24;margin-bottom:0.2rem;">Experimental Feature</div>
+        <div style="font-size:0.78rem;color:rgba(255,255,255,0.55);line-height:1.5;">This is an experimental feature, and it is not guaranteed to work right now.</div>
+      </div>
+      <button onclick="document.getElementById('aut-exp-warning').style.display='none'" style="background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;padding:0.2rem;margin-left:auto;flex-shrink:0;line-height:1;" onmouseover="this.style.color='rgba(255,255,255,0.7)'" onmouseout="this.style.color='rgba(255,255,255,0.3)'"><i data-lucide="x" style="width:16px;height:16px;"></i></button>
     </div>
   </div>
 
@@ -162,6 +181,7 @@
   </div>
 </div>
 <style>
+@keyframes aut-spin { to { transform: rotate(360deg); } }
 @media (max-width:600px){
   .aut-charts-grid{grid-template-columns:1fr!important}
 }
@@ -875,5 +895,12 @@ async function loadLogs() {
     el.innerHTML = d.logs.map(l => '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0.6rem;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:4px;font-size:0.75rem;"><span style="color:#60a5fa;flex-shrink:0;">▪</span><span style="color:rgba(255,255,255,0.7);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(l.message)+'</span><span style="color:rgba(255,255,255,0.3);margin-left:auto;flex-shrink:0;font-size:0.68rem;">'+esc(l.time)+'</span></div>').join('');
   } catch(e) {}
 }
+
+setTimeout(() => {
+  const overlay = document.getElementById('aut-loading-overlay');
+  if (overlay) { overlay.style.opacity = '0'; overlay.style.visibility = 'hidden'; setTimeout(() => overlay.remove(), 500); }
+  const warn = document.getElementById('aut-exp-warning');
+  if (warn) { warn.style.display = 'block'; if (typeof lucide !== 'undefined') lucide.createIcons(); }
+}, 2000);
 </script>
 {% endblock %}

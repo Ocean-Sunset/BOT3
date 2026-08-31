@@ -937,6 +937,142 @@ button, .save-btn, .discard-btn {
   object-fit: cover;
 }
 
+/* ── Mobile profile popover ── */
+.mobile-profile-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 240;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.mobile-profile-backdrop.is-visible {
+  display: block;
+  opacity: 1;
+}
+
+.mobile-profile-popover {
+  display: none;
+  position: fixed;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 250;
+  width: 280px;
+  max-height: calc(100vh - 1.5rem);
+  overflow-y: auto;
+  background: #111;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+  transform-origin: top right;
+  transform: scale(0);
+  opacity: 0;
+}
+.mobile-profile-popover.is-animating {
+  display: block;
+}
+.mobile-profile-popover.is-open {
+  display: block;
+  transform: scale(1);
+  opacity: 1;
+}
+
+.mp-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.mp-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  flex-shrink: 0;
+}
+.mp-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.mp-info {
+  min-width: 0;
+}
+.mp-name {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mp-username {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.4);
+  font-weight: 600;
+}
+
+.mp-links {
+  padding: 0.5rem 0;
+}
+.mp-link {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 1rem;
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.55);
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.mp-link:active { background: rgba(255,255,255,0.04); }
+.mp-link svg { width: 16px; height: 16px; }
+.mp-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+  margin: 0.25rem 0;
+}
+.mp-danger { color: #f87171; }
+
+/* ── Mobile profile animation keyframes ── */
+@keyframes mpIconGrow {
+  0% { transform: scale(1); border-radius: 50%; }
+  100% { transform: scale(3.5); border-radius: 16px; opacity: 0; }
+}
+@keyframes mpPopoverIn {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  80% { transform: scale(0.97); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes mpPopoverOut {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0); opacity: 0; }
+}
+@keyframes mpIconRestore {
+  0% { transform: scale(3.5); border-radius: 16px; opacity: 0; }
+  100% { transform: scale(1); border-radius: 50%; opacity: 1; }
+}
+
+.mobile-profile-btn.is-animating {
+  animation: mpIconGrow 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  pointer-events: none;
+}
+.mobile-profile-btn.is-restoring {
+  animation: mpIconRestore 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  pointer-events: none;
+}
+.mobile-profile-popover.is-animating {
+  animation: mpPopoverIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s forwards;
+}
+.mobile-profile-popover.is-closing {
+  animation: mpPopoverOut 0.25s ease-in forwards;
+}
+
 /* ── Mobile tab bar (hidden on desktop) ── */
 .mobile-tab-bar {
   display: none;

@@ -145,7 +145,7 @@
     </div>
   </div>
 
-  <div id="aut-exp-warning" style="display:none;margin-bottom:0.75rem;">
+  <div id="aut-exp-warning" style="display:none;margin-bottom:0.75rem;margin-top:0.75rem;">
     <div style="border:1px solid rgba(251,191,36,0.3);border-radius:6px;background:rgba(251,191,36,0.06);padding:0.85rem 1rem;display:flex;align-items:flex-start;gap:0.75rem;">
       <div style="width:40px;height:40px;border-radius:50%;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
         <i data-lucide="alert-triangle" style="width:20px;height:20px;color:#fbbf24;"></i>
@@ -872,9 +872,9 @@ async function loadUsage() {
     const ctx = canvas.getContext('2d'); ctx.scale(dpr,dpr);
     const max = Math.max(1, ...pts.map(p=>p.count));
     const stepX = pts.length>1 ? w/(pts.length-1) : w;
-    const y = c => h - (c/max)*(h-16) - 6;
+    const y = c => h - (c/max)*(h-36) - 24;
     ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth=1;
-    for (let i=0;i<=4;i++){ const yy = h - (h-16)*(i/4) - 6; ctx.beginPath(); ctx.moveTo(0,yy); ctx.lineTo(w,yy); ctx.stroke(); }
+    for (let i=0;i<=4;i++){ const yy = h - (h-36)*(i/4) - 24; ctx.beginPath(); ctx.moveTo(0,yy); ctx.lineTo(w,yy); ctx.stroke(); }
     ctx.beginPath(); ctx.strokeStyle='#60a5fa'; ctx.lineWidth=2; ctx.lineJoin='round';
     pts.forEach((p,i)=>{ const x=i*stepX; if(i===0) ctx.moveTo(x,y(p.count)); else ctx.lineTo(x,y(p.count)); });
     ctx.stroke();

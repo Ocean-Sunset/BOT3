@@ -7,7 +7,7 @@ import unicodedata
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
-from Ediscord.builders import embed_from_dict, emoji_title
+from Ediscord.builders import embed_from_dict, emoji_title, EMBED_EMOJIS
 from components.moderation import log_mod_action, render_embed_data, render_template
 
 
@@ -115,7 +115,7 @@ class AutoMod(commands.Cog, name="AutoMod"):
         embed = (
             EmbedBuilder()
             .title(emoji_title("shield", f"AutoMod: {filter_name}"))
-            .color("orange")
+            .color("gray")
             .row(
                 ('User', f'{message.author.mention} (`{message.author.id}`)'),
                 ('Channel', message.channel.mention),
@@ -156,6 +156,18 @@ class AutoMod(commands.Cog, name="AutoMod"):
                 return str(tmpl)
         return f"**AutoMod - {filter_name}** in {message.guild.name}:\n{reason}"
 
+    def _default_dm_embed(self, filter_name, reason, guild):
+        """Create a default styled embed for automod DMs."""
+        return (
+            EmbedBuilder()
+            .title(f"{EMBED_EMOJIS.get('shield', '')} AutoMod - {filter_name}")
+            .description(reason)
+            .field("Server", guild.name, inline=True)
+            .color("warn")
+            .footer("AutoMod | Prowl")
+            .build()
+        )
+
     async def _apply_action(self, guild, settings, message, filter_name, reason, action):
         author = message.author
         member = guild.get_member(author.id)
@@ -174,7 +186,7 @@ class AutoMod(commands.Cog, name="AutoMod"):
                 if custom_embed is not None:
                     await author.send(embed=custom_embed)
                 else:
-                    await author.send(self._dm_text(cfg, base, message, filter_name, reason))
+                    await author.send(embed=self._default_dm_embed(filter_name, reason, guild))
             except Exception:
                 pass
         if base == "warn":

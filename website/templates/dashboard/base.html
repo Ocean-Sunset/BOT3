@@ -157,7 +157,7 @@
           {{ nav_item('welcomer', 'door-open', 'Welcomer') }}
           {{ nav_item('verification', 'shield-check', 'Verification') }}
           {{ nav_item('leveling', 'trending-up', 'Leveling') }}
-          {{ nav_item('automation', 'workflow', 'Automation') }}
+          {{ nav_item('automation', 'workflow', 'Automation', 'Beta') }}
           {{ nav_item('autoresponder', 'reply', 'Autoresponder') }}
           {{ nav_item('global_chat', 'globe', 'Global Chat') }}
           {{ nav_item('aliases', 'replace', 'Command Aliases') }}
@@ -220,13 +220,39 @@
     </aside>
 
     <div class="main-content">
-      <a href="/guild/profile" class="mobile-profile-btn">
+      <button id="mobile-profile-btn" class="mobile-profile-btn" aria-label="Profile">
         {% if user and user.avatar %}
           <img src="https://cdn.discordapp.com/avatars/{{ user.id }}/{{ user.avatar }}.png?size=64" alt="" />
         {% else %}
           {{ user.username[0] | upper if user else '?' }}
         {% endif %}
-      </a>
+      </button>
+      <div id="mobile-profile-popover" class="mobile-profile-popover">
+        <div class="mp-header">
+          <div class="mp-avatar">
+            {% if user and user.avatar %}
+              <img src="https://cdn.discordapp.com/avatars/{{ user.id }}/{{ user.avatar }}.png?size=64" alt="" />
+            {% else %}
+              {{ user.username[0] | upper if user else '?' }}
+            {% endif %}
+          </div>
+          <div class="mp-info">
+            <div class="mp-name">{{ (user.global_name or user.username) if user else 'User' }}</div>
+            <div class="mp-username">{{ ('@' + user.username) if user else '' }}</div>
+          </div>
+        </div>
+        <div class="mp-links">
+          <a href="/guild/profile" class="mp-link"><i data-lucide="user"></i> Profile</a>
+          <a href="/changelog" class="mp-link"><i data-lucide="history"></i> Changelog</a>
+          <a href="/suggest" class="mp-link"><i data-lucide="lightbulb"></i> Suggest an idea</a>
+          <a href="/report-bug" class="mp-link"><i data-lucide="bug"></i> Report a bug</a>
+          <a href="/feedback" class="mp-link"><i data-lucide="message-square"></i> Give feedback</a>
+          <a href="https://discord.gg/KnRxYDP7zB" target="_blank" rel="noopener" class="mp-link"><i data-lucide="users"></i> Join the Discord</a>
+          <div class="mp-divider"></div>
+          <a href="/logout" class="mp-link mp-danger"><i data-lucide="log-out"></i> Log out</a>
+        </div>
+      </div>
+      <div id="mobile-profile-backdrop" class="mobile-profile-backdrop"></div>
       <main id="app-content">
         {% block content %}{% endblock %}
       </main>
@@ -281,6 +307,14 @@
     <a href="/guild/{{ guild_id }}/social_alerts" class="tab-item{% if active_panel == 'social_alerts' %} is-active{% endif %}">
       <i data-lucide="bell"></i>
       <span>Social</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/afk" class="tab-item{% if active_panel == 'afk' %} is-active{% endif %}">
+      <i data-lucide="moon"></i>
+      <span>AFK</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/giveaways" class="tab-item{% if active_panel == 'giveaways' %} is-active{% endif %}">
+      <i data-lucide="gift"></i>
+      <span>Giveaways</span>
     </a>
     <a href="/guild/{{ guild_id }}/tickets" class="tab-item{% if active_panel == 'tickets' %} is-active{% endif %}">
       <i data-lucide="ticket"></i>
@@ -555,6 +589,65 @@
         const tabRect = active.getBoundingClientRect();
         tabBar.scrollLeft += tabRect.left - barRect.left - (barRect.width / 2) + (tabRect.width / 2);
       }
+    })();
+  </script>
+
+  <script>
+    // ── Mobile profile popover animation ──
+    (function() {
+      const btn = document.getElementById('mobile-profile-btn');
+      const popover = document.getElementById('mobile-profile-popover');
+      const backdrop = document.getElementById('mobile-profile-backdrop');
+      if (!btn || !popover || !backdrop) return;
+
+      let isOpen = false;
+
+      function openPopover() {
+        if (isOpen) return;
+        isOpen = true;
+        btn.classList.add('is-animating');
+        popover.classList.add('is-animating');
+        backdrop.classList.add('is-visible');
+
+        // After icon animation ends, hide icon and show popover fully
+        setTimeout(() => {
+          btn.style.visibility = 'hidden';
+          btn.classList.remove('is-animating');
+          popover.classList.remove('is-animating');
+          popover.classList.add('is-open');
+        }, 350);
+      }
+
+      function closePopover() {
+        if (!isOpen) return;
+        isOpen = false;
+        popover.classList.add('is-closing');
+        popover.classList.remove('is-open');
+        backdrop.classList.remove('is-visible');
+
+        // After popover closes, restore icon
+        setTimeout(() => {
+          popover.classList.remove('is-closing');
+          btn.style.visibility = '';
+          btn.classList.add('is-restoring');
+          setTimeout(() => {
+            btn.classList.remove('is-restoring');
+          }, 300);
+        }, 250);
+      }
+
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (isOpen) closePopover();
+        else openPopover();
+      });
+
+      backdrop.addEventListener('click', closePopover);
+
+      // Close on link click inside popover
+      popover.querySelectorAll('.mp-link').forEach(link => {
+        link.addEventListener('click', () => closePopover());
+      });
     })();
   </script>
 

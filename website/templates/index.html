@@ -219,6 +219,12 @@
     </div>
   </section>
 
+  <!-- Image lightbox -->
+  <div class="lightbox" id="lightbox">
+    <button class="lightbox-close" id="lightbox-close">&times;</button>
+    <img class="lightbox-img" id="lightbox-img" src="" alt="" />
+  </div>
+
   <!-- CTA -->
   <div class="cta">
     <h2 class="cta-title anim-scroll-cta">wanna add a cool cat bot to your server?</h2>
@@ -597,6 +603,35 @@
         });
         if (glare) gsap.to(glare, { opacity: 0, duration: 0.4, ease: 'power2.out', overwrite: true });
       });
+    });
+
+    // ── Lightbox for preview images ──
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightbox-img');
+    const lightboxClose = document.getElementById('lightbox-close');
+
+    document.querySelectorAll('.preview-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const img = card.querySelector('img');
+        if (!img) return;
+        lightboxImg.src = img.src;
+        lightboxImg.alt = img.alt;
+        lightbox.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+      });
+    });
+
+    function closeLightbox() {
+      lightbox.classList.remove('is-open');
+      document.body.style.overflow = '';
+    }
+
+    lightboxClose.addEventListener('click', closeLightbox);
+    lightbox.addEventListener('click', (e) => {
+      if (e.target === lightbox) closeLightbox();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && lightbox.classList.contains('is-open')) closeLightbox();
     });
 
     // ── Dismiss warning banner ──

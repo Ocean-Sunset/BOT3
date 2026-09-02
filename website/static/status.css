@@ -208,7 +208,7 @@ body {
   padding: 3rem 6vw;
   border-top: 1px solid rgba(255,255,255,0.06);
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 4rem;
   align-items: flex-start;
   position: relative;
@@ -255,6 +255,7 @@ body {
 }
 
 .footer-brand {
+  margin-right: auto;
   max-width: 280px;
 }
 

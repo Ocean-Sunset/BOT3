@@ -227,6 +227,13 @@
     function renderGraph(points, canvasId, metaId, lineColor, fillTop) {
       const canvas = document.getElementById(canvasId);
       const wrap = canvas.parentElement;
+      const meta = document.getElementById(metaId);
+      if (!points || !points.length) {
+        canvas.style.display = 'none';
+        meta.innerHTML = '<span>No data yet</span>';
+        return;
+      }
+      canvas.style.display = '';
       const dpr = window.devicePixelRatio || 1;
       const w = wrap.clientWidth;
       const h = 190;

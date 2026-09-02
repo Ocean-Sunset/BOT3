@@ -357,6 +357,11 @@ ALTER TABLE giveaways ADD COLUMN message_type TEXT DEFAULT '';
 ALTER TABLE giveaways ADD COLUMN message TEXT DEFAULT '';
 ALTER TABLE giveaways ADD COLUMN emoji TEXT DEFAULT '';
 ALTER TABLE giveaways ADD COLUMN embed TEXT DEFAULT '{}';
+
+CREATE TABLE IF NOT EXISTS request_stats (
+    bucket_ts   REAL PRIMARY KEY,
+    count       INTEGER NOT NULL DEFAULT 0
+);
 """
 
 

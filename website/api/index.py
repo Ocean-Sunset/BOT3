@@ -324,24 +324,19 @@ class RequestCountMiddleware:
         await self._count()
 
     async def _count(self):
-        try:
-            bucket = int(time.time() // 3600) * 3600
+        bucket = int(time.time() // 3600) * 3600
+        result = await execute(
+            "INSERT INTO request_stats (bucket_ts, count) VALUES (?, 1) "
+            "ON CONFLICT (bucket_ts) DO UPDATE SET count = request_stats.count + 1",
+            bucket,
+        )
+        if result is None:
+            await execute(_REQUEST_TABLE_SQL)
             await execute(
                 "INSERT INTO request_stats (bucket_ts, count) VALUES (?, 1) "
                 "ON CONFLICT (bucket_ts) DO UPDATE SET count = request_stats.count + 1",
                 bucket,
             )
-        except Exception:
-            try:
-                await execute(_REQUEST_TABLE_SQL)
-                bucket = int(time.time() // 3600) * 3600
-                await execute(
-                    "INSERT INTO request_stats (bucket_ts, count) VALUES (?, 1) "
-                    "ON CONFLICT (bucket_ts) DO UPDATE SET count = request_stats.count + 1",
-                    bucket,
-                )
-            except Exception:
-                pass
 
 
 _REQUEST_TABLE_SQL = """

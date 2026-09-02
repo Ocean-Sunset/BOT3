@@ -534,6 +534,16 @@ async def favicon_png():
     return FileResponse(ROOT / "static" / "favicon.png")
 
 
+@app.get("/robots.txt")
+async def robots_txt():
+    return FileResponse(ROOT / "static" / "robots.txt", media_type="text/plain")
+
+
+@app.get("/sitemap.xml")
+async def sitemap_xml():
+    return FileResponse(ROOT / "static" / "sitemap.xml", media_type="application/xml")
+
+
 # ---------------------------------------------------------------------------
 #  Helpers
 # ---------------------------------------------------------------------------

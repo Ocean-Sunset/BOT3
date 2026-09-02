@@ -1031,8 +1031,6 @@ button, .save-btn, .discard-btn {
 /* ── Mobile profile animation ── */
 @keyframes mpPopIn {
   0% { transform: scale(0); opacity: 0; }
-  60% { transform: scale(1.06); opacity: 1; }
-  80% { transform: scale(0.97); }
   100% { transform: scale(1); opacity: 1; }
 }
 @keyframes mpPopOut {
@@ -1049,15 +1047,15 @@ button, .save-btn, .discard-btn {
 }
 
 .mobile-profile-btn.is-animating {
-  animation: mpIconBoom 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: mpIconBoom 0.25s ease-out forwards;
   pointer-events: none;
 }
 .mobile-profile-btn.is-restoring {
-  animation: mpIconRestore 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: mpIconRestore 0.25s ease-out forwards;
   pointer-events: none;
 }
 .mobile-profile-popover.is-animating {
-  animation: mpPopIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;
+  animation: mpPopIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .mobile-profile-popover.is-closing {
   animation: mpPopOut 0.2s ease-in both;

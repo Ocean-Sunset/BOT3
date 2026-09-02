@@ -606,18 +606,17 @@
       function openPopover() {
         if (isOpen) return;
         isOpen = true;
-        // Show backdrop instantly
+        // Show backdrop + popover immediately, icon fades out over it
         backdrop.classList.add('is-visible');
-        // Animate icon out
+        popover.classList.add('is-animating', 'is-open');
         btn.classList.add('is-animating');
-        // After icon shrinks away, hide it and show popover
+        // Render lucide icons inside popover
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        // After icon animation, hide it
         setTimeout(() => {
           btn.style.visibility = 'hidden';
           btn.classList.remove('is-animating');
-          popover.classList.add('is-animating', 'is-open');
-          // Render lucide icons inside popover
-          if (typeof lucide !== 'undefined') lucide.createIcons();
-        }, 300);
+        }, 250);
       }
 
       function closePopover() {

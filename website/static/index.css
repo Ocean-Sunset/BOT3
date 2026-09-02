@@ -353,16 +353,45 @@ section {
 }
 
 .footer-col a {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   color: #555;
   text-decoration: none;
   font-size: 0.82rem;
   font-weight: 500;
   margin-bottom: 0.6rem;
-  transition: color 0.2s;
+  padding: 0.25rem 0.55rem;
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+  transition: color 0.25s;
 }
-
-.footer-col a:hover { color: #ccc; }
+.footer-col a::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(139, 92, 246, 0.1);
+  border-radius: inherit;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.footer-col a:hover::before { transform: scaleX(1); }
+.footer-col a:hover { color: #e2e8f0; }
+.footer-col a .footer-arrow {
+  display: inline-block;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 0.25s, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  font-size: 0.75rem;
+  position: relative;
+  z-index: 1;
+}
+.footer-col a:hover .footer-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
 
 .footer-brand {
   max-width: 280px;

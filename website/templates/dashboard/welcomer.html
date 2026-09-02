@@ -65,6 +65,7 @@
             <button type="button" class="extra-tab" data-wl-mode="welcome" data-wl-modeval="basic">Basic</button>
             <button type="button" class="extra-tab is-active" data-wl-mode="welcome" data-wl-modeval="default">Default</button>
             <button type="button" class="extra-tab" data-wl-mode="welcome" data-wl-modeval="custom">Custom</button>
+            <button type="button" class="extra-tab" data-wl-mode="welcome" data-wl-modeval="image">Image Card</button>
           </div>
         </div>
         <div data-wl-basic="welcome">
@@ -84,20 +85,16 @@
         <div data-wl-custom="welcome" style="display:none;">
           <button class="md-action-btn" data-edit-embed="welcome" style="width:100%;justify-content:center;padding:0.5rem;margin-top:0.25rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
         </div>
-      </div>
-    </div>
-
-    <div class="md-section">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Welcome Image Card</div>
-        <div class="md-behavior-list">
-          <div class="md-behavior-item">
-            <label class="md-toggle"><input type="checkbox" id="wl-wimg" /><span class="md-toggle-slider"></span></label>
-            <div style="flex:1"><div class="md-behavior-label">Send an image card with the welcome message</div><div class="md-behavior-desc">A generated card image with avatar, gradient background, and custom text is attached to the embed</div></div>
-          </div>
-          <div class="md-behavior-item" id="wl-wimg-edit-row" style="display:none;">
-            <div style="flex:1">
-              <button class="md-action-btn" data-edit-image="welcome" style="width:100%;justify-content:center;padding:0.5rem;"><i data-lucide="pen-square"></i> Edit Image Card</button>
+        <div data-wl-image="welcome" style="display:none;">
+          <div class="md-behavior-list">
+            <div class="md-behavior-item">
+              <label class="md-toggle"><input type="checkbox" id="wl-wimg" /><span class="md-toggle-slider"></span></label>
+              <div style="flex:1"><div class="md-behavior-label">Send an image card with the welcome message</div><div class="md-behavior-desc">A generated card image with avatar, gradient background, and custom text is attached to the embed</div></div>
+            </div>
+            <div class="md-behavior-item" id="wl-wimg-edit-row" style="display:none;">
+              <div style="flex:1">
+                <button class="md-action-btn" data-edit-image="welcome" style="width:100%;justify-content:center;padding:0.5rem;"><i data-lucide="pen-square"></i> Edit Image Card</button>
+              </div>
             </div>
           </div>
         </div>
@@ -112,6 +109,7 @@
             <button type="button" class="extra-tab" data-wl-mode="goodbye" data-wl-modeval="basic">Basic</button>
             <button type="button" class="extra-tab is-active" data-wl-mode="goodbye" data-wl-modeval="default">Default</button>
             <button type="button" class="extra-tab" data-wl-mode="goodbye" data-wl-modeval="custom">Custom</button>
+            <button type="button" class="extra-tab" data-wl-mode="goodbye" data-wl-modeval="image">Image Card</button>
           </div>
         </div>
         <div data-wl-basic="goodbye">
@@ -131,20 +129,16 @@
         <div data-wl-custom="goodbye" style="display:none;">
           <button class="md-action-btn" data-edit-embed="goodbye" style="width:100%;justify-content:center;padding:0.5rem;margin-top:0.25rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
         </div>
-      </div>
-    </div>
-
-    <div class="md-section">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Goodbye Image Card</div>
-        <div class="md-behavior-list">
-          <div class="md-behavior-item">
-            <label class="md-toggle"><input type="checkbox" id="wl-gimg" /><span class="md-toggle-slider"></span></label>
-            <div style="flex:1"><div class="md-behavior-label">Send an image card with the goodbye message</div><div class="md-behavior-desc">A generated card image with avatar, gradient background, and custom text is attached to the embed</div></div>
-          </div>
-          <div class="md-behavior-item" id="wl-gimg-edit-row" style="display:none;">
-            <div style="flex:1">
-              <button class="md-action-btn" data-edit-image="goodbye" style="width:100%;justify-content:center;padding:0.5rem;"><i data-lucide="pen-square"></i> Edit Image Card</button>
+        <div data-wl-image="goodbye" style="display:none;">
+          <div class="md-behavior-list">
+            <div class="md-behavior-item">
+              <label class="md-toggle"><input type="checkbox" id="wl-gimg" /><span class="md-toggle-slider"></span></label>
+              <div style="flex:1"><div class="md-behavior-label">Send an image card with the goodbye message</div><div class="md-behavior-desc">A generated card image with avatar, gradient background, and custom text is attached to the embed</div></div>
+            </div>
+            <div class="md-behavior-item" id="wl-gimg-edit-row" style="display:none;">
+              <div style="flex:1">
+                <button class="md-action-btn" data-edit-image="goodbye" style="width:100%;justify-content:center;padding:0.5rem;"><i data-lucide="pen-square"></i> Edit Image Card</button>
+              </div>
             </div>
           </div>
         </div>
@@ -436,9 +430,11 @@ function setMessageMode(which, mode, dirty) {
   const basic = document.querySelector('[data-wl-basic="' + which + '"]');
   const defNote = document.querySelector('[data-wl-default="' + which + '"]');
   const custom = document.querySelector('[data-wl-custom="' + which + '"]');
+  const image = document.querySelector('[data-wl-image="' + which + '"]');
   if (basic) basic.style.display = (mode === 'basic') ? '' : 'none';
   if (defNote) defNote.style.display = (mode === 'default') ? '' : 'none';
   if (custom) custom.style.display = (mode === 'custom') ? '' : 'none';
+  if (image) image.style.display = (mode === 'image') ? '' : 'none';
   if (dirty) markChanged(which + '_mode', mode);
 }
 
@@ -542,9 +538,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('wl-wdmmsg').value = SETTINGS_SNAPSHOT.welcome_dm_message || '';
     document.getElementById('wl-wdmmsg').addEventListener('input', function(){ markChanged('welcome_dm_message', this.value); });
 
-    // Default/Basic/Custom message modes
-    const wlWelcomeMode = SETTINGS_SNAPSHOT.welcome_mode === 'custom' ? 'custom' : (SETTINGS_SNAPSHOT.welcome_mode === 'default' ? 'default' : 'basic');
-    const wlGoodbyeMode = SETTINGS_SNAPSHOT.goodbye_mode === 'custom' ? 'custom' : (SETTINGS_SNAPSHOT.goodbye_mode === 'default' ? 'default' : 'basic');
+    // Default/Basic/Custom/Image message modes
+    const wlWelcomeMode = SETTINGS_SNAPSHOT.welcome_mode === 'image' ? 'image' : (SETTINGS_SNAPSHOT.welcome_mode === 'custom' ? 'custom' : (SETTINGS_SNAPSHOT.welcome_mode === 'default' ? 'default' : 'basic'));
+    const wlGoodbyeMode = SETTINGS_SNAPSHOT.goodbye_mode === 'image' ? 'image' : (SETTINGS_SNAPSHOT.goodbye_mode === 'custom' ? 'custom' : (SETTINGS_SNAPSHOT.goodbye_mode === 'default' ? 'default' : 'basic'));
     setMessageMode('welcome', wlWelcomeMode, false);
     setMessageMode('goodbye', wlGoodbyeMode, false);
     document.querySelectorAll('[data-wl-mode]').forEach(b => b.addEventListener('click', () => setMessageMode(b.dataset.wlMode, b.dataset.wlModeval, true)));
@@ -896,8 +892,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('wl-wmsg').value = reverted.welcome_message || '';
     document.getElementById('wl-gmsg').value = reverted.goodbye_message || '';
     document.getElementById('wl-wdmmsg').value = reverted.welcome_dm_message || '';
-    const revWelcomeMode = reverted.welcome_mode === 'custom' ? 'custom' : (reverted.welcome_mode === 'default' ? 'default' : 'basic');
-    const revGoodbyeMode = reverted.goodbye_mode === 'custom' ? 'custom' : (reverted.goodbye_mode === 'default' ? 'default' : 'basic');
+    const revWelcomeMode = reverted.welcome_mode === 'image' ? 'image' : (reverted.welcome_mode === 'custom' ? 'custom' : (reverted.welcome_mode === 'default' ? 'default' : 'basic'));
+    const revGoodbyeMode = reverted.goodbye_mode === 'image' ? 'image' : (reverted.goodbye_mode === 'custom' ? 'custom' : (reverted.goodbye_mode === 'default' ? 'default' : 'basic'));
     setMessageMode('welcome', revWelcomeMode, false);
     setMessageMode('goodbye', revGoodbyeMode, false);
     const chBtn = document.getElementById('wl-channel-btn');

@@ -364,21 +364,10 @@ section {
   padding: 0.25rem 0.55rem;
   border-radius: 6px;
   position: relative;
-  transition: color 0.25s;
+  background: linear-gradient(#fff, #fff) no-repeat left / 0% 100%;
+  transition: background-size 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.25s;
 }
-.footer-col a::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: #fff;
-  border-radius: inherit;
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  z-index: 0;
-}
-.footer-col a:hover::before { transform: scaleX(1); }
-.footer-col a:hover { color: #000; }
+.footer-col a:hover { background-size: 100% 100%; color: #000; }
 .footer-col a .footer-arrow {
   display: inline-flex;
   opacity: 0;

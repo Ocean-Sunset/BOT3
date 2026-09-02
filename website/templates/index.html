@@ -217,6 +217,34 @@
         </div>
       </div>
     </div>
+
+    <!-- Mobile scrollytelling previews (hidden on desktop) -->
+    <div class="previews-scroll">
+      <div class="previews-scroll-sticky">
+        <img src="/static/preview1.png" alt="Embeds" data-preview-img="0" class="is-active" />
+        <img src="/static/preview2.png" alt="Dashboard" data-preview-img="1" />
+        <img src="/static/preview3.png" alt="Logs" data-preview-img="2" />
+      </div>
+      <div class="preview-slide" data-preview-slide="0">
+        <div class="preview-slide-text">
+          <h3>Brand new stylish embeds!</h3>
+          <p>use our new and improved embeds using lucide icons for a more colorful and visually appealing style!! now with columns AND rows to improve user readability!</p>
+        </div>
+      </div>
+      <div class="preview-slide" data-preview-slide="1">
+        <div class="preview-slide-text">
+          <h3>A functional dashboard page?!</h3>
+          <p>use our dashboard to efficiently manage your discord server without having to go through commands or discord! we even show easy to read logs for you to get as soon as you open your server dashboard (some features are only available as commands right now tho)</p>
+        </div>
+      </div>
+      <div class="preview-slide" data-preview-slide="2">
+        <div class="preview-slide-text">
+          <h3>Logs, logs, logs!</h3>
+          <p>rest assured that EVERY. SINGLE. MOVE. made by any user on your server is logged and saved!</p>
+        </div>
+      </div>
+    </div>
+
   </section>
 
   <!-- Image lightbox -->
@@ -633,6 +661,36 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && lightbox.classList.contains('is-open')) closeLightbox();
     });
+
+    // ── Mobile scrollytelling previews ──
+    if (window.innerWidth <= 600) {
+      const slides = document.querySelectorAll('.preview-slide');
+      const images = document.querySelectorAll('[data-preview-img]');
+      const texts = document.querySelectorAll('.preview-slide-text');
+
+      // Show first text immediately
+      if (texts[0]) texts[0].classList.add('is-visible');
+
+      slides.forEach((slide, i) => {
+        ScrollTrigger.create({
+          trigger: slide,
+          start: 'top 70%',
+          end: 'bottom 30%',
+          onEnter: () => {
+            images.forEach(img => img.classList.remove('is-active'));
+            texts.forEach(t => t.classList.remove('is-visible'));
+            if (images[i]) images[i].classList.add('is-active');
+            if (texts[i]) texts[i].classList.add('is-visible');
+          },
+          onEnterBack: () => {
+            images.forEach(img => img.classList.remove('is-active'));
+            texts.forEach(t => t.classList.remove('is-visible'));
+            if (images[i]) images[i].classList.add('is-active');
+            if (texts[i]) texts[i].classList.add('is-visible');
+          },
+        });
+      });
+    }
 
     // ── Dismiss warning banner ──
     document.getElementById('wbanner-close')?.addEventListener('click', () => {

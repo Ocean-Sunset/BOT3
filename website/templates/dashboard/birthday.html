@@ -1,0 +1,251 @@
+{% extends "dashboard/base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/moderation.css?v=21" />
+<link rel="stylesheet" href="/static/leveling.css?v=4" />
+<div id="bday-wrap">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;animation-delay:.05s;">
+    <div>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">🎂 Birthday</h1>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Track member birthdays and celebrate together. Members set their birthday with <code>/birthday set</code> in Discord.</p>
+    </div>
+    <label class="md-toggle md-toggle-xl"><input type="checkbox" id="bday-enabled" /><span class="md-toggle-slider"></span></label>
+  </div>
+
+  <div id="bday-config">
+  <div class="md-row">
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Announcement Channel</div>
+        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin:0.4rem 0 0;line-height:1.5;">Channel where birthday messages are posted daily at midnight UTC.</p>
+        <div class="md-behavior-list" style="margin-top:0.75rem;">
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-custom-select" data-channel-select="channel_id">
+                <button class="md-custom-select-btn">No channel</button>
+                <div class="md-custom-select-drop"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Birthday Role</div>
+        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin:0.4rem 0 0;line-height:1.5;">Role automatically assigned to members on their birthday.</p>
+        <div class="md-behavior-list" style="margin-top:0.75rem;">
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-custom-select" data-role-select="role_id">
+                <button class="md-custom-select-btn">No role</button>
+                <div class="md-custom-select-drop"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="md-row">
+    <div class="md-section" style="flex:1;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;">
+          <div class="md-section-title" style="margin:0;">Birthday Message</div>
+        </div>
+        <textarea class="md-input md-textarea" id="bday-message" rows="3" placeholder="Happy birthday {member}! 🎂 Wishing you an amazing day!"></textarea>
+        <div class="md-vars-hint">Variables: {member} {name} {server} {age}</div>
+        <div style="font-size:0.7rem;font-weight:700;color:rgba(255,255,255,0.4);margin:0.6rem 0 0.3rem;letter-spacing:0.02em;">PREVIEW</div>
+        <div class="md-lvl-preview" id="bday-preview"></div>
+      </div>
+    </div>
+
+    <div class="md-section" style="flex:0 0 280px;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Options</div>
+        <div class="md-behavior-list" style="margin-top:0.5rem;">
+          <div class="md-behavior-item" style="align-items:center;justify-content:space-between;">
+            <div style="flex:1;">
+              <div class="md-behavior-label">Show birth year</div>
+              <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-top:0.15rem;">Calculate and display age in messages</div>
+            </div>
+            <label class="md-toggle"><input type="checkbox" id="bday-allow-year" /><span class="md-toggle-slider"></span></label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="md-row">
+    <div class="md-section" style="flex:1;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">How It Works</div>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.6;margin-top:0.5rem;">
+          <p>1. Enable birthdays and select an announcement channel.</p>
+          <p>2. Members use <code style="background:rgba(255,255,255,0.04);padding:0.1rem 0.35rem;border-radius:3px;font-size:0.75rem;">/birthday set</code> in Discord to register their birthday.</p>
+          <p>3. Prowl announces birthdays daily at midnight UTC and assigns the birthday role.</p>
+          <p>4. Use <code style="background:rgba(255,255,255,0.04);padding:0.1rem 0.35rem;border-radius:3px;font-size:0.75rem;">/birthday upcoming</code> to see who's celebrating soon.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const GID = window.__GUILD_ID;
+const api = (p, o) => fetch(`/api/v1/birthday/${GID}${p}`, o||{}).then(r=>r.json());
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+
+const pending={}, original={};
+let SETTINGS_SNAPSHOT = {};
+let LOADED = {};
+let IS_MOD = false;
+const saveBar = document.getElementById('save-bar'), saveBtn = document.getElementById('save-btn');
+let saveTimer = null;
+
+function markChanged(k, v) {
+  if (!(k in original)) original[k] = (k in SETTINGS_SNAPSHOT) ? SETTINGS_SNAPSHOT[k] : !v;
+  pending[k] = v; saveBar.classList.remove('is-closed');
+  clearTimeout(saveTimer); saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
+}
+
+function updatePreview() {
+  const msg = document.getElementById('bday-message').value || 'Happy birthday {member}! 🎂 Wishing you an amazing day!';
+  const sample = { '{member}':'@User', '{name}':'User', '{server}':'My Server', '{age}':'25' };
+  let t = msg;
+  Object.keys(sample).forEach(k => { t = t.split(k).join(sample[k]); });
+  document.getElementById('bday-preview').innerHTML = `<span style="font-size:1.1rem;">🎂</span> ` + esc(t).replace(/\n/g, '<br>');
+}
+
+function updateGrayOut() {
+  const enabled = document.getElementById('bday-enabled')?.checked ?? false;
+  const config = document.getElementById('bday-config');
+  if (config) config.classList.toggle('is-disabled', !enabled);
+}
+
+function applyDropdownValue(wrap, value, noneLabel) {
+  const btn = wrap.querySelector('.md-custom-select-btn');
+  if (!btn) return;
+  const saved = value ?? '';
+  const match = saved ? wrap.querySelector(`.md-custom-opt[data-id="${saved}"]`) : null;
+  btn.textContent = match ? match.textContent : noneLabel;
+}
+
+function resetDropdowns() {
+  document.querySelectorAll('[data-channel-select]').forEach(wrap => {
+    applyDropdownValue(wrap, SETTINGS_SNAPSHOT.channel_id, 'No channel');
+  });
+  document.querySelectorAll('[data-role-select]').forEach(wrap => {
+    applyDropdownValue(wrap, SETTINGS_SNAPSHOT.role_id, 'No role');
+  });
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('[data-channel-select], [data-role-select]')) {
+    document.querySelectorAll('.md-custom-select-drop').forEach(drop => drop.classList.remove('is-open'));
+  }
+});
+
+async function saveChanges() {
+  const keys = Object.keys(pending); if (!keys.length) return;
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving...';
+  for (const key of keys) {
+    try {
+      const res = await fetch(`/api/v1/birthday/${GID}/settings`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]})});
+      if (!res.ok) {
+        let detail = 'Save failed';
+        try { const j = await res.json(); detail = j.detail || j.error || detail; } catch {}
+        if (typeof showToast === 'function') showToast(detail, 'error', 5000);
+        saveBtn.disabled = false; saveBtn.textContent = 'Save'; return;
+      }
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('Network error saving.', 'error', 5000);
+      saveBtn.disabled = false; saveBtn.textContent = 'Save'; return;
+    }
+  }
+  for (const key of keys) { LOADED[key] = pending[key]; delete pending[key]; }
+  saveBar.classList.add('is-closed'); saveBtn.disabled = false; saveBtn.textContent = 'Save';
+  if (typeof showToast==='function') showToast('Settings saved.','success');
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const [channelsRes, rolesRes, settingsRes] = await Promise.all([
+    api('/channels').catch(() => ({channels:[]})),
+    api('/roles').catch(() => ({roles:[]})),
+    api('/settings').catch(() => ({}))
+  ]);
+
+  const channels = channelsRes.channels || [];
+  const roles = rolesRes.roles || [];
+
+  document.querySelectorAll('[data-channel-select]').forEach(wrap => {
+    const btn = wrap.querySelector('.md-custom-select-btn'), drop = wrap.querySelector('.md-custom-select-drop');
+    drop.innerHTML = `<button class="md-custom-opt" data-id="">No channel</button>` + channels.map(c => `<button class="md-custom-opt" data-id="${c.id}">#${esc(c.name)}</button>`).join('');
+    drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+      btn.textContent = b.dataset.id ? b.textContent : 'No channel';
+      markChanged('channel_id', b.dataset.id || null);
+      drop.classList.remove('is-open');
+    }));
+    if (!btn.dataset.selectBound) {
+      btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+      btn.dataset.selectBound = 'true';
+    }
+  });
+
+  document.querySelectorAll('[data-role-select]').forEach(wrap => {
+    const btn = wrap.querySelector('.md-custom-select-btn'), drop = wrap.querySelector('.md-custom-select-drop');
+    drop.innerHTML = `<button class="md-custom-opt" data-id="">No role</button>` + roles.map(r => `<button class="md-custom-opt" data-id="${r.id}">@${esc(r.name)}</button>`).join('');
+    drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+      btn.textContent = b.dataset.id ? b.textContent : 'No role';
+      markChanged('role_id', b.dataset.id || null);
+      drop.classList.remove('is-open');
+    }));
+    if (!btn.dataset.selectBound) {
+      btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+      btn.dataset.selectBound = 'true';
+    }
+  });
+
+  const s = settingsRes.settings || {}; SETTINGS_SNAPSHOT = { ...s }; LOADED = { ...s };
+  IS_MOD = !!settingsRes.is_mod;
+
+  document.getElementById('bday-enabled').checked = !!s.enabled;
+  document.getElementById('bday-allow-year').checked = s.allow_year !== false;
+  document.getElementById('bday-message').value = s.message || '';
+  resetDropdowns(); updateGrayOut(); updatePreview();
+
+  if (!IS_MOD) {
+    document.querySelectorAll('#bday-wrap input, #bday-wrap textarea').forEach(el => { el.disabled = true; });
+    saveBar.classList.add('is-closed');
+  } else {
+    document.getElementById('bday-enabled').addEventListener('change', function(){ markChanged('enabled', this.checked); updateGrayOut(); });
+    document.getElementById('bday-allow-year').addEventListener('change', function(){ markChanged('allow_year', this.checked); });
+    document.getElementById('bday-message').addEventListener('input', function(){ markChanged('message', this.value); updatePreview(); });
+  }
+
+  saveBtn.addEventListener('click', saveChanges);
+  document.getElementById('discard-btn').addEventListener('click', () => {
+    const reverted = Object.assign({}, LOADED);
+    for (const key of Object.keys(pending)) {
+      if (key in original) reverted[key] = original[key];
+    }
+    for (const key of Object.keys(pending)) delete pending[key];
+    for (const key of Object.keys(original)) delete original[key];
+    SETTINGS_SNAPSHOT = Object.assign({}, reverted);
+    document.getElementById('bday-enabled').checked = !!SETTINGS_SNAPSHOT.enabled;
+    document.getElementById('bday-allow-year').checked = SETTINGS_SNAPSHOT.allow_year !== false;
+    document.getElementById('bday-message').value = SETTINGS_SNAPSHOT.message || '';
+    resetDropdowns(); updateGrayOut(); updatePreview();
+    saveBar.classList.add('is-closed');
+  });
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+});
+</script>
+{% endblock %}

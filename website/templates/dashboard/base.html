@@ -168,6 +168,7 @@
           {{ nav_item('social_alerts', 'bell', 'Social Alerts') }}
           {{ nav_item('afk', 'moon', 'AFK') }}
           {{ nav_item('giveaways', 'gift', 'Giveaways') }}
+          {{ nav_item('birthday', 'cake', 'Birthday') }}
           {{ nav_item('tickets', 'ticket', 'Tickets') }}
           {{ nav_item('music', 'music', 'Music', 'Beta') }}
         </div>
@@ -316,6 +317,10 @@
     <a href="/guild/{{ guild_id }}/giveaways" class="tab-item{% if active_panel == 'giveaways' %} is-active{% endif %}">
       <i data-lucide="gift"></i>
       <span>Giveaways</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/birthday" class="tab-item{% if active_panel == 'birthday' %} is-active{% endif %}">
+      <i data-lucide="cake"></i>
+      <span>Birthday</span>
     </a>
     <a href="/guild/{{ guild_id }}/tickets" class="tab-item{% if active_panel == 'tickets' %} is-active{% endif %}">
       <i data-lucide="ticket"></i>

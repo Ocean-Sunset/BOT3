@@ -1220,6 +1220,7 @@ async def dashboard(request: Request, guild_id: str, panel: str = "overview"):
         "social_alerts", "invite_tracker", "tickets", "global_chat",
         "autoresponder", "settings", "raid_protection", "profile",
         "aliases", "bot_profile", "reminders", "afk", "giveaways",
+        "birthday",
     ]
     if panel not in valid_panels:
         panel = "overview"
@@ -4312,6 +4313,86 @@ async def welcomer_channels(guild_id: str, request: Request):
 @app.get("/api/v1/welcomer/{guild_id}/roles")
 async def welcomer_roles(guild_id: str, request: Request):
     """All roles for the auto-role dropdown."""
+    await require_guild_access(request, guild_id)
+    d = await get_guild_data(guild_id)
+    if d and "roles" in d:
+        return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
+    return {"roles": []}
+
+
+# ---------------------------------------------------------------------------
+#  Birthday API v1
+# ---------------------------------------------------------------------------
+
+BIRTHDAY_DEFAULTS = {
+    "enabled": True,
+    "channel_id": None,
+    "role_id": None,
+    "message": "Happy birthday {member}! 🎂 Wishing you an amazing day!",
+    "allow_year": True,
+}
+
+
+async def _get_birthday_settings(guild_id: str):
+    return await fetchrow_cached("birthday_settings", "SELECT settings FROM birthday_settings WHERE guild_id = ?", guild_id, BIRTHDAY_DEFAULTS)
+
+
+@app.get("/api/v1/birthday/{guild_id}/settings")
+async def birthday_settings_get(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    return {"settings": await _get_birthday_settings(guild_id)}
+
+
+@app.post("/api/v1/birthday/{guild_id}/settings", dependencies=[Depends(require_mod)])
+async def birthday_settings_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    key = body.get("key")
+    value = body.get("value")
+    if not key:
+        return JSONResponse({"error": "missing key"}, status_code=400)
+    if key == "channel_id" and value is not None:
+        if not _valid_snowflake(value):
+            return JSONResponse({"error": "invalid channel ID"}, status_code=400)
+        value = str(value)
+    elif key == "role_id" and value is not None:
+        if not _valid_snowflake(value):
+            return JSONResponse({"error": "invalid role ID"}, status_code=400)
+        value = str(value)
+    elif key == "message":
+        if not isinstance(value, str) or not value.strip():
+            return JSONResponse({"error": "message must be a non-empty string"}, status_code=400)
+        value = value[:500]
+    err = await _save_settings("birthday_settings", str(guild_id), key, value, BIRTHDAY_DEFAULTS)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    return {"ok": True}
+
+
+@app.get("/api/v1/birthday/{guild_id}/birthdays")
+async def birthday_list(guild_id: str, request: Request):
+    """List all birthdays for a guild."""
+    await require_guild_access(request, guild_id)
+    rows = await query(
+        "SELECT user_id, month, day, year FROM birthdays WHERE guild_id = ? ORDER BY month, day",
+        str(guild_id),
+    )
+    return {"birthdays": [dict(r) for r in rows]}
+
+
+@app.get("/api/v1/birthday/{guild_id}/channels")
+async def birthday_channels(guild_id: str, request: Request):
+    """Text channels for the birthday channel dropdown."""
+    await require_guild_access(request, guild_id)
+    d = await get_guild_data(guild_id)
+    if d and "channels" in d:
+        return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
+    return {"channels": []}
+
+
+@app.get("/api/v1/birthday/{guild_id}/roles")
+async def birthday_roles(guild_id: str, request: Request):
+    """All roles for the birthday role dropdown."""
     await require_guild_access(request, guild_id)
     d = await get_guild_data(guild_id)
     if d and "roles" in d:

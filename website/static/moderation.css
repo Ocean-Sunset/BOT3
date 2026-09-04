@@ -805,7 +805,8 @@
 #ticket-config.is-disabled,
 #vfy-config.is-disabled,
 #gc-config.is-disabled,
-#social-config.is-disabled {
+#social-config.is-disabled,
+#bday-config.is-disabled {
   opacity: 0.4;
   pointer-events: none;
 }

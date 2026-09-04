@@ -1235,6 +1235,7 @@ GUILD_TABLES = [
     "automation_settings", "autoresponder", "social_settings", "invite_settings", "invite_stats",
     "ticket_settings", "ticket_logs", "member_history", "message_history", "verify_logs",
     "afk_status", "giveaways", "giveaway_entries",
+    "birthday_settings", "birthdays",
 ]
 
 

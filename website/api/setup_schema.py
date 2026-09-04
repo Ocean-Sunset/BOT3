@@ -362,6 +362,24 @@ CREATE TABLE IF NOT EXISTS request_stats (
     bucket_ts   REAL PRIMARY KEY,
     count       INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS birthday_settings (
+    guild_id    TEXT PRIMARY KEY,
+    settings    TEXT NOT NULL DEFAULT '{}',
+    updated_at  REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS birthdays (
+    guild_id    TEXT NOT NULL,
+    user_id     TEXT NOT NULL,
+    month       INTEGER NOT NULL,
+    day         INTEGER NOT NULL,
+    year        INTEGER,
+    created_at  REAL NOT NULL,
+    PRIMARY KEY (guild_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_birthdays_guild_date ON birthdays (guild_id, month, day);
 """
 
 

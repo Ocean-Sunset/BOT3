@@ -4329,6 +4329,8 @@ BIRTHDAY_DEFAULTS = {
     "channel_id": None,
     "role_id": None,
     "message": "Happy birthday {member}! 🎂 Wishing you an amazing day!",
+    "message_type": "basic",
+    "embed_data": None,
     "allow_year": True,
 }
 
@@ -4363,6 +4365,12 @@ async def birthday_settings_set(guild_id: str, request: Request):
         if not isinstance(value, str) or not value.strip():
             return JSONResponse({"error": "message must be a non-empty string"}, status_code=400)
         value = value[:500]
+    elif key == "message_type":
+        if value not in ("basic", "custom"):
+            return JSONResponse({"error": "message_type must be 'basic' or 'custom'"}, status_code=400)
+    elif key == "embed_data":
+        if value is not None and not isinstance(value, dict):
+            return JSONResponse({"error": "embed_data must be an object or null"}, status_code=400)
     err = await _save_settings("birthday_settings", str(guild_id), key, value, BIRTHDAY_DEFAULTS)
     if err:
         return JSONResponse({"error": err}, status_code=400)

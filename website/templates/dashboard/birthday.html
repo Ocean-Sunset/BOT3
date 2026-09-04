@@ -56,11 +56,21 @@
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;">
           <div class="md-section-title" style="margin:0;">Birthday Message</div>
+          <div class="md-segmented">
+            <button type="button" class="extra-tab msg-mode-tab is-active" data-mode="basic">Basic</button>
+            <button type="button" class="extra-tab msg-mode-tab" data-mode="custom">Custom</button>
+          </div>
         </div>
-        <textarea class="md-input md-textarea" id="bday-message" rows="3" placeholder="Happy birthday {member}! 🎂 Wishing you an amazing day!"></textarea>
-        <div class="md-vars-hint">Variables: {member} {name} {server} {age}</div>
-        <div style="font-size:0.7rem;font-weight:700;color:rgba(255,255,255,0.4);margin:0.6rem 0 0.3rem;letter-spacing:0.02em;">PREVIEW</div>
-        <div class="md-lvl-preview" id="bday-preview"></div>
+        <div data-basic-view="bday">
+          <textarea class="md-input md-textarea" id="bday-message" rows="3" placeholder="Happy birthday {member}! 🎂 Wishing you an amazing day!"></textarea>
+          <div class="md-vars-hint">Variables: {member} {name} {server} {age}</div>
+          <div style="font-size:0.7rem;font-weight:700;color:rgba(255,255,255,0.4);margin:0.6rem 0 0.3rem;letter-spacing:0.02em;">PREVIEW</div>
+          <div class="md-lvl-preview" id="bday-preview"></div>
+        </div>
+        <div data-custom-view="bday" style="display:none;">
+          <button class="md-action-btn" data-edit-embed="bday" style="width:100%;justify-content:center;padding:0.5rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
+          <p style="font-size:0.7rem;color:rgba(255,255,255,0.35);margin-top:0.5rem;line-height:1.5;">Build a full embed (title, description, color, fields, footer...). Use the same variables.</p>
+        </div>
       </div>
     </div>
 
@@ -96,12 +106,84 @@
 
   </div>
 </div>
+
+<!-- Custom embed editor modal -->
+<div class="md-modal-overlay" id="embed-editor-modal">
+  <div class="md-modal" style="min-width:520px;max-width:560px;max-height:80vh;overflow-y:auto;">
+    <h3 id="embed-editor-title">Birthday Message Embed</h3>
+    <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin:0.2rem 0 0.75rem;line-height:1.5;">Variables work in title, description and footer: <code>{member}</code> <code>{name}</code> <code>{server}</code> <code>{age}</code></div>
+    <div style="display:flex;flex-direction:column;gap:0.6rem;margin:0.75rem 0;">
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Title</div>
+        <input type="text" class="md-input" id="ee-title" placeholder="🎂 Happy Birthday!" />
+      </div>
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Description</div>
+        <textarea class="md-input md-textarea" id="ee-desc" rows="3" placeholder="Happy birthday {member}! Wishing you an amazing day!"></textarea>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Color</div>
+          <div style="display:flex;align-items:center;gap:0.4rem;">
+            <input type="color" id="ee-color" value="#8B5CF6" style="width:36px;height:32px;border:none;background:none;cursor:pointer;" />
+            <input type="text" class="md-input" id="ee-color-hex" value="#8B5CF6" style="max-width:90px;" />
+          </div>
+          <div class="md-presets" id="ee-presets" style="margin:0.4rem 0 0 0;flex-wrap:wrap;"></div>
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">URL</div>
+          <input type="text" class="md-input" id="ee-url" placeholder="https://..." />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Author Name</div>
+          <input type="text" class="md-input" id="ee-author" placeholder="Author" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Author Icon URL</div>
+          <input type="text" class="md-input" id="ee-author-icon" placeholder="https://...png" />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Footer Text</div>
+          <input type="text" class="md-input" id="ee-footer" placeholder="Footer" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Footer Icon URL</div>
+          <input type="text" class="md-input" id="ee-footer-icon" placeholder="https://...png" />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Image URL</div>
+          <input type="text" class="md-input" id="ee-image" placeholder="https://...png" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Thumbnail URL</div>
+          <input type="text" class="md-input" id="ee-thumbnail" placeholder="https://...png" />
+        </div>
+      </div>
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Fields</div>
+        <div id="ee-fields" style="display:flex;flex-direction:column;gap:0.4rem;"></div>
+        <button class="md-action-btn" id="ee-add-field" style="margin-top:0.4rem;"><i data-lucide="plus"></i> Add Field</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="md-action-btn" id="ee-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save Embed</button>
+      <button class="md-action-btn" id="ee-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 {% block scripts %}
 <script>
 const GID = window.__GUILD_ID;
-const api = (p, o) => fetch(`/api/v1/birthday/${GID}${p}`, o||{}).then(r=>r.json());
 const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+const api = (p, o) => fetch(`/api/v1/birthday/${GID}${p}`, o||{}).then(r=>r.json());
 
 const pending={}, original={};
 let SETTINGS_SNAPSHOT = {};
@@ -112,12 +194,13 @@ let saveTimer = null;
 
 function markChanged(k, v) {
   if (!(k in original)) original[k] = (k in SETTINGS_SNAPSHOT) ? SETTINGS_SNAPSHOT[k] : !v;
-  pending[k] = v; saveBar.classList.remove('is-closed');
+  pending[k] = v; SETTINGS_SNAPSHOT[k] = v;
+  saveBar.classList.remove('is-closed');
   clearTimeout(saveTimer); saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
 }
 
 function updatePreview() {
-  const msg = document.getElementById('bday-message').value || 'Happy birthday {member}! 🎂 Wishing you an amazing day!';
+  const msg = SETTINGS_SNAPSHOT.message || 'Happy birthday {member}! 🎂 Wishing you an amazing day!';
   const sample = { '{member}':'@User', '{name}':'User', '{server}':'My Server', '{age}':'25' };
   let t = msg;
   Object.keys(sample).forEach(k => { t = t.split(k).join(sample[k]); });
@@ -129,6 +212,69 @@ function updateGrayOut() {
   const config = document.getElementById('bday-config');
   if (config) config.classList.toggle('is-disabled', !enabled);
 }
+
+// ── Basic / Custom mode ──
+function setModeView(mode, dirty) {
+  document.querySelectorAll('.msg-mode-tab').forEach(t => t.classList.toggle('is-active', t.dataset.mode === mode));
+  const basic = document.querySelector('[data-basic-view="bday"]');
+  const custom = document.querySelector('[data-custom-view="bday"]');
+  if (basic) basic.style.display = mode === 'basic' ? '' : 'none';
+  if (custom) custom.style.display = mode === 'custom' ? '' : 'none';
+  if (dirty) markChanged('message_type', mode);
+}
+
+// ── Custom embed editor ──
+const eeVal = id => document.getElementById(id)?.value ?? '';
+function collectEmbed() {
+  const e = {
+    title: eeVal('ee-title'), description: eeVal('ee-desc'), url: eeVal('ee-url'),
+    color: eeVal('ee-color-hex'),
+    author_name: eeVal('ee-author'), author_icon: eeVal('ee-author-icon'),
+    footer_text: eeVal('ee-footer'), footer_icon: eeVal('ee-footer-icon'),
+    image_url: eeVal('ee-image'), thumbnail_url: eeVal('ee-thumbnail'),
+  };
+  const fields = [];
+  document.querySelectorAll('#ee-fields .ee-field-row').forEach(row => {
+    const name = row.querySelector('.ee-field-name').value.trim();
+    const value = row.querySelector('.ee-field-value').value;
+    const inline = row.querySelector('.ee-field-inline').checked;
+    if (name) fields.push({ name, value, inline });
+  });
+  if (fields.length) e.fields = fields;
+  for (const k of ['title','description','url','author_name','author_icon','footer_text','footer_icon','image_url','thumbnail_url']) {
+    if (!e[k]) delete e[k];
+  }
+  if (!e.color || e.color.toLowerCase() === '#8b5cf6') delete e.color;
+  return e;
+}
+function addFieldRow(f) {
+  const row = document.createElement('div');
+  row.className = 'ee-field-row';
+  row.style.cssText = 'display:flex;gap:0.4rem;align-items:center;';
+  row.innerHTML = `<input type="text" class="md-input ee-field-name" placeholder="Name" style="flex:1.2" value="${esc(f?.name||'')}"/>
+    <input type="text" class="md-input ee-field-value" placeholder="Value" style="flex:2" value="${esc(f?.value||'')}"/>
+    <label class="md-toggle" data-tooltip="Inline"><input type="checkbox" class="ee-field-inline" ${f?.inline?'checked':''} /><span class="md-toggle-slider"></span></label>
+    <button type="button" class="md-action-btn ee-field-del" style="padding:0.25rem;"><i data-lucide="x"></i></button>`;
+  row.querySelector('.ee-field-del').addEventListener('click', () => row.remove());
+  document.getElementById('ee-fields').appendChild(row);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+function loadEmbedEditor(embed) {
+  const e = embed || {};
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+  set('ee-title', e.title); set('ee-desc', e.description); set('ee-url', e.url);
+  set('ee-author', e.author_name); set('ee-author-icon', e.author_icon);
+  set('ee-footer', e.footer_text); set('ee-footer-icon', e.footer_icon);
+  set('ee-image', e.image_url); set('ee-thumbnail', e.thumbnail_url);
+  const hex = (e.color && !/^#/.test(String(e.color))) ? '#' + e.color : (e.color || '#8B5CF6');
+  set('ee-color-hex', hex);
+  const colorInput = document.getElementById('ee-color');
+  if (colorInput) colorInput.value = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#8B5CF6';
+  const fw = document.getElementById('ee-fields');
+  fw.innerHTML = '';
+  (e.fields || []).forEach(fld => addFieldRow(fld));
+}
+const EMBED_DEFAULTS = { title:'🎂 Happy Birthday!', description:'Happy birthday {member}! Wishing you an amazing day!', color:'#8B5CF6' };
 
 function applyDropdownValue(wrap, value, noneLabel) {
   const btn = wrap.querySelector('.md-custom-select-btn');
@@ -152,6 +298,43 @@ document.addEventListener('click', e => {
     document.querySelectorAll('.md-custom-select-drop').forEach(drop => drop.classList.remove('is-open'));
   }
 });
+
+document.querySelectorAll('.msg-mode-tab').forEach(t => t.addEventListener('click', () => setModeView(t.dataset.mode, true)));
+document.querySelectorAll('[data-edit-embed]').forEach(b => b.addEventListener('click', () => {
+  const saved = SETTINGS_SNAPSHOT.embed_data || {};
+  loadEmbedEditor(Object.keys(saved).length ? saved : EMBED_DEFAULTS);
+  document.getElementById('embed-editor-modal').classList.add('is-open');
+}));
+document.getElementById('ee-save').addEventListener('click', () => {
+  markChanged('embed_data', collectEmbed());
+  document.getElementById('embed-editor-modal').classList.remove('is-open');
+});
+document.getElementById('ee-cancel').addEventListener('click', () => document.getElementById('embed-editor-modal').classList.remove('is-open'));
+document.getElementById('ee-add-field').addEventListener('click', () => addFieldRow());
+document.getElementById('ee-color')?.addEventListener('input', function() {
+  document.getElementById('ee-color-hex').value = this.value;
+});
+document.getElementById('ee-color-hex')?.addEventListener('input', function() {
+  if (/^#[0-9a-fA-F]{6}$/.test(this.value)) document.getElementById('ee-color').value = this.value;
+});
+
+const EE_PRESETS = ['#8B5CF6','#22C55E','#EF4444','#F59E0B','#3B82F6','#EC4899','#14B8A6','#F97316'];
+const eePresets = document.getElementById('ee-presets');
+if (eePresets) {
+  EE_PRESETS.forEach(c => {
+    const sw = document.createElement('button');
+    sw.type = 'button';
+    sw.style.cssText = 'width:22px;height:22px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);background:' + c + ';cursor:pointer;padding:0;';
+    sw.title = c;
+    sw.addEventListener('click', () => {
+      const eeHex = document.getElementById('ee-color-hex');
+      const eeColor = document.getElementById('ee-color');
+      if (eeHex) { eeHex.value = c; eeHex.dispatchEvent(new Event('input')); }
+      if (eeColor) eeColor.value = c;
+    });
+    eePresets.appendChild(sw);
+  });
+}
 
 async function saveChanges() {
   const keys = Object.keys(pending); if (!keys.length) return;
@@ -219,10 +402,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('bday-enabled').checked = !!s.enabled;
   document.getElementById('bday-allow-year').checked = s.allow_year !== false;
   document.getElementById('bday-message').value = s.message || '';
+  setModeView(s.message_type || 'basic', false);
   resetDropdowns(); updateGrayOut(); updatePreview();
 
   if (!IS_MOD) {
-    document.querySelectorAll('#bday-wrap input, #bday-wrap textarea').forEach(el => { el.disabled = true; });
+    document.querySelectorAll('#bday-wrap input, #bday-wrap textarea, #bday-wrap .msg-mode-tab').forEach(el => { el.disabled = true; });
     saveBar.classList.add('is-closed');
   } else {
     document.getElementById('bday-enabled').addEventListener('change', function(){ markChanged('enabled', this.checked); updateGrayOut(); });
@@ -242,6 +426,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('bday-enabled').checked = !!SETTINGS_SNAPSHOT.enabled;
     document.getElementById('bday-allow-year').checked = SETTINGS_SNAPSHOT.allow_year !== false;
     document.getElementById('bday-message').value = SETTINGS_SNAPSHOT.message || '';
+    setModeView(SETTINGS_SNAPSHOT.message_type || 'basic', false);
     resetDropdowns(); updateGrayOut(); updatePreview();
     saveBar.classList.add('is-closed');
   });

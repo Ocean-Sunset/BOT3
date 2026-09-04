@@ -7,7 +7,7 @@ from typing import Optional
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
-from Ediscord.builders import EMBED_EMOJIS, emoji_title
+from Ediscord.builders import EMBED_EMOJIS, emoji_title, embed_from_dict
 
 
 BIRTHDAY_DEFAULTS = {
@@ -15,6 +15,8 @@ BIRTHDAY_DEFAULTS = {
     "channel_id": None,
     "role_id": None,
     "message": "Happy birthday {member}! 🎂 Wishing you an amazing day!",
+    "message_type": "basic",
+    "embed_data": None,
     "allow_year": True,
 }
 
@@ -371,6 +373,8 @@ class Birthday(commands.Cog, name="Birthday"):
             role_id = settings.get("role_id")
             role_mention = f"<@&{role_id}>" if role_id else ""
             msg_template = settings.get("message", BIRTHDAY_DEFAULTS["message"])
+            message_type = settings.get("message_type", "basic")
+            embed_data = settings.get("embed_data")
 
             for br in birthday_rows:
                 uid = int(br["user_id"])
@@ -390,19 +394,29 @@ class Birthday(commands.Cog, name="Birthday"):
                     "{server}": guild.name,
                     "{age}": age_str,
                 }
-                message = msg_template
-                for k, v in replacements.items():
-                    message = message.replace(k, v)
 
-                embed = (
-                    EmbedBuilder()
-                    .title(emoji_title("cake", f"Happy Birthday, {member.display_name}!"))
-                    .description(message)
-                    .color("brand")
-                    .thumbnail(str(member.display_avatar.url))
-                    .timestamp(datetime.datetime.utcnow())
-                    .build()
-                )
+                if message_type == "custom" and embed_data:
+                    rendered = dict(embed_data)
+                    for key in ("title", "description", "footer_text", "author_name"):
+                        if rendered.get(key):
+                            val = str(rendered[key])
+                            for k, v in replacements.items():
+                                val = val.replace(k, v)
+                            rendered[key] = val
+                    embed = embed_from_dict(rendered)
+                else:
+                    message = msg_template
+                    for k, v in replacements.items():
+                        message = message.replace(k, v)
+                    embed = (
+                        EmbedBuilder()
+                        .title(emoji_title("cake", f"Happy Birthday, {member.display_name}!"))
+                        .description(message)
+                        .color("brand")
+                        .thumbnail(str(member.display_avatar.url))
+                        .timestamp(datetime.datetime.utcnow())
+                        .build()
+                    )
                 try:
                     await channel.send(content=role_mention if role_mention else None, embed=embed)
 
@@ -411,11 +425,28 @@ class Birthday(commands.Cog, name="Birthday"):
                             role = guild.get_role(int(role_id))
                             if role:
                                 await member.add_roles(role, reason="Birthday role")
+                                self.bot.loop.create_task(self._remove_birthday_role(guild_id, uid, role_id))
                         except Exception as e:
                             logger.warning(f"Failed to assign birthday role in {guild_id}: {e}")
 
                 except Exception as e:
                     logger.warning(f"Failed to send birthday message in {guild_id}: {e}")
+
+    async def _remove_birthday_role(self, guild_id: int, user_id: int, role_id: str):
+        await asyncio.sleep(24 * 60 * 60)  # 24 hours
+        guild = self.bot.get_guild(guild_id)
+        if not guild:
+            return
+        member = guild.get_member(user_id)
+        if not member:
+            return
+        role = guild.get_role(int(role_id))
+        if not role:
+            return
+        try:
+            await member.remove_roles(role, reason="Birthday role expired (24h)")
+        except Exception as e:
+            logger.warning(f"Failed to remove birthday role in {guild_id}: {e}")
 
 
 async def setup(bot: commands.Bot):

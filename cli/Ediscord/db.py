@@ -1236,6 +1236,7 @@ GUILD_TABLES = [
     "ticket_settings", "ticket_logs", "member_history", "message_history", "verify_logs",
     "afk_status", "giveaways", "giveaway_entries",
     "birthday_settings", "birthdays",
+    "activity_role_rules", "user_activity", "user_badges",
 ]
 
 

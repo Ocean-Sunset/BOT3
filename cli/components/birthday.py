@@ -38,12 +38,7 @@ MONTH_NAMES = [
 class Birthday(commands.Cog, name="Birthday"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self._birthday_loop_task = None
-        self.bot.loop.create_task(self._start_birthday_loop())
-
-    def _start_birthday_loop(self):
-        if self._birthday_loop_task is None or self._birthday_loop_task.done():
-            self._birthday_loop_task = self.bot.loop.create_task(self._birthday_loop())
+        self.bot.loop.create_task(self._birthday_loop())
 
     # ── Commands ──────────────────────────────────────────────────────
 

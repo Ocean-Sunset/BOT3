@@ -54,43 +54,28 @@ Prowl is a Discord bot (Python/discord.py 2.7.x) with a web dashboard (FastAPI +
 - 135 tests passing in `cli/test_all_commands.py`
 - Features roadmap: `FEATURES.md`
 
-## Current Feature: Birthday Tracking (COMPLETE)
-Birthday tracking feature has been fully implemented:
+## Current Features
 
-### Files Created/Modified
-- `cli/components/birthday.py` — New cog with commands + background loop
-- `website/api/setup_schema.py` — Added `birthday_settings` and `birthdays` tables
-- `website/api/index.py` — Added API endpoints + valid_panels entry
-- `website/templates/dashboard/birthday.html` — New dashboard page
-- `website/templates/dashboard/base.html` — Added nav link + mobile tab
-- `cli/Ediscord/db.py` — Added tables to GUILD_TABLES for cleanup
+### Birthday Tracking (COMPLETE)
+- `cli/components/birthday.py` — Commands + daily loop + 24h role removal + Basic/Custom message modes
+- Dashboard with channel/role selectors, message template, embed editor
+- API: GET/POST settings, GET birthdays, channels, roles
 
-### Bot Commands
-- `/birthday set <month> <day> [year]` — Set your birthday
-- `/birthday remove` — Remove your birthday
-- `/birthday list` — List all birthdays in server
-- `/birthday upcoming` — Show next 7 days of birthdays
-- Background loop: posts daily at midnight UTC, assigns birthday role
+### Activity Roles (COMPLETE)
+- `cli/components/activity_roles.py` — Auto-assign roles based on game/activity
+- Monitors `on_presence_update` for playing activity changes
+- DB: `activity_role_rules` table
+- Commands: `/activityrole add`, `/remove`, `/list`
+- Dashboard with rule management
 
-### Dashboard Features
-- Enable/disable toggle
-- Channel selector for announcements
-- Role selector for birthday role
-- Message template with {member}, {name}, {server}, {age} variables
-- Show birth year toggle
-- Live preview
-
-### API Endpoints
-- `GET /api/v1/birthday/{guild_id}/settings`
-- `POST /api/v1/birthday/{guild_id}/settings`
-- `GET /api/v1/birthday/{guild_id}/birthdays`
-- `GET /api/v1/birthday/{guild_id}/channels`
-- `GET /api/v1/birthday/{guild_id}/roles`
-
-### Next Steps (User Decides)
-- Test the feature
-- Run `python website/api/setup_schema.py` on live DB
-- Commit changes
+### Badges (COMPLETE)
+- `cli/components/badges.py` — Achievement badge system with VC tracking
+- 20 badges across 4 categories: messages, voice, tenure, special
+- VC time tracking via `on_voice_state_update` (in-memory sessions, flushed to DB)
+- Badge checking triggered from leveling cog's `on_message`
+- Commands: `/badges`, `/badges @user`, `/badgesboard`
+- DB: `user_activity`, `user_badges` tables
+- Dashboard showing badge categories + leaderboard
 
 ## Useful Patterns to Follow
 
@@ -113,12 +98,18 @@ Birthday tracking feature has been fully implemented:
 ## File Reference
 - `cli/start.py` — ProwlBot class, cog loading, `on_message` override
 - `cli/Ediscord/builders.py` — EmbedBuilder, EMBED_EMOJIS, brand colors
-- `cli/Ediscord/db.py` — DB helpers, `_unwrap_cell` type coercion
+- `cli/Ediscord/db.py` — DB helpers, `_unwrap_cell` type coercion, GUILD_TABLES
 - `cli/Ediscord/http_bridge.py` — Bot HTTP server, DIRECT_ACTIONS, action_stats
 - `cli/Ediscord/cache.py` — AsyncTTLCache, settings_cache
-- `website/api/index.py` — All API routes, _save_settings, _call_bot_direct
+- `cli/components/birthday.py` — Birthday tracking cog
+- `cli/components/activity_roles.py` — Activity-based role assignment
+- `cli/components/badges.py` — Badge system with VC tracking
+- `cli/components/leveling.py` — XP/leveling (hooks into badge tracking)
+- `website/api/index.py` — All API routes, _save_settings, valid_panels
 - `website/api/db.py` — execute(), query(), fetchval(), fetchrow()
 - `website/api/setup_schema.py` — DB schema setup script
 - `website/templates/dashboard/base.html` — Dashboard layout, nav, mobile tab bar
+- `website/templates/dashboard/activity_roles.html` — Activity roles dashboard
+- `website/templates/dashboard/badges.html` — Badges dashboard
 - `website/static/dashboard.css` — Dashboard styles
-- `website/static/index.css` — Landing page styles (v14)
+- `website/static/moderation.css` — Shared dashboard component styles

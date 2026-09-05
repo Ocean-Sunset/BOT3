@@ -1,0 +1,137 @@
+{% extends "dashboard/base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/moderation.css?v=21" />
+<link rel="stylesheet" href="/static/leveling.css?v=4" />
+<div id="ar-wrap">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;animation-delay:.05s;">
+    <div>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">🎮 Activity Roles</h1>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Auto-assign roles when members play specific games. Roles are removed when they stop playing.</p>
+    </div>
+  </div>
+
+  <div class="md-row">
+    <div class="md-section" style="flex:1;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Add Activity Role</div>
+        <div class="md-behavior-list" style="margin-top:0.5rem;">
+          <div class="md-behavior-item" style="align-items:flex-start;">
+            <div style="flex:1;">
+              <div class="md-behavior-label">Game / Activity Name</div>
+              <div class="md-behavior-desc">Must match exactly (case-insensitive). E.g. "Valorant", "Minecraft"</div>
+              <input type="text" class="md-input" id="ar-activity" placeholder="e.g. Valorant" style="margin-top:0.4rem;" />
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start;">
+            <div style="flex:1;">
+              <div class="md-behavior-label">Role to Assign</div>
+              <div class="md-custom-select" id="ar-role-select">
+                <button class="md-custom-select-btn">Select role...</button>
+                <div class="md-custom-select-drop"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button class="md-action-btn" id="ar-add-btn" style="margin-top:0.75rem;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;"><i data-lucide="plus"></i> Add Rule</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="md-row">
+    <div class="md-section" style="flex:1;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Active Rules</div>
+        <div id="ar-list" style="margin-top:0.5rem;"></div>
+      </div>
+    </div>
+
+    <div class="md-section" style="flex:0 0 280px;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">How It Works</div>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.6;margin-top:0.5rem;">
+          <p>1. Add a game name and the role to assign.</p>
+          <p>2. When a member starts playing that game, the role is auto-assigned.</p>
+          <p>3. When they stop playing, the role is removed.</p>
+          <p>Use <code style="background:rgba(255,255,255,0.04);padding:0.1rem 0.35rem;border-radius:3px;font-size:0.75rem;">/activityrole add</code> in Discord for the same functionality.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const GID = window.__GUILD_ID;
+const api = (p, o) => fetch(`/api/v1/activity_roles/${GID}${p}`, o||{}).then(r=>r.json());
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+
+let ROLES = [];
+
+function renderList(rules) {
+  const el = document.getElementById('ar-list');
+  if (!rules.length) {
+    el.innerHTML = '<div style="font-size:0.78rem;color:rgba(255,255,255,0.35);">No activity roles configured.</div>';
+    return;
+  }
+  el.innerHTML = rules.map(r => {
+    const role = ROLES.find(x => x.id === r.role_id);
+    const name = role ? role.name : 'Unknown';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem;border:1px solid rgba(255,255,255,0.06);border-radius:4px;margin-bottom:0.4rem;">
+      <div style="font-size:0.8rem;"><strong>${esc(r.activity)}</strong> → <span style="color:rgba(255,255,255,0.6);">@${esc(name)}</span></div>
+      <button class="md-action-btn ar-delete" data-activity="${esc(r.activity)}" style="padding:0.25rem 0.5rem;font-size:0.7rem;color:#f87171;"><i data-lucide="trash-2"></i></button>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.ar-delete').forEach(btn => btn.addEventListener('click', async () => {
+    await fetch(`/api/v1/activity_roles/${GID}/rules/${encodeURIComponent(btn.dataset.activity)}`, {method:'DELETE'});
+    loadRules();
+    if (typeof showToast==='function') showToast('Rule removed.','success');
+  }));
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function loadRules() {
+  const data = await api('/rules');
+  renderList(data.rules || []);
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const [rolesRes, rulesRes] = await Promise.all([
+    api('/roles').catch(() => ({roles:[]})),
+    api('/rules').catch(() => ({rules:[]}))
+  ]);
+
+  ROLES = rolesRes.roles || [];
+
+  const roleWrap = document.getElementById('ar-role-select');
+  const roleBtn = roleWrap.querySelector('.md-custom-select-btn');
+  const roleDrop = roleWrap.querySelector('.md-custom-select-drop');
+  roleDrop.innerHTML = `<button class="md-custom-opt" data-id="">Select role...</button>` + ROLES.map(r => `<button class="md-custom-opt" data-id="${r.id}">@${esc(r.name)}</button>`).join('');
+  let selectedRole = '';
+  roleDrop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+    selectedRole = b.dataset.id;
+    roleBtn.textContent = b.dataset.id ? b.textContent : 'Select role...';
+    roleDrop.classList.remove('is-open');
+  }));
+  roleBtn.addEventListener('click', e => { e.stopPropagation(); roleDrop.classList.toggle('is-open'); });
+  document.addEventListener('click', e => { if (!e.target.closest('#ar-role-select')) roleDrop.classList.remove('is-open'); });
+
+  renderList(rulesRes.rules || []);
+
+  document.getElementById('ar-add-btn').addEventListener('click', async () => {
+    const activity = document.getElementById('ar-activity').value.trim();
+    if (!activity) { if (typeof showToast==='function') showToast('Enter a game name.','error'); return; }
+    if (!selectedRole) { if (typeof showToast==='function') showToast('Select a role.','error'); return; }
+    await api('/rules', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({activity, role_id:selectedRole})});
+    document.getElementById('ar-activity').value = '';
+    selectedRole = '';
+    roleBtn.textContent = 'Select role...';
+    loadRules();
+    if (typeof showToast==='function') showToast('Rule added.','success');
+  });
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+});
+</script>
+{% endblock %}

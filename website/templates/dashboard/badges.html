@@ -1,0 +1,117 @@
+{% extends "dashboard/base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/moderation.css?v=21" />
+<link rel="stylesheet" href="/static/leveling.css?v=4" />
+<div id="badge-wrap">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;animation-delay:.05s;">
+    <div>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">🏆 Badges</h1>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Members earn badges for messages, voice time, tenure, and special achievements.</p>
+    </div>
+  </div>
+
+  <div class="md-row">
+    <div class="md-section" style="flex:1;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Badge Categories</div>
+        <div style="display:flex;flex-direction:column;gap:0.75rem;margin-top:0.5rem;">
+
+          <div>
+            <div style="font-size:0.78rem;font-weight:700;color:rgba(255,255,255,0.6);margin-bottom:0.4rem;">💬 Messages</div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.4rem;" id="badge-messages"></div>
+          </div>
+
+          <div>
+            <div style="font-size:0.78rem;font-weight:700;color:rgba(255,255,255,0.6);margin-bottom:0.4rem;">🎧 Voice</div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.4rem;" id="badge-voice"></div>
+          </div>
+
+          <div>
+            <div style="font-size:0.78rem;font-weight:700;color:rgba(255,255,255,0.6);margin-bottom:0.4rem;">📅 Tenure</div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.4rem;" id="badge-tenure"></div>
+          </div>
+
+          <div>
+            <div style="font-size:0.78rem;font-weight:700;color:rgba(255,255,255,0.6);margin-bottom:0.4rem;">⭐ Special</div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.4rem;" id="badge-special"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section" style="flex:0 0 320px;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Top Earners</div>
+        <div id="badge-leaderboard" style="margin-top:0.5rem;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="md-row">
+    <div class="md-section" style="flex:1;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">How It Works</div>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.6;margin-top:0.5rem;">
+          <p>1. Badges are earned automatically based on member activity.</p>
+          <p>2. Message badges track total messages sent in the server.</p>
+          <p>3. Voice badges track total time spent in voice channels.</p>
+          <p>4. Tenure badges track how long a member has been in the server.</p>
+          <p>5. Special badges include First Member and Server Booster.</p>
+          <p>Use <code style="background:rgba(255,255,255,0.04);padding:0.1rem 0.35rem;border-radius:3px;font-size:0.75rem;">/badges</code> in Discord to view your badges.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const GID = window.__GUILD_ID;
+const api = (p, o) => fetch(`/api/v1/badges/${GID}${p}`, o||{}).then(r=>r.json());
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+
+function renderBadge(b, earned) {
+  const opacity = earned ? '1' : '0.35';
+  const border = earned ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.06)';
+  return `<div style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.3rem 0.6rem;border:1px solid ${border};border-radius:4px;background:rgba(255,255,255,0.02);opacity:${opacity};font-size:0.72rem;" title="${esc(b.desc)}">
+    <span>${b.emoji}</span> <span>${esc(b.name)}</span>
+  </div>`;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const [defsRes, lbRes] = await Promise.all([
+    api('/definitions').catch(() => ({badges:[]})),
+    api('/leaderboard').catch(() => ({leaderboard:[]}))
+  ]);
+
+  const badges = defsRes.badges || [];
+  const categories = {messages:[], voice:[], tenure:[], special:[]};
+  badges.forEach(b => { if (categories[b.category]) categories[b.category].push(b); });
+
+  // For now show all as unearned (dashboard is read-only, earned status comes from /badges command)
+  Object.keys(categories).forEach(cat => {
+    const el = document.getElementById('badge-' + cat);
+    if (el) el.innerHTML = categories[cat].map(b => renderBadge(b, false)).join('');
+  });
+
+  // Leaderboard
+  const lb = lbRes.leaderboard || [];
+  const lbEl = document.getElementById('badge-leaderboard');
+  if (!lb.length) {
+    lbEl.innerHTML = '<div style="font-size:0.78rem;color:rgba(255,255,255,0.35);">No badges earned yet.</div>';
+  } else {
+    const medals = ['🥇','🥈','🥉'];
+    lbEl.innerHTML = lb.map((r, i) => {
+      const prefix = medals[i] || `<span style="color:rgba(255,255,255,0.4);">${i+1}.</span>`;
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.35rem 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.78rem;">
+        <span>${prefix} <span style="color:rgba(255,255,255,0.7);">User ${esc(r.user_id)}</span></span>
+        <span style="color:rgba(255,255,255,0.5);">${r.count} badge${r.count!=1?'s':''}</span>
+      </div>`;
+    }).join('');
+  }
+});
+</script>
+{% endblock %}

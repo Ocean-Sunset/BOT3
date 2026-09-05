@@ -169,6 +169,8 @@
           {{ nav_item('afk', 'moon', 'AFK') }}
           {{ nav_item('giveaways', 'gift', 'Giveaways') }}
           {{ nav_item('birthday', 'cake', 'Birthday') }}
+          {{ nav_item('activity_roles', 'gamepad-2', 'Activity Roles') }}
+          {{ nav_item('badges', 'trophy', 'Badges') }}
           {{ nav_item('tickets', 'ticket', 'Tickets') }}
           {{ nav_item('music', 'music', 'Music', 'Beta') }}
         </div>
@@ -321,6 +323,14 @@
     <a href="/guild/{{ guild_id }}/birthday" class="tab-item{% if active_panel == 'birthday' %} is-active{% endif %}">
       <i data-lucide="cake"></i>
       <span>Birthday</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/activity_roles" class="tab-item{% if active_panel == 'activity_roles' %} is-active{% endif %}">
+      <i data-lucide="gamepad-2"></i>
+      <span>Activity</span>
+    </a>
+    <a href="/guild/{{ guild_id }}/badges" class="tab-item{% if active_panel == 'badges' %} is-active{% endif %}">
+      <i data-lucide="trophy"></i>
+      <span>Badges</span>
     </a>
     <a href="/guild/{{ guild_id }}/tickets" class="tab-item{% if active_panel == 'tickets' %} is-active{% endif %}">
       <i data-lucide="ticket"></i>

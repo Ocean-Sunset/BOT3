@@ -1220,7 +1220,7 @@ async def dashboard(request: Request, guild_id: str, panel: str = "overview"):
         "social_alerts", "invite_tracker", "tickets", "global_chat",
         "autoresponder", "settings", "raid_protection", "profile",
         "aliases", "bot_profile", "reminders", "afk", "giveaways",
-        "birthday",
+        "birthday", "activity_roles", "badges",
     ]
     if panel not in valid_panels:
         panel = "overview"
@@ -4406,6 +4406,135 @@ async def birthday_roles(guild_id: str, request: Request):
     if d and "roles" in d:
         return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
     return {"roles": []}
+
+
+# ---------------------------------------------------------------------------
+#  Activity Roles API v1
+# ---------------------------------------------------------------------------
+
+@app.get("/api/v1/activity_roles/{guild_id}/rules")
+async def activity_roles_list(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    rows = await query(
+        "SELECT activity, role_id, enabled FROM activity_role_rules WHERE guild_id = ? ORDER BY created_at ASC",
+        str(guild_id),
+    )
+    return {"rules": [dict(r) for r in rows]}
+
+
+@app.post("/api/v1/activity_roles/{guild_id}/rules", dependencies=[Depends(require_mod)])
+async def activity_roles_add(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    activity = (body.get("activity") or "").strip().lower()
+    role_id = body.get("role_id")
+    if not activity:
+        return JSONResponse({"error": "activity name required"}, status_code=400)
+    if not _valid_snowflake(role_id):
+        return JSONResponse({"error": "invalid role ID"}, status_code=400)
+    now = time.time()
+    await execute(
+        "INSERT INTO activity_role_rules (guild_id, activity, role_id, enabled, created_at) "
+        "VALUES (?, ?, ?, 1, ?) "
+        "ON CONFLICT (guild_id, activity) DO UPDATE SET role_id=?, enabled=1",
+        str(guild_id), activity, str(role_id), now, str(role_id),
+    )
+    return {"ok": True}
+
+
+@app.delete("/api/v1/activity_roles/{guild_id}/rules/{activity}", dependencies=[Depends(require_mod)])
+async def activity_roles_remove(guild_id: str, activity: str, request: Request):
+    await require_guild_access(request, guild_id)
+    await execute(
+        "DELETE FROM activity_role_rules WHERE guild_id = ? AND activity = ?",
+        str(guild_id), activity,
+    )
+    return {"ok": True}
+
+
+@app.get("/api/v1/activity_roles/{guild_id}/channels")
+async def activity_roles_channels(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    d = await get_guild_data(guild_id)
+    if d and "channels" in d:
+        return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
+    return {"channels": []}
+
+
+@app.get("/api/v1/activity_roles/{guild_id}/roles")
+async def activity_roles_roles(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    d = await get_guild_data(guild_id)
+    if d and "roles" in d:
+        return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
+    return {"roles": []}
+
+
+# ---------------------------------------------------------------------------
+#  Badges API v1
+# ---------------------------------------------------------------------------
+
+BADGE_DEFINITIONS = [
+    {"id": "msg_100",    "name": "Chatterbox",      "desc": "Sent 100 messages",         "emoji": "💬", "category": "messages", "threshold": 100},
+    {"id": "msg_500",    "name": "Conversationalist","desc": "Sent 500 messages",         "emoji": "🗨️", "category": "messages", "threshold": 500},
+    {"id": "msg_1k",     "name": "Big Talker",      "desc": "Sent 1,000 messages",        "emoji": "🗣️", "category": "messages", "threshold": 1000},
+    {"id": "msg_5k",     "name": "Non-Stop",        "desc": "Sent 5,000 messages",        "emoji": "🔊", "category": "messages", "threshold": 5000},
+    {"id": "msg_10k",    "name": "Legend",           "desc": "Sent 10,000 messages",       "emoji": "📢", "category": "messages", "threshold": 10000},
+    {"id": "msg_25k",    "name": "Living Chat",     "desc": "Sent 25,000 messages",       "emoji": "💎", "category": "messages", "threshold": 25000},
+    {"id": "msg_50k",    "name": "Server Soul",     "desc": "Sent 50,000 messages",       "emoji": "👑", "category": "messages", "threshold": 50000},
+    {"id": "msg_100k",   "name": "Myth",            "desc": "Sent 100,000 messages",      "emoji": "🏆", "category": "messages", "threshold": 100000},
+    {"id": "vc_1h",      "name": "Lurker",          "desc": "1 hour in voice",            "emoji": "🎧", "category": "voice", "threshold": 60},
+    {"id": "vc_10h",     "name": "Regular",         "desc": "10 hours in voice",          "emoji": "🎤", "category": "voice", "threshold": 600},
+    {"id": "vc_50h",     "name": "Voice Veteran",   "desc": "50 hours in voice",          "emoji": "🎶", "category": "voice", "threshold": 3000},
+    {"id": "vc_100h",    "name": "Echo",            "desc": "100 hours in voice",         "emoji": "🔊", "category": "voice", "threshold": 6000},
+    {"id": "vc_500h",    "name": "Voice Lord",      "desc": "500 hours in voice",         "emoji": "🎵", "category": "voice", "threshold": 30000},
+    {"id": "vc_1000h",   "name": "Voice Legend",    "desc": "1,000 hours in voice",       "emoji": "🎤", "category": "voice", "threshold": 60000},
+    {"id": "tenure_1m",  "name": "Newcomer",        "desc": "Member for 1 month",         "emoji": "📅", "category": "tenure", "threshold": 30},
+    {"id": "tenure_6m",  "name": "Regular",         "desc": "Member for 6 months",        "emoji": "🗓️", "category": "tenure", "threshold": 180},
+    {"id": "tenure_1y",  "name": "Veteran",         "desc": "Member for 1 year",          "emoji": "🏅", "category": "tenure", "threshold": 365},
+    {"id": "tenure_2y",  "name": "Old Guard",       "desc": "Member for 2 years",         "emoji": "🎖️", "category": "tenure", "threshold": 730},
+    {"id": "first_member","name": "First Member",   "desc": "First member of the server", "emoji": "⭐", "category": "special", "threshold": 0},
+    {"id": "booster",    "name": "Server Booster",  "desc": "Currently boosting",         "emoji": "🚀", "category": "special", "threshold": 0},
+]
+
+
+@app.get("/api/v1/badges/{guild_id}/definitions")
+async def badge_definitions(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    return {"badges": BADGE_DEFINITIONS}
+
+
+@app.get("/api/v1/badges/{guild_id}/user/{user_id}")
+async def badge_user(guild_id: str, user_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    rows = await query(
+        "SELECT badge_id, awarded_at FROM user_badges WHERE guild_id = ? AND user_id = ? ORDER BY awarded_at ASC",
+        str(guild_id), user_id,
+    )
+    act_row = await fetchrow(
+        "SELECT vc_minutes FROM user_activity WHERE guild_id = ? AND user_id = ?",
+        str(guild_id), user_id,
+    )
+    lvl_row = await fetchrow(
+        "SELECT messages FROM leveling_data WHERE guild_id = ? AND user_id = ?",
+        str(guild_id), user_id,
+    )
+    vc_minutes = int(act_row["vc_minutes"]) if act_row and act_row.get("vc_minutes") else 0
+    messages = int(lvl_row["messages"]) if lvl_row and lvl_row.get("messages") else 0
+    return {
+        "badges": [dict(r) for r in rows],
+        "stats": {"vc_minutes": vc_minutes, "messages": messages},
+    }
+
+
+@app.get("/api/v1/badges/{guild_id}/leaderboard")
+async def badge_leaderboard(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    rows = await query(
+        "SELECT user_id, COUNT(*) as count FROM user_badges WHERE guild_id = ? GROUP BY user_id ORDER BY count DESC LIMIT 20",
+        str(guild_id),
+    )
+    return {"leaderboard": [dict(r) for r in rows]}
 
 
 # ---------------------------------------------------------------------------

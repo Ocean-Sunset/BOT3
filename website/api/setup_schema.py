@@ -380,6 +380,36 @@ CREATE TABLE IF NOT EXISTS birthdays (
 );
 
 CREATE INDEX IF NOT EXISTS idx_birthdays_guild_date ON birthdays (guild_id, month, day);
+
+CREATE TABLE IF NOT EXISTS activity_role_rules (
+    guild_id    TEXT NOT NULL,
+    activity    TEXT NOT NULL,
+    role_id     TEXT NOT NULL,
+    enabled     INTEGER NOT NULL DEFAULT 1,
+    created_at  REAL NOT NULL,
+    PRIMARY KEY (guild_id, activity)
+);
+
+CREATE TABLE IF NOT EXISTS user_activity (
+    guild_id        TEXT NOT NULL,
+    user_id         TEXT NOT NULL,
+    vc_minutes      INTEGER NOT NULL DEFAULT 0,
+    last_message_at REAL,
+    last_voice_at   REAL,
+    streak_days     INTEGER NOT NULL DEFAULT 0,
+    streak_last     TEXT,
+    PRIMARY KEY (guild_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS user_badges (
+    guild_id    TEXT NOT NULL,
+    user_id     TEXT NOT NULL,
+    badge_id    TEXT NOT NULL,
+    awarded_at  REAL NOT NULL,
+    PRIMARY KEY (guild_id, user_id, badge_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_badges_guild ON user_badges (guild_id, user_id);
 """
 
 

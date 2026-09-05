@@ -173,6 +173,14 @@ class Leveling(commands.Cog, name="Leveling"):
         except Exception as e:
             logger.warning(f"increment_user_messages failed: {e}")
 
+        # Track message for badges
+        try:
+            badges_cog = self.bot.get_cog("Badges")
+            if badges_cog:
+                await badges_cog.track_message(message.guild.id, user_id)
+        except Exception:
+            pass
+
         base_rate = settings.get("xp_rate", 1.0)
         xp_min = settings.get("xp_per_message_min", 15)
         xp_max = settings.get("xp_per_message_max", 25)
@@ -263,7 +271,7 @@ class Leveling(commands.Cog, name="Leveling"):
 
     level_group = app_commands.Group(name="level", description="Leveling system commands")
 
-    @level_group.command(name="rank", description="Check your or another member's rank")
+    @app_commands.command(name="rank", description="Check your or another member's rank")
     @app_commands.describe(member="The member to check")
     async def rank(self, interaction: discord.Interaction, member: Optional[discord.Member] = None):
         target = member or interaction.user

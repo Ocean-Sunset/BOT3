@@ -104,7 +104,7 @@ class General(commands.Cog):
                 ephemeral=True
             )
 
-    @app_commands.command(name="serverinfo", description="Show server information.")
+    @app_commands.command(name="server_info", description="Show server information.")
     async def serverinfo(self, interaction: discord.Interaction):
         guild = interaction.guild
         owner = await guild.fetch_member(guild.owner_id) if guild.owner_id else None
@@ -145,7 +145,7 @@ class General(commands.Cog):
         )
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="userinfo", description="Show information about a user.")
+    @app_commands.command(name="user_info", description="Show information about a user.")
     @app_commands.describe(user="The user to look up")
     async def userinfo(self, interaction: discord.Interaction, user: discord.Member = None):
         target = user or interaction.user
@@ -193,7 +193,7 @@ class General(commands.Cog):
         )
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="roleinfo", description="Show information about a role.")
+    @app_commands.command(name="role_info", description="Show information about a role.")
     @app_commands.describe(role="The role to look up")
     async def roleinfo(self, interaction: discord.Interaction, role: discord.Role):
         members_with_role = [m for m in role.guild.members if role in m.roles]
@@ -216,7 +216,7 @@ class General(commands.Cog):
         )
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="channelinfo", description="Show information about a channel.")
+    @app_commands.command(name="channel_info", description="Show information about a channel.")
     @app_commands.describe(channel="The channel to look up")
     async def channelinfo(self, interaction: discord.Interaction, channel: discord.TextChannel = None):
         target = channel or interaction.channel
@@ -242,7 +242,7 @@ class General(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
 
-    @app_commands.command(name="refreshcommands", description="Force re-sync all slash commands with Discord (admin only)")
+    @app_commands.command(name="refresh_commands", description="Force re-sync all slash commands with Discord (admin only)")
     async def refreshcommands(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message(
@@ -444,125 +444,169 @@ class General(commands.Cog):
 HELP_CATEGORIES = {
     "General": {
         "emoji": "wrench",
+        "description": "Basic bot utilities and information.",
         "commands": [
-            ("/ping", "Check bot latency"),
-            ("/info", "Show bot info & stats"),
-            ("/avatar", "Show a user's avatar"),
-            ("/serverinfo", "Show server information"),
-            ("/userinfo", "Show information about a user"),
-            ("/roleinfo", "Show information about a role"),
-            ("/channelinfo", "Show information about a channel"),
-            ("/say", "Echo back your message"),
-            ("/reactionrole add", "Add a reaction role to a message"),
-            ("/reactionrole remove", "Remove a reaction role"),
-            ("/reactionrole list", "List all reaction roles"),
-            ("/reactionrole clear", "Clear all reaction roles"),
+            {"name": "/ping", "desc": "Check Prowl's latency and stats.", "usage": "", "perms": None},
+            {"name": "/info", "desc": "Show Prowl's info and stats.", "usage": "", "perms": None},
+            {"name": "/avatar", "desc": "Show a user's avatar.", "usage": "[user]", "perms": None},
+            {"name": "/server_info", "desc": "Show server information.", "usage": "", "perms": None},
+            {"name": "/user_info", "desc": "Show information about a user.", "usage": "[user]", "perms": None},
+            {"name": "/role_info", "desc": "Show information about a role.", "usage": "<role>", "perms": None},
+            {"name": "/channel_info", "desc": "Show information about a channel.", "usage": "[channel]", "perms": None},
+            {"name": "/say", "desc": "Echo back your message.", "usage": "<text> [channel]", "perms": "Manage Messages"},
+            {"name": "/refresh_commands", "desc": "Force re-sync slash commands with Discord.", "usage": "", "perms": "Administrator"},
+            {"name": "/reactionrole add", "desc": "Add a reaction role to a message.", "usage": "<message_link> <emoji> <role>", "perms": "Manage Roles"},
+            {"name": "/reactionrole remove", "desc": "Remove a reaction role.", "usage": "<message_link> <emoji>", "perms": "Manage Roles"},
+            {"name": "/reactionrole list", "desc": "List all reaction roles.", "usage": "", "perms": None},
+            {"name": "/reactionrole clear", "desc": "Clear all reaction roles.", "usage": "", "perms": "Administrator"},
         ],
     },
     "Moderation": {
         "emoji": "shield",
+        "description": "Kick, ban, mute, warn and manage rule-breakers.",
         "commands": [
-            ("/kick", "Kick a member"),
-            ("/ban", "Ban a member"),
-            ("/tempban", "Temporarily ban a member"),
-            ("/unban", "Unban a user by ID"),
-            ("/mute", "Mute a member"),
-            ("/unmute", "Remove a mute"),
-            ("/warn", "Warn a member"),
-            ("/purge", "Bulk delete messages"),
-            ("/muteevasion", "Toggle mute evasion detection"),
-            ("/lockdown", "Toggle emergency server lockdown"),
-            ("/settings", "View moderation settings"),
+            {"name": "/kick", "desc": "Kick a member from the server.", "usage": "<member> [reason]", "perms": "Moderator"},
+            {"name": "/ban", "desc": "Ban a member from the server.", "usage": "<member> [reason] [delete_days]", "perms": "Moderator"},
+            {"name": "/tempban", "desc": "Temporarily ban a member (auto-unbans).", "usage": "<member> <duration> [reason]", "perms": "Moderator"},
+            {"name": "/unban", "desc": "Unban a user by ID.", "usage": "<user_id> [reason]", "perms": "Moderator"},
+            {"name": "/mute", "desc": "Mute a member.", "usage": "<member> [duration] [reason]", "perms": "Moderator"},
+            {"name": "/unmute", "desc": "Remove a mute from a member.", "usage": "<member> [reason]", "perms": "Moderator"},
+            {"name": "/warn", "desc": "Warn a member.", "usage": "<member> [reason]", "perms": "Moderator"},
+            {"name": "/purge", "desc": "Bulk delete messages in a channel.", "usage": "<count>", "perms": "Moderator"},
+            {"name": "/mute_evasion", "desc": "Toggle mute evasion detection.", "usage": "<enabled>", "perms": "Moderator"},
+            {"name": "/lockdown", "desc": "Toggle emergency server lockdown.", "usage": "", "perms": "Moderator"},
+            {"name": "/settings", "desc": "View moderation settings.", "usage": "", "perms": "Moderator"},
         ],
     },
     "Welcomer": {
         "emoji": "wave",
+        "description": "Welcome and goodbye messages for new and leaving members.",
         "commands": [
-            ("/welcomer toggle", "Enable/disable welcome messages"),
-            ("/welcomer channel", "Set welcome channel"),
-            ("/welcomer goodbyechannel", "Set goodbye channel"),
-            ("/welcomer message", "Set welcome message"),
-            ("/welcomer goodbye", "Set goodbye message"),
-            ("/welcomer autorole", "Set auto-role for new members"),
-            ("/welcomer botrole", "Set role for bots on join"),
-            ("/welcomer nickname", "Set auto-nickname template"),
-            ("/welcomer dm", "Configure welcome DM messages"),
-            ("/welcomer test", "Test the welcome message"),
-            ("/welcomer config", "View welcomer config"),
+            {"name": "/welcomer toggle", "desc": "Enable/disable welcome messages.", "usage": "", "perms": "Manage Server"},
+            {"name": "/welcomer channel", "desc": "Set the welcome channel.", "usage": "<channel>", "perms": "Manage Server"},
+            {"name": "/welcomer goodbyechannel", "desc": "Set the goodbye channel.", "usage": "[channel]", "perms": "Manage Server"},
+            {"name": "/welcomer message", "desc": "Set the welcome message.", "usage": "<message>", "perms": "Manage Server"},
+            {"name": "/welcomer goodbye", "desc": "Set the goodbye message.", "usage": "<message>", "perms": "Manage Server"},
+            {"name": "/welcomer autorole", "desc": "Auto-role for new members.", "usage": "[role]", "perms": "Manage Server"},
+            {"name": "/welcomer botrole", "desc": "Role for bots on join.", "usage": "[role]", "perms": "Manage Roles"},
+            {"name": "/welcomer nickname", "desc": "Auto-nickname template.", "usage": "[template]", "perms": "Manage Nicknames"},
+            {"name": "/welcomer dm", "desc": "Configure welcome DMs.", "usage": "<enabled> [message]", "perms": "Manage Server"},
+            {"name": "/welcomer boost", "desc": "Configure boost announcement.", "usage": "<enabled> [channel] [message]", "perms": "Manage Server"},
+            {"name": "/welcomer test", "desc": "Test the welcome message.", "usage": "", "perms": "Manage Server"},
+            {"name": "/welcomer config", "desc": "View welcomer config.", "usage": "", "perms": "Manage Server"},
         ],
     },
     "Leveling": {
         "emoji": "chart",
+        "description": "XP system, rank cards, leaderboard and level rewards.",
         "commands": [
-            ("/level rank", "Check your or another member's rank"),
-            ("/level leaderboard", "Show the XP leaderboard"),
-            ("/level setxp", "Set a user's XP (admin)"),
-            ("/level reset", "Reset a user's XP (admin)"),
-            ("/level setrole", "Set a role reward for a level"),
-            ("/level toggle", "Enable/disable XP gain"),
-            ("/level config", "View leveling config"),
+            {"name": "/rank", "desc": "Check your or another member's rank.", "usage": "[member]", "perms": None},
+            {"name": "/level leaderboard", "desc": "Show the XP leaderboard.", "usage": "[page]", "perms": None},
+            {"name": "/level toggle", "desc": "Enable/disable XP gain.", "usage": "", "perms": "Manage Server"},
+            {"name": "/level setxp", "desc": "Set a user's XP.", "usage": "<member> <xp>", "perms": "Manage Server"},
+            {"name": "/level reset", "desc": "Reset a user's XP.", "usage": "<member>", "perms": "Manage Server"},
+            {"name": "/level setrole", "desc": "Set a role reward for a level.", "usage": "<level> <role>", "perms": "Manage Server"},
+            {"name": "/level announcement", "desc": "Set level-up announcement.", "usage": "<message>", "perms": "Manage Server"},
+            {"name": "/level config", "desc": "View leveling config.", "usage": "", "perms": "Manage Server"},
         ],
     },
     "Tickets": {
         "emoji": "ticket",
+        "description": "Support ticket system with panels and threads.",
         "commands": [
-            ("/ticket setup", "Set up the ticket system"),
-            ("/ticket panel", "Send the ticket panel"),
-            ("/ticket add", "Add a user to a ticket"),
-            ("/ticket remove", "Remove a user from a ticket"),
-            ("/ticket rename", "Rename a ticket"),
-            ("/ticket stats", "View ticket statistics"),
+            {"name": "/ticket setup", "desc": "Set up the ticket system.", "usage": "<channel> <role> [log_channel]", "perms": "Administrator"},
+            {"name": "/ticket panel", "desc": "Send the ticket panel.", "usage": "", "perms": "Administrator"},
+            {"name": "/ticket add", "desc": "Add a user to a ticket.", "usage": "<user>", "perms": None},
+            {"name": "/ticket remove", "desc": "Remove a user from a ticket.", "usage": "<user>", "perms": None},
+            {"name": "/ticket rename", "desc": "Rename a ticket thread.", "usage": "<name>", "perms": None},
+            {"name": "/ticket stats", "desc": "View ticket statistics.", "usage": "", "perms": "Manage Server"},
+            {"name": "/ticket config", "desc": "View ticket config.", "usage": "", "perms": "Manage Server"},
         ],
     },
     "Giveaways": {
         "emoji": "gift",
+        "description": "Create and manage server giveaways.",
         "commands": [
-            ("/giveaway start", "Start a giveaway"),
-            ("/giveaway end", "End a giveaway early"),
-            ("/giveaway reroll", "Pick a new winner"),
-            ("/giveaway list", "List active giveaways"),
+            {"name": "/giveaway start", "desc": "Start a giveaway.", "usage": "<prize> <duration> <winners> [channel] [desc] [role]", "perms": "Manage Messages"},
+            {"name": "/giveaway end", "desc": "End a giveaway early.", "usage": "<message_id>", "perms": "Manage Messages"},
+            {"name": "/giveaway reroll", "desc": "Pick a new winner.", "usage": "<message_id>", "perms": "Manage Messages"},
+            {"name": "/giveaway list", "desc": "List active giveaways.", "usage": "", "perms": "Manage Messages"},
         ],
     },
     "AI": {
         "emoji": "robot",
+        "description": "AI chatbot, image generation and model configuration.",
         "commands": [
-            ("/ai chat", "Chat with the AI"),
-            ("/ai imagine", "Generate an image from text"),
-            ("/ai clear", "Clear AI conversation history"),
-            ("/ai model", "Set the AI model"),
-            ("/ai prompt", "Set the AI system prompt"),
-            ("/ai config", "View AI configuration"),
+            {"name": "/ai chat", "desc": "Chat with the AI.", "usage": "<message>", "perms": None},
+            {"name": "/ai imagine", "desc": "Generate an image from text.", "usage": "<prompt>", "perms": None},
+            {"name": "/ai clear", "desc": "Clear AI conversation history.", "usage": "", "perms": None},
+            {"name": "/ai model", "desc": "Set the AI model.", "usage": "<model>", "perms": "Manage Server"},
+            {"name": "/ai prompt", "desc": "Set the AI system prompt.", "usage": "<prompt>", "perms": "Manage Server"},
+            {"name": "/ai config", "desc": "View AI configuration.", "usage": "", "perms": "Manage Server"},
         ],
     },
     "Utilities": {
         "emoji": "bulb",
+        "description": "Reminders, to-dos, invites, members and AFK.",
         "commands": [
-            ("/afk", "Mark yourself as AFK"),
-            ("/remind set", "Set a reminder"),
-            ("/remind list", "List your reminders"),
-            ("/remind cancel", "Cancel a reminder"),
-            ("/todo add", "Add a to-do item"),
-            ("/todo list", "List your to-dos"),
-            ("/todo done", "Mark a to-do as done"),
-            ("/todo clear", "Clear your to-do list"),
-            ("/invites stats", "Show invite leaderboard"),
-            ("/invites user", "Show invite stats for a user"),
-            ("/members list", "List members with a role"),
-            ("/members info", "Get member details"),
-            ("/members note", "Add a note about a member"),
-            ("/members warnings", "View a member's warnings"),
+            {"name": "/afk", "desc": "Mark yourself as AFK.", "usage": "[reason]", "perms": None},
+            {"name": "/remind set", "desc": "Set a reminder.", "usage": "<when> <what>", "perms": None},
+            {"name": "/remind list", "desc": "List your reminders.", "usage": "", "perms": None},
+            {"name": "/remind cancel", "desc": "Cancel a reminder.", "usage": "<id>", "perms": None},
+            {"name": "/todo add", "desc": "Add a to-do item.", "usage": "<task>", "perms": None},
+            {"name": "/todo list", "desc": "List your to-dos.", "usage": "", "perms": None},
+            {"name": "/todo done", "desc": "Mark a to-do as done.", "usage": "<id>", "perms": None},
+            {"name": "/todo clear", "desc": "Clear your to-do list.", "usage": "[done_only]", "perms": None},
+            {"name": "/invites stats", "desc": "Show invite leaderboard.", "usage": "", "perms": None},
+            {"name": "/invites user", "desc": "Show invite stats for a user.", "usage": "[user]", "perms": None},
+            {"name": "/members list", "desc": "List members with a role.", "usage": "<role>", "perms": "Manage Roles"},
+            {"name": "/members info", "desc": "Get member details.", "usage": "<member>", "perms": None},
+            {"name": "/members note", "desc": "Add a note about a member.", "usage": "<member> <note>", "perms": "Manage Roles"},
+            {"name": "/members warnings", "desc": "View a member's warnings.", "usage": "<member>", "perms": "Manage Roles"},
         ],
     },
-    "Other": {
-        "emoji": "grid",
+    "Server Setup": {
+        "emoji": "cog",
+        "description": "Verification, social alerts, global chat and auto-responses.",
         "commands": [
-            ("/globalchat link", "Link to global chat network"),
-            ("/globalchat unlink", "Unlink from global chat"),
-            ("/verify setup", "Set up verification panel"),
-            ("/autoresponder add", "Add an auto-response"),
-            ("/autoresponder remove", "Remove an auto-response"),
-            ("/social youtube", "Set YouTube upload alerts"),
-            ("/social twitch", "Set Twitch stream alerts"),
+            {"name": "/verify setup", "desc": "Set up the verification panel.", "usage": "<channel> <role> <type>", "perms": "Administrator"},
+            {"name": "/verify deploy", "desc": "Repost the verification panel.", "usage": "", "perms": "Administrator"},
+            {"name": "/verify remove", "desc": "Remove verification system.", "usage": "", "perms": "Administrator"},
+            {"name": "/social youtube", "desc": "Set YouTube upload alerts.", "usage": "<channel_id> [role] [announce]", "perms": "Manage Server"},
+            {"name": "/social twitch", "desc": "Set Twitch stream alerts.", "usage": "<channel> [role] [announce]", "perms": "Manage Server"},
+            {"name": "/social twitter", "desc": "Set Twitter/X post alerts.", "usage": "<handle> [role] [announce]", "perms": "Manage Server"},
+            {"name": "/social config", "desc": "View social alert settings.", "usage": "", "perms": "Manage Server"},
+            {"name": "/globalchat link", "desc": "Link to global chat network.", "usage": "", "perms": "Manage Server"},
+            {"name": "/globalchat unlink", "desc": "Unlink from global chat.", "usage": "", "perms": "Manage Server"},
+            {"name": "/autoresponder add", "desc": "Add an auto-response.", "usage": "<trigger> <response> [match] [channel] [cooldown]", "perms": "Manage Server"},
+            {"name": "/autoresponder remove", "desc": "Remove an auto-response.", "usage": "<trigger>", "perms": "Manage Server"},
+            {"name": "/autoresponder list", "desc": "List all auto-responses.", "usage": "", "perms": "Manage Server"},
+        ],
+    },
+    "Extras": {
+        "emoji": "sparkle",
+        "description": "Music, birthdays, badges, activity roles, temp channels and frenzy.",
+        "commands": [
+            {"name": "/music play", "desc": "Play a song from URL or search.", "usage": "<query>", "perms": "DJ Role"},
+            {"name": "/music skip", "desc": "Skip the current song.", "usage": "", "perms": "DJ Role"},
+            {"name": "/music stop", "desc": "Stop playback and clear queue.", "usage": "", "perms": "DJ Role"},
+            {"name": "/music queue", "desc": "Show the music queue.", "usage": "", "perms": "DJ Role"},
+            {"name": "/music volume", "desc": "Set the player volume.", "usage": "<level>", "perms": "DJ Role"},
+            {"name": "/music loop", "desc": "Toggle loop for current track.", "usage": "", "perms": "DJ Role"},
+            {"name": "/music shuffle", "desc": "Shuffle the queue.", "usage": "", "perms": "DJ Role"},
+            {"name": "/birthday set", "desc": "Set your birthday.", "usage": "<month> <day> [year]", "perms": None},
+            {"name": "/birthday list", "desc": "List all birthdays.", "usage": "", "perms": None},
+            {"name": "/birthday upcoming", "desc": "Birthdays in the next 7 days.", "usage": "", "perms": None},
+            {"name": "/badges", "desc": "View your or another member's badges.", "usage": "[member]", "perms": None},
+            {"name": "/activityrole add", "desc": "Auto-assign role by game activity.", "usage": "<activity> <role>", "perms": "Manage Server"},
+            {"name": "/activityrole remove", "desc": "Remove an activity role rule.", "usage": "<activity>", "perms": "Manage Server"},
+            {"name": "/activityrole list", "desc": "List activity role rules.", "usage": "", "perms": None},
+            {"name": "/temp_chat", "desc": "Create a temporary text channel.", "usage": "[duration] [name]", "perms": None},
+            {"name": "/frenzy", "desc": "Multiply XP gains temporarily.", "usage": "<action> [multiplier] [duration]", "perms": "Manage Server"},
+            {"name": "/id", "desc": "Get ID of a member, role, channel or emoji.", "usage": "[member] [role] [channel] [emoji]", "perms": None},
+            {"name": "/role_id", "desc": "Get a role ID by name.", "usage": "<role>", "perms": None},
+            {"name": "/channel_id", "desc": "Get a channel ID.", "usage": "<channel>", "perms": None},
+            {"name": "/server_id", "desc": "Get this server's ID.", "usage": "", "perms": None},
         ],
     },
 }
@@ -573,7 +617,7 @@ class HelpView(discord.ui.View):
         super().__init__(timeout=120)
         self.author_id = author_id
         self.page = 0
-        self.pages = list(HELP_CATEGORIES.keys())
+        self.pages = ["Home"] + list(HELP_CATEGORIES.keys())
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author_id:
@@ -583,18 +627,40 @@ class HelpView(discord.ui.View):
 
     def build_embed(self):
         cat_name = self.pages[self.page]
+        if cat_name == "Home":
+            return self._build_home()
         cat = HELP_CATEGORIES[cat_name]
-        lines = [f"`{cmd}` — {desc}" for cmd, desc in cat["commands"]]
+        lines = []
+        for cmd in cat["commands"]:
+            perm_tag = f" `{cmd['perms']}`" if cmd["perms"] else ""
+            usage = f" `{cmd['usage']}`" if cmd["usage"] else ""
+            lines.append(f"**{cmd['name']}**{usage}\n{cmd['desc']}{perm_tag}")
         embed = (
             EmbedBuilder()
-            .title(emoji_title(cat["emoji"], f"Help — {cat_name}"))
-            .description("\n".join(lines))
-            .color("blue")
-            .footer(f"Page {self.page + 1}/{len(self.pages)}")
+            .title(emoji_title(cat["emoji"], cat_name))
+            .description(cat["description"])
+            .color("blurple")
+            .field("Commands", "\n\n".join(lines), inline=False)
+            .footer(f"Page {self.page}/{len(self.pages) - 1}  •  <required>  [optional]  `perms`")
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
         return embed
+
+    def _build_home(self):
+        embed = (
+            EmbedBuilder()
+            .title(emoji_title("sparkle", "Prowl Help"))
+            .description("Select a category below or use the buttons to browse.\nArgument keys: `<required>` `[optional]`\nPermission tags show when a role or perm is needed.")
+            .color("gray")
+            .thumbnail("https://prowlbot.xyz/static/favicon.png")
+        )
+        for name, cat in HELP_CATEGORIES.items():
+            count = len(cat["commands"])
+            embed.field(f"{name} ({count})", cat["description"], inline=True)
+        embed.footer(f"Page 0/{len(self.pages) - 1}  •  {sum(len(c['commands']) for c in HELP_CATEGORIES.values())} commands total")
+        embed.timestamp(datetime.datetime.utcnow())
+        return embed.build()
 
     @discord.ui.button(label="Previous", style=discord.ButtonStyle.secondary)
     async def prev_page(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -609,7 +675,9 @@ class HelpView(discord.ui.View):
     @discord.ui.select(
         placeholder="Jump to category...",
         options=[
-            discord.SelectOption(label=name, value=str(i), emoji=cat["emoji"])
+            discord.SelectOption(label="Home", value="0", emoji="sparkle"),
+        ] + [
+            discord.SelectOption(label=name, value=str(i + 1), emoji=cat["emoji"])
             for i, (name, cat) in enumerate(HELP_CATEGORIES.items())
         ],
     )

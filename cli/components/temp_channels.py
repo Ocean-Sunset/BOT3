@@ -178,7 +178,7 @@ class TempChannels(commands.Cog, name="Temp Channels"):
 
     # ── Temp Chat ─────────────────────────────────────────────────────
 
-    @app_commands.command(name="tempchat", description="Create a temporary text channel")
+    @app_commands.command(name="temp_chat", description="Create a temporary text channel")
     @app_commands.describe(
         duration="Duration in minutes (default: 60)",
         name="Channel name",

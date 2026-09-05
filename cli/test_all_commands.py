@@ -427,7 +427,7 @@ class TestGeneralCog(unittest.IsolatedAsyncioTestCase):
         interaction.response.send_message.assert_called_once()
 
     async def test_serverinfo(self):
-        interaction = make_mock_interaction(command_name="serverinfo")
+        interaction = make_mock_interaction(command_name="server_info")
         await _cmd(self.cog.serverinfo)(self.cog, interaction)
         interaction.response.send_message.assert_called_once()
 
@@ -443,29 +443,29 @@ class TestGeneralCog(unittest.IsolatedAsyncioTestCase):
         interaction.response.send_message.assert_called_once()
 
     async def test_roleinfo(self):
-        interaction = make_mock_interaction(command_name="roleinfo")
+        interaction = make_mock_interaction(command_name="role_info")
         role = make_mock_role()
         await _cmd(self.cog.roleinfo)(self.cog, interaction, role=role)
         interaction.response.send_message.assert_called_once()
 
     async def test_channelinfo_default(self):
-        interaction = make_mock_interaction(command_name="channelinfo")
+        interaction = make_mock_interaction(command_name="channel_info")
         await _cmd(self.cog.channelinfo)(self.cog, interaction)
         interaction.response.send_message.assert_called_once()
 
     async def test_channelinfo_specific(self):
-        interaction = make_mock_interaction(command_name="channelinfo")
+        interaction = make_mock_interaction(command_name="channel_info")
         ch = make_mock_channel()
         await _cmd(self.cog.channelinfo)(self.cog, interaction, channel=ch)
         interaction.response.send_message.assert_called_once()
 
     async def test_userinfo_self(self):
-        interaction = make_mock_interaction(command_name="userinfo")
+        interaction = make_mock_interaction(command_name="user_info")
         await _cmd(self.cog.userinfo)(self.cog, interaction)
         interaction.response.send_message.assert_called_once()
 
     async def test_userinfo_other(self):
-        interaction = make_mock_interaction(command_name="userinfo")
+        interaction = make_mock_interaction(command_name="user_info")
         target = make_mock_member(name="Other")
         await _cmd(self.cog.userinfo)(self.cog, interaction, user=target)
         interaction.response.send_message.assert_called_once()
@@ -741,7 +741,7 @@ class TestModerationCog(unittest.IsolatedAsyncioTestCase):
         interaction.response.send_message.assert_called_once()
 
     async def test_muteevasion_toggle(self):
-        interaction = make_mock_interaction(command_name="muteevasion")
+        interaction = make_mock_interaction(command_name="mute_evasion")
         await _cmd(self.cog.muteevasion)(self.cog, interaction, enabled=True)
         interaction.response.send_message.assert_called_once()
 

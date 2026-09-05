@@ -86,7 +86,7 @@ class IdLookup(commands.Cog, name="ID"):
                 return None
         return None
 
-    @app_commands.command(name="roleid", description="Get the ID of a role by name (autocomplete)")
+    @app_commands.command(name="role_id", description="Get the ID of a role by name (autocomplete)")
     @app_commands.describe(role="The role to look up")
     async def role_id(self, interaction: discord.Interaction, role: discord.Role):
         await interaction.response.send_message(
@@ -99,7 +99,7 @@ class IdLookup(commands.Cog, name="ID"):
             ephemeral=True,
         )
 
-    @app_commands.command(name="channelid", description="Get the ID of a channel")
+    @app_commands.command(name="channel_id", description="Get the ID of a channel")
     @app_commands.describe(channel="The channel to look up")
     async def channel_id(self, interaction: discord.Interaction, channel: discord.abc.GuildChannel = None):
         target = channel or interaction.channel
@@ -113,7 +113,7 @@ class IdLookup(commands.Cog, name="ID"):
             ephemeral=True,
         )
 
-    @app_commands.command(name="serverid", description="Get this server's ID")
+    @app_commands.command(name="server_id", description="Get this server's ID")
     async def server_id(self, interaction: discord.Interaction):
         await interaction.response.send_message(
             embed=EmbedBuilder()

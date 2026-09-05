@@ -1137,9 +1137,6 @@ async def dashboard_redirect(request: Request):
     if not user:
         return RedirectResponse("/login")
 
-    # Bust guild cache so the picker shows fresh data
-    request.session.pop("guild_cache", None)
-
     guilds = await get_user_guilds_filtered(request)
     if not guilds:
         return templates.TemplateResponse(request, "servers.html", {
@@ -1162,7 +1159,6 @@ async def servers_page(request: Request):
     if not user:
         return RedirectResponse("/login")
 
-    request.session.pop("guild_cache", None)
     discord_guilds = await get_user_guilds_filtered(request)
     nerimity_guilds = await get_nerimity_servers(request)
     # Platform badges only appear when both accounts are linked to Prowl

@@ -285,7 +285,7 @@ let lastSig = '';
 
 document.addEventListener('DOMContentLoaded', () => {
   Promise.all([refreshMembers().then(() => MEMBERS), memApi('/roles'), memApi('/bot')]).then(([md, rd, bd]) => {
-    (rd.roles||[]).filter(r => r.id !== GID).forEach(r => { ROLE_MAP[r.id] = r.name; ROLE_POS[r.id] = r.position||0; ROLE_MANAGED[r.id] = !!r.managed; });
+    (rd.roles||[]).filter(r => r.id !== GID && !r.managed).sort((a, b) => a.name.localeCompare(b.name)).forEach(r => { ROLE_MAP[r.id] = r.name; ROLE_POS[r.id] = r.position||0; ROLE_MANAGED[r.id] = !!r.managed; });
     BOT = { bot_top_role_position: bd.bot_top_role_position||0, can_manage_nicknames: !!bd.can_manage_nicknames, can_manage_roles: !!bd.can_manage_roles };
     renderMembers();
     // Debounced search

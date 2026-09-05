@@ -845,7 +845,7 @@ async function loadGraph() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  [CHANNELS, ROLES] = await Promise.all([api('/channels').then(d=>d.channels||[]), api('/roles').then(d=>(d.roles||[]).filter(r=>r.id!==GID))]);
+  [CHANNELS, ROLES] = await Promise.all([api('/channels').then(d=>d.channels||[]), api('/roles').then(d=>(d.roles||[]).filter(r=>r.id!==GID && !r.managed).sort((a, b) => a.name.localeCompare(b.name)))]);
   loadGraph();
   loadUsage();
   loadLogs();

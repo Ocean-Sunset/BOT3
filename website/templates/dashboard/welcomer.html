@@ -522,7 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
     SETTINGS_SNAPSHOT = { ...(sd.settings||{}) };
     LOADED = { ...SETTINGS_SNAPSHOT };
     CHANNELS = cd.channels || [];
-    ROLES = (rd.roles || []).filter(r => r.id !== GID);
+    ROLES = (rd.roles || []).filter(r => r.id !== GID && !r.managed).sort((a, b) => a.name.localeCompare(b.name));
 
     const enabled = document.getElementById('wl-enabled');
     enabled.checked = SETTINGS_SNAPSHOT.enabled === true;

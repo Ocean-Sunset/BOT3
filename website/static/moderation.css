@@ -955,3 +955,11 @@
   color: rgba(255,255,255,0.8);
 }
 
+/* Emoji input validation */
+.md-emoji-input { position:relative; }
+.md-emoji-input.is-invalid { border-color: rgba(239,68,68,0.5) !important; box-shadow: 0 0 0 1px rgba(239,68,68,0.3); }
+.md-emoji-input-hint { font-size:0.62rem; color:rgba(239,68,68,0.7); margin-top:0.2rem; display:none; }
+.md-emoji-input.is-invalid + .md-emoji-input-hint { display:block; }
+.md-emoji-preview { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:4px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); font-size:1.1rem; line-height:1; margin-top:0.3rem; }
+.md-emoji-preview.is-empty { color:rgba(255,255,255,0.15); font-size:0.7rem; }
+

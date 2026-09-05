@@ -158,7 +158,7 @@ class General(commands.Cog):
         perms_str = ", ".join(key_perms[:5]) if key_perms else "None"
         embed = (
             EmbedBuilder()
-            .title(emoji_title("member", target.display_name))
+            .title(target.display_name)
             .color(target.color if target.color != discord.Color.default() else "gray")
             .thumbnail(target.display_avatar.url)
             .field("Username", target.name, inline=True)

@@ -346,7 +346,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Roles ──
   api('/roles').then(d => {
-    const roles = (d.roles || []).filter(r => r.id !== GID);
+    const roles = (d.roles || []).filter(r => r.id !== GID && !r.managed).sort((a, b) => a.name.localeCompare(b.name));
     const wrap = document.querySelector('[data-role-select="support_role_id"]');
     if (!wrap) return;
     const btn = wrap.querySelector('.md-custom-select-btn');

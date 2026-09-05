@@ -514,7 +514,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   api('/roles').then(d => {
     ROLE_MAP = {};
-    const roles = (d.roles || []).filter(r => r.id !== GID);
+    const roles = (d.roles || []).filter(r => r.id !== GID && !r.managed).sort((a, b) => a.name.localeCompare(b.name));
     roles.forEach(r => { ROLE_MAP[r.id] = r.name; });
     const btn = document.getElementById('lvl-role-select-btn');
     const drop = document.getElementById('lvl-role-select-drop');

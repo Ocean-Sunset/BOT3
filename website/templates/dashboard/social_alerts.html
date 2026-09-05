@@ -364,7 +364,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Roles for ping-role dropdowns + extra alert role ──
   api('/roles').then(d => {
-    const roles = (d.roles || []).filter(r => r.id !== GID);
+    const roles = (d.roles || []).filter(r => r.id !== GID && !r.managed).sort((a, b) => a.name.localeCompare(b.name));
     document.querySelectorAll('[data-role-select], [data-extra-role]').forEach(wrap => {
       const btn = wrap.querySelector('.md-custom-select-btn');
       const drop = wrap.querySelector('.md-custom-select-drop');

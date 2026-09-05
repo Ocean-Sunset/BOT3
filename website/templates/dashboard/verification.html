@@ -69,7 +69,7 @@
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Reaction Emoji</div>
         <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Emoji users react with to verify</div>
-        <input type="text" class="md-input" data-key="reaction_emoji" placeholder="✅" style="max-width:140px;" />
+        <input type="text" class="md-input" data-key="reaction_emoji" placeholder="✅" maxlength="8" style="max-width:140px;" />
       </div>
     </div>
 
@@ -295,7 +295,7 @@ function applyDropdownValue(wrap, value, noneLabel) {
 
 function populateDropdown(wrappers, items, noneLabel) {
   const isRole = wrappers.some(w => w.dataset.roleSelect);
-  const filtered = isRole ? items.filter(i => i.id !== GID) : items;
+  const filtered = isRole ? items.filter(i => i.id !== GID && !i.managed).sort((a, b) => a.name.localeCompare(b.name)) : items;
   wrappers.forEach(wrap => {
     const btn = wrap.querySelector('.md-custom-select-btn');
     const drop = wrap.querySelector('.md-custom-select-drop');
@@ -329,7 +329,7 @@ document.addEventListener('click', e => {
 
 document.addEventListener('DOMContentLoaded', async () => {
   api('/channels').then(d => populateDropdown(Array.from(document.querySelectorAll('[data-channel-select]')), d.channels||[], 'No channel'));
-  api('/roles').then(d => populateDropdown(Array.from(document.querySelectorAll('[data-role-select]')), (d.roles||[]).filter(r => r.id !== GID), 'No role'));
+  api('/roles').then(d => populateDropdown(Array.from(document.querySelectorAll('[data-role-select]')), (d.roles||[]).filter(r => r.id !== GID && !r.managed).sort((a, b) => a.name.localeCompare(b.name)), 'No role'));
 
   api('/settings').then(d => {
     const s = d.settings || {}; SETTINGS_SNAPSHOT = { ...s };
@@ -344,6 +344,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => cb.addEventListener('change', function(){ markChanged(this.dataset.key, this.checked); updateGrayOut(); updateWarning(); }));
     document.querySelectorAll('input[type="text"][data-key], input[type="password"][data-key]').forEach(inp => inp.addEventListener('input', function(){ markChanged(this.dataset.key, this.value); }));
+
+    // Init emoji validation for reaction emoji input
+    const emojiEl = document.querySelector('[data-key="reaction_emoji"]');
+    if (emojiEl && typeof initEmojiInput === 'function') initEmojiInput(emojiEl);
 
     // Load embed builder (with sensible defaults so it always has a valid embed)
     loadEmbedIntoBuilder(s.panel_embed || {});

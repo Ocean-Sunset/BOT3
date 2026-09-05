@@ -324,6 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const en = document.getElementById('afk-enabled');
       if (en) en.addEventListener('change', function(){ markChanged('enabled', this.checked); });
       document.getElementById('afk-emoji').addEventListener('input', function(){ markChanged('afk_emoji', this.value); });
+      if (typeof initEmojiInput === 'function') initEmojiInput(document.getElementById('afk-emoji'));
       document.getElementById('afk-message').addEventListener('input', function(){ markChanged('afk_message', this.value); updatePreview(); });
     }
   }).catch(() => {});

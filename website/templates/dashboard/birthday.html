@@ -384,7 +384,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.querySelectorAll('[data-role-select]').forEach(wrap => {
     const btn = wrap.querySelector('.md-custom-select-btn'), drop = wrap.querySelector('.md-custom-select-drop');
-    drop.innerHTML = `<button class="md-custom-opt" data-id="">No role</button>` + roles.filter(r => r.id !== GID).map(r => `<button class="md-custom-opt" data-id="${r.id}">@${esc(r.name)}</button>`).join('');
+    drop.innerHTML = `<button class="md-custom-opt" data-id="">No role</button>` + roles.filter(r => r.id !== GID && !r.managed).sort((a, b) => a.name.localeCompare(b.name)).map(r => `<button class="md-custom-opt" data-id="${r.id}">@${esc(r.name)}</button>`).join('');
     drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
       const newVal = b.dataset.id || null;
       const oldVal = SETTINGS_SNAPSHOT.role_id || null;

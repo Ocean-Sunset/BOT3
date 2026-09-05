@@ -404,4 +404,42 @@
 
     return { init, markChanged, saveChanges, discardChanges, load, showBar, hideBar };
   })();
+
+  // ── Emoji input validation helper ───────────────────────────────────
+  // Validates that an input contains only emoji characters (Unicode or Discord custom).
+  // Usage: initEmojiInput(document.getElementById('my-emoji-input'))
+  const EMOJI_RE = /^(?:<a?:\w+:\d+>|\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(?:\s*(?:<a?:\w+:\d+>|\p{Emoji_Presentation}|\p{Emoji}\uFE0F)){0,7}$/u;
+  window.initEmojiInput = function(el) {
+    if (!el) return;
+    const hint = document.createElement('div');
+    hint.className = 'md-emoji-input-hint';
+    hint.textContent = 'Enter a valid emoji';
+    el.parentNode.insertBefore(hint, el.nextSibling);
+
+    const preview = document.createElement('div');
+    preview.className = 'md-emoji-preview is-empty';
+    preview.textContent = '—';
+    el.parentNode.insertBefore(preview, hint.nextSibling);
+
+    function validate() {
+      const v = el.value.trim();
+      if (!v) {
+        el.classList.remove('is-invalid');
+        preview.textContent = '—';
+        preview.classList.add('is-empty');
+        return;
+      }
+      if (EMOJI_RE.test(v)) {
+        el.classList.remove('is-invalid');
+        preview.textContent = v;
+        preview.classList.remove('is-empty');
+      } else {
+        el.classList.add('is-invalid');
+        preview.textContent = '—';
+        preview.classList.add('is-empty');
+      }
+    }
+    el.addEventListener('input', validate);
+    validate();
+  };
 })();

@@ -294,14 +294,18 @@ function applyDropdownValue(wrap, value, noneLabel) {
 }
 
 function populateDropdown(wrappers, items, noneLabel) {
+  const isRole = wrappers.some(w => w.dataset.roleSelect);
+  const filtered = isRole ? items.filter(i => i.id !== GID) : items;
   wrappers.forEach(wrap => {
     const btn = wrap.querySelector('.md-custom-select-btn');
     const drop = wrap.querySelector('.md-custom-select-drop');
     const key = wrap.dataset.roleSelect || wrap.dataset.channelSelect;
-    drop.innerHTML = `<button class="md-custom-opt" data-id="">${noneLabel}</button>` + items.map(i => `<button class="md-custom-opt" data-id="${i.id}">${esc(i.name)}</button>`).join('');
+    drop.innerHTML = `<button class="md-custom-opt" data-id="">${noneLabel}</button>` + filtered.map(i => `<button class="md-custom-opt" data-id="${i.id}">${esc(i.name)}</button>`).join('');
     drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+      const newVal = b.dataset.id || null;
+      const oldVal = SETTINGS_SNAPSHOT[key] || null;
       btn.textContent = b.dataset.id ? b.textContent : noneLabel;
-      markChanged(key, b.dataset.id || null);
+      if (newVal !== oldVal) markChanged(key, newVal);
       drop.classList.remove('is-open');
     }));
     if (!btn.dataset.selectBound) {
@@ -325,7 +329,7 @@ document.addEventListener('click', e => {
 
 document.addEventListener('DOMContentLoaded', async () => {
   api('/channels').then(d => populateDropdown(Array.from(document.querySelectorAll('[data-channel-select]')), d.channels||[], 'No channel'));
-  api('/roles').then(d => populateDropdown(Array.from(document.querySelectorAll('[data-role-select]')), d.roles||[], 'No role'));
+  api('/roles').then(d => populateDropdown(Array.from(document.querySelectorAll('[data-role-select]')), (d.roles||[]).filter(r => r.id !== GID), 'No role'));
 
   api('/settings').then(d => {
     const s = d.settings || {}; SETTINGS_SNAPSHOT = { ...s };

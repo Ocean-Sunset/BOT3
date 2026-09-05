@@ -83,13 +83,13 @@
           <div class="md-behavior-list">
             <div class="md-behavior-item" style="align-items:flex-start">
               <div style="flex:1">
-                <input type="text" class="md-input" data-key="level_up_message" placeholder="🎉 {user} reached **level {level}**!" />
+                <input type="text" class="md-input" data-key="level_up_message" placeholder="{user} reached **level {level}**!" />
                 <div class="md-vars-hint">Variables: {user} {mention} {name} {level} {next_level} {xp} {xp_needed} {role} {servername} {membercount}</div>
               </div>
             </div>
           </div>
           <div style="font-size:0.7rem;font-weight:700;color:rgba(255,255,255,0.4);margin:0.6rem 0 0.3rem;letter-spacing:0.02em;">PREVIEW</div>
-          <div class="md-lvl-preview" id="lvl-preview">🎉 <span style="color:#5865f2;">@User</span> reached <strong>level 12</strong>!</div>
+          <div class="md-lvl-preview" id="lvl-preview"><span style="color:#5865f2;">@User</span> reached <strong>level 12</strong>!</div>
         </div>
         <div data-custom-view="level" style="display:none;">
           <button class="md-action-btn" data-edit-embed="level" style="width:100%;justify-content:center;padding:0.5rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
@@ -146,7 +146,7 @@
     <div style="display:flex;flex-direction:column;gap:0.6rem;margin:0.75rem 0;">
       <div>
         <div class="md-behavior-label" style="margin-bottom:0.3rem;">Title</div>
-        <input type="text" class="md-input" id="ee-title" placeholder="🎉 Level Up!" />
+        <input type="text" class="md-input" id="ee-title" placeholder="Level Up!" />
       </div>
       <div>
         <div class="md-behavior-label" style="margin-bottom:0.3rem;">Description</div>
@@ -238,7 +238,7 @@ function markChanged(key, value) {
 }
 
 function updatePreview() {
-  const msg = SETTINGS_SNAPSHOT.level_up_message || '🎉 {user} reached **level {level}**!';
+  const msg = SETTINGS_SNAPSHOT.level_up_message || '{user} reached **level {level}**!';
   const level = 12;
   const xp = 2470;
   const xp_needed = 150;
@@ -324,7 +324,7 @@ function loadEmbedEditor(embed) {
   (e.fields || []).forEach(fld => addFieldRow(fld));
 }
 
-const EMBED_DEFAULTS = { level: { title:'🎉 Level Up!', description:'{user} reached **level {level}**!', color:'#57f287' } };
+const EMBED_DEFAULTS = { level: { title:'Level Up!', description:'{user} reached **level {level}**!', color:'#57f287' } };
 
 document.querySelectorAll('.msg-mode-tab').forEach(t => t.addEventListener('click', () => setModeView('level', t.dataset.mode, true)));
 document.querySelectorAll('[data-edit-embed]').forEach(b => b.addEventListener('click', () => {
@@ -456,11 +456,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   api('/roles').then(d => {
     ROLE_MAP = {};
-    (d.roles||[]).forEach(r => { ROLE_MAP[r.id] = r.name; });
+    const roles = (d.roles || []).filter(r => r.id !== GID);
+    roles.forEach(r => { ROLE_MAP[r.id] = r.name; });
     const btn = document.getElementById('lvl-role-select-btn');
     const drop = document.getElementById('lvl-role-select-drop');
     if (drop) {
-      drop.innerHTML = (d.roles||[]).map(r => `<button class="md-custom-opt" data-id="${r.id}">${esc(r.name)}</button>`).join('');
+      drop.innerHTML = roles.map(r => `<button class="md-custom-opt" data-id="${r.id}">@${esc(r.name)}</button>`).join('');
       drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
         btn.textContent = b.textContent;
         btn.dataset.roleId = b.dataset.id;
@@ -472,7 +473,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const mbtn = document.getElementById('mult-role-select-btn');
     const mdrop = document.getElementById('mult-role-select-drop');
     if (mdrop) {
-      mdrop.innerHTML = (d.roles||[]).map(r => `<button class="md-custom-opt" data-id="${r.id}">${esc(r.name)}</button>`).join('');
+      mdrop.innerHTML = roles.map(r => `<button class="md-custom-opt" data-id="${r.id}">@${esc(r.name)}</button>`).join('');
       mdrop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
         mbtn.textContent = b.textContent;
         mbtn.dataset.roleId = b.dataset.id;
@@ -561,7 +562,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const el = document.getElementById('leaderboard');
     if (!d.members?.length) { el.innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No XP recorded yet - start chatting!</div>'; return; }
     const top = d.members.slice(0, 10);
-    const medal = ['🥇','🥈','🥉'];
+    const medal = ['1st','2nd','3rd'];
     el.innerHTML = top.map((m,i) => {
       const lvl = parseInt(m.level)||1;
       const xp = parseInt(m.xp)||0;

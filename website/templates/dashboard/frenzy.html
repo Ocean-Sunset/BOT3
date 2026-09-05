@@ -1,0 +1,420 @@
+{% extends "dashboard/base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/moderation.css?v=21" />
+<link rel="stylesheet" href="/static/leveling.css?v=4" />
+<div id="frenzy-wrap">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;animation-delay:.05s;">
+    <div>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Frenzy Mode</h1>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Multiply XP gains for limited time periods. Trigger manually or set up auto-triggers.</p>
+    </div>
+    <label class="md-toggle md-toggle-xl"><input type="checkbox" id="frenzy-enabled" /><span class="md-toggle-slider"></span></label>
+  </div>
+
+  <div id="frenzy-config">
+  <div class="md-row">
+
+    <div class="md-section" style="flex:1;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <div class="md-section-title" style="margin:0;">Active Frenzy</div>
+          <div id="frenzy-status-badge" style="font-size:0.72rem;padding:0.2rem 0.6rem;border-radius:4px;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5);">Inactive</div>
+        </div>
+        <div id="frenzy-active-info" style="display:none;">
+          <div class="md-behavior-list">
+            <div class="md-behavior-item" style="justify-content:space-between;">
+              <div class="md-behavior-label">Multiplier</div>
+              <div id="frenzy-active-mult" style="font-size:0.82rem;font-weight:700;color:#8B5CF6;">-</div>
+            </div>
+            <div class="md-behavior-item" style="justify-content:space-between;">
+              <div class="md-behavior-label">Remaining</div>
+              <div id="frenzy-active-dur" style="font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.7);">-</div>
+            </div>
+            <div class="md-behavior-item" style="justify-content:space-between;">
+              <div class="md-behavior-label">Reason</div>
+              <div id="frenzy-active-reason" style="font-size:0.72rem;color:rgba(255,255,255,0.5);max-width:200px;text-align:right;">-</div>
+            </div>
+          </div>
+          <button class="md-action-btn danger" id="frenzy-stop-btn" style="width:100%;justify-content:center;margin-top:0.75rem;"><i data-lucide="square"></i> Stop Frenzy</button>
+        </div>
+        <div id="frenzy-inactive-info">
+          <div style="font-size:0.78rem;color:rgba(255,255,255,0.35);text-align:center;padding:1rem;">No frenzy active. Use the controls below or a slash command to start one.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section" style="flex:0 0 280px;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Quick Start</div>
+        <div class="md-behavior-list" style="margin-top:0.5rem;">
+          <div class="md-behavior-item" style="align-items:flex-start;">
+            <div style="flex:1;">
+              <div class="md-behavior-label">Multiplier</div>
+              <div class="md-behavior-desc">XP multiplier during frenzy</div>
+              <input type="number" class="md-input" id="frenzy-mult" min="1" max="100" step="0.5" value="2" style="margin-top:0.3rem;" />
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start;">
+            <div style="flex:1;">
+              <div class="md-behavior-label">Duration (minutes)</div>
+              <div class="md-behavior-desc">0 = until manually stopped</div>
+              <input type="number" class="md-input" id="frenzy-dur" min="0" max="10080" value="30" style="margin-top:0.3rem;" />
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start;">
+            <div style="flex:1;">
+              <div class="md-behavior-label">Reason</div>
+              <div class="md-behavior-desc">Why is frenzy active?</div>
+              <input type="text" class="md-input" id="frenzy-reason" placeholder="Optional reason" style="margin-top:0.3rem;" />
+            </div>
+          </div>
+        </div>
+        <button class="md-action-btn" id="frenzy-start-btn" style="width:100%;justify-content:center;margin-top:0.75rem;background:rgba(139,92,246,0.2);color:#8B5CF6;"><i data-lucide="zap"></i> Start Frenzy</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="md-row">
+    <div class="md-section" style="flex:1;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">General Settings</div>
+        <div class="md-behavior-list" style="margin-top:0.5rem;">
+          <div class="md-behavior-item" style="align-items:center;justify-content:space-between;">
+            <div style="flex:1;">
+              <div class="md-behavior-label">Announcement Channel</div>
+              <div class="md-behavior-desc">Channel for frenzy start/end announcements</div>
+              <div class="md-custom-select" data-channel-select="announce_channel_id">
+                <button class="md-custom-select-btn">System channel</button>
+                <div class="md-custom-select-drop"></div>
+              </div>
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:center;justify-content:space-between;">
+            <div style="flex:1;">
+              <div class="md-behavior-label">Announce Start</div>
+              <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-top:0.15rem;">Send message when frenzy starts</div>
+            </div>
+            <label class="md-toggle"><input type="checkbox" id="frenzy-announce-start" /><span class="md-toggle-slider"></span></label>
+          </div>
+          <div class="md-behavior-item" style="align-items:center;justify-content:space-between;">
+            <div style="flex:1;">
+              <div class="md-behavior-label">Announce End</div>
+              <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-top:0.15rem;">Send message when frenzy ends</div>
+            </div>
+            <label class="md-toggle"><input type="checkbox" id="frenzy-announce-end" /><span class="md-toggle-slider"></span></label>
+          </div>
+          <div class="md-behavior-item" style="align-items:center;justify-content:space-between;">
+            <div style="flex:1;">
+              <div class="md-behavior-label">Default Multiplier</div>
+              <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-top:0.15rem;">Used when starting frenzy without specifying</div>
+            </div>
+            <input type="number" class="md-input" id="frenzy-default-mult" min="1" max="100" step="0.5" value="2" style="width:70px;" />
+          </div>
+          <div class="md-behavior-item" style="align-items:center;justify-content:space-between;">
+            <div style="flex:1;">
+              <div class="md-behavior-label">Max Multiplier</div>
+              <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-top:0.15rem;">Cap for manual multiplier</div>
+            </div>
+            <input type="number" class="md-input" id="frenzy-max-mult" min="1" max="100" step="0.5" value="10" style="width:70px;" />
+          </div>
+          <div class="md-behavior-item" style="align-items:center;justify-content:space-between;">
+            <div style="flex:1;">
+              <div class="md-behavior-label">Max Duration (min)</div>
+              <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-top:0.15rem;">0 = unlimited</div>
+            </div>
+            <input type="number" class="md-input" id="frenzy-max-dur" min="0" max="10080" value="1440" style="width:70px;" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="md-row">
+    <div class="md-section" style="flex:1;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Auto-Triggers</div>
+        <div class="md-behavior-list" style="margin-top:0.5rem;">
+          <div class="md-behavior-item" style="align-items:flex-start;">
+            <div style="flex:1;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div class="md-behavior-label">Member Join Spike</div>
+                <label class="md-toggle"><input type="checkbox" id="frenzy-trigger-join" /><span class="md-toggle-slider"></span></label>
+              </div>
+              <div class="md-behavior-desc">Start when X members join in Y minutes</div>
+              <div style="display:flex;gap:0.5rem;margin-top:0.3rem;">
+                <input type="number" class="md-input" id="frenzy-trigger-join-count" min="2" max="100" value="5" style="width:60px;" placeholder="Count" />
+                <input type="number" class="md-input" id="frenzy-trigger-join-min" min="1" max="60" value="10" style="width:60px;" placeholder="Min" />
+                <input type="number" class="md-input" id="frenzy-trigger-join-mult" min="1" max="100" step="0.5" value="2" style="width:60px;" placeholder="Mult" />
+                <input type="number" class="md-input" id="frenzy-trigger-join-dur" min="1" max="10080" value="30" style="width:60px;" placeholder="Dur" />
+              </div>
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start;">
+            <div style="flex:1;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div class="md-behavior-label">Message Spike</div>
+                <label class="md-toggle"><input type="checkbox" id="frenzy-trigger-msg" /><span class="md-toggle-slider"></span></label>
+              </div>
+              <div class="md-behavior-desc">Start when X messages in Y minutes</div>
+              <div style="display:flex;gap:0.5rem;margin-top:0.3rem;">
+                <input type="number" class="md-input" id="frenzy-trigger-msg-count" min="10" max="10000" value="100" style="width:60px;" placeholder="Count" />
+                <input type="number" class="md-input" id="frenzy-trigger-msg-min" min="1" max="60" value="5" style="width:60px;" placeholder="Min" />
+                <input type="number" class="md-input" id="frenzy-trigger-msg-mult" min="1" max="100" step="0.5" value="1.5" style="width:60px;" placeholder="Mult" />
+                <input type="number" class="md-input" id="frenzy-trigger-msg-dur" min="1" max="10080" value="15" style="width:60px;" placeholder="Dur" />
+              </div>
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start;">
+            <div style="flex:1;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div class="md-behavior-label">Voice Activity</div>
+                <label class="md-toggle"><input type="checkbox" id="frenzy-trigger-voice" /><span class="md-toggle-slider"></span></label>
+              </div>
+              <div class="md-behavior-desc">Start when X users in voice channels</div>
+              <div style="display:flex;gap:0.5rem;margin-top:0.3rem;">
+                <input type="number" class="md-input" id="frenzy-trigger-voice-count" min="2" max="100" value="10" style="width:60px;" placeholder="Count" />
+                <input type="number" class="md-input" id="frenzy-trigger-voice-mult" min="1" max="100" step="0.5" value="2" style="width:60px;" placeholder="Mult" />
+                <input type="number" class="md-input" id="frenzy-trigger-voice-dur" min="1" max="10080" value="60" style="width:60px;" placeholder="Dur" />
+              </div>
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start;">
+            <div style="flex:1;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div class="md-behavior-label">Server Boost</div>
+                <label class="md-toggle"><input type="checkbox" id="frenzy-trigger-boost" /><span class="md-toggle-slider"></span></label>
+              </div>
+              <div class="md-behavior-desc">Start when someone boosts the server</div>
+              <div style="display:flex;gap:0.5rem;margin-top:0.3rem;">
+                <input type="number" class="md-input" id="frenzy-trigger-boost-mult" min="1" max="100" step="0.5" value="3" style="width:60px;" placeholder="Mult" />
+                <input type="number" class="md-input" id="frenzy-trigger-boost-dur" min="1" max="10080" value="60" style="width:60px;" placeholder="Dur" />
+              </div>
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start;">
+            <div style="flex:1;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div class="md-behavior-label">Level Milestone</div>
+                <label class="md-toggle"><input type="checkbox" id="frenzy-trigger-level" /><span class="md-toggle-slider"></span></label>
+              </div>
+              <div class="md-behavior-desc">Start when someone reaches level X</div>
+              <div style="display:flex;gap:0.5rem;margin-top:0.3rem;">
+                <input type="number" class="md-input" id="frenzy-trigger-level-val" min="1" max="1000" value="50" style="width:60px;" placeholder="Level" />
+                <input type="number" class="md-input" id="frenzy-trigger-level-mult" min="1" max="100" step="0.5" value="2" style="width:60px;" placeholder="Mult" />
+                <input type="number" class="md-input" id="frenzy-trigger-level-dur" min="1" max="10080" value="30" style="width:60px;" placeholder="Dur" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const GID = window.__GUILD_ID;
+const api = (p, o) => fetch(`/api/v1/frenzy/${GID}${p}`, o||{}).then(r=>r.json());
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+
+const pending={}, original={};
+let SETTINGS_SNAPSHOT = {};
+let LOADED = {};
+let IS_MOD = false;
+let ACTIVE_FRENZY = null;
+const saveBar = document.getElementById('save-bar'), saveBtn = document.getElementById('save-btn');
+let saveTimer = null;
+
+function markChanged(k, v) {
+  if (!(k in original)) original[k] = (k in SETTINGS_SNAPSHOT) ? SETTINGS_SNAPSHOT[k] : !v;
+  pending[k] = v; SETTINGS_SNAPSHOT[k] = v;
+  saveBar.classList.remove('is-closed');
+  clearTimeout(saveTimer); saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
+}
+
+function updateGrayOut() {
+  const enabled = document.getElementById('frenzy-enabled')?.checked ?? false;
+  const config = document.getElementById('frenzy-config');
+  if (config) config.classList.toggle('is-disabled', !enabled);
+}
+
+function renderActiveFrenzy() {
+  const badge = document.getElementById('frenzy-status-badge');
+  const activeInfo = document.getElementById('frenzy-active-info');
+  const inactiveInfo = document.getElementById('frenzy-inactive-info');
+  if (ACTIVE_FRENZY) {
+    badge.textContent = 'Active';
+    badge.style.background = 'rgba(139,92,246,0.2)';
+    badge.style.color = '#8B5CF6';
+    activeInfo.style.display = '';
+    inactiveInfo.style.display = 'none';
+    document.getElementById('frenzy-active-mult').textContent = ACTIVE_FRENZY.multiplier + 'x';
+    document.getElementById('frenzy-active-reason').textContent = ACTIVE_FRENZY.reason || '-';
+    if (ACTIVE_FRENZY.expires_at) {
+      const remaining = Math.max(0, Math.floor(parseFloat(ACTIVE_FRENZY.expires_at) - Date.now()/1000));
+      if (remaining > 3600) document.getElementById('frenzy-active-dur').textContent = Math.floor(remaining/3600) + 'h ' + Math.floor((remaining%3600)/60) + 'm';
+      else if (remaining > 60) document.getElementById('frenzy-active-dur').textContent = Math.floor(remaining/60) + 'm ' + (remaining%60) + 's';
+      else document.getElementById('frenzy-active-dur').textContent = remaining + 's';
+    } else {
+      document.getElementById('frenzy-active-dur').textContent = 'Until stopped';
+    }
+  } else {
+    badge.textContent = 'Inactive';
+    badge.style.background = 'rgba(255,255,255,0.05)';
+    badge.style.color = 'rgba(255,255,255,0.5)';
+    activeInfo.style.display = 'none';
+    inactiveInfo.style.display = '';
+  }
+}
+
+function applyDropdownValue(wrap, value, noneLabel) {
+  const btn = wrap.querySelector('.md-custom-select-btn');
+  if (!btn) return;
+  const saved = value ?? '';
+  const match = saved ? wrap.querySelector(`.md-custom-opt[data-id="${saved}"]`) : null;
+  btn.textContent = match ? match.textContent : noneLabel;
+}
+
+function resetDropdowns() {
+  document.querySelectorAll('[data-channel-select]').forEach(wrap => {
+    applyDropdownValue(wrap, SETTINGS_SNAPSHOT.announce_channel_id, 'System channel');
+  });
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('[data-channel-select]')) {
+    document.querySelectorAll('.md-custom-select-drop').forEach(drop => drop.classList.remove('is-open'));
+  }
+});
+
+async function saveChanges() {
+  const keys = Object.keys(pending); if (!keys.length) return;
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving...';
+  for (const key of keys) {
+    try {
+      const res = await fetch(`/api/v1/frenzy/${GID}/settings`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]})});
+      if (!res.ok) {
+        let detail = 'Save failed';
+        try { const j = await res.json(); detail = j.detail || j.error || detail; } catch {}
+        if (typeof showToast === 'function') showToast(detail, 'error', 5000);
+        saveBtn.disabled = false; saveBtn.textContent = 'Save'; return;
+      }
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('Network error saving.', 'error', 5000);
+      saveBtn.disabled = false; saveBtn.textContent = 'Save'; return;
+    }
+  }
+  for (const key of keys) { LOADED[key] = pending[key]; delete pending[key]; }
+  saveBar.classList.add('is-closed'); saveBtn.disabled = false; saveBtn.textContent = 'Save';
+  if (typeof showToast==='function') showToast('Settings saved.','success');
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const [channelsRes, settingsRes, activeRes] = await Promise.all([
+    api('/channels').catch(() => ({channels:[]})),
+    api('/settings').catch(() => ({})),
+    api('/active').catch(() => ({})),
+  ]);
+
+  const channels = channelsRes.channels || [];
+
+  document.querySelectorAll('[data-channel-select]').forEach(wrap => {
+    const btn = wrap.querySelector('.md-custom-select-btn'), drop = wrap.querySelector('.md-custom-select-drop');
+    drop.innerHTML = `<button class="md-custom-opt" data-id="">System channel</button>` + channels.map(c => `<button class="md-custom-opt" data-id="${c.id}">#${esc(c.name)}</button>`).join('');
+    drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+      const newVal = b.dataset.id || null;
+      const oldVal = SETTINGS_SNAPSHOT.announce_channel_id || null;
+      btn.textContent = b.dataset.id ? b.textContent : 'System channel';
+      if (newVal !== oldVal) markChanged('announce_channel_id', newVal);
+      drop.classList.remove('is-open');
+    }));
+    if (!btn.dataset.selectBound) {
+      btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
+      btn.dataset.selectBound = 'true';
+    }
+  });
+
+  const s = settingsRes.settings || {}; SETTINGS_SNAPSHOT = { ...s }; LOADED = { ...s };
+  IS_MOD = !!settingsRes.is_mod;
+  ACTIVE_FRENZY = activeRes.active || null;
+
+  document.getElementById('frenzy-enabled').checked = !!s.enabled;
+  document.getElementById('frenzy-announce-start').checked = s.announce_start !== false;
+  document.getElementById('frenzy-announce-end').checked = s.announce_end !== false;
+  document.getElementById('frenzy-default-mult').value = s.default_multiplier || 2;
+  document.getElementById('frenzy-max-mult').value = s.max_multiplier || 10;
+  document.getElementById('frenzy-max-dur').value = s.max_duration_minutes || 1440;
+
+  const triggers = s.auto_triggers || {};
+  const setTrigger = (id, t) => {
+    document.getElementById(id).checked = !!t.enabled;
+  };
+  setTrigger('frenzy-trigger-join', triggers.member_join || {});
+  setTrigger('frenzy-trigger-msg', triggers.message_spike || {});
+  setTrigger('frenzy-trigger-voice', triggers.voice_activity || {});
+  setTrigger('frenzy-trigger-boost', triggers.boost || {});
+  setTrigger('frenzy-trigger-level', triggers.level_milestone || {});
+
+  resetDropdowns(); updateGrayOut(); renderActiveFrenzy();
+
+  if (!IS_MOD) {
+    document.querySelectorAll('#frenzy-wrap input, #frenzy-wrap select, #frenzy-wrap button').forEach(el => { el.disabled = true; });
+    saveBar.classList.add('is-closed');
+  } else {
+    document.getElementById('frenzy-enabled').addEventListener('change', function(){ markChanged('enabled', this.checked); updateGrayOut(); });
+    document.getElementById('frenzy-announce-start').addEventListener('change', function(){ markChanged('announce_start', this.checked); });
+    document.getElementById('frenzy-announce-end').addEventListener('change', function(){ markChanged('announce_end', this.checked); });
+    document.getElementById('frenzy-default-mult').addEventListener('input', function(){ markChanged('default_multiplier', parseFloat(this.value)||2); });
+    document.getElementById('frenzy-max-mult').addEventListener('input', function(){ markChanged('max_multiplier', parseFloat(this.value)||10); });
+    document.getElementById('frenzy-max-dur').addEventListener('input', function(){ markChanged('max_duration_minutes', parseInt(this.value)||1440); });
+
+    document.getElementById('frenzy-start-btn').addEventListener('click', async () => {
+      const mult = parseFloat(document.getElementById('frenzy-mult').value) || 2;
+      const dur = parseInt(document.getElementById('frenzy-dur').value) || 0;
+      const reason = document.getElementById('frenzy-reason').value.trim() || 'Started from dashboard';
+      const res = await fetch(`/api/v1/frenzy/${GID}/active`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({multiplier:mult, duration_minutes:dur, reason, started_by:'dashboard'})});
+      const j = await res.json();
+      if (res.ok) {
+        ACTIVE_FRENZY = j.active;
+        renderActiveFrenzy();
+        if (typeof showToast==='function') showToast('Frenzy started!','success');
+      } else {
+        if (typeof showToast==='function') showToast(j.error||'Failed','error');
+      }
+    });
+
+    document.getElementById('frenzy-stop-btn').addEventListener('click', async () => {
+      const res = await fetch(`/api/v1/frenzy/${GID}/active`, {method:'DELETE'});
+      if (res.ok) {
+        ACTIVE_FRENZY = null;
+        renderActiveFrenzy();
+        if (typeof showToast==='function') showToast('Frenzy stopped.','success');
+      }
+    });
+  }
+
+  saveBtn.addEventListener('click', saveChanges);
+  document.getElementById('discard-btn').addEventListener('click', () => {
+    const reverted = Object.assign({}, LOADED);
+    for (const key of Object.keys(pending)) {
+      if (key in original) reverted[key] = original[key];
+    }
+    for (const key of Object.keys(pending)) delete pending[key];
+    for (const key of Object.keys(original)) delete original[key];
+    SETTINGS_SNAPSHOT = Object.assign({}, reverted);
+    document.getElementById('frenzy-enabled').checked = !!SETTINGS_SNAPSHOT.enabled;
+    document.getElementById('frenzy-announce-start').checked = SETTINGS_SNAPSHOT.announce_start !== false;
+    document.getElementById('frenzy-announce-end').checked = SETTINGS_SNAPSHOT.announce_end !== false;
+    document.getElementById('frenzy-default-mult').value = SETTINGS_SNAPSHOT.default_multiplier || 2;
+    document.getElementById('frenzy-max-mult').value = SETTINGS_SNAPSHOT.max_multiplier || 10;
+    document.getElementById('frenzy-max-dur').value = SETTINGS_SNAPSHOT.max_duration_minutes || 1440;
+    resetDropdowns(); updateGrayOut();
+    saveBar.classList.add('is-closed');
+  });
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+});
+</script>
+{% endblock %}

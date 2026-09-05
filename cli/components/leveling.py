@@ -199,7 +199,16 @@ class Leveling(commands.Cog, name="Leveling"):
                     rmult = None
                 if rmult:
                     role_mult = max(role_mult, float(rmult))
-        rate = base_rate * role_mult
+        # Frenzy multiplier
+        frenzy_mult = 1.0
+        try:
+            frenzy_cog = self.bot.get_cog("Frenzy")
+            if frenzy_cog:
+                from .frenzy import get_frenzy_multiplier
+                frenzy_mult = await get_frenzy_multiplier(message.guild.id)
+        except Exception:
+            pass
+        rate = base_rate * role_mult * frenzy_mult
         earned = int(earned * rate)
         if earned <= 0:
             return

@@ -6,7 +6,7 @@
 
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;animation-delay:.05s;">
     <div>
-      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">🎮 Activity Roles</h1>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Activity Roles</h1>
       <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Auto-assign roles when members play specific games. Roles are removed when they stop playing.</p>
     </div>
   </div>
@@ -26,7 +26,7 @@
           <div class="md-behavior-item" style="align-items:flex-start;">
             <div style="flex:1;">
               <div class="md-behavior-label">Role to Assign</div>
-              <div class="md-custom-select" id="ar-role-select">
+              <div class="md-custom-select" id="ar-role-select" style="margin-top:0.4rem;">
                 <button class="md-custom-select-btn">Select role...</button>
                 <div class="md-custom-select-drop"></div>
               </div>
@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     api('/rules').catch(() => ({rules:[]}))
   ]);
 
-  ROLES = rolesRes.roles || [];
+  ROLES = (rolesRes.roles || []).filter(r => r.id !== GID);
 
   const roleWrap = document.getElementById('ar-role-select');
   const roleBtn = roleWrap.querySelector('.md-custom-select-btn');

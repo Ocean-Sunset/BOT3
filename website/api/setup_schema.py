@@ -410,6 +410,39 @@ CREATE TABLE IF NOT EXISTS user_badges (
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_badges_guild ON user_badges (guild_id, user_id);
+
+CREATE TABLE IF NOT EXISTS temp_channel_settings (
+    guild_id    TEXT PRIMARY KEY,
+    settings    TEXT NOT NULL DEFAULT '{}',
+    updated_at  REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS temp_channels (
+    guild_id    TEXT NOT NULL,
+    channel_id  TEXT NOT NULL,
+    owner_id    TEXT NOT NULL,
+    channel_type TEXT NOT NULL,
+    created_at  REAL NOT NULL,
+    expires_at  REAL,
+    PRIMARY KEY (guild_id, channel_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_temp_channels_guild ON temp_channels (guild_id);
+
+CREATE TABLE IF NOT EXISTS frenzy_settings (
+    guild_id    TEXT PRIMARY KEY,
+    settings    TEXT NOT NULL DEFAULT '{}',
+    updated_at  REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS frenzy_active (
+    guild_id    TEXT PRIMARY KEY,
+    multiplier  REAL NOT NULL DEFAULT 2.0,
+    reason      TEXT,
+    started_by  TEXT,
+    started_at  REAL NOT NULL,
+    expires_at  REAL
+);
 """
 
 

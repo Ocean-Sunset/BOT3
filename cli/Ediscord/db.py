@@ -1237,6 +1237,8 @@ GUILD_TABLES = [
     "afk_status", "giveaways", "giveaway_entries",
     "birthday_settings", "birthdays",
     "activity_role_rules", "user_activity", "user_badges",
+    "temp_channel_settings", "temp_channels",
+    "frenzy_settings", "frenzy_active",
 ]
 
 

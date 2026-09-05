@@ -303,7 +303,7 @@ async function loadAll() {
       fetch(`/api/v1/welcomer/${GID}/roles`).then(r => r.json()).catch(() => ({roles: []})),
     ]);
     bindSelect('gw-channel-wrap', 'gw-channel-drop', 'gw-channel-btn', (ch.channels || []).map(c => ({id: c.id, name: c.name})), 'Select channel...', id => { selectedChannel = id; });
-    bindSelect('gw-role-wrap', 'gw-role-drop', 'gw-role-btn', (rl.roles || []).map(r => ({id: r.id, name: r.name})), 'None', id => { selectedRole = id; });
+    bindSelect('gw-role-wrap', 'gw-role-drop', 'gw-role-btn', (rl.roles || []).filter(r => r.id !== GID).map(r => ({id: r.id, name: r.name})), 'None', id => { selectedRole = id; });
     renderList(gw.giveaways || []);
     IS_MOD = !!(gw && gw.is_mod);
     applyModGate();

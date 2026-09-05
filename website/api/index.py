@@ -1220,7 +1220,7 @@ async def dashboard(request: Request, guild_id: str, panel: str = "overview"):
         "social_alerts", "invite_tracker", "tickets", "global_chat",
         "autoresponder", "settings", "raid_protection", "profile",
         "aliases", "bot_profile", "reminders", "afk", "giveaways",
-        "birthday", "activity_roles", "badges",
+        "birthday", "activity_roles", "badges", "temp_channels", "frenzy",
     ]
     if panel not in valid_panels:
         panel = "overview"
@@ -4475,26 +4475,26 @@ async def activity_roles_roles(guild_id: str, request: Request):
 # ---------------------------------------------------------------------------
 
 BADGE_DEFINITIONS = [
-    {"id": "msg_100",    "name": "Chatterbox",      "desc": "Sent 100 messages",         "emoji": "💬", "category": "messages", "threshold": 100},
-    {"id": "msg_500",    "name": "Conversationalist","desc": "Sent 500 messages",         "emoji": "🗨️", "category": "messages", "threshold": 500},
-    {"id": "msg_1k",     "name": "Big Talker",      "desc": "Sent 1,000 messages",        "emoji": "🗣️", "category": "messages", "threshold": 1000},
-    {"id": "msg_5k",     "name": "Non-Stop",        "desc": "Sent 5,000 messages",        "emoji": "🔊", "category": "messages", "threshold": 5000},
-    {"id": "msg_10k",    "name": "Legend",           "desc": "Sent 10,000 messages",       "emoji": "📢", "category": "messages", "threshold": 10000},
-    {"id": "msg_25k",    "name": "Living Chat",     "desc": "Sent 25,000 messages",       "emoji": "💎", "category": "messages", "threshold": 25000},
-    {"id": "msg_50k",    "name": "Server Soul",     "desc": "Sent 50,000 messages",       "emoji": "👑", "category": "messages", "threshold": 50000},
-    {"id": "msg_100k",   "name": "Myth",            "desc": "Sent 100,000 messages",      "emoji": "🏆", "category": "messages", "threshold": 100000},
-    {"id": "vc_1h",      "name": "Lurker",          "desc": "1 hour in voice",            "emoji": "🎧", "category": "voice", "threshold": 60},
-    {"id": "vc_10h",     "name": "Regular",         "desc": "10 hours in voice",          "emoji": "🎤", "category": "voice", "threshold": 600},
-    {"id": "vc_50h",     "name": "Voice Veteran",   "desc": "50 hours in voice",          "emoji": "🎶", "category": "voice", "threshold": 3000},
-    {"id": "vc_100h",    "name": "Echo",            "desc": "100 hours in voice",         "emoji": "🔊", "category": "voice", "threshold": 6000},
-    {"id": "vc_500h",    "name": "Voice Lord",      "desc": "500 hours in voice",         "emoji": "🎵", "category": "voice", "threshold": 30000},
-    {"id": "vc_1000h",   "name": "Voice Legend",    "desc": "1,000 hours in voice",       "emoji": "🎤", "category": "voice", "threshold": 60000},
-    {"id": "tenure_1m",  "name": "Newcomer",        "desc": "Member for 1 month",         "emoji": "📅", "category": "tenure", "threshold": 30},
-    {"id": "tenure_6m",  "name": "Regular",         "desc": "Member for 6 months",        "emoji": "🗓️", "category": "tenure", "threshold": 180},
-    {"id": "tenure_1y",  "name": "Veteran",         "desc": "Member for 1 year",          "emoji": "🏅", "category": "tenure", "threshold": 365},
-    {"id": "tenure_2y",  "name": "Old Guard",       "desc": "Member for 2 years",         "emoji": "🎖️", "category": "tenure", "threshold": 730},
-    {"id": "first_member","name": "First Member",   "desc": "First member of the server", "emoji": "⭐", "category": "special", "threshold": 0},
-    {"id": "booster",    "name": "Server Booster",  "desc": "Currently boosting",         "emoji": "🚀", "category": "special", "threshold": 0},
+    {"id": "msg_100",    "name": "Chatterbox",      "desc": "Sent 100 messages",         "emoji": "<:message:1538660505827151943>", "category": "messages", "threshold": 100},
+    {"id": "msg_500",    "name": "Conversationalist","desc": "Sent 500 messages",         "emoji": "<:message:1538660505827151943>", "category": "messages", "threshold": 500},
+    {"id": "msg_1k",     "name": "Big Talker",      "desc": "Sent 1,000 messages",        "emoji": "<:message:1538660505827151943>", "category": "messages", "threshold": 1000},
+    {"id": "msg_5k",     "name": "Non-Stop",        "desc": "Sent 5,000 messages",        "emoji": "<:fire:1538660467931881623>", "category": "messages", "threshold": 5000},
+    {"id": "msg_10k",    "name": "Legend",           "desc": "Sent 10,000 messages",       "emoji": "<:star:1538660544356294747>", "category": "messages", "threshold": 10000},
+    {"id": "msg_25k",    "name": "Living Chat",     "desc": "Sent 25,000 messages",       "emoji": "<:gem:1538660473174753360>", "category": "messages", "threshold": 25000},
+    {"id": "msg_50k",    "name": "Server Soul",     "desc": "Sent 50,000 messages",       "emoji": "<:crown:1538660454052921364>", "category": "messages", "threshold": 50000},
+    {"id": "msg_100k",   "name": "Myth",            "desc": "Sent 100,000 messages",      "emoji": "<:reward:1538660528229056562>", "category": "messages", "threshold": 100000},
+    {"id": "vc_1h",      "name": "Lurker",          "desc": "1 hour in voice",            "emoji": "<:music:1538660512789958656>", "category": "voice", "threshold": 60},
+    {"id": "vc_10h",     "name": "Regular",         "desc": "10 hours in voice",          "emoji": "<:music:1538660512789958656>", "category": "voice", "threshold": 600},
+    {"id": "vc_50h",     "name": "Voice Veteran",   "desc": "50 hours in voice",          "emoji": "<:music:1538660512789958656>", "category": "voice", "threshold": 3000},
+    {"id": "vc_100h",    "name": "Echo",            "desc": "100 hours in voice",         "emoji": "<:music:1538660512789958656>", "category": "voice", "threshold": 6000},
+    {"id": "vc_500h",    "name": "Voice Lord",      "desc": "500 hours in voice",         "emoji": "<:music:1538660512789958656>", "category": "voice", "threshold": 30000},
+    {"id": "vc_1000h",   "name": "Voice Legend",    "desc": "1,000 hours in voice",       "emoji": "<:music:1538660512789958656>", "category": "voice", "threshold": 60000},
+    {"id": "tenure_1m",  "name": "Newcomer",        "desc": "Member for 1 month",         "emoji": "<:calendar:1538660433786052618>", "category": "tenure", "threshold": 30},
+    {"id": "tenure_6m",  "name": "Regular",         "desc": "Member for 6 months",        "emoji": "<:calendar:1538660433786052618>", "category": "tenure", "threshold": 180},
+    {"id": "tenure_1y",  "name": "Veteran",         "desc": "Member for 1 year",          "emoji": "<:reward:1538660528229056562>", "category": "tenure", "threshold": 365},
+    {"id": "tenure_2y",  "name": "Old Guard",       "desc": "Member for 2 years",         "emoji": "<:reward:1538660528229056562>", "category": "tenure", "threshold": 730},
+    {"id": "first_member","name": "First Member",   "desc": "First member of the server", "emoji": "<:star:1538660544356294747>", "category": "special", "threshold": 0},
+    {"id": "booster",    "name": "Server Booster",  "desc": "Currently boosting",         "emoji": "<:rocket:1538660529508323328>", "category": "special", "threshold": 0},
 ]
 
 
@@ -4535,6 +4535,230 @@ async def badge_leaderboard(guild_id: str, request: Request):
         str(guild_id),
     )
     return {"leaderboard": [dict(r) for r in rows]}
+
+
+# ---------------------------------------------------------------------------
+#  Temp Channels API v1
+# ---------------------------------------------------------------------------
+
+TEMP_CHANNEL_DEFAULTS = {
+    "jtc_enabled": False,
+    "jtc_hub_channel": None,
+    "jtc_category": None,
+    "jtc_naming": "{user}'s Channel",
+    "jtc_default_limit": 0,
+    "tempchat_enabled": True,
+    "tempchat_default_minutes": 60,
+    "tempchat_category": None,
+}
+
+
+async def _get_temp_settings(guild_id: str):
+    return await fetchrow_cached("temp_channel_settings", "SELECT settings FROM temp_channel_settings WHERE guild_id = ?", guild_id, TEMP_CHANNEL_DEFAULTS)
+
+
+@app.get("/api/v1/temp_channels/{guild_id}/settings")
+async def temp_channels_settings_get(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    return {"settings": await _get_temp_settings(guild_id)}
+
+
+@app.post("/api/v1/temp_channels/{guild_id}/settings", dependencies=[Depends(require_mod)])
+async def temp_channels_settings_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    key = body.get("key")
+    value = body.get("value")
+    if not key:
+        return JSONResponse({"error": "missing key"}, status_code=400)
+    if key in ("jtc_hub_channel", "jtc_category", "tempchat_category") and value is not None:
+        if not _valid_snowflake(value):
+            return JSONResponse({"error": f"invalid {key}"}, status_code=400)
+        value = str(value)
+    elif key == "jtc_naming":
+        if not isinstance(value, str) or not value.strip():
+            return JSONResponse({"error": "naming pattern required"}, status_code=400)
+        value = value[:100]
+    elif key == "tempchat_default_minutes":
+        try:
+            value = max(1, min(10080, int(value)))
+        except (TypeError, ValueError):
+            return JSONResponse({"error": "invalid duration"}, status_code=400)
+    err = await _save_settings("temp_channel_settings", str(guild_id), key, value, TEMP_CHANNEL_DEFAULTS)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    return {"ok": True}
+
+
+@app.get("/api/v1/temp_channels/{guild_id}/active")
+async def temp_channels_active(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    rows = await query(
+        "SELECT channel_id, owner_id, channel_type, created_at, expires_at FROM temp_channels WHERE guild_id = ? ORDER BY created_at DESC",
+        str(guild_id),
+    )
+    return {"channels": [dict(r) for r in rows]}
+
+
+@app.get("/api/v1/temp_channels/{guild_id}/channels")
+async def temp_channels_channels(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    d = await get_guild_data(guild_id)
+    if d and "channels" in d:
+        return {"channels": [{"id": str(c.get("id")), "name": c.get("name", ""), "type": c.get("type", 0)} for c in d["channels"]]}
+    return {"channels": []}
+
+
+@app.get("/api/v1/temp_channels/{guild_id}/categories")
+async def temp_channels_categories(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    d = await get_guild_data(guild_id)
+    if d and "channels" in d:
+        return {"categories": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 4]}
+    return {"categories": []}
+
+
+@app.get("/api/v1/temp_channels/{guild_id}/roles")
+async def temp_channels_roles(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    d = await get_guild_data(guild_id)
+    if d and "roles" in d:
+        return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
+    return {"roles": []}
+
+
+# ---------------------------------------------------------------------------
+#  Frenzy Mode API v1
+# ---------------------------------------------------------------------------
+
+FRENZY_DEFAULTS = {
+    "enabled": True,
+    "default_multiplier": 2.0,
+    "max_multiplier": 10.0,
+    "max_duration_minutes": 1440,
+    "announce_channel_id": None,
+    "announce_start": True,
+    "announce_end": True,
+    "auto_triggers": {
+        "member_join": {"enabled": False, "count": 5, "minutes": 10, "multiplier": 2.0, "duration_minutes": 30},
+        "message_spike": {"enabled": False, "count": 100, "minutes": 5, "multiplier": 1.5, "duration_minutes": 15},
+        "voice_activity": {"enabled": False, "count": 10, "multiplier": 2.0, "duration_minutes": 60},
+        "boost": {"enabled": False, "multiplier": 3.0, "duration_minutes": 60},
+        "level_milestone": {"enabled": False, "level": 50, "multiplier": 2.0, "duration_minutes": 30},
+    },
+}
+
+
+async def _get_frenzy_settings(guild_id: str):
+    return await fetchrow_cached("frenzy_settings", "SELECT settings FROM frenzy_settings WHERE guild_id = ?", guild_id, FRENZY_DEFAULTS)
+
+
+@app.get("/api/v1/frenzy/{guild_id}/settings")
+async def frenzy_settings_get(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    return {"settings": await _get_frenzy_settings(guild_id)}
+
+
+@app.post("/api/v1/frenzy/{guild_id}/settings", dependencies=[Depends(require_mod)])
+async def frenzy_settings_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    key = body.get("key")
+    value = body.get("value")
+    if not key:
+        return JSONResponse({"error": "missing key"}, status_code=400)
+    if key in ("default_multiplier", "max_multiplier"):
+        try:
+            value = max(1.0, min(100.0, float(value)))
+        except (TypeError, ValueError):
+            return JSONResponse({"error": f"invalid {key}"}, status_code=400)
+    elif key == "max_duration_minutes":
+        try:
+            value = max(0, min(10080, int(value)))
+        except (TypeError, ValueError):
+            return JSONResponse({"error": "invalid duration"}, status_code=400)
+    elif key == "announce_channel_id" and value is not None:
+        if not _valid_snowflake(value):
+            return JSONResponse({"error": "invalid channel"}, status_code=400)
+        value = str(value)
+    elif key == "auto_triggers":
+        if not isinstance(value, dict):
+            return JSONResponse({"error": "invalid auto_triggers"}, status_code=400)
+    err = await _save_settings("frenzy_settings", str(guild_id), key, value, FRENZY_DEFAULTS)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    return {"ok": True}
+
+
+@app.get("/api/v1/frenzy/{guild_id}/active")
+async def frenzy_active(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    row = await fetchrow(
+        "SELECT multiplier, reason, started_by, started_at, expires_at FROM frenzy_active WHERE guild_id = ?",
+        str(guild_id),
+    )
+    if not row:
+        return {"active": None}
+    now = time.time()
+    expires = row["expires_at"]
+    if expires and now > float(expires):
+        await execute("DELETE FROM frenzy_active WHERE guild_id = ?", str(guild_id))
+        return {"active": None}
+    return {"active": dict(row)}
+
+
+@app.post("/api/v1/frenzy/{guild_id}/active", dependencies=[Depends(require_mod)])
+async def frenzy_start(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    multiplier = float(body.get("multiplier", 2.0))
+    duration_minutes = body.get("duration_minutes")
+    reason = body.get("reason", "Started from dashboard")
+    started_by = body.get("started_by", "dashboard")
+    if duration_minutes is not None:
+        duration_minutes = int(duration_minutes)
+    settings = await _get_frenzy_settings(guild_id)
+    max_mult = settings.get("max_multiplier", 10.0)
+    if multiplier < 1.0 or multiplier > max_mult:
+        return JSONResponse({"error": f"Multiplier must be between 1 and {max_mult}"}, status_code=400)
+    max_dur = settings.get("max_duration_minutes", 1440)
+    if duration_minutes and max_dur and duration_minutes > max_dur:
+        return JSONResponse({"error": f"Maximum duration is {max_dur} minutes"}, status_code=400)
+    now = time.time()
+    expires_at = now + (duration_minutes * 60) if duration_minutes else None
+    await execute(
+        "INSERT INTO frenzy_active (guild_id, multiplier, reason, started_by, started_at, expires_at) "
+        "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (guild_id) DO UPDATE SET "
+        "multiplier = ?, reason = ?, started_by = ?, started_at = ?, expires_at = ?",
+        str(guild_id), multiplier, reason, str(started_by), now, expires_at,
+        multiplier, reason, str(started_by), now, expires_at,
+    )
+    return {"active": {"multiplier": multiplier, "reason": reason, "started_by": str(started_by), "started_at": now, "expires_at": expires_at}}
+
+
+@app.delete("/api/v1/frenzy/{guild_id}/active", dependencies=[Depends(require_mod)])
+async def frenzy_stop(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    await execute("DELETE FROM frenzy_active WHERE guild_id = ?", str(guild_id))
+    return {"ok": True}
+
+
+@app.get("/api/v1/frenzy/{guild_id}/channels")
+async def frenzy_channels(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    d = await get_guild_data(guild_id)
+    if d and "channels" in d:
+        return {"channels": [{"id": str(c.get("id")), "name": c.get("name", ""), "type": c.get("type", 0)} for c in d["channels"]]}
+    return {"channels": []}
+
+
+@app.get("/api/v1/frenzy/{guild_id}/roles")
+async def frenzy_roles(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    d = await get_guild_data(guild_id)
+    if d and "roles" in d:
+        return {"roles": [{"id": str(r.get("id")), "name": r.get("name", "")} for r in d["roles"]]}
+    return {"roles": []}
 
 
 # ---------------------------------------------------------------------------

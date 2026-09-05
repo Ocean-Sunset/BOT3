@@ -77,6 +77,25 @@ Prowl is a Discord bot (Python/discord.py 2.7.x) with a web dashboard (FastAPI +
 - DB: `user_activity`, `user_badges` tables
 - Dashboard showing badge categories + leaderboard
 
+### Temp Channels (COMPLETE)
+- `cli/components/temp_channels.py` — JTC voice + timed text channels
+- **JTC Voice:** Join hub → auto-create voice channel → owner controls → auto-delete when empty
+- **Temp Chat:** `/tempchat [minutes] [name]` → auto-deletes after duration
+- Commands: `/tempchat`, `/tempchat_close`, `/tempchat_list`
+- DB: `temp_channel_settings`, `temp_channels` tables
+- Dashboard with JTC and temp chat configuration
+
+### Frenzy Mode (COMPLETE)
+- `cli/components/frenzy.py` — XP multiplier system with auto-triggers
+- **Manual trigger:** `/frenzy start [multiplier] [duration] [reason]` / `/frenzy stop`
+- **Auto-triggers:** Member join spike, message spike, voice activity, boost, level milestone
+- **Duration:** Time-limited or until manually stopped
+- **Multipliers:** Configurable (default 2x, max 10x)
+- **Announcements:** Optional start/end messages
+- DB: `frenzy_settings`, `frenzy_active` tables
+- Dashboard with quick start, general settings, and auto-trigger configuration
+- Hooked into leveling cog's XP calculation
+
 ## Useful Patterns to Follow
 
 ### Adding a new cog
@@ -104,7 +123,9 @@ Prowl is a Discord bot (Python/discord.py 2.7.x) with a web dashboard (FastAPI +
 - `cli/components/birthday.py` — Birthday tracking cog
 - `cli/components/activity_roles.py` — Activity-based role assignment
 - `cli/components/badges.py` — Badge system with VC tracking
-- `cli/components/leveling.py` — XP/leveling (hooks into badge tracking)
+- `cli/components/temp_channels.py` — JTC voice + temp text channels
+- `cli/components/frenzy.py` — XP frenzy mode with auto-triggers
+- `cli/components/leveling.py` — XP/leveling (hooks into badge tracking, frenzy multiplier)
 - `website/api/index.py` — All API routes, _save_settings, valid_panels
 - `website/api/db.py` — execute(), query(), fetchval(), fetchrow()
 - `website/api/setup_schema.py` — DB schema setup script

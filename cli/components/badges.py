@@ -9,31 +9,40 @@ from Ediscord import db as neon_db
 from Ediscord.builders import EMBED_EMOJIS, emoji_title
 
 
+BADGE_EMOJI = {
+    "msg_100": "message", "msg_500": "message", "msg_1k": "message", "msg_5k": "fire",
+    "msg_10k": "star", "msg_25k": "gem", "msg_50k": "crown", "msg_100k": "reward",
+    "vc_1h": "music", "vc_10h": "music", "vc_50h": "music", "vc_100h": "music",
+    "vc_500h": "music", "vc_1000h": "music",
+    "tenure_1m": "calendar", "tenure_6m": "calendar", "tenure_1y": "reward",
+    "tenure_2y": "reward", "first_member": "star", "booster": "rocket",
+}
+
 BADGE_DEFS = [
     # Messages
-    {"id": "msg_100",    "name": "Chatterbox",     "desc": "Sent 100 messages",        "emoji": "💬", "category": "messages", "threshold": 100},
-    {"id": "msg_500",    "name": "Conversationalist","desc": "Sent 500 messages",       "emoji": "🗨️", "category": "messages", "threshold": 500},
-    {"id": "msg_1k",     "name": "Big Talker",     "desc": "Sent 1,000 messages",      "emoji": "🗣️", "category": "messages", "threshold": 1000},
-    {"id": "msg_5k",     "name": "Non-Stop",       "desc": "Sent 5,000 messages",      "emoji": "🔊", "category": "messages", "threshold": 5000},
-    {"id": "msg_10k",    "name": "Legend",          "desc": "Sent 10,000 messages",     "emoji": "📢", "category": "messages", "threshold": 10000},
-    {"id": "msg_25k",    "name": "Living Chat",    "desc": "Sent 25,000 messages",     "emoji": "💎", "category": "messages", "threshold": 25000},
-    {"id": "msg_50k",    "name": "Server Soul",    "desc": "Sent 50,000 messages",     "emoji": "👑", "category": "messages", "threshold": 50000},
-    {"id": "msg_100k",   "name": "Myth",           "desc": "Sent 100,000 messages",    "emoji": "🏆", "category": "messages", "threshold": 100000},
+    {"id": "msg_100",    "name": "Chatterbox",     "desc": "Sent 100 messages",        "category": "messages", "threshold": 100},
+    {"id": "msg_500",    "name": "Conversationalist","desc": "Sent 500 messages",       "category": "messages", "threshold": 500},
+    {"id": "msg_1k",     "name": "Big Talker",     "desc": "Sent 1,000 messages",      "category": "messages", "threshold": 1000},
+    {"id": "msg_5k",     "name": "Non-Stop",       "desc": "Sent 5,000 messages",      "category": "messages", "threshold": 5000},
+    {"id": "msg_10k",    "name": "Legend",          "desc": "Sent 10,000 messages",     "category": "messages", "threshold": 10000},
+    {"id": "msg_25k",    "name": "Living Chat",    "desc": "Sent 25,000 messages",     "category": "messages", "threshold": 25000},
+    {"id": "msg_50k",    "name": "Server Soul",    "desc": "Sent 50,000 messages",     "category": "messages", "threshold": 50000},
+    {"id": "msg_100k",   "name": "Myth",           "desc": "Sent 100,000 messages",    "category": "messages", "threshold": 100000},
     # Voice
-    {"id": "vc_1h",      "name": "Lurker",         "desc": "1 hour in voice",          "emoji": "🎧", "category": "voice", "threshold": 60},
-    {"id": "vc_10h",     "name": "Regular",        "desc": "10 hours in voice",        "emoji": "🎤", "category": "voice", "threshold": 600},
-    {"id": "vc_50h",     "name": "Voice Veteran",  "desc": "50 hours in voice",        "emoji": "🎶", "category": "voice", "threshold": 3000},
-    {"id": "vc_100h",    "name": "Echo",           "desc": "100 hours in voice",       "emoji": "🔊", "category": "voice", "threshold": 6000},
-    {"id": "vc_500h",    "name": "Voice Lord",     "desc": "500 hours in voice",       "emoji": "🎵", "category": "voice", "threshold": 30000},
-    {"id": "vc_1000h",   "name": "Voice Legend",   "desc": "1,000 hours in voice",     "emoji": "🎤", "category": "voice", "threshold": 60000},
+    {"id": "vc_1h",      "name": "Lurker",         "desc": "1 hour in voice",          "category": "voice", "threshold": 60},
+    {"id": "vc_10h",     "name": "Regular",        "desc": "10 hours in voice",        "category": "voice", "threshold": 600},
+    {"id": "vc_50h",     "name": "Voice Veteran",  "desc": "50 hours in voice",        "category": "voice", "threshold": 3000},
+    {"id": "vc_100h",    "name": "Echo",           "desc": "100 hours in voice",       "category": "voice", "threshold": 6000},
+    {"id": "vc_500h",    "name": "Voice Lord",     "desc": "500 hours in voice",       "category": "voice", "threshold": 30000},
+    {"id": "vc_1000h",   "name": "Voice Legend",   "desc": "1,000 hours in voice",     "category": "voice", "threshold": 60000},
     # Tenure
-    {"id": "tenure_1m",  "name": "Newcomer",       "desc": "Member for 1 month",       "emoji": "📅", "category": "tenure", "threshold": 30},
-    {"id": "tenure_6m",  "name": "Regular",        "desc": "Member for 6 months",      "emoji": "🗓️", "category": "tenure", "threshold": 180},
-    {"id": "tenure_1y",  "name": "Veteran",        "desc": "Member for 1 year",        "emoji": "🏅", "category": "tenure", "threshold": 365},
-    {"id": "tenure_2y",  "name": "Old Guard",      "desc": "Member for 2 years",       "emoji": "🎖️", "category": "tenure", "threshold": 730},
+    {"id": "tenure_1m",  "name": "Newcomer",       "desc": "Member for 1 month",       "category": "tenure", "threshold": 30},
+    {"id": "tenure_6m",  "name": "Regular",        "desc": "Member for 6 months",      "category": "tenure", "threshold": 180},
+    {"id": "tenure_1y",  "name": "Veteran",        "desc": "Member for 1 year",        "category": "tenure", "threshold": 365},
+    {"id": "tenure_2y",  "name": "Old Guard",      "desc": "Member for 2 years",       "category": "tenure", "threshold": 730},
     # Special
-    {"id": "first_member","name": "First Member",  "desc": "First member of the server","emoji": "⭐", "category": "special", "threshold": 0},
-    {"id": "booster",    "name": "Server Booster", "desc": "Currently boosting the server","emoji": "🚀", "category": "special", "threshold": 0},
+    {"id": "first_member","name": "First Member",  "desc": "First member of the server","category": "special", "threshold": 0},
+    {"id": "booster",    "name": "Server Booster", "desc": "Currently boosting the server","category": "special", "threshold": 0},
 ]
 
 BADGE_MAP = {b["id"]: b for b in BADGE_DEFS}
@@ -228,7 +237,9 @@ class Badges(commands.Cog, name="Badges"):
             for r in rows:
                 badge = BADGE_MAP.get(r["badge_id"])
                 if badge:
-                    lines.append(f"{badge['emoji']} **{badge['name']}** — {badge['desc']}")
+                    emoji_key = BADGE_EMOJI.get(badge["id"], "star")
+                    emoji_str = EMBED_EMOJIS.get(emoji_key, "")
+                    lines.append(f"{emoji_str} **{badge['name']}** — {badge['desc']}")
             badge_text = "\n".join(lines)
         else:
             badge_text = "No badges yet. Start chatting and hanging out in voice!"
@@ -253,7 +264,7 @@ class Badges(commands.Cog, name="Badges"):
 
         embed = (
             EmbedBuilder()
-            .title(emoji_title("trophy", f"{target.display_name}'s Badges"))
+            .title(emoji_title("reward", f"{target.display_name}'s Badges"))
             .description(badge_text)
             .color("brand")
             .row(
@@ -287,7 +298,7 @@ class Badges(commands.Cog, name="Badges"):
             )
 
         lines = []
-        medals = ["🥇", "🥈", "🥉"]
+        medals = [EMBED_EMOJIS.get("reward", ""), EMBED_EMOJIS.get("star", ""), EMBED_EMOJIS.get("sparkle", "")]
         for i, r in enumerate(rows):
             uid = int(r["user_id"])
             member = ctx.guild.get_member(uid)
@@ -298,7 +309,7 @@ class Badges(commands.Cog, name="Badges"):
 
         embed = (
             EmbedBuilder()
-            .title(emoji_title("trophy", "Badge Leaderboard"))
+            .title(emoji_title("reward", "Badge Leaderboard"))
             .description("\n".join(lines))
             .color("brand")
             .timestamp(datetime.datetime.utcnow())

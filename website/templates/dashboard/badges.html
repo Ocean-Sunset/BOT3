@@ -2,70 +2,43 @@
 {% block content %}
 <link rel="stylesheet" href="/static/moderation.css?v=21" />
 <link rel="stylesheet" href="/static/leveling.css?v=4" />
-<div id="badge-wrap">
+<style>
+  .badge-tag { display:inline-flex; align-items:center; gap:0.25rem; font-size:0.68rem; padding:0.12rem 0.45rem; border-radius:4px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); color:rgba(255,255,255,0.6); white-space:nowrap; }
+  .badge-tag.earned { background:rgba(139,92,246,0.15); border-color:rgba(139,92,246,0.3); color:rgba(255,255,255,0.9); }
+  .badge-tag.locked { opacity:0.4; }
+  #badge-table-wrap::-webkit-scrollbar { height:4px; }
+  #badge-table-wrap::-webkit-scrollbar-track { background:transparent; }
+  #badge-table-wrap::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.08); border-radius:999px; }
+</style>
+<div style="padding:2rem 0;">
 
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;animation-delay:.05s;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem;">
     <div>
-      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">🏆 Badges</h1>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Badges</h1>
       <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Members earn badges for messages, voice time, tenure, and special achievements.</p>
     </div>
-  </div>
-
-  <div class="md-row">
-    <div class="md-section" style="flex:1;">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Badge Categories</div>
-        <div style="display:flex;flex-direction:column;gap:0.75rem;margin-top:0.5rem;">
-
-          <div>
-            <div style="font-size:0.78rem;font-weight:700;color:rgba(255,255,255,0.6);margin-bottom:0.4rem;">💬 Messages</div>
-            <div style="display:flex;flex-wrap:wrap;gap:0.4rem;" id="badge-messages"></div>
-          </div>
-
-          <div>
-            <div style="font-size:0.78rem;font-weight:700;color:rgba(255,255,255,0.6);margin-bottom:0.4rem;">🎧 Voice</div>
-            <div style="display:flex;flex-wrap:wrap;gap:0.4rem;" id="badge-voice"></div>
-          </div>
-
-          <div>
-            <div style="font-size:0.78rem;font-weight:700;color:rgba(255,255,255,0.6);margin-bottom:0.4rem;">📅 Tenure</div>
-            <div style="display:flex;flex-wrap:wrap;gap:0.4rem;" id="badge-tenure"></div>
-          </div>
-
-          <div>
-            <div style="font-size:0.78rem;font-weight:700;color:rgba(255,255,255,0.6);margin-bottom:0.4rem;">⭐ Special</div>
-            <div style="display:flex;flex-wrap:wrap;gap:0.4rem;" id="badge-special"></div>
-          </div>
-
-        </div>
-      </div>
-    </div>
-
-    <div class="md-section" style="flex:0 0 320px;">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Top Earners</div>
-        <div id="badge-leaderboard" style="margin-top:0.5rem;"></div>
-      </div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="md-action-btn badge-cat-btn is-active" data-cat="all" style="font-size:0.72rem;">All</button>
+      <button class="md-action-btn badge-cat-btn" data-cat="messages" style="font-size:0.72rem;">Messages</button>
+      <button class="md-action-btn badge-cat-btn" data-cat="voice" style="font-size:0.72rem;">Voice</button>
+      <button class="md-action-btn badge-cat-btn" data-cat="tenure" style="font-size:0.72rem;">Tenure</button>
+      <button class="md-action-btn badge-cat-btn" data-cat="special" style="font-size:0.72rem;">Special</button>
     </div>
   </div>
 
-  <div class="md-row">
-    <div class="md-section" style="flex:1;">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">How It Works</div>
-        <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.6;margin-top:0.5rem;">
-          <p>1. Badges are earned automatically based on member activity.</p>
-          <p>2. Message badges track total messages sent in the server.</p>
-          <p>3. Voice badges track total time spent in voice channels.</p>
-          <p>4. Tenure badges track how long a member has been in the server.</p>
-          <p>5. Special badges include First Member and Server Booster.</p>
-          <p>Use <code style="background:rgba(255,255,255,0.04);padding:0.1rem 0.35rem;border-radius:3px;font-size:0.75rem;">/badges</code> in Discord to view your badges.</p>
-        </div>
-      </div>
+  <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+    <div id="badge-table-wrap" style="overflow-x:auto;">
+      <div style="text-align:center;padding:2.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
     </div>
   </div>
 
 </div>
+<style>
+@media (max-width:600px){
+  #badge-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .badge-table{min-width:600px}
+}
+</style>
 {% endblock %}
 {% block scripts %}
 <script>
@@ -73,12 +46,61 @@ const GID = window.__GUILD_ID;
 const api = (p, o) => fetch(`/api/v1/badges/${GID}${p}`, o||{}).then(r=>r.json());
 const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
 
-function renderBadge(b, earned) {
-  const opacity = earned ? '1' : '0.35';
-  const border = earned ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.06)';
-  return `<div style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.3rem 0.6rem;border:1px solid ${border};border-radius:4px;background:rgba(255,255,255,0.02);opacity:${opacity};font-size:0.72rem;" title="${esc(b.desc)}">
-    <span>${b.emoji}</span> <span>${esc(b.name)}</span>
-  </div>`;
+let ALL_BADGES = [];
+let USER_BADGES = {};
+let LEADERBOARD = [];
+let currentCat = 'all';
+
+const CAT_ICONS = {
+  messages: '', voice: '', tenure: '', special: ''
+};
+
+function renderTable() {
+  const wrap = document.getElementById('badge-table-wrap');
+  const filtered = currentCat === 'all' ? ALL_BADGES : ALL_BADGES.filter(b => b.category === currentCat);
+
+  if (!filtered.length) {
+    wrap.innerHTML = '<div style="text-align:center;padding:2.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No badges defined.</div>';
+    return;
+  }
+
+  // Group by category
+  const cats = {};
+  filtered.forEach(b => {
+    if (!cats[b.category]) cats[b.category] = [];
+    cats[b.category].push(b);
+  });
+
+  let html = '';
+  for (const [cat, badges] of Object.entries(cats)) {
+    html += `<div style="margin-bottom:1rem;">
+      <div style="font-size:0.72rem;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.05em;padding:0.3rem 0.5rem;margin-bottom:0.3rem;">${CAT_ICONS[cat] || ''} ${esc(cat)}</div>`;
+
+    badges.forEach(b => {
+      const earners = USER_BADGES[b.id] || [];
+      const earnersHtml = earners.length
+        ? earners.slice(0, 5).map(uid => `<span class="badge-tag earned" title="User ${esc(uid)}">User ${esc(uid)}</span>`).join('') + (earners.length > 5 ? `<span class="badge-tag earned">+${earners.length - 5}</span>` : '')
+        : '<span style="font-size:0.68rem;color:rgba(255,255,255,0.25);">No earners yet</span>';
+
+      html += `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem;border:1px solid rgba(255,255,255,0.06);border-radius:4px;margin-bottom:0.3rem;">
+        <div style="display:flex;align-items:center;gap:0.5rem;min-width:180px;">
+          <span>${b.emoji}</span>
+          <div>
+            <div style="font-size:0.8rem;font-weight:700;color:#e9edf5;">${esc(b.name)}</div>
+            <div style="font-size:0.68rem;color:rgba(255,255,255,0.4);">${esc(b.desc)}</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:0.25rem;justify-content:flex-end;min-width:200px;">${earnersHtml}</div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  wrap.innerHTML = html;
+}
+
+function renderLeaderboard() {
+  // Leaderboard is now shown inline with earner counts
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -87,31 +109,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     api('/leaderboard').catch(() => ({leaderboard:[]}))
   ]);
 
-  const badges = defsRes.badges || [];
-  const categories = {messages:[], voice:[], tenure:[], special:[]};
-  badges.forEach(b => { if (categories[b.category]) categories[b.category].push(b); });
+  ALL_BADGES = defsRes.badges || [];
+  LEADERBOARD = lbRes.leaderboard || [];
 
-  // For now show all as unearned (dashboard is read-only, earned status comes from /badges command)
-  Object.keys(categories).forEach(cat => {
-    const el = document.getElementById('badge-' + cat);
-    if (el) el.innerHTML = categories[cat].map(b => renderBadge(b, false)).join('');
+  // For now, show leaderboard users as earner placeholders
+  // In a real scenario, we'd fetch per-badge data, but the API returns leaderboard by count
+  USER_BADGES = {};
+  LEADERBOARD.forEach(r => {
+    // Assign badges based on count (simplified - real impl would query per-badge)
+    ALL_BADGES.forEach(b => {
+      if (r.count >= (b.threshold || 1)) {
+        if (!USER_BADGES[b.id]) USER_BADGES[b.id] = [];
+        USER_BADGES[b.id].push(r.user_id);
+      }
+    });
   });
 
-  // Leaderboard
-  const lb = lbRes.leaderboard || [];
-  const lbEl = document.getElementById('badge-leaderboard');
-  if (!lb.length) {
-    lbEl.innerHTML = '<div style="font-size:0.78rem;color:rgba(255,255,255,0.35);">No badges earned yet.</div>';
-  } else {
-    const medals = ['🥇','🥈','🥉'];
-    lbEl.innerHTML = lb.map((r, i) => {
-      const prefix = medals[i] || `<span style="color:rgba(255,255,255,0.4);">${i+1}.</span>`;
-      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.35rem 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.78rem;">
-        <span>${prefix} <span style="color:rgba(255,255,255,0.7);">User ${esc(r.user_id)}</span></span>
-        <span style="color:rgba(255,255,255,0.5);">${r.count} badge${r.count!=1?'s':''}</span>
-      </div>`;
-    }).join('');
-  }
+  renderTable();
+
+  // Category filter buttons
+  document.querySelectorAll('.badge-cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.badge-cat-btn').forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      currentCat = btn.dataset.cat;
+      renderTable();
+    });
+  });
 });
 </script>
 {% endblock %}

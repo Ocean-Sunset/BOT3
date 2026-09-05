@@ -172,8 +172,8 @@
           {{ nav_item('activity_roles', 'gamepad-2', 'Activity Roles') }}
           {{ nav_item('badges', 'trophy', 'Badges') }}
           {{ nav_item('temp_channels', 'audio-lines', 'Temp Channels') }}
-          {{ nav_item('frenzy', 'zap', 'Frenzy Mode') }}
           {{ nav_item('tickets', 'ticket', 'Tickets') }}
+          {{ nav_item('more', 'settings', 'More') }}
           {{ nav_item('music', 'music', 'Music', 'Beta') }}
         </div>
 
@@ -338,9 +338,9 @@
       <i data-lucide="audio-lines"></i>
       <span>Temp</span>
     </a>
-    <a href="/guild/{{ guild_id }}/frenzy" class="tab-item{% if active_panel == 'frenzy' %} is-active{% endif %}">
-      <i data-lucide="zap"></i>
-      <span>Frenzy</span>
+    <a href="/guild/{{ guild_id }}/more" class="tab-item{% if active_panel == 'more' %} is-active{% endif %}">
+      <i data-lucide="settings"></i>
+      <span>More</span>
     </a>
     <a href="/guild/{{ guild_id }}/tickets" class="tab-item{% if active_panel == 'tickets' %} is-active{% endif %}">
       <i data-lucide="ticket"></i>

@@ -2,14 +2,21 @@
 {% block content %}
 <link rel="stylesheet" href="/static/moderation.css?v=21" />
 <link rel="stylesheet" href="/static/leveling.css?v=4" />
+<style>
+  #temp-wrap.is-disabled .md-section { opacity:0.35; pointer-events:none; filter:grayscale(0.4); transition:opacity 0.25s ease, filter 0.25s ease; }
+  #temp-wrap .md-section { transition:opacity 0.25s ease, filter 0.25s ease; }
+</style>
 <div id="temp-wrap">
 
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;animation-delay:.05s;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;">
     <div>
       <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Temporary Channels</h1>
       <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Join-to-Create voice channels and timed text channels that auto-delete.</p>
     </div>
+    <label class="md-toggle md-toggle-xl"><input type="checkbox" id="tc-enabled" /><span class="md-toggle-slider"></span></label>
   </div>
+
+  <div id="tc-config">
 
   <!-- JTC Section -->
   <div class="md-row">
@@ -105,6 +112,7 @@
     </div>
   </div>
 
+  </div>
 </div>
 {% endblock %}
 {% block scripts %}
@@ -128,12 +136,9 @@ function markChanged(k, v) {
 }
 
 function updateGrayOut() {
-  const jtcOn = document.getElementById('tc-jtc-enabled')?.checked ?? false;
-  const chatOn = document.getElementById('tc-tempchat-enabled')?.checked ?? false;
-  const jtcConfig = document.getElementById('tc-jtc-config');
-  const chatConfig = document.getElementById('tc-tempchat-config');
-  if (jtcConfig) jtcConfig.classList.toggle('is-disabled', !jtcOn);
-  if (chatConfig) chatConfig.classList.toggle('is-disabled', !chatOn);
+  const masterOn = document.getElementById('tc-enabled')?.checked ?? false;
+  const config = document.getElementById('tc-config');
+  if (config) config.classList.toggle('is-disabled', !masterOn);
 }
 
 function applyDropdownValue(wrap, value, noneLabel) {
@@ -231,6 +236,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const s = settingsRes.settings || {}; SETTINGS_SNAPSHOT = { ...s }; LOADED = { ...s };
   IS_MOD = !!settingsRes.is_mod;
 
+  document.getElementById('tc-enabled').checked = s.enabled !== false;
   document.getElementById('tc-jtc-enabled').checked = !!s.jtc_enabled;
   document.getElementById('tc-jtc-naming').value = s.jtc_naming || "{user}'s Channel";
   document.getElementById('tc-jtc-limit').value = s.jtc_default_limit || 0;
@@ -242,6 +248,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('#temp-wrap input, #temp-wrap select').forEach(el => { el.disabled = true; });
     saveBar.classList.add('is-closed');
   } else {
+    document.getElementById('tc-enabled').addEventListener('change', function(){ markChanged('enabled', this.checked); updateGrayOut(); });
     document.getElementById('tc-jtc-enabled').addEventListener('change', function(){ markChanged('jtc_enabled', this.checked); updateGrayOut(); });
     document.getElementById('tc-jtc-naming').addEventListener('input', function(){ markChanged('jtc_naming', this.value); });
     document.getElementById('tc-jtc-limit').addEventListener('input', function(){ markChanged('jtc_default_limit', parseInt(this.value)||0); });
@@ -258,6 +265,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     for (const key of Object.keys(pending)) delete pending[key];
     for (const key of Object.keys(original)) delete original[key];
     SETTINGS_SNAPSHOT = Object.assign({}, reverted);
+    document.getElementById('tc-enabled').checked = SETTINGS_SNAPSHOT.enabled !== false;
     document.getElementById('tc-jtc-enabled').checked = !!SETTINGS_SNAPSHOT.jtc_enabled;
     document.getElementById('tc-jtc-naming').value = SETTINGS_SNAPSHOT.jtc_naming || "{user}'s Channel";
     document.getElementById('tc-jtc-limit').value = SETTINGS_SNAPSHOT.jtc_default_limit || 0;
@@ -266,6 +274,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     resetDropdowns(); updateGrayOut();
     saveBar.classList.add('is-closed');
   });
+
+  updateGrayOut();
   if (typeof lucide !== 'undefined') lucide.createIcons();
 });
 </script>

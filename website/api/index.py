@@ -1220,7 +1220,7 @@ async def dashboard(request: Request, guild_id: str, panel: str = "overview"):
         "social_alerts", "invite_tracker", "tickets", "global_chat",
         "autoresponder", "settings", "raid_protection", "profile",
         "aliases", "bot_profile", "reminders", "afk", "giveaways",
-        "birthday", "activity_roles", "badges", "temp_channels", "frenzy",
+        "birthday", "activity_roles", "badges", "temp_channels", "frenzy", "more",
     ]
     if panel not in valid_panels:
         panel = "overview"
@@ -4412,6 +4412,59 @@ async def birthday_roles(guild_id: str, request: Request):
 #  Activity Roles API v1
 # ---------------------------------------------------------------------------
 
+ACTIVITY_ROLES_DEFAULTS = {
+    "enabled": True,
+}
+
+
+@app.get("/api/v1/activity_roles/{guild_id}/settings")
+async def activity_roles_settings_get(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    row = await fetchrow(
+        "SELECT settings FROM guild_settings WHERE guild_id = ?",
+        str(guild_id),
+    )
+    if row and row.get("settings"):
+        try:
+            all_settings = json.loads(row["settings"]) if isinstance(row["settings"], str) else row["settings"]
+            ar_settings = all_settings.get("activity_roles", ACTIVITY_ROLES_DEFAULTS)
+        except (json.JSONDecodeError, TypeError):
+            ar_settings = ACTIVITY_ROLES_DEFAULTS
+    else:
+        ar_settings = ACTIVITY_ROLES_DEFAULTS
+    return {"settings": ar_settings, "is_mod": True}
+
+
+@app.post("/api/v1/activity_roles/{guild_id}/settings", dependencies=[Depends(require_mod)])
+async def activity_roles_settings_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    key = body.get("key")
+    value = body.get("value")
+    if not key:
+        return JSONResponse({"error": "missing key"}, status_code=400)
+    # Get current settings
+    row = await fetchrow(
+        "SELECT settings FROM guild_settings WHERE guild_id = ?",
+        str(guild_id),
+    )
+    if row and row.get("settings"):
+        try:
+            all_settings = json.loads(row["settings"]) if isinstance(row["settings"], str) else row["settings"]
+        except (json.JSONDecodeError, TypeError):
+            all_settings = {}
+    else:
+        all_settings = {}
+    ar_settings = all_settings.get("activity_roles", ACTIVITY_ROLES_DEFAULTS)
+    ar_settings[key] = value
+    all_settings["activity_roles"] = ar_settings
+    await execute(
+        "INSERT INTO guild_settings (guild_id, settings, updated_at) VALUES (?, ?, ?) ON CONFLICT (guild_id) DO UPDATE SET settings = ?, updated_at = ?",
+        str(guild_id), json.dumps(all_settings), time.time(), json.dumps(all_settings), time.time(),
+    )
+    return {"ok": True}
+
+
 @app.get("/api/v1/activity_roles/{guild_id}/rules")
 async def activity_roles_list(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
@@ -4542,6 +4595,7 @@ async def badge_leaderboard(guild_id: str, request: Request):
 # ---------------------------------------------------------------------------
 
 TEMP_CHANNEL_DEFAULTS = {
+    "enabled": True,
     "jtc_enabled": False,
     "jtc_hub_channel": None,
     "jtc_category": None,

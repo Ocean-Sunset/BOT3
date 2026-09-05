@@ -2,17 +2,23 @@
 {% block content %}
 <link rel="stylesheet" href="/static/moderation.css?v=21" />
 <link rel="stylesheet" href="/static/leveling.css?v=4" />
+<style>
+  #ar-wrap.is-disabled .md-section { opacity:0.35; pointer-events:none; filter:grayscale(0.4); transition:opacity 0.25s ease, filter 0.25s ease; }
+  #ar-wrap .md-section { transition:opacity 0.25s ease, filter 0.25s ease; }
+</style>
 <div id="ar-wrap">
 
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;animation-delay:.05s;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;">
     <div>
       <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Activity Roles</h1>
       <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Auto-assign roles when members play specific games. Roles are removed when they stop playing.</p>
     </div>
+    <label class="md-toggle md-toggle-xl"><input type="checkbox" id="ar-enabled" /><span class="md-toggle-slider"></span></label>
   </div>
 
+  <div id="ar-config">
   <div class="md-row">
-    <div class="md-section" style="flex:1;">
+    <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div class="md-section-title">Add Activity Role</div>
         <div class="md-behavior-list" style="margin-top:0.5rem;">
@@ -58,6 +64,7 @@
       </div>
     </div>
   </div>
+  </div>
 
 </div>
 {% endblock %}
@@ -68,6 +75,13 @@ const api = (p, o) => fetch(`/api/v1/activity_roles/${GID}${p}`, o||{}).then(r=>
 const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
 
 let ROLES = [];
+let IS_MOD = false;
+
+function updateGrayOut() {
+  const enabled = document.getElementById('ar-enabled')?.checked ?? false;
+  const config = document.getElementById('ar-config');
+  if (config) config.classList.toggle('is-disabled', !enabled);
+}
 
 function renderList(rules) {
   const el = document.getElementById('ar-list');
@@ -79,7 +93,7 @@ function renderList(rules) {
     const role = ROLES.find(x => x.id === r.role_id);
     const name = role ? role.name : 'Unknown';
     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem;border:1px solid rgba(255,255,255,0.06);border-radius:4px;margin-bottom:0.4rem;">
-      <div style="font-size:0.8rem;"><strong>${esc(r.activity)}</strong> → <span style="color:rgba(255,255,255,0.6);">@${esc(name)}</span></div>
+      <div style="font-size:0.8rem;"><strong>${esc(r.activity)}</strong> &rarr; <span style="color:rgba(255,255,255,0.6);">@${esc(name)}</span></div>
       <button class="md-action-btn ar-delete" data-activity="${esc(r.activity)}" style="padding:0.25rem 0.5rem;font-size:0.7rem;color:#f87171;"><i data-lucide="trash-2"></i></button>
     </div>`;
   }).join('');
@@ -97,12 +111,16 @@ async function loadRules() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const [rolesRes, rulesRes] = await Promise.all([
+  const [rolesRes, rulesRes, settingsRes] = await Promise.all([
     api('/roles').catch(() => ({roles:[]})),
-    api('/rules').catch(() => ({rules:[]}))
+    api('/rules').catch(() => ({rules:[]})),
+    api('/settings').catch(() => ({}))
   ]);
 
   ROLES = (rolesRes.roles || []).filter(r => r.id !== GID);
+  IS_MOD = !!settingsRes.is_mod;
+
+  document.getElementById('ar-enabled').checked = settingsRes.settings?.enabled !== false;
 
   const roleWrap = document.getElementById('ar-role-select');
   const roleBtn = roleWrap.querySelector('.md-custom-select-btn');
@@ -118,18 +136,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('click', e => { if (!e.target.closest('#ar-role-select')) roleDrop.classList.remove('is-open'); });
 
   renderList(rulesRes.rules || []);
+  updateGrayOut();
 
-  document.getElementById('ar-add-btn').addEventListener('click', async () => {
-    const activity = document.getElementById('ar-activity').value.trim();
-    if (!activity) { if (typeof showToast==='function') showToast('Enter a game name.','error'); return; }
-    if (!selectedRole) { if (typeof showToast==='function') showToast('Select a role.','error'); return; }
-    await api('/rules', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({activity, role_id:selectedRole})});
-    document.getElementById('ar-activity').value = '';
-    selectedRole = '';
-    roleBtn.textContent = 'Select role...';
-    loadRules();
-    if (typeof showToast==='function') showToast('Rule added.','success');
-  });
+  if (!IS_MOD) {
+    document.querySelectorAll('#ar-wrap input, #ar-wrap button, #ar-wrap .md-custom-select').forEach(el => { el.disabled = true; });
+  } else {
+    document.getElementById('ar-enabled').addEventListener('change', function() {
+      updateGrayOut();
+      fetch(`/api/v1/activity_roles/${GID}/settings`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:'enabled', value:this.checked})});
+    });
+
+    document.getElementById('ar-add-btn').addEventListener('click', async () => {
+      const activity = document.getElementById('ar-activity').value.trim();
+      if (!activity) { if (typeof showToast==='function') showToast('Enter a game name.','error'); return; }
+      if (!selectedRole) { if (typeof showToast==='function') showToast('Select a role.','error'); return; }
+      await api('/rules', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({activity, role_id:selectedRole})});
+      document.getElementById('ar-activity').value = '';
+      selectedRole = '';
+      roleBtn.textContent = 'Select role...';
+      loadRules();
+      if (typeof showToast==='function') showToast('Rule added.','success');
+    });
+  }
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
 });

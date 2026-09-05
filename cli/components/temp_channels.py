@@ -12,6 +12,7 @@ from Ediscord.builders import EMBED_EMOJIS, emoji_title
 
 
 TEMP_CHANNEL_DEFAULTS = {
+    "enabled": True,
     "jtc_enabled": False,
     "jtc_hub_channel": None,
     "jtc_category": None,
@@ -51,6 +52,8 @@ class TempChannels(commands.Cog, name="Temp Channels"):
             # User joined a channel
             if after.channel and not before.channel:
                 settings = await get_temp_settings(member.guild.id)
+                if not settings.get("enabled", True):
+                    return
                 if not settings.get("jtc_enabled"):
                     return
 
@@ -190,6 +193,11 @@ class TempChannels(commands.Cog, name="Temp Channels"):
             return await interaction.response.send_message("Server only.", ephemeral=True)
 
         settings = await get_temp_settings(interaction.guild_id)
+        if not settings.get("enabled", True):
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Disabled")).description("Temp channels are disabled. Ask an admin to enable it.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
+            )
         if not settings.get("tempchat_enabled"):
             return await interaction.response.send_message(
                 embed=EmbedBuilder().title(emoji_title("error", "Disabled")).description("Temp chat is disabled. Ask an admin to enable it.").color("red").timestamp(datetime.datetime.utcnow()).build(),

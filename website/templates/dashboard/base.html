@@ -803,6 +803,7 @@
           const fallback = data.items || [];
           loading.hidden = false;
           const res2 = await fetch(url + '&phase=semantic', { signal: controller.signal });
+          // add timeout here
           const data2 = await res2.json();
           loading.hidden = true;
           if (!res2.ok) throw new Error(data2.detail || 'failed');

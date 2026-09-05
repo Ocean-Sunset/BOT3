@@ -1978,7 +1978,8 @@ async def _save_settings(table, guild_id, key, value, defaults):
 @app.get("/api/v1/mod/{guild_id}/settings")
 async def mod_settings(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    return {"settings": await _get_mod_settings(guild_id)}
+    is_mod = await is_guild_moderator(request, guild_id)
+    return {"settings": await _get_mod_settings(guild_id), "is_mod": is_mod}
 
 
 @app.post("/api/v1/mod/{guild_id}/settings", dependencies=[Depends(require_mod)])
@@ -3317,7 +3318,8 @@ def _sanitize_level_roles(value):
 @app.get("/api/v1/leveling/{guild_id}/settings")
 async def leveling_settings(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    return {"settings": await _get_leveling_settings(guild_id)}
+    is_mod = await is_guild_moderator(request, guild_id)
+    return {"settings": await _get_leveling_settings(guild_id), "is_mod": is_mod}
 
 
 @app.post("/api/v1/leveling/{guild_id}/settings", dependencies=[Depends(require_mod)])
@@ -3471,7 +3473,8 @@ async def _get_logging_settings(guild_id: str):
 @app.get("/api/v1/logging/{guild_id}/settings")
 async def logging_settings_get(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    return {"settings": await _get_logging_settings(guild_id)}
+    is_mod = await is_guild_moderator(request, guild_id)
+    return {"settings": await _get_logging_settings(guild_id), "is_mod": is_mod}
 
 
 @app.post("/api/v1/logging/{guild_id}/settings", dependencies=[Depends(require_mod)])
@@ -3577,7 +3580,8 @@ async def _get_automod_settings(guild_id: str):
 @app.get("/api/v1/automod/{guild_id}/settings")
 async def automod_settings_get(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    return {"settings": await _get_automod_settings(guild_id)}
+    is_mod = await is_guild_moderator(request, guild_id)
+    return {"settings": await _get_automod_settings(guild_id), "is_mod": is_mod}
 
 
 @app.post("/api/v1/automod/{guild_id}/settings", dependencies=[Depends(require_mod)])
@@ -3877,6 +3881,33 @@ SEARCH_CATALOG = [
      "description": "General bot configuration for this server.",
      "keywords": "settings configuration options general preferences config",
      "blocks": ["Server Overview", "Bot Invite", "Danger Zone", "API Keys"]},
+    {"panel": "afk", "icon": "moon", "title": "AFK",
+     "description": "AFK status messages, auto-AFK after inactivity and custom away responses.",
+     "keywords": "afk away idle inactive status absent offline"},
+    {"panel": "giveaways", "icon": "gift", "title": "Giveaways",
+     "description": "Create and manage giveaways with entry requirements, duration and winner count.",
+     "keywords": "giveaway contest prize raffle win entry winner pick random draw"},
+    {"panel": "birthday", "icon": "cake", "title": "Birthday",
+     "description": "Birthday tracking, automatic role rewards and birthday announcements.",
+     "keywords": "birthday birth date celebrate age cake role announcement auto"},
+    {"panel": "activity_roles", "icon": "gamepad-2", "title": "Activity Roles",
+     "description": "Automatic roles based on member activity like message count, voice time or reactions.",
+     "keywords": "activity role automatic assign tracking message voice time react threshold"},
+    {"panel": "badges", "icon": "trophy", "title": "Badges",
+     "description": "Award custom badges to members for achievements, milestones or special recognition.",
+     "keywords": "badges award achievement milestone trophy recognition special honor"},
+    {"panel": "temp_channels", "icon": "audio-lines", "title": "Temp Channels",
+     "description": "Temporary voice and text channels that auto-create and auto-delete.",
+     "keywords": "temp temporary voice channel create delete auto jtc join to create"},
+    {"panel": "invite_tracker", "icon": "link", "title": "Invite Tracker",
+     "description": "Track who invited whom, invite leaderboards and invite rewards.",
+     "keywords": "invite tracker invite code link leaderboard reward who invited join"},
+    {"panel": "profile", "icon": "user", "title": "Profile",
+     "description": "User profile customization, bio, banner and badge display.",
+     "keywords": "profile user bio banner avatar customize display badge self"},
+    {"panel": "reminders", "icon": "alarm-clock", "title": "Reminders",
+     "description": "Set and manage recurring or one-time reminders for the server.",
+     "keywords": "reminders reminder notify alert schedule repeat timer recurring"},
 ]
 
 _search_state = {"vecs": None, "failed_at": 0.0}
@@ -4155,7 +4186,8 @@ async def _get_raid_settings(guild_id: str):
 @app.get("/api/v1/raid/{guild_id}/settings")
 async def raid_settings_get(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    return {"settings": await _get_raid_settings(guild_id)}
+    is_mod = await is_guild_moderator(request, guild_id)
+    return {"settings": await _get_raid_settings(guild_id), "is_mod": is_mod}
 
 
 @app.post("/api/v1/raid/{guild_id}/settings", dependencies=[Depends(require_mod)])
@@ -4216,7 +4248,8 @@ async def _get_welcome_settings(guild_id: str):
 @app.get("/api/v1/welcomer/{guild_id}/settings")
 async def welcomer_settings_get(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    return {"settings": await _get_welcome_settings(guild_id)}
+    is_mod = await is_guild_moderator(request, guild_id)
+    return {"settings": await _get_welcome_settings(guild_id), "is_mod": is_mod}
 
 
 @app.post("/api/v1/welcomer/{guild_id}/settings", dependencies=[Depends(require_mod)])
@@ -4342,7 +4375,8 @@ async def _get_birthday_settings(guild_id: str):
 @app.get("/api/v1/birthday/{guild_id}/settings")
 async def birthday_settings_get(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    return {"settings": await _get_birthday_settings(guild_id)}
+    is_mod = await is_guild_moderator(request, guild_id)
+    return {"settings": await _get_birthday_settings(guild_id), "is_mod": is_mod}
 
 
 @app.post("/api/v1/birthday/{guild_id}/settings", dependencies=[Depends(require_mod)])
@@ -4614,7 +4648,8 @@ async def _get_temp_settings(guild_id: str):
 @app.get("/api/v1/temp_channels/{guild_id}/settings")
 async def temp_channels_settings_get(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    return {"settings": await _get_temp_settings(guild_id)}
+    is_mod = await is_guild_moderator(request, guild_id)
+    return {"settings": await _get_temp_settings(guild_id), "is_mod": is_mod}
 
 
 @app.post("/api/v1/temp_channels/{guild_id}/settings", dependencies=[Depends(require_mod)])
@@ -4710,7 +4745,8 @@ async def _get_frenzy_settings(guild_id: str):
 @app.get("/api/v1/frenzy/{guild_id}/settings")
 async def frenzy_settings_get(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    return {"settings": await _get_frenzy_settings(guild_id)}
+    is_mod = await is_guild_moderator(request, guild_id)
+    return {"settings": await _get_frenzy_settings(guild_id), "is_mod": is_mod}
 
 
 @app.post("/api/v1/frenzy/{guild_id}/settings", dependencies=[Depends(require_mod)])
@@ -4908,7 +4944,8 @@ async def _get_social_settings(guild_id: str):
 @app.get("/api/v1/social/{guild_id}/settings")
 async def social_settings(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    return {"settings": await _get_social_settings(guild_id)}
+    is_mod = await is_guild_moderator(request, guild_id)
+    return {"settings": await _get_social_settings(guild_id), "is_mod": is_mod}
 
 
 @app.post("/api/v1/social/{guild_id}/settings", dependencies=[Depends(require_mod)])
@@ -5041,7 +5078,8 @@ async def _get_ticket_settings(guild_id: str):
 @app.get("/api/v1/tickets/{guild_id}/settings")
 async def ticket_settings(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    return {"settings": await _get_ticket_settings(guild_id)}
+    is_mod = await is_guild_moderator(request, guild_id)
+    return {"settings": await _get_ticket_settings(guild_id), "is_mod": is_mod}
 
 
 @app.post("/api/v1/tickets/{guild_id}/settings", dependencies=[Depends(require_mod)])
@@ -5147,7 +5185,8 @@ async def _get_verify_settings(guild_id: str):
 @app.get("/api/v1/verify/{guild_id}/settings")
 async def verify_settings(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    return {"settings": await _get_verify_settings(guild_id)}
+    is_mod = await is_guild_moderator(request, guild_id)
+    return {"settings": await _get_verify_settings(guild_id), "is_mod": is_mod}
 
 
 @app.post("/api/v1/verify/{guild_id}/settings", dependencies=[Depends(require_mod)])
@@ -5338,7 +5377,8 @@ async def _get_gc_settings(guild_id: str):
 @app.get("/api/v1/global_chat/{guild_id}/settings")
 async def gc_settings(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    return {"settings": await _get_gc_settings(guild_id)}
+    is_mod = await is_guild_moderator(request, guild_id)
+    return {"settings": await _get_gc_settings(guild_id), "is_mod": is_mod}
 
 
 @app.post("/api/v1/global_chat/{guild_id}/settings", dependencies=[Depends(require_mod)])
@@ -5400,7 +5440,8 @@ async def _get_server_settings(guild_id: str):
 @app.get("/api/v1/server/{guild_id}/settings")
 async def server_settings_get(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    return {"settings": await _get_server_settings(guild_id)}
+    is_mod = await is_guild_moderator(request, guild_id)
+    return {"settings": await _get_server_settings(guild_id), "is_mod": is_mod}
 
 
 @app.get("/api/v1/server/{guild_id}/info")
@@ -5525,7 +5566,8 @@ async def _get_music_settings(guild_id: str):
 @app.get("/api/v1/music/{guild_id}/settings")
 async def music_settings_get(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
-    return {"settings": await _get_music_settings(guild_id)}
+    is_mod = await is_guild_moderator(request, guild_id)
+    return {"settings": await _get_music_settings(guild_id), "is_mod": is_mod}
 
 
 @app.post("/api/v1/music/{guild_id}/settings", dependencies=[Depends(require_mod)])

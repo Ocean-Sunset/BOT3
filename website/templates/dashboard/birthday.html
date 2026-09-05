@@ -15,7 +15,7 @@
   <div id="bday-config">
   <div class="md-row">
 
-    <div class="md-section">
+    <div class="md-section" style="flex:1;">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div class="md-section-title">Announcement Channel</div>
         <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin:0.4rem 0 0;line-height:1.5;">Channel where birthday messages are posted daily at midnight UTC.</p>
@@ -32,7 +32,7 @@
       </div>
     </div>
 
-    <div class="md-section">
+    <div class="md-section" style="flex:1;">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div class="md-section-title">Birthday Role</div>
         <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin:0.4rem 0 0;line-height:1.5;">Role automatically assigned to members on their birthday.</p>
@@ -45,6 +45,18 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section" style="flex:0 0 280px;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">How It Works</div>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.6;margin-top:0.5rem;">
+          <p>1. Enable birthdays and select an announcement channel.</p>
+          <p>2. Members use <code style="background:rgba(255,255,255,0.04);padding:0.1rem 0.35rem;border-radius:3px;font-size:0.75rem;">/birthday set</code> in Discord to register their birthday.</p>
+          <p>3. Prowl announces birthdays daily at midnight UTC and assigns the birthday role.</p>
+          <p>4. Use <code style="background:rgba(255,255,255,0.04);padding:0.1rem 0.35rem;border-radius:3px;font-size:0.75rem;">/birthday upcoming</code> to see who's celebrating soon.</p>
         </div>
       </div>
     </div>
@@ -85,20 +97,6 @@
             </div>
             <label class="md-toggle"><input type="checkbox" id="bday-allow-year" /><span class="md-toggle-slider"></span></label>
           </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="md-row">
-    <div class="md-section" style="flex:1;">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">How It Works</div>
-        <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.6;margin-top:0.5rem;">
-          <p>1. Enable birthdays and select an announcement channel.</p>
-          <p>2. Members use <code style="background:rgba(255,255,255,0.04);padding:0.1rem 0.35rem;border-radius:3px;font-size:0.75rem;">/birthday set</code> in Discord to register their birthday.</p>
-          <p>3. Prowl announces birthdays daily at midnight UTC and assigns the birthday role.</p>
-          <p>4. Use <code style="background:rgba(255,255,255,0.04);padding:0.1rem 0.35rem;border-radius:3px;font-size:0.75rem;">/birthday upcoming</code> to see who's celebrating soon.</p>
         </div>
       </div>
     </div>

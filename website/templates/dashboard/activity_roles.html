@@ -18,7 +18,7 @@
 
   <div id="ar-config">
   <div class="md-row">
-    <div class="md-section">
+    <div class="md-section" style="flex:1;">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div class="md-section-title">Add Activity Role</div>
         <div class="md-behavior-list" style="margin-top:0.5rem;">
@@ -42,15 +42,6 @@
         <button class="md-action-btn" id="ar-add-btn" style="margin-top:0.75rem;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;"><i data-lucide="plus"></i> Add Rule</button>
       </div>
     </div>
-  </div>
-
-  <div class="md-row">
-    <div class="md-section" style="flex:1;">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Active Rules</div>
-        <div id="ar-list" style="margin-top:0.5rem;"></div>
-      </div>
-    </div>
 
     <div class="md-section" style="flex:0 0 280px;">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
@@ -61,6 +52,15 @@
           <p>3. When they stop playing, the role is removed.</p>
           <p>Use <code style="background:rgba(255,255,255,0.04);padding:0.1rem 0.35rem;border-radius:3px;font-size:0.75rem;">/activityrole add</code> in Discord for the same functionality.</p>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="md-row">
+    <div class="md-section" style="flex:1;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div class="md-section-title">Active Rules</div>
+        <div id="ar-list" style="margin-top:0.5rem;"></div>
       </div>
     </div>
   </div>

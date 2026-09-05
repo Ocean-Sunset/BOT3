@@ -236,7 +236,7 @@ class Leveling(commands.Cog, name="Leveling"):
             channel = message.guild.get_channel(int(channel_id)) if channel_id else message.channel
             if channel:
                 try:
-                    level_up_msg = settings.get("level_up_message") or f"{EMBED_EMOJIS['level_up']} {{user}} reached **level {{level}}**!"
+                    level_up_msg = f"{EMBED_EMOJIS['level_up']} {settings.get("level_up_message")}" or f"{EMBED_EMOJIS['level_up']} {{user}} reached **level {{level}}**!"
                     xp_needed = xp_for_level(new_level + 1) - new_xp
                     mode = settings.get("level_up_message_mode", "basic")
                     if mode == "custom" and settings.get("level_up_embed"):
@@ -262,6 +262,7 @@ class Leveling(commands.Cog, name="Leveling"):
                         )
                         embed = (
                             EmbedBuilder()
+                            .title("Level up!")
                             .description(msg)
                             .color("green")
                             .row(
@@ -269,10 +270,10 @@ class Leveling(commands.Cog, name="Leveling"):
                                 ("XP", f"{new_xp:,}"),
                                 ("Next Level", f"{xp_needed:,} XP needed"),
                             )
-                            .field("Progress", f"`{progress}`")
+                            .field("Progress", f"{progress}")
                         )
                         if granted_role:
-                            embed.field("Role Earned", granted_role.mention)
+                            embed.field("Role Earned!", granted_role.mention)
                         embed.timestamp(datetime.datetime.utcnow())
                         await channel.send(embed=embed.build())
                 except Exception as e:

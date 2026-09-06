@@ -883,9 +883,9 @@ class Moderation(commands.Cog, name="Moderation"):
         await log_mod_action(interaction.guild_id, str(member.id), member.name, "warn", reason, interaction.user.name)
 
     @app_commands.command(name="purge", description="Bulk delete messages in a channel")
-    @app_commands.describe(count="Number of messages to delete (1-100)")
+    @app_commands.describe(count="Number of messages to delete (1-100)", member="Only delete messages from this user")
     @is_mod()
-    async def purge(self, interaction: discord.Interaction, count: int = 10):
+    async def purge(self, interaction: discord.Interaction, count: int = 10, member: discord.Member = None):
         settings = await get_mod_settings(interaction.guild_id)
         if not settings.get("cmd_purge", True):
             return await interaction.response.send_message(embed=_error_embed("Purge command is disabled."), ephemeral=True)
@@ -894,8 +894,13 @@ class Moderation(commands.Cog, name="Moderation"):
         if count < 1 or count > 100:
             return await interaction.response.send_message(embed=_error_embed("Count must be between 1 and 100."), ephemeral=True)
 
+        check = (lambda m: m.author.id == member.id) if member else None
         try:
-            deleted = await interaction.channel.purge(limit=count)
+            await interaction.response.defer(ephemeral=True)
+            if check:
+                deleted = await interaction.channel.purge(limit=count, check=check)
+            else:
+                deleted = await interaction.channel.purge(limit=count)
         except discord.Forbidden:
             return await interaction.response.send_message(embed=_error_embed("I don't have permission to delete messages in this channel."), ephemeral=True)
         except discord.HTTPException as e:
@@ -904,7 +909,7 @@ class Moderation(commands.Cog, name="Moderation"):
 
         embed = (
             EmbedBuilder().title(emoji_title("purge", "Messages Purged"))
-            .description(f"Deleted {len(deleted)} messages.")
+            .description(f"Deleted {len(deleted)} messages." + (f" from {member.mention}" if member else ""))
             .color("blue")
             .row(
                 ('Channel', interaction.channel.mention),
@@ -913,11 +918,11 @@ class Moderation(commands.Cog, name="Moderation"):
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
-        await interaction.response.send_message(embed=embed, delete_after=5)
+        await interaction.followup.send(embed=embed, delete_after=5)
 
         log_embed = (
             EmbedBuilder().title(emoji_title("purge", "Messages Purged"))
-            .description(f"Deleted **{len(deleted)}** messages in {interaction.channel.mention} (`{str(interaction.channel.id)}`)")
+            .description(f"Deleted **{len(deleted)}** messages in {interaction.channel.mention} (`{str(interaction.channel.id)}`)" + (f" from {member.mention}" if member else ""))
             .color("blue")
             .row(
                 ('Moderator', f'{interaction.user.mention} (`{str(interaction.user.id)}`)'),

@@ -426,6 +426,11 @@ class TestGeneralCog(unittest.IsolatedAsyncioTestCase):
         await _cmd(self.cog.info)(self.cog, interaction)
         interaction.response.send_message.assert_called_once()
 
+    async def test_invite(self):
+        interaction = make_mock_interaction(command_name="invite")
+        await _cmd(self.cog.invite)(self.cog, interaction)
+        interaction.response.send_message.assert_called_once()
+
     async def test_serverinfo(self):
         interaction = make_mock_interaction(command_name="server_info")
         await _cmd(self.cog.serverinfo)(self.cog, interaction)
@@ -1163,6 +1168,154 @@ class TestGiveawaysCog(unittest.IsolatedAsyncioTestCase):
 
 
 # =========================================================================
+#  14b. UTILITIES COG
+# =========================================================================
+
+class TestUtilitiesCog(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        self.bot = MagicMock(spec=commands.Bot)
+        self.bot.latency = 0.05
+        from components.utilities import Utilities
+        self.cog = Utilities(self.bot)
+
+    def _make_attachment(self, data: bytes, filename: str, content_type: str = "image/png"):
+        att = MagicMock(spec=discord.Attachment)
+        att.filename = filename
+        att.content_type = content_type
+        att.url = f"https://cdn.example.com/{filename}"
+        att.read = AsyncMock(return_value=data)
+        return att
+
+    async def test_convert_image_png_to_jpg(self):
+        from PIL import Image
+        import io
+        img = Image.new("RGBA", (64, 64), (255, 0, 0, 128))
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+        att = self._make_attachment(buf.read(), "test.png", "image/png")
+
+        interaction = make_mock_interaction(command_name="convert")
+        await _cmd(self.cog.convert_cmd)(self.cog, interaction, att, "jpg")
+        interaction.followup.send.assert_called_once()
+
+    async def test_convert_image_to_webp(self):
+        from PIL import Image
+        import io
+        img = Image.new("RGB", (32, 32), (0, 128, 255))
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+        att = self._make_attachment(buf.read(), "photo.png", "image/png")
+
+        interaction = make_mock_interaction(command_name="convert")
+        await _cmd(self.cog.convert_cmd)(self.cog, interaction, att, "webp")
+        interaction.followup.send.assert_called_once()
+
+    async def test_convert_non_image_rejected(self):
+        att = self._make_attachment(b"not an image", "doc.pdf", "application/pdf")
+        interaction = make_mock_interaction(command_name="convert")
+        await _cmd(self.cog.convert_cmd)(self.cog, interaction, att, "jpg")
+        interaction.followup.send.assert_called_once()
+        call_args = interaction.followup.send.call_args
+        self.assertIn("Cannot convert", call_args[0][0])
+
+    async def test_resize_image(self):
+        from PIL import Image
+        import io
+        img = Image.new("RGB", (200, 100), (0, 0, 0))
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+        att = self._make_attachment(buf.read(), "big.png", "image/png")
+
+        interaction = make_mock_interaction(command_name="resize")
+        await _cmd(self.cog.resize_cmd)(self.cog, interaction, att, 50, 25)
+        interaction.followup.send.assert_called_once()
+
+    async def test_resize_invalid_dimensions(self):
+        att = self._make_attachment(b"data", "img.png", "image/png")
+        interaction = make_mock_interaction(command_name="resize")
+        await _cmd(self.cog.resize_cmd)(self.cog, interaction, att, 0, 100)
+        interaction.followup.send.assert_called_once()
+        call_args = interaction.followup.send.call_args
+        self.assertIn("must be between", call_args[0][0])
+
+    async def test_compress_image(self):
+        from PIL import Image
+        import io
+        img = Image.new("RGB", (128, 128), (100, 150, 200))
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+        att = self._make_attachment(buf.read(), "big.png", "image/png")
+
+        interaction = make_mock_interaction(command_name="compress")
+        await _cmd(self.cog.compress_cmd)(self.cog, interaction, att, 50)
+        interaction.followup.send.assert_called_once()
+
+    async def test_compress_invalid_quality(self):
+        att = self._make_attachment(b"data", "img.png", "image/png")
+        interaction = make_mock_interaction(command_name="compress")
+        await _cmd(self.cog.compress_cmd)(self.cog, interaction, att, 0)
+        interaction.followup.send.assert_called_once()
+        call_args = interaction.followup.send.call_args
+        self.assertIn("must be between", call_args[0][0])
+
+    async def test_makezip_single_file(self):
+        att = self._make_attachment(b"hello world", "test.txt", "text/plain")
+        interaction = make_mock_interaction(command_name="makezip")
+        with patch("aiohttp.ClientSession.post", new_callable=AsyncMock) as mock_post:
+            mock_resp = AsyncMock()
+            mock_resp.status = 200
+            mock_resp.text = AsyncMock(return_value="https://litterbox.catbox.moe/abcdef.zip")
+            mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
+            mock_resp.__aexit__ = AsyncMock(return_value=False)
+            mock_post.return_value = mock_resp
+            with patch("aiohttp.FormData"):
+                with patch("aiohttp.ClientSession") as mock_session_cls:
+                    mock_session = AsyncMock()
+                    mock_session.post = AsyncMock(return_value=mock_resp)
+                    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+                    mock_session.__aexit__ = AsyncMock(return_value=False)
+                    mock_session_cls.return_value = mock_session
+                    await _cmd(self.cog.makezip_cmd)(self.cog, interaction, att)
+        interaction.followup.send.assert_called_once()
+
+    async def test_makezip_with_password(self):
+        att = self._make_attachment(b"secret data", "secret.txt", "text/plain")
+        interaction = make_mock_interaction(command_name="makezip")
+        with patch("aiohttp.ClientSession") as mock_session_cls:
+            mock_resp = AsyncMock()
+            mock_resp.status = 200
+            mock_resp.text = AsyncMock(return_value="https://litterbox.catbox.moe/test123.zip")
+            mock_session = AsyncMock()
+            mock_session.post = AsyncMock(return_value=mock_resp)
+            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_session.__aexit__ = AsyncMock(return_value=False)
+            mock_session_cls.return_value = mock_session
+            with patch("aiohttp.FormData"):
+                await _cmd(self.cog.makezip_cmd)(self.cog, interaction, att, password="mypass123")
+        interaction.followup.send.assert_called_once()
+
+    async def test_makezip_empty_file_list(self):
+        att = self._make_attachment(b"data", "file.txt", "text/plain")
+        interaction = make_mock_interaction(command_name="makezip")
+        with patch("aiohttp.ClientSession") as mock_session_cls:
+            mock_resp = AsyncMock()
+            mock_resp.status = 200
+            mock_resp.text = AsyncMock(return_value="https://litterbox.catbox.moe/x.zip")
+            mock_session = AsyncMock()
+            mock_session.post = AsyncMock(return_value=mock_resp)
+            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_session.__aexit__ = AsyncMock(return_value=False)
+            mock_session_cls.return_value = mock_session
+            with patch("aiohttp.FormData"):
+                await _cmd(self.cog.makezip_cmd)(self.cog, interaction, att)
+        interaction.followup.send.assert_called_once()
+
+
+# =========================================================================
 #  15. COG SETUP FUNCTIONS
 # =========================================================================
 
@@ -1233,6 +1386,9 @@ class TestCogSetup(unittest.IsolatedAsyncioTestCase):
 
     async def test_setup_sticky(self):
         await self._test_setup("sticky")
+
+    async def test_setup_utilities(self):
+        await self._test_setup("utilities")
 
 
 # =========================================================================

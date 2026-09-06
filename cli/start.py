@@ -28,6 +28,17 @@ from Ediscord import http_bridge
 
 COGS_DIR = Path(__file__).parent / "components"
 
+CUSTOM_STATUSES = [
+    "im a bot bro",
+    "looking at servers probably",
+    "prowlbot.xyz",
+    "/help | you'll need it",
+    "#grrrrrrr mondays",
+    "OBSERVING {guilds} servers",
+    "hey can i have this?",
+    "tracking {users} users",
+]
+
 
 class ProwlBot(commands.Bot):
     def __init__(self):
@@ -90,10 +101,24 @@ class ProwlBot(commands.Bot):
         logger.info(f"Servers: {len(self.guilds)} | Users: {len(self.users)}")
         self.launch_time = time.time()
         utils.write_bot_data(self)
-        await self.change_presence(
-            status=discord.Status.online,
-            activity=discord.Game("playing with commands"),
-        )
+        self._status_index = 0
+        await self._rotate_status()
+        self.loop.create_task(self._status_rotator())
+
+    async def _rotate_status(self):
+        text = CUSTOM_STATUSES[self._status_index % len(CUSTOM_STATUSES)].format(guilds=len(self.guilds), users=len(self.users))
+        activity = discord.CustomActivity(name=text)
+        await self.change_presence(status=discord.Status.online, activity=activity)
+        self._status_index += 1
+
+    async def _status_rotator(self):
+        await self.wait_until_ready()
+        while not self.is_closed():
+            await asyncio.sleep(300)
+            try:
+                await self._rotate_status()
+            except Exception as e:
+                logger.error(f"Status rotation failed: {e}")
 
     async def on_guild_remove(self, guild: discord.Guild):
         """Clean up a guild's data when the bot is removed/kicked."""

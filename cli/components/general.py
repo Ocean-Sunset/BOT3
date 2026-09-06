@@ -75,6 +75,24 @@ class General(commands.Cog):
         )
         await interaction.response.send_message(embed=embed)
 
+    @app_commands.command(name="invite", description="Get Prowl's invite link")
+    async def invite(self, interaction: discord.Interaction):
+        url = discord.utils.oauth_url(
+            self.bot.user.id,
+            permissions=discord.Permissions.general(),
+            scopes=["bot", "applications.commands"],
+        )
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(label="Invite Prowl", url=url, style=discord.ButtonStyle.link))
+        embed = (
+            EmbedBuilder()
+            .title(emoji_title("invite_join", "Invite Prowl"))
+            .description(f"Click the button below to add Prowl to your server.\n\n[Direct link]({url})")
+            .color("brand")
+            .build()
+        )
+        await interaction.response.send_message(embed=embed, view=view)
+
     @app_commands.command(name="say", description="Echo back your message.")
     @app_commands.describe(text="The text to echo back.", channel="Channel to send to (optional)")
     async def say(self, interaction: discord.Interaction, text: str, channel: discord.TextChannel = None):
@@ -514,14 +532,20 @@ class General(commands.Cog):
             except discord.Forbidden:
                 pass
 
+    @app_commands.command(name="help", description="Show all available commands")
+    async def help_command(self, interaction: discord.Interaction):
+        view = HelpView(interaction.user.id)
+        await interaction.response.send_message(embed=view.build_embed(), view=view)
+
 
 HELP_CATEGORIES = {
     "General": {
-        "emoji": "wrench",
+        "emoji": "milestone", "color": "purple",
         "description": "Basic bot utilities and information.",
         "commands": [
             {"name": "/ping", "desc": "Check Prowl's latency and stats.", "usage": "", "perms": None},
             {"name": "/info", "desc": "Show Prowl's info and stats.", "usage": "", "perms": None},
+            {"name": "/invite", "desc": "Get Prowl's invite link.", "usage": "", "perms": None},
             {"name": "/avatar", "desc": "Show a user's avatar.", "usage": "[user]", "perms": None},
             {"name": "/server info", "desc": "Show server information.", "usage": "", "perms": None},
             {"name": "/user info", "desc": "Show information about a user.", "usage": "[user]", "perms": None},
@@ -538,7 +562,7 @@ HELP_CATEGORIES = {
         ],
     },
     "Moderation": {
-        "emoji": "shield",
+        "emoji": "shield", "color": "gray",
         "description": "Kick, ban, mute, warn and manage rule-breakers.",
         "commands": [
             {"name": "/kick", "desc": "Kick a member from the server.", "usage": "<member> [reason]", "perms": "Moderator"},
@@ -548,14 +572,14 @@ HELP_CATEGORIES = {
             {"name": "/mute", "desc": "Mute a member.", "usage": "<member> [duration] [reason]", "perms": "Moderator"},
             {"name": "/unmute", "desc": "Remove a mute from a member.", "usage": "<member> [reason]", "perms": "Moderator"},
             {"name": "/warn", "desc": "Warn a member.", "usage": "<member> [reason]", "perms": "Moderator"},
-            {"name": "/purge", "desc": "Bulk delete messages in a channel.", "usage": "<count>", "perms": "Moderator"},
+            {"name": "/purge", "desc": "Bulk delete messages in a channel.", "usage": "<count> [member]", "perms": "Moderator"},
             {"name": "/muteevasion", "desc": "Toggle mute evasion detection.", "usage": "<enabled>", "perms": "Moderator"},
             {"name": "/lockdown", "desc": "Toggle emergency server lockdown.", "usage": "", "perms": "Moderator"},
             {"name": "/settings", "desc": "View moderation settings.", "usage": "", "perms": "Moderator"},
         ],
     },
     "Welcomer": {
-        "emoji": "wave",
+        "emoji": "welcome", "color": "green",
         "description": "Welcome and goodbye messages for new and leaving members.",
         "commands": [
             {"name": "/welcomer toggle", "desc": "Enable/disable welcome messages.", "usage": "", "perms": "Manage Server"},
@@ -573,7 +597,7 @@ HELP_CATEGORIES = {
         ],
     },
     "Leveling": {
-        "emoji": "chart",
+        "emoji": "level_up", "color": "green",
         "description": "XP system, rank cards, leaderboard and level rewards.",
         "commands": [
             {"name": "/rank", "desc": "Check your or another member's rank.", "usage": "[member]", "perms": None},
@@ -587,7 +611,7 @@ HELP_CATEGORIES = {
         ],
     },
     "Tickets": {
-        "emoji": "ticket",
+        "emoji": "ticket", "color": "purple",
         "description": "Support ticket system with panels and threads.",
         "commands": [
             {"name": "/ticket setup", "desc": "Set up the ticket system.", "usage": "<channel> <role> [log_channel]", "perms": "Administrator"},
@@ -600,7 +624,7 @@ HELP_CATEGORIES = {
         ],
     },
     "Giveaways": {
-        "emoji": "gift",
+        "emoji": "gift", "color": "green",
         "description": "Create and manage server giveaways.",
         "commands": [
             {"name": "/giveaway start", "desc": "Start a giveaway.", "usage": "<prize> <duration> <winners> [channel] [desc] [role]", "perms": "Manage Messages"},
@@ -610,7 +634,7 @@ HELP_CATEGORIES = {
         ],
     },
     "AI": {
-        "emoji": "robot",
+        "emoji": "rot", "color": "gray",
         "description": "AI chatbot, image generation and model configuration.",
         "commands": [
             {"name": "/ai chat", "desc": "Chat with the AI.", "usage": "<message>", "perms": None},
@@ -622,7 +646,7 @@ HELP_CATEGORIES = {
         ],
     },
     "Utilities": {
-        "emoji": "bulb",
+        "emoji": "package", "color": "gray",
         "description": "Reminders, to-dos, invites, members and AFK.",
         "commands": [
             {"name": "/afk", "desc": "Mark yourself as AFK.", "usage": "[reason]", "perms": None},
@@ -638,10 +662,14 @@ HELP_CATEGORIES = {
             {"name": "/members list", "desc": "List members with a role.", "usage": "<role>", "perms": "Manage Roles"},
             {"name": "/members note", "desc": "Add a note about a member.", "usage": "<member> <note>", "perms": "Manage Roles"},
             {"name": "/members warnings", "desc": "View a member's warnings.", "usage": "<member>", "perms": "Manage Roles"},
+            {"name": "/convert", "desc": "Convert an image or audio file to another format.", "usage": "<file> <format>", "perms": None},
+            {"name": "/resize", "desc": "Resize an image to specific dimensions.", "usage": "<file> <width> <height>", "perms": None},
+            {"name": "/compress", "desc": "Compress an image to reduce file size.", "usage": "<file> [quality]", "perms": None},
+            {"name": "/makezip", "desc": "Create a zip archive from files (hosted 24h).", "usage": "<file1> [file2..5] [password]", "perms": None},
         ],
     },
     "Server Setup": {
-        "emoji": "cog",
+        "emoji": "heart", "color": "red",
         "description": "Verification, social alerts, global chat and auto-responses.",
         "commands": [
             {"name": "/verify setup", "desc": "Set up the verification panel.", "usage": "<channel> <role> <type>", "perms": "Administrator"},
@@ -659,7 +687,7 @@ HELP_CATEGORIES = {
         ],
     },
     "Extras": {
-        "emoji": "sparkle",
+        "emoji": "sparkle", "color": "pink",
         "description": "Music, birthdays, badges, activity roles, temp channels and frenzy.",
         "commands": [
             {"name": "/music play", "desc": "Play a song from URL or search.", "usage": "<query>", "perms": "DJ Role"},
@@ -689,7 +717,7 @@ HELP_CATEGORIES = {
 
 class HelpView(discord.ui.View):
     def __init__(self, author_id: int):
-        super().__init__(timeout=120)
+        super().__init__(timeout=600)
         self.author_id = author_id
         self.page = 0
         self.pages = ["Home"] + list(HELP_CATEGORIES.keys())
@@ -714,7 +742,7 @@ class HelpView(discord.ui.View):
             EmbedBuilder()
             .title(emoji_title(cat["emoji"], cat_name))
             .description(cat["description"])
-            .color("blurple")
+            .color(cat["color"])
             .field("Commands", "\n\n".join(lines), inline=False)
             .footer(f"Page {self.page}/{len(self.pages) - 1}  •  <required>  [optional]  `perms`")
             .timestamp(datetime.datetime.utcnow())
@@ -727,7 +755,7 @@ class HelpView(discord.ui.View):
             EmbedBuilder()
             .title(emoji_title("sparkle", "Prowl Help"))
             .description("Select a category below or use the buttons to browse.\nArgument keys: `<required>` `[optional]`\nPermission tags show when a role or perm is needed.")
-            .color("gray")
+            .color("pink")
             .thumbnail("https://prowlbot.xyz/static/favicon.png")
         )
         for name, cat in HELP_CATEGORIES.items():
@@ -759,12 +787,6 @@ class HelpView(discord.ui.View):
     async def jump_to(self, interaction: discord.Interaction, select: discord.ui.Select):
         self.page = int(select.values[0])
         await interaction.response.edit_message(embed=self.build_embed(), view=self)
-
-
-    @app_commands.command(name="help", description="Show all available commands")
-    async def help_command(self, interaction: discord.Interaction):
-        view = HelpView(interaction.user.id)
-        await interaction.response.send_message(embed=view.build_embed(), view=view)
 
 
 async def setup(bot):

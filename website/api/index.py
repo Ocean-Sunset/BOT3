@@ -732,6 +732,14 @@ async def login(request: Request):
 
 @app.get("/invite", response_class=HTMLResponse)
 async def invite(request: Request):
+    if request.query_params.get("mode") == "instant":
+        url = (
+            f"https://discord.com/oauth2/authorize"
+            f"?client_id={CLIENT_ID}"
+            f"&scope=bot%20applications.commands"
+            f"&permissions=8"
+        )
+        return RedirectResponse(url)
     return templates.TemplateResponse(request, "invite.html", {"config": _cfg()})
 
 

@@ -81,7 +81,9 @@ let saveTimer = null;
 
 function markChanged(k, v) {
   if (!(k in original)) original[k] = (k in SETTINGS_SNAPSHOT) ? SETTINGS_SNAPSHOT[k] : !v;
-  pending[k] = v; saveBar.classList.remove('is-closed');
+  pending[k] = v;
+  SETTINGS_SNAPSHOT[k] = v;
+  saveBar.classList.remove('is-closed');
   clearTimeout(saveTimer); saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
 }
 
@@ -91,6 +93,7 @@ async function saveChanges() {
   for (const key of keys) {
     try {
       await api('/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]})});
+      SETTINGS_SNAPSHOT[key] = pending[key];
     } catch {}
   }
   for (const key of keys) delete pending[key];

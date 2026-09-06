@@ -294,21 +294,6 @@ async def _get_panel_state(guild_id: int):
     return enabled, muted, channel_id, blocked_users, blocked_servers, hub
 
 
-def _build_main_view(enabled: bool, muted: bool) -> GCControlView:
-    view = GCControlView()
-    if enabled:
-        view.btn_toggle.emoji = "<:CURRENT_ON:1546117669932114014>"
-        view.btn_toggle.style = discord.ButtonStyle.success
-    else:
-        view.btn_toggle.emoji = "<:CURRENT_OFF:1546117436556714155>"
-        view.btn_toggle.style = discord.ButtonStyle.danger
-    if muted:
-        view.btn_mute.emoji = "<:unmute_white:1546113892978270248>"
-    else:
-        view.btn_mute.emoji = "<:mute_white:1546113568527749220>"
-    return view
-
-
 class GCControlView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -389,6 +374,21 @@ class GCControlView(discord.ui.View):
         embed = _build_hub_panel_embed(hubs, current_hub)
         view = GCHubView()
         await interaction.response.edit_message(embed=embed, view=view)
+
+
+def _build_main_view(enabled: bool, muted: bool) -> GCControlView:
+    view = GCControlView()
+    if enabled:
+        view.btn_toggle.emoji = "<:CURRENT_ON:1546117669932114014>"
+        view.btn_toggle.style = discord.ButtonStyle.success
+    else:
+        view.btn_toggle.emoji = "<:CURRENT_OFF:1546117436556714155>"
+        view.btn_toggle.style = discord.ButtonStyle.danger
+    if muted:
+        view.btn_mute.emoji = "<:unmute_white:1546113892978270248>"
+    else:
+        view.btn_mute.emoji = "<:mute_white:1546113568527749220>"
+    return view
 
 
 class GCHubView(discord.ui.View):

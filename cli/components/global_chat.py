@@ -6,10 +6,17 @@ import datetime
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
-from Ediscord.builders import emoji_title
+from Ediscord.builders import emoji_title, EMBED_EMOJIS
 
 
-# ── Helpers ────────────────────────────────────────────────────────────────
+# ── Constants ────────────────────────────────────────────────────────────────
+
+HUB_NAMES = ["Hub 1", "Hub 2", "Hub 3", "Hub 4", "Hub 5"]
+HUB_LIMIT = 20
+HUB_NUMBER_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"]
+
+# ── DB Helpers ───────────────────────────────────────────────────────────────
+
 
 async def _get_stat(key: str):
     pool = await neon_db.get_pool()
@@ -58,7 +65,64 @@ async def _set_list(guild_id: int, suffix: str, items: list):
     await _set_stat(_gc_key(guild_id, suffix), json.dumps(items))
 
 
-# ── Persistent View ────────────────────────────────────────────────────────
+# ── Hub Helpers ──────────────────────────────────────────────────────────────
+
+
+async def _get_hub(guild_id: int) -> str:
+    val = await _get_stat(_gc_key(guild_id, "hub"))
+    return val if val else ""
+
+
+async def _set_hub(guild_id: int, hub_name: str):
+    await _set_stat(_gc_key(guild_id, "hub"), hub_name)
+
+
+async def _get_hubs() -> dict:
+    val = await _get_stat("global_chat_hubs")
+    if not val:
+        return {name: [] for name in HUB_NAMES}
+    try:
+        hubs = json.loads(val)
+        for name in HUB_NAMES:
+            if name not in hubs:
+                hubs[name] = []
+        return hubs
+    except (json.JSONDecodeError, TypeError):
+        return {name: [] for name in HUB_NAMES}
+
+
+async def _set_hubs(hubs: dict):
+    await _set_stat("global_chat_hubs", json.dumps(hubs))
+
+
+async def _join_hub(guild_id: int, hub_name: str) -> tuple[bool, str]:
+    if hub_name not in HUB_NAMES:
+        return False, "Invalid hub."
+    hubs = await _get_hubs()
+    if len(hubs.get(hub_name, [])) >= HUB_LIMIT:
+        return False, f"{hub_name} is full ({HUB_LIMIT}/{HUB_LIMIT})."
+    current = await _get_hub(guild_id)
+    if current and current in hubs:
+        hubs[current] = [g for g in hubs[current] if g != str(guild_id)]
+    if str(guild_id) not in hubs.get(hub_name, []):
+        hubs.setdefault(hub_name, []).append(str(guild_id))
+    await _set_hubs(hubs)
+    await _set_hub(guild_id, hub_name)
+    return True, f"Joined {hub_name}."
+
+
+async def _leave_hub(guild_id: int) -> str:
+    hubs = await _get_hubs()
+    current = await _get_hub(guild_id)
+    if current and current in hubs:
+        hubs[current] = [g for g in hubs[current] if g != str(guild_id)]
+        await _set_hubs(hubs)
+    await _set_hub(guild_id, "")
+    return "Left hub." if current else "Not in a hub."
+
+
+# ── Modals ───────────────────────────────────────────────────────────────────
+
 
 class GCBlockUserModal(discord.ui.Modal, title="Block User from Global Chat"):
     user_id = discord.ui.TextInput(label="User ID or @mention", placeholder="e.g. 123456789012345678 or @user", required=True)
@@ -72,7 +136,7 @@ class GCBlockUserModal(discord.ui.Modal, title="Block User from Global Chat"):
         if uid not in blocked:
             blocked.append(uid)
             await _set_list(interaction.guild_id, "gc_blocked_users", blocked)
-        await interaction.response.send_message(f"Blocked user `{uid}` from global chat.", ephemeral=True)
+        await interaction.response.defer()
         await _refresh_panel(interaction.client, interaction.guild_id)
 
 
@@ -88,7 +152,7 @@ class GCUnblockUserModal(discord.ui.Modal, title="Unblock User from Global Chat"
         if uid in blocked:
             blocked.remove(uid)
             await _set_list(interaction.guild_id, "gc_blocked_users", blocked)
-        await interaction.response.send_message(f"Unblocked user `{uid}` from global chat.", ephemeral=True)
+        await interaction.response.defer()
         await _refresh_panel(interaction.client, interaction.guild_id)
 
 
@@ -103,7 +167,7 @@ class GCBlockServerModal(discord.ui.Modal, title="Block Server from Global Chat"
         if raw not in blocked:
             blocked.append(raw)
             await _set_list(interaction.guild_id, "gc_blocked_servers", blocked)
-        await interaction.response.send_message(f"Blocked server `{raw}` from global chat.", ephemeral=True)
+        await interaction.response.defer()
         await _refresh_panel(interaction.client, interaction.guild_id)
 
 
@@ -118,7 +182,7 @@ class GCUnblockServerModal(discord.ui.Modal, title="Unblock Server from Global C
         if raw in blocked:
             blocked.remove(raw)
             await _set_list(interaction.guild_id, "gc_blocked_servers", blocked)
-        await interaction.response.send_message(f"Unblocked server `{raw}` from global chat.", ephemeral=True)
+        await interaction.response.defer()
         await _refresh_panel(interaction.client, interaction.guild_id)
 
 
@@ -135,15 +199,20 @@ class GCPickChannelModal(discord.ui.Modal, title="Change Global Chat Channel"):
         if not isinstance(ch, (discord.TextChannel, discord.Thread)):
             return await interaction.response.send_message("Must be a text channel.", ephemeral=True)
         await _set_stat(_gc_key(interaction.guild_id, "channel"), str(raw))
-        await interaction.response.send_message(f"Global chat channel set to {ch.mention}.", ephemeral=True)
+        await interaction.response.defer()
         await _refresh_panel(interaction.client, interaction.guild_id)
 
 
+# ── Embed Builders ───────────────────────────────────────────────────────────
+
+
 def _build_panel_embed(guild: discord.Guild, enabled: bool, muted: bool,
-                       channel_id: str | None, blocked_users: list, blocked_servers: list):
+                       channel_id: str | None, blocked_users: list, blocked_servers: list,
+                       hub: str):
     ch_mention = f"<#{channel_id}>" if channel_id else "Not set"
-    status = "🟢 Enabled" if enabled else "🔴 Disabled"
-    mute_str = "🔇 Muted" if muted else "🔊 Active"
+    status = f"{EMBED_EMOJIS['check']} **Enabled**" if enabled else f"{EMBED_EMOJIS['cross']} **Disabled**"
+    mute_str = f"{EMBED_EMOJIS['mute']} **Muted**" if muted else f"{EMBED_EMOJIS['unmute']} **Active**"
+    hub_str = f"{EMBED_EMOJIS['globe']} **{hub}**" if hub else f"{EMBED_EMOJIS['link']} None"
     users_str = ", ".join(f"`{u}`" for u in blocked_users[:10]) or "None"
     servers_str = ", ".join(f"`{s}`" for s in blocked_servers[:10]) or "None"
     if len(blocked_users) > 10:
@@ -152,18 +221,47 @@ def _build_panel_embed(guild: discord.Guild, enabled: bool, muted: bool,
         servers_str += f" +{len(blocked_servers) - 10} more"
     embed = (
         EmbedBuilder()
-        .title(emoji_title("globe", "Global Chat Control Panel"))
-        .color("blue" if enabled else "gray")
-        .field("Status", status, inline=True)
-        .field("Audio", mute_str, inline=True)
-        .field("Channel", ch_mention, inline=True)
-        .field("Blocked Users", users_str, inline=False)
-        .field("Blocked Servers", servers_str, inline=False)
-        .description("Use the buttons below to manage global chat.")
+        .title(emoji_title("global_chat" if not muted else "mute", "Global Chat Control Panel"))
+        .color("blue" if enabled and not muted else "red" if muted else "gray")
+        .description(
+            f"{EMBED_EMOJIS['globe']} Use the buttons below to manage global chat.\n\n"
+            f"{EMBED_EMOJIS['channel']} **Channel:** {ch_mention}\n"
+            f"{status}　　{mute_str}\n"
+            f"{hub_str}\n"
+            f"{EMBED_EMOJIS['eye']} **Blocked Users:** {users_str}\n"
+            f"{EMBED_EMOJIS['eye']} **Blocked Servers:** {servers_str}"
+        )
         .timestamp(datetime.datetime.utcnow())
         .build()
     )
     return embed
+
+
+def _build_hub_panel_embed(hubs: dict, current_hub: str):
+    lines = []
+    for i, name in enumerate(HUB_NAMES):
+        count = len(hubs.get(name, []))
+        status = f"{count}/{HUB_LIMIT}"
+        marker = " ✅" if name == current_hub else ""
+        lines.append(f"**{HUB_NUMBER_EMOJIS[i]} {name}:** {status}{marker}")
+    current_str = f"{EMBED_EMOJIS['globe']} **{current_hub}**" if current_hub else "None"
+    embed = (
+        EmbedBuilder()
+        .title(emoji_title("global_chat", "Hub Control Panel"))
+        .color("blue")
+        .description(
+            f"{EMBED_EMOJIS['global_chat']} Join a hub to connect with other servers.\n"
+            f"Each hub supports up to **{HUB_LIMIT}** servers.\n\n"
+            + "\n".join(lines) +
+            f"\n\n{EMBED_EMOJIS['link']} **Your Hub:** {current_str}"
+        )
+        .timestamp(datetime.datetime.utcnow())
+        .build()
+    )
+    return embed
+
+
+# ── Views ────────────────────────────────────────────────────────────────────
 
 
 class GCControlView(discord.ui.View):
@@ -177,50 +275,132 @@ class GCControlView(discord.ui.View):
             return False
         return True
 
-    @discord.ui.button(label="Mute", emoji="<:mute_white:1546113568527749220>", custom_id="gc_btn_mute", style=discord.ButtonStyle.danger)
+    # Row 1: Toggle, Mute, Block User, Unblock User
+    @discord.ui.button(emoji="<:CURRENT_OFF:1546117436556714155>", custom_id="gc_btn_toggle", style=discord.ButtonStyle.danger, row=1)
+    async def btn_toggle(self, interaction: discord.Interaction, button: discord.ui.Button):
+        current = await _get_bool(interaction.guild_id, "gc_enabled")
+        await _set_bool(interaction.guild_id, "gc_enabled", not current)
+        await interaction.response.defer()
+        await _refresh_panel(interaction.client, interaction.guild_id)
+
+    @discord.ui.button(emoji="<:mute_white:1546113568527749220>", custom_id="gc_btn_mute", style=discord.ButtonStyle.secondary, row=1)
     async def btn_mute(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await _set_bool(interaction.guild_id, "gc_muted", True)
-        await interaction.response.send_message("Global chat muted.", ephemeral=True)
+        current = await _get_bool(interaction.guild_id, "gc_muted")
+        await _set_bool(interaction.guild_id, "gc_muted", not current)
+        if not current:
+            ch_id = await _get_stat(_gc_key(interaction.guild_id, "channel"))
+            if ch_id:
+                ch = interaction.guild.get_channel(int(ch_id))
+                if ch:
+                    try:
+                        await ch.send(
+                            embed=EmbedBuilder()
+                            .title(emoji_title("mute", "Global Chat Muted"))
+                            .description(f"{EMBED_EMOJIS['mute']} This server has been **muted** by admins.\nMessages will not be relayed to other servers.")
+                            .color("red")
+                            .timestamp(datetime.datetime.utcnow())
+                            .build()
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to send mute notice in guild {interaction.guild_id}: {e}")
+        await interaction.response.defer()
         await _refresh_panel(interaction.client, interaction.guild_id)
 
-    @discord.ui.button(label="Unmute", emoji="<:unmute_white:1546113892978270248>", custom_id="gc_btn_unmute", style=discord.ButtonStyle.success)
-    async def btn_unmute(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await _set_bool(interaction.guild_id, "gc_muted", False)
-        await interaction.response.send_message("Global chat unmuted.", ephemeral=True)
-        await _refresh_panel(interaction.client, interaction.guild_id)
-
-    @discord.ui.button(label="Block User", emoji="<:user_block_white:1546114552104493066>", custom_id="gc_btn_block_user", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(emoji="<:user_block_white:1546114552104493066>", custom_id="gc_btn_block_user", style=discord.ButtonStyle.secondary, row=1)
     async def btn_block_user(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(GCBlockUserModal())
 
-    @discord.ui.button(label="Unblock User", emoji="<:user_unblock_white:1546114944385286144>", custom_id="gc_btn_unblock_user", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(emoji="<:user_unblock_white:1546114944385286144>", custom_id="gc_btn_unblock_user", style=discord.ButtonStyle.secondary, row=1)
     async def btn_unblock_user(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(GCUnblockUserModal())
 
-    @discord.ui.button(label="Block Server", emoji="<:server_block_white:1546115797007597639>", custom_id="gc_btn_block_server", style=discord.ButtonStyle.secondary)
+    # Row 2: Block Server, Unblock Server, Change Channel, Hubs
+    @discord.ui.button(emoji="<:server_block_white:1546115797007597639>", custom_id="gc_btn_block_server", style=discord.ButtonStyle.secondary, row=2)
     async def btn_block_server(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(GCBlockServerModal())
 
-    @discord.ui.button(label="Unblock Server", emoji="<:server_unblock_white:1546116037773230163>", custom_id="gc_btn_unblock_server", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(emoji="<:server_unblock_white:1546116037773230163>", custom_id="gc_btn_unblock_server", style=discord.ButtonStyle.secondary, row=2)
     async def btn_unblock_server(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(GCUnblockServerModal())
 
-    @discord.ui.button(label="Change Channel", emoji="<:reload_channels:1546116677719298078>", custom_id="gc_btn_change_channel", style=discord.ButtonStyle.primary)
+    @discord.ui.button(emoji="<:reload_channels:1546116677719298078>", custom_id="gc_btn_change_channel", style=discord.ButtonStyle.primary, row=2)
     async def btn_change_channel(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(GCPickChannelModal())
 
-    @discord.ui.button(label="Toggle Global Chat", emoji="<:CURRENT_OFF:1546117436556714155>", custom_id="gc_btn_toggle", style=discord.ButtonStyle.danger, row=4)
-    async def btn_toggle(self, interaction: discord.Interaction, button: discord.ui.Button):
-        current = await _get_bool(interaction.guild_id, "gc_enabled")
-        new_state = not current
-        await _set_bool(interaction.guild_id, "gc_enabled", new_state)
-        state_str = "enabled" if new_state else "disabled"
-        await interaction.response.send_message(f"Global chat {state_str}.", ephemeral=True)
+    @discord.ui.button(emoji="🌐", custom_id="gc_btn_hubs", style=discord.ButtonStyle.primary, row=2)
+    async def btn_hubs(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        await _refresh_hub_panel(interaction.client, interaction.guild_id)
+
+
+class GCHubView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        perms = interaction.user.guild_permissions
+        if not (perms.manage_guild or perms.administrator):
+            await interaction.response.send_message("You need Manage Server permission.", ephemeral=True)
+            return False
+        return True
+
+    # Row 1: Hub 1-4
+    @discord.ui.button(emoji="1️⃣", custom_id="gc_hub_join_1", style=discord.ButtonStyle.secondary, row=1)
+    async def hub_1(self, interaction: discord.Interaction, button: discord.ui.Button):
+        ok, msg = await _join_hub(interaction.guild_id, HUB_NAMES[0])
+        await interaction.response.defer()
+        await _refresh_hub_panel(interaction.client, interaction.guild_id)
+
+    @discord.ui.button(emoji="2️⃣", custom_id="gc_hub_join_2", style=discord.ButtonStyle.secondary, row=1)
+    async def hub_2(self, interaction: discord.Interaction, button: discord.ui.Button):
+        ok, msg = await _join_hub(interaction.guild_id, HUB_NAMES[1])
+        await interaction.response.defer()
+        await _refresh_hub_panel(interaction.client, interaction.guild_id)
+
+    @discord.ui.button(emoji="3️⃣", custom_id="gc_hub_join_3", style=discord.ButtonStyle.secondary, row=1)
+    async def hub_3(self, interaction: discord.Interaction, button: discord.ui.Button):
+        ok, msg = await _join_hub(interaction.guild_id, HUB_NAMES[2])
+        await interaction.response.defer()
+        await _refresh_hub_panel(interaction.client, interaction.guild_id)
+
+    @discord.ui.button(emoji="4️⃣", custom_id="gc_hub_join_4", style=discord.ButtonStyle.secondary, row=1)
+    async def hub_4(self, interaction: discord.Interaction, button: discord.ui.Button):
+        ok, msg = await _join_hub(interaction.guild_id, HUB_NAMES[3])
+        await interaction.response.defer()
+        await _refresh_hub_panel(interaction.client, interaction.guild_id)
+
+    # Row 2: Hub 5, Leave, Back
+    @discord.ui.button(emoji="5️⃣", custom_id="gc_hub_join_5", style=discord.ButtonStyle.secondary, row=2)
+    async def hub_5(self, interaction: discord.Interaction, button: discord.ui.Button):
+        ok, msg = await _join_hub(interaction.guild_id, HUB_NAMES[4])
+        await interaction.response.defer()
+        await _refresh_hub_panel(interaction.client, interaction.guild_id)
+
+    @discord.ui.button(emoji="❌", custom_id="gc_hub_leave", style=discord.ButtonStyle.danger, row=2)
+    async def hub_leave(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await _leave_hub(interaction.guild_id)
+        await interaction.response.defer()
+        await _refresh_hub_panel(interaction.client, interaction.guild_id)
+
+    @discord.ui.button(emoji="⬅️", custom_id="gc_hub_back", style=discord.ButtonStyle.secondary, row=2)
+    async def hub_back(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
         await _refresh_panel(interaction.client, interaction.guild_id)
 
 
+# ── Panel Refresh ────────────────────────────────────────────────────────────
+
+
+async def _find_panel_message(ch: discord.TextChannel, bot_user: discord.ClientUser):
+    async for message in ch.history(limit=50):
+        if message.author == bot_user and message.embeds:
+            title = message.embeds[0].title or ""
+            if "Global Chat Control Panel" in title or "Hub Control Panel" in title:
+                return message
+    return None
+
+
 async def _refresh_panel(bot: commands.Bot, guild_id: int):
-    """Re-post (edit) the control panel embed in the management channel."""
     mgmt_ch_id = await _get_stat(_gc_key(guild_id, "gc_management_channel"))
     if not mgmt_ch_id:
         return
@@ -235,7 +415,8 @@ async def _refresh_panel(bot: commands.Bot, guild_id: int):
     channel_id = await _get_stat(_gc_key(guild_id, "channel"))
     blocked_users = await _get_list(guild_id, "gc_blocked_users")
     blocked_servers = await _get_list(guild_id, "gc_blocked_servers")
-    embed = _build_panel_embed(guild, enabled, muted, channel_id, blocked_users, blocked_servers)
+    hub = await _get_hub(guild_id)
+    embed = _build_panel_embed(guild, enabled, muted, channel_id, blocked_users, blocked_servers, hub)
     view = GCControlView()
     if enabled:
         view.btn_toggle.emoji = "<:CURRENT_ON:1546117669932114014>"
@@ -243,24 +424,52 @@ async def _refresh_panel(bot: commands.Bot, guild_id: int):
     else:
         view.btn_toggle.emoji = "<:CURRENT_OFF:1546117436556714155>"
         view.btn_toggle.style = discord.ButtonStyle.danger
+    if muted:
+        view.btn_mute.emoji = "<:unmute_white:1546113892978270248>"
+    else:
+        view.btn_mute.emoji = "<:mute_white:1546113568527749220>"
     try:
-        async for message in ch.history(limit=50):
-            if message.author == bot.user and message.embeds:
-                title = message.embeds[0].title or ""
-                if "Global Chat Control Panel" in title:
-                    await message.edit(embed=embed, view=view)
-                    return
-        await ch.send(embed=embed, view=view)
+        msg = await _find_panel_message(ch, bot.user)
+        if msg:
+            await msg.edit(embed=embed, view=view)
+        else:
+            await ch.send(embed=embed, view=view)
     except Exception as e:
         logger.warning(f"Failed to refresh GC panel in guild {guild_id}: {e}")
 
 
-# ── Cog ────────────────────────────────────────────────────────────────────
+async def _refresh_hub_panel(bot: commands.Bot, guild_id: int):
+    mgmt_ch_id = await _get_stat(_gc_key(guild_id, "gc_management_channel"))
+    if not mgmt_ch_id:
+        return
+    guild = bot.get_guild(guild_id)
+    if not guild:
+        return
+    ch = guild.get_channel(int(mgmt_ch_id))
+    if not ch:
+        return
+    hubs = await _get_hubs()
+    current_hub = await _get_hub(guild_id)
+    embed = _build_hub_panel_embed(hubs, current_hub)
+    view = GCHubView()
+    try:
+        msg = await _find_panel_message(ch, bot.user)
+        if msg:
+            await msg.edit(embed=embed, view=view)
+        else:
+            await ch.send(embed=embed, view=view)
+    except Exception as e:
+        logger.warning(f"Failed to refresh GC hub panel in guild {guild_id}: {e}")
+
+
+# ── Cog ──────────────────────────────────────────────────────────────────────
+
 
 class GlobalChat(commands.Cog, name="GlobalChat"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         bot.add_view(GCControlView())
+        bot.add_view(GCHubView())
 
     async def get_linked_channel(self, guild_id: int):
         val = await _get_stat(_gc_key(guild_id, "channel"))
@@ -311,12 +520,22 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
         if str(message.guild.id) in blocked_servers:
             return
 
+        my_hub = await _get_hub(message.guild.id)
         all_linked = await self.get_all_linked_channels()
 
         content = message.content[:1000] if message.content else "[attachment]"
         for guild_id, channel_id in all_linked:
             if str(message.guild.id) == guild_id and str(message.channel.id) == channel_id:
                 continue
+
+            target_hub = await _get_hub(int(guild_id))
+            if my_hub:
+                if target_hub != my_hub:
+                    continue
+            else:
+                if target_hub:
+                    continue
+
             target_guild = self.bot.get_guild(int(guild_id))
             if not target_guild:
                 continue
@@ -389,6 +608,7 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
     @gc_group.command(name="info", description="Check global chat status")
     async def info(self, interaction: discord.Interaction):
         hub_channel_id = await self.get_linked_channel(interaction.guild.id)
+        hub = await _get_hub(interaction.guild.id)
         if hub_channel_id:
             channel = self.bot.get_channel(int(hub_channel_id))
             embed = (
@@ -397,6 +617,7 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
                 .description(f"Global chat is linked to {channel.mention if channel else f'<#{hub_channel_id}>'}")
                 .color("blue")
                 .field("Channel ID", str(hub_channel_id))
+                .field("Hub", hub or "None")
                 .timestamp(datetime.datetime.utcnow())
                 .build()
             )

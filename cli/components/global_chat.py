@@ -14,7 +14,7 @@ from Ediscord.builders import emoji_title, EMBED_EMOJIS
 
 HUB_NAMES = ["Hub 1", "Hub 2", "Hub 3", "Hub 4", "Hub 5"]
 HUB_LIMIT = 20
-HUB_NUMBER_EMOJIS = ["1", "2", "3", "4", "5"]
+HUB_NUMBER_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"]
 
 # ── DB Helpers ───────────────────────────────────────────────────────────────
 
@@ -232,7 +232,7 @@ def _build_panel_embed(guild: discord.Guild, enabled: bool, muted: bool,
     ch_mention = f"<#{channel_id}>" if channel_id else "Not set"
     status = f"{EMBED_EMOJIS['check']} **Enabled**" if enabled else f"{EMBED_EMOJIS['cross']} **Disabled**"
     mute_str = f"{EMBED_EMOJIS['mute']} **Muted**" if muted else f"{EMBED_EMOJIS['unmute']} **Active**"
-    hub_str = f"{EMBED_EMOJIS['globe']} **{hub}**" if hub else f"{EMBED_EMOJIS['link']} None"
+    hub_str = f"{EMBED_EMOJIS['globe']} **Hub:** {hub}" if hub else f"**Hub:** Not in a hub"
     users_str = ", ".join(f"`{u}`" for u in blocked_users[:10]) or "None"
     servers_str = ", ".join(f"`{s}`" for s in blocked_servers[:10]) or "None"
     if len(blocked_users) > 10:
@@ -261,10 +261,9 @@ def _build_hub_panel_embed(hubs: dict, current_hub: str):
     lines = []
     for i, name in enumerate(HUB_NAMES):
         count = len(hubs.get(name, []))
-        status = f"{count}/{HUB_LIMIT}"
         marker = " ✅" if name == current_hub else ""
-        lines.append(f"**{HUB_NUMBER_EMOJIS[i]} {name}:** {status}{marker}")
-    current_str = f"{EMBED_EMOJIS['globe']} **{current_hub}**" if current_hub else "None"
+        lines.append(f"**{HUB_NUMBER_EMOJIS[i]} {name}:** {count}/{HUB_LIMIT}{marker}")
+    current_str = f"**{current_hub}**" if current_hub else "**None** — join a hub below"
     embed = (
         EmbedBuilder()
         .title(emoji_title("global_chat", "Hub Control Panel"))
@@ -273,7 +272,7 @@ def _build_hub_panel_embed(hubs: dict, current_hub: str):
             f"{EMBED_EMOJIS['global_chat']} Join a hub to connect with other servers.\n"
             f"Each hub supports up to **{HUB_LIMIT}** servers.\n\n"
             + "\n".join(lines) +
-            f"\n\n{EMBED_EMOJIS['link']} **Your Hub:** {current_str}"
+            f"\n\n**Your Hub:** {current_str}"
         )
         .timestamp(datetime.datetime.utcnow())
         .build()
@@ -365,32 +364,32 @@ class GCHubView(discord.ui.View):
         return True
 
     # Row 1: Hub 1-4
-    @discord.ui.button(emoji="1", custom_id="gc_hub_join_1", style=discord.ButtonStyle.secondary, row=1)
+    @discord.ui.button(emoji="1️⃣", custom_id="gc_hub_join_1", style=discord.ButtonStyle.secondary, row=1)
     async def hub_1(self, interaction: discord.Interaction, button: discord.ui.Button):
         ok, msg = await _join_hub(interaction.guild_id, HUB_NAMES[0])
         await interaction.response.defer()
         await _refresh_hub_panel(interaction.client, interaction.guild_id)
 
-    @discord.ui.button(emoji="2", custom_id="gc_hub_join_2", style=discord.ButtonStyle.secondary, row=1)
+    @discord.ui.button(emoji="2️⃣", custom_id="gc_hub_join_2", style=discord.ButtonStyle.secondary, row=1)
     async def hub_2(self, interaction: discord.Interaction, button: discord.ui.Button):
         ok, msg = await _join_hub(interaction.guild_id, HUB_NAMES[1])
         await interaction.response.defer()
         await _refresh_hub_panel(interaction.client, interaction.guild_id)
 
-    @discord.ui.button(emoji="3", custom_id="gc_hub_join_3", style=discord.ButtonStyle.secondary, row=1)
+    @discord.ui.button(emoji="3️⃣", custom_id="gc_hub_join_3", style=discord.ButtonStyle.secondary, row=1)
     async def hub_3(self, interaction: discord.Interaction, button: discord.ui.Button):
         ok, msg = await _join_hub(interaction.guild_id, HUB_NAMES[2])
         await interaction.response.defer()
         await _refresh_hub_panel(interaction.client, interaction.guild_id)
 
-    @discord.ui.button(emoji="4", custom_id="gc_hub_join_4", style=discord.ButtonStyle.secondary, row=1)
+    @discord.ui.button(emoji="4️⃣", custom_id="gc_hub_join_4", style=discord.ButtonStyle.secondary, row=1)
     async def hub_4(self, interaction: discord.Interaction, button: discord.ui.Button):
         ok, msg = await _join_hub(interaction.guild_id, HUB_NAMES[3])
         await interaction.response.defer()
         await _refresh_hub_panel(interaction.client, interaction.guild_id)
 
     # Row 2: Hub 5, Leave, Back
-    @discord.ui.button(emoji="5", custom_id="gc_hub_join_5", style=discord.ButtonStyle.secondary, row=2)
+    @discord.ui.button(emoji="5️⃣", custom_id="gc_hub_join_5", style=discord.ButtonStyle.secondary, row=2)
     async def hub_5(self, interaction: discord.Interaction, button: discord.ui.Button):
         ok, msg = await _join_hub(interaction.guild_id, HUB_NAMES[4])
         await interaction.response.defer()

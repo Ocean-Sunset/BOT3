@@ -5950,24 +5950,16 @@ async def more_channels(guild_id: str, request: Request):
 
 async def _get_more_settings(guild_id: str):
     """Load sticky-message settings from bot_stats."""
-    keys = ["sticky_enabled", "sticky_channel_id", "sticky_message_type", "sticky_message", "sticky_embed"]
-    out = {}
-    for k in keys:
-        row = await fetchrow("SELECT value FROM bot_stats WHERE key = ?", f"more_{k}_{guild_id}")
-        out[k] = row["value"] if row else None
-    if out["sticky_enabled"] is not None:
-        out["sticky_enabled"] = out["sticky_enabled"] == "1"
-    else:
-        out["sticky_enabled"] = False
-    if out["sticky_message_type"] is None:
-        out["sticky_message_type"] = "basic"
-    if out["sticky_embed"] is not None:
+    out = {"sticky_enabled": False, "sticky_messages": []}
+    row = await fetchrow("SELECT value FROM bot_stats WHERE key = ?", f"more_sticky_enabled_{guild_id}")
+    if row and row["value"]:
+        out["sticky_enabled"] = row["value"] == "1"
+    row2 = await fetchrow("SELECT value FROM bot_stats WHERE key = ?", f"more_sticky_messages_{guild_id}")
+    if row2 and row2["value"]:
         try:
-            out["sticky_embed"] = json.loads(out["sticky_embed"])
+            out["sticky_messages"] = json.loads(row2["value"])
         except Exception:
-            out["sticky_embed"] = None
-    else:
-        out["sticky_embed"] = None
+            out["sticky_messages"] = []
     return out
 
 
@@ -5988,26 +5980,22 @@ async def more_settings_set(guild_id: str, request: Request):
         return JSONResponse({"error": "missing key"}, status_code=400)
     if key == "sticky_enabled":
         value = "1" if value else "0"
-    elif key == "sticky_channel_id":
-        if value is not None and not _valid_snowflake(value):
-            return JSONResponse({"error": "invalid channel ID"}, status_code=400)
-    elif key == "sticky_message_type":
-        if value not in ("basic", "custom"):
-            return JSONResponse({"error": "message_type must be 'basic' or 'custom'"}, status_code=400)
-    elif key == "sticky_message":
-        value = value[:2000] if isinstance(value, str) else ""
-    elif key == "sticky_embed":
-        if value is not None and not isinstance(value, dict):
-            return JSONResponse({"error": "embed must be an object or null"}, status_code=400)
-        value = json.dumps(value) if value is not None else None
-    stat_key = f"more_{key}_{guild_id}"
-    if value is None:
-        await execute("DELETE FROM bot_stats WHERE key = ?", stat_key)
+    elif key == "sticky_messages":
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except Exception:
+                value = []
+        if not isinstance(value, list):
+            return JSONResponse({"error": "sticky_messages must be a list"}, status_code=400)
+        value = json.dumps(value)
     else:
-        await execute(
-            "INSERT INTO bot_stats (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT (key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
-            stat_key, str(value), time.time(),
-        )
+        return JSONResponse({"error": f"unknown key: {key}"}, status_code=400)
+    stat_key = f"more_{key}_{guild_id}"
+    await execute(
+        "INSERT INTO bot_stats (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT (key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
+        stat_key, str(value), time.time(),
+    )
     return {"ok": True}
 
 

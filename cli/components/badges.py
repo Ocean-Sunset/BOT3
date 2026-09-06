@@ -151,7 +151,7 @@ class Badges(commands.Cog, name="Badges"):
                 elif badge["category"] == "voice" and vc_minutes >= badge["threshold"]:
                     earned = True
                 elif badge["category"] == "tenure" and member and member.joined_at:
-                    days = (datetime.datetime.utcnow() - member.joined_at).days
+                    days = (discord.utils.utcnow() - member.joined_at).days
                     if days >= badge["threshold"]:
                         earned = True
                 elif badge["category"] == "special":
@@ -254,7 +254,7 @@ class Badges(commands.Cog, name="Badges"):
 
         tenure_str = ""
         if target.joined_at:
-            days = (datetime.datetime.utcnow() - target.joined_at).days
+            days = (discord.utils.utcnow() - target.joined_at).days
             if days >= 365:
                 tenure_str = f"{days // 365}y {(days % 365) // 30}mo"
             elif days >= 30:

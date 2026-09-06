@@ -17,16 +17,6 @@ async def _get_stat(key: str):
     return row["value"] if row else None
 
 
-async def _set_stat(key: str, value: str):
-    pool = await neon_db.get_pool()
-    if not pool:
-        return
-    await pool.execute(
-        "INSERT INTO bot_stats (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT (key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
-        key, value, time.time(),
-    )
-
-
 def _skey(guild_id: int, suffix: str) -> str:
     return f"more_sticky_{suffix}_{guild_id}"
 
@@ -38,32 +28,28 @@ async def _get_bool(guild_id: int, suffix: str, default: bool = False) -> bool:
     return val == "1"
 
 
-async def _get_str(guild_id: int, suffix: str, default: str = "") -> str:
-    val = await _get_stat(_skey(guild_id, suffix))
-    return val if val else default
-
-
-async def _get_embed(guild_id: int):
-    val = await _get_stat(_skey(guild_id, "embed"))
+async def _get_messages(guild_id: int) -> list:
+    val = await _get_stat(_skey(guild_id, "messages"))
     if not val:
-        return None
+        return []
     try:
         return json.loads(val)
     except (json.JSONDecodeError, TypeError):
-        return None
+        return []
 
 
 # ── Sticky state per guild: {channel_id: message_count} ────────────────────
 
 class StickyMessages(commands.Cog):
-    """Automatically re-post a sticky message in a configured channel."""
+    """Automatically re-post sticky messages in configured channels."""
+
+    _STICKY_INTERVAL = 5
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self._counters: dict[int, int] = {}  # channel_id -> msg count since last sticky
-        self._posted: dict[int, discord.Message] = {}  # channel_id -> last sticky msg
-        self._processing: set[int] = set()  # channels currently re-posting
-        self._STICKY_INTERVAL = 5  # re-post every N messages
+        self._counters: dict[int, int] = {}
+        self._posted: dict[int, discord.Message] = {}
+        self._processing: set[int] = set()
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -77,11 +63,11 @@ class StickyMessages(commands.Cog):
         if not enabled:
             return
 
-        channel_id_str = await _get_str(guild_id, "channel_id")
-        if not channel_id_str or str(ch_id) != channel_id_str:
+        messages = await _get_messages(guild_id)
+        channel_ids = {m.get("channel_id") for m in messages if m.get("channel_id")}
+        if str(ch_id) not in channel_ids:
             return
 
-        # Don't count our own sticky messages
         if message.author == self.bot.user:
             return
 
@@ -90,13 +76,14 @@ class StickyMessages(commands.Cog):
         if self._counters[ch_id] >= self._STICKY_INTERVAL and ch_id not in self._processing:
             self._processing.add(ch_id)
             try:
-                await self._repost_sticky(message.guild, message.channel)
+                entry = next((m for m in messages if str(ch_id) == m.get("channel_id")), None)
+                if entry:
+                    await self._repost_sticky(message.guild, message.channel, entry)
                 self._counters[ch_id] = 0
             finally:
                 self._processing.discard(ch_id)
 
-    async def _repost_sticky(self, guild: discord.Guild, channel: discord.TextChannel):
-        """Delete old sticky (if any) and post a new one."""
+    async def _repost_sticky(self, guild: discord.Guild, channel: discord.TextChannel, entry: dict):
         old = self._posted.get(channel.id)
         if old:
             try:
@@ -104,19 +91,18 @@ class StickyMessages(commands.Cog):
             except (discord.NotFound, discord.Forbidden):
                 pass
 
-        message_type = await _get_str(guild.id, "message_type", "basic")
-
+        msg_type = entry.get("type", "basic")
         embed = None
         content = None
 
-        if message_type == "custom":
-            embed_data = await _get_embed(guild.id)
+        if msg_type == "custom":
+            embed_data = entry.get("embed")
             if embed_data:
                 embed = self._build_embed(embed_data, guild, channel)
             else:
                 content = "(no embed configured)"
         else:
-            msg = await _get_str(guild.id, "message")
+            msg = entry.get("message", "")
             if msg:
                 content = self._apply_vars(msg, guild, channel)
             else:

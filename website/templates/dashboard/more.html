@@ -2,6 +2,15 @@
 {% block content %}
 <link rel="stylesheet" href="/static/moderation.css?v=21" />
 <link rel="stylesheet" href="/static/leveling.css?v=4" />
+<style>
+  #more-wrap.is-disabled .md-section { opacity:0.35; pointer-events:none; filter:grayscale(0.4); transition:opacity 0.25s ease, filter 0.25s ease; }
+  #more-wrap .md-section { transition:opacity 0.25s ease, filter 0.25s ease; }
+  .sticky-item { border:1px solid rgba(255,255,255,0.06); border-radius:4px; background:rgba(255,255,255,0.02); padding:0.75rem; margin-bottom:0.5rem; }
+  .sticky-item:last-child { margin-bottom:0; }
+  .sticky-item-head { display:flex; align-items:center; justify-content:space-between; gap:0.5rem; margin-bottom:0.5rem; }
+  .sticky-item-ch { font-size:0.78rem; font-weight:700; color:rgba(255,255,255,0.7); }
+  .sticky-item-type { font-size:0.68rem; font-weight:600; color:rgba(255,255,255,0.35); background:rgba(255,255,255,0.04); padding:0.15rem 0.45rem; border-radius:3px; }
+</style>
 <div id="more-wrap">
 
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;">
@@ -13,51 +22,44 @@
 
   <div class="md-row">
 
-    <!-- Sticky Messages -->
+    <!-- Add Sticky Message -->
     <div class="md-section" style="flex:1;">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;">
-          <div class="md-section-title">Sticky Messages</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.4rem;">
+          <div class="md-section-title" style="margin-bottom:0;">Sticky Messages</div>
           <label class="md-toggle"><input type="checkbox" data-key="sticky_enabled" id="sticky-enabled" /><span class="md-toggle-slider"></span></label>
         </div>
-        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin:0 0 0.75rem;line-height:1.5;">Pin a message to the bottom of a channel. It re-posts automatically after new messages.</p>
+        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin:0.3rem 0 0.75rem;line-height:1.5;">Pin a message to the bottom of a channel. It re-posts automatically after new messages.</p>
 
         <div id="sticky-config">
+          <div class="md-section-title" style="font-size:0.78rem;margin-bottom:0.4rem;">Add Sticky Message</div>
           <div class="md-behavior-list">
             <div class="md-behavior-item" style="align-items:flex-start;">
               <div style="flex:1;">
                 <div class="md-behavior-label">Channel</div>
-                <div class="md-custom-select" data-channel-select="sticky_channel_id">
-                  <button class="md-custom-select-btn">No channel</button>
+                <div class="md-custom-select" id="new-sticky-channel">
+                  <button class="md-custom-select-btn">Select channel...</button>
                   <div class="md-custom-select-drop"></div>
                 </div>
               </div>
             </div>
           </div>
-
-          <div style="display:flex;align-items:center;justify-content:space-between;margin:0.75rem 0 0.4rem;flex-wrap:wrap;gap:0.4rem;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:0.5rem;flex-wrap:wrap;gap:0.4rem;">
             <div class="md-behavior-label" style="margin:0;">Message</div>
             <div class="md-segmented">
-              <button class="extra-tab msg-mode-tab is-active" data-mode="basic">Basic</button>
-              <button class="extra-tab msg-mode-tab" data-mode="custom">Custom</button>
+              <button class="extra-tab msg-mode-tab is-active" data-mode="basic" data-sticky-new-tab>Basic</button>
+              <button class="extra-tab msg-mode-tab" data-mode="custom" data-sticky-new-tab>Custom</button>
             </div>
           </div>
-
-          <div data-basic-view="sticky">
-            <div class="md-behavior-list">
-              <div class="md-behavior-item" style="align-items:flex-start;">
-                <div style="flex:1;">
-                  <textarea class="md-input md-textarea" id="sticky-message" rows="3" placeholder="Type your sticky message here..."></textarea>
-                  <div class="md-vars-hint">Variables: {user} {mention} {name} {server} {channel}</div>
-                </div>
-              </div>
-            </div>
+          <div data-sticky-new-basic>
+            <textarea class="md-input md-textarea" id="new-sticky-message" rows="3" placeholder="Type your sticky message here..." style="font-size:0.8rem;font-weight:600;color:rgba(255,255,255,0.75);"></textarea>
+            <div class="md-vars-hint">Variables: {user} {mention} {name} {server} {channel}</div>
           </div>
-
-          <div data-custom-view="sticky" style="display:none;">
-            <button class="md-action-btn" data-edit-embed="sticky" style="width:100%;justify-content:center;padding:0.5rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
+          <div data-sticky-new-custom style="display:none;">
+            <button class="md-action-btn" id="new-sticky-embed-btn" style="width:100%;justify-content:center;padding:0.5rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
             <p style="font-size:0.7rem;color:rgba(255,255,255,0.35);margin-top:0.5rem;line-height:1.5;">Build a full embed (title, description, color, fields, footer).</p>
           </div>
+          <button class="md-action-btn" id="add-sticky-btn" style="margin-top:0.75rem;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;"><i data-lucide="plus"></i> Add Sticky Message</button>
         </div>
       </div>
     </div>
@@ -73,13 +75,22 @@
     </div>
 
   </div>
+
+  <!-- Active Sticky Messages -->
+  <div class="md-section" style="margin-top:0.75rem;">
+    <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+      <div class="md-section-title">Active Sticky Messages</div>
+      <div id="sticky-list"></div>
+    </div>
+  </div>
+
 </div>
 
-<!-- Custom embed editor modal -->
+<!-- Custom embed editor modal (shared) -->
 <div class="md-modal-overlay" id="embed-editor-modal">
   <div class="md-modal" style="min-width:520px;max-width:560px;max-height:80vh;overflow-y:auto;">
     <h3 id="embed-editor-title">Sticky Message Embed</h3>
-    <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin:0.2rem 0 0.75rem;line-height:1.5;">Variables work in title, description and footer: <code>{user}</code> <code>{mention}</code> <code>{name}</code> <code>{server}</code> <code>{channel}</code></div>
+    <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin:0.2rem 0 0.75rem;line-height:1.5;">Variables: <code>{user}</code> <code>{mention}</code> <code>{name}</code> <code>{server}</code> <code>{channel}</code></div>
     <div style="display:flex;flex-direction:column;gap:0.6rem;margin:0.75rem 0;">
       <div>
         <div class="md-behavior-label" style="margin-bottom:0.3rem;">Title</div>
@@ -152,6 +163,8 @@ const GID = window.__GUILD_ID;
 const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
 const api = (path, opts) => fetch(`/api/v1/more/${GID}${path}`, opts||{}).then(r=>r.json());
 
+let stickyMessages = [];
+let LOADED_STICKY = [];
 const pending = {}, original = {};
 let SETTINGS_SNAPSHOT = {};
 const saveBar = document.getElementById('save-bar'), saveBtn = document.getElementById('save-btn');
@@ -166,17 +179,19 @@ function markChanged(key, value) {
   saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
 }
 
-// ── Basic / Custom mode ──
-function setModeView(mode, dirty) {
-  document.querySelectorAll('.msg-mode-tab').forEach(t => t.classList.toggle('is-active', t.dataset.mode === mode));
-  const basic = document.querySelector('[data-basic-view="sticky"]');
-  const custom = document.querySelector('[data-custom-view="sticky"]');
-  if (basic) basic.style.display = mode === 'basic' ? '' : 'none';
-  if (custom) custom.style.display = mode === 'custom' ? '' : 'none';
-  if (dirty) markChanged('sticky_message_type', mode);
-}
+// ── Basic / Custom mode for the "add" form ──
+let newStickyMode = 'basic';
+document.querySelectorAll('[data-sticky-new-tab]').forEach(t => t.addEventListener('click', () => {
+  newStickyMode = t.dataset.mode;
+  document.querySelectorAll('[data-sticky-new-tab]').forEach(b => b.classList.toggle('is-active', b.dataset.mode === newStickyMode));
+  const basic = document.querySelector('[data-sticky-new-basic]');
+  const custom = document.querySelector('[data-sticky-new-custom]');
+  if (basic) basic.style.display = newStickyMode === 'basic' ? '' : 'none';
+  if (custom) custom.style.display = newStickyMode === 'custom' ? '' : 'none';
+}));
 
-// ── Custom embed editor ──
+// ── Embed editor (shared) ──
+let embedEditTarget = null;
 const eeVal = id => document.getElementById(id)?.value ?? '';
 function collectEmbed() {
   const e = {
@@ -223,25 +238,27 @@ function loadEmbedEditor(embed) {
   set('ee-color-hex', hex);
   const colorInput = document.getElementById('ee-color');
   if (colorInput) colorInput.value = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#5865f2';
-  const fw = document.getElementById('ee-fields');
-  fw.innerHTML = '';
+  document.getElementById('ee-fields').innerHTML = '';
   (e.fields || []).forEach(fld => addFieldRow(fld));
 }
-
-document.querySelectorAll('.msg-mode-tab').forEach(t => t.addEventListener('click', () => setModeView(t.dataset.mode, true)));
-document.querySelectorAll('[data-edit-embed]').forEach(b => b.addEventListener('click', () => {
-  const saved = SETTINGS_SNAPSHOT.sticky_embed || {};
-  loadEmbedEditor(Object.keys(saved).length ? saved : {});
+document.getElementById('new-sticky-embed-btn').addEventListener('click', () => {
+  embedEditTarget = '__new__';
+  loadEmbedEditor({});
   document.getElementById('embed-editor-modal').classList.add('is-open');
-}));
+});
 document.getElementById('ee-save').addEventListener('click', () => {
   const e = collectEmbed();
   if (Object.keys(e).length === 0) {
-    if (typeof showToast === 'function') showToast('The embed is empty - add a title, description, footer or a field first.', 'warning', 5000);
+    if (typeof showToast === 'function') showToast('The embed is empty.', 'warning', 5000);
     return;
   }
-  markChanged('sticky_embed', e);
-  if (typeof showToast === 'function') showToast('Sticky embed updated.', 'success');
+  if (embedEditTarget === '__new__') {
+    newStickyEmbed = e;
+  } else if (typeof embedEditTarget === 'number') {
+    stickyMessages[embedEditTarget].embed = e;
+    renderStickyList();
+  }
+  if (typeof showToast === 'function') showToast('Embed updated.', 'success');
   document.getElementById('embed-editor-modal').classList.remove('is-open');
 });
 document.getElementById('ee-cancel').addEventListener('click', () => document.getElementById('embed-editor-modal').classList.remove('is-open'));
@@ -268,19 +285,72 @@ if (eePresets) {
   });
 }
 
-// ── Dropdowns ──
-function applyDropdownValue(wrap, value, noneLabel) {
-  const btn = wrap.querySelector('.md-custom-select-btn');
-  if (!btn) return;
-  const match = value ? wrap.querySelector(`.md-custom-opt[data-id="${value}"]`) : null;
-  btn.textContent = match ? match.textContent : noneLabel;
+// ── Render active sticky list ──
+function renderStickyList() {
+  const el = document.getElementById('sticky-list');
+  if (!stickyMessages.length) {
+    el.innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No sticky messages yet.</div>';
+    return;
+  }
+  el.innerHTML = stickyMessages.map((m, i) => {
+    const chName = m.channel_id ? ('#' + (window.__CHANNEL_MAP?.[m.channel_id] || m.channel_id)) : '(none)';
+    const typeLabel = m.type === 'custom' ? 'Embed' : 'Text';
+    const preview = m.type === 'custom' ? (m.embed?.title || '(untitled embed)') : (m.message || '(empty)');
+    return `<div class="sticky-item">
+      <div class="sticky-item-head">
+        <div><span class="sticky-item-ch">${esc(chName)}</span> <span class="sticky-item-type">${typeLabel}</span></div>
+        <div style="display:flex;gap:0.3rem;">
+          <button class="md-action-btn" data-sticky-edit="${i}" style="padding:0.3rem 0.5rem;font-size:0.72rem;"><i data-lucide="pen-square"></i></button>
+          <button class="md-action-btn danger" data-sticky-del="${i}" style="padding:0.3rem 0.5rem;font-size:0.72rem;"><i data-lucide="trash-2"></i></button>
+        </div>
+      </div>
+      <div style="font-size:0.75rem;color:rgba(255,255,255,0.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(preview)}</div>
+    </div>`;
+  }).join('');
+  lucide.createIcons();
+  el.querySelectorAll('[data-sticky-del]').forEach(btn => btn.addEventListener('click', () => {
+    const idx = parseInt(btn.dataset.stickyDel);
+    stickyMessages.splice(idx, 1);
+    markChanged('sticky_messages', stickyMessages);
+    renderStickyList();
+  }));
+  el.querySelectorAll('[data-sticky-edit]').forEach(btn => btn.addEventListener('click', () => {
+    const idx = parseInt(btn.dataset.stickyEdit);
+    const m = stickyMessages[idx];
+    embedEditTarget = idx;
+    loadEmbedEditor(m.embed || {});
+    document.getElementById('embed-editor-modal').classList.add('is-open');
+  }));
 }
-function resetDropdowns() {
-  document.querySelectorAll('[data-channel-select]').forEach(wrap => {
-    const key = wrap.dataset.channelSelect;
-    applyDropdownValue(wrap, SETTINGS_SNAPSHOT[key], 'No channel');
-  });
-}
+
+// ── Add sticky message ──
+let newStickyEmbed = null;
+document.getElementById('add-sticky-btn').addEventListener('click', () => {
+  const chBtn = document.querySelector('#new-sticky-channel .md-custom-select-btn');
+  const chId = chBtn?.dataset?.id || '';
+  if (!chId) { if (typeof showToast === 'function') showToast('Select a channel first.', 'warning'); return; }
+  const entry = { channel_id: chId, type: newStickyMode };
+  if (newStickyMode === 'basic') {
+    const msg = document.getElementById('new-sticky-message').value.trim();
+    if (!msg) { if (typeof showToast === 'function') showToast('Enter a message.', 'warning'); return; }
+    entry.message = msg;
+  } else {
+    if (!newStickyEmbed || !Object.keys(newStickyEmbed).length) {
+      if (typeof showToast === 'function') showToast('Save an embed first.', 'warning'); return;
+    }
+    entry.embed = { ...newStickyEmbed };
+  }
+  stickyMessages.push(entry);
+  markChanged('sticky_messages', stickyMessages);
+  renderStickyList();
+  document.getElementById('new-sticky-message').value = '';
+  newStickyEmbed = null;
+  chBtn.textContent = 'Select channel...';
+  delete chBtn.dataset.id;
+  if (typeof showToast === 'function') showToast('Sticky message added.', 'success');
+});
+
+// ── Dropdown init ──
 function initDropdown(wrap) {
   const btn = wrap.querySelector('.md-custom-select-btn');
   const drop = wrap.querySelector('.md-custom-select-drop');
@@ -292,34 +362,26 @@ function initDropdown(wrap) {
   btn.dataset.selectBound = 'true';
 }
 document.addEventListener('click', e => {
-  if (!e.target.closest('[data-channel-select]')) {
-    document.querySelectorAll('.md-custom-select-drop').forEach(drop => drop.classList.remove('is-open'));
+  if (!e.target.closest('.md-custom-select')) {
+    document.querySelectorAll('.md-custom-select-drop').forEach(d => d.classList.remove('is-open'));
   }
 });
 
-// ── Apply + save ──
-function applySettings() {
-  const s = SETTINGS_SNAPSHOT;
-  const en = document.getElementById('sticky-enabled');
-  if (en) en.checked = !!s.sticky_enabled;
-  setModeView(s.sticky_message_type || 'basic', false);
-  const msgEl = document.getElementById('sticky-message');
-  if (msgEl) msgEl.value = s.sticky_message || '';
-  const cfg = document.getElementById('sticky-config');
-  if (cfg) cfg.classList.toggle('is-disabled', !s.sticky_enabled);
-  resetDropdowns();
-}
-
+// ── Save ──
 async function saveChanges() {
   const keys = Object.keys(pending);
   if (!keys.length) return;
   saveBtn.disabled = true; saveBtn.textContent = 'Saving...';
   for (const key of keys) {
     try {
-      await api('/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]})});
+      const val = pending[key];
+      const body = key === 'sticky_messages' ? JSON.stringify({key, value: JSON.stringify(val)}) : JSON.stringify({key, value: val});
+      await api('/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body});
     } catch {}
   }
-  for (const key of keys) delete pending[key];
+  LOADED_STICKY = [...stickyMessages];
+  for (const key of Object.keys(pending)) delete pending[key];
+  for (const key of Object.keys(original)) delete original[key];
   saveBar.classList.add('is-closed'); saveBtn.disabled = false; saveBtn.textContent = 'Save';
   if (typeof showToast==='function') showToast('Settings saved.','success');
 }
@@ -327,30 +389,48 @@ async function saveChanges() {
 document.addEventListener('DOMContentLoaded', async () => {
   const channelsData = await api('/channels');
   const channels = channelsData.channels || [];
-  document.querySelectorAll('[data-channel-select]').forEach(wrap => {
-    const key = wrap.dataset.channelSelect;
-    const btn = wrap.querySelector('.md-custom-select-btn');
-    const drop = wrap.querySelector('.md-custom-select-drop');
-    drop.innerHTML = `<button class="md-custom-opt" data-id="">No channel</button>` + channels.map(c => `<button class="md-custom-opt" data-id="${c.id}">#${esc(c.name)}</button>`).join('');
+  window.__CHANNEL_MAP = {};
+  channels.forEach(c => { window.__CHANNEL_MAP[c.id] = c.name; });
+
+  const newChWrap = document.getElementById('new-sticky-channel');
+  if (newChWrap) {
+    const btn = newChWrap.querySelector('.md-custom-select-btn');
+    const drop = newChWrap.querySelector('.md-custom-select-drop');
+    drop.innerHTML = channels.map(c => `<button class="md-custom-opt" data-id="${c.id}">#${esc(c.name)}</button>`).join('');
     drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
-      btn.textContent = b.dataset.id ? b.textContent : 'No channel';
-      markChanged(key, b.dataset.id || null);
+      btn.textContent = '#' + esc(b.textContent.replace('#',''));
+      btn.dataset.id = b.dataset.id;
       drop.classList.remove('is-open');
     }));
-    initDropdown(wrap);
-  });
+    initDropdown(newChWrap);
+  }
 
   api('/settings').then(d => {
-    const s = d.settings || {}; SETTINGS_SNAPSHOT = {...s};
-    applySettings();
-    document.getElementById('sticky-enabled').addEventListener('change', function(){ markChanged('sticky_enabled', this.checked); document.getElementById('sticky-config').classList.toggle('is-disabled', !this.checked); });
-    document.getElementById('sticky-message').addEventListener('input', function(){ markChanged('sticky_message', this.value); });
+    const s = d.settings || {};
+    SETTINGS_SNAPSHOT = {...s};
+    stickyMessages = Array.isArray(s.sticky_messages) ? [...s.sticky_messages] : [];
+    LOADED_STICKY = [...stickyMessages];
+    const en = document.getElementById('sticky-enabled');
+    if (en) {
+      en.checked = !!s.sticky_enabled;
+      en.addEventListener('change', function(){
+        markChanged('sticky_enabled', this.checked);
+        document.getElementById('sticky-config').classList.toggle('is-disabled', !this.checked);
+      });
+    }
+    document.getElementById('sticky-config').classList.toggle('is-disabled', !s.sticky_enabled);
+    renderStickyList();
   }).catch(() => {});
 
   saveBtn.addEventListener('click', saveChanges);
   document.getElementById('discard-btn').addEventListener('click', () => {
-    for (const key of Object.keys(pending)) { delete original[key]; delete pending[key]; }
-    api('/settings').then(d => { SETTINGS_SNAPSHOT = {...(d.settings||{})}; applySettings(); });
+    for (const key of Object.keys(pending)) delete pending[key];
+    for (const key of Object.keys(original)) delete original[key];
+    stickyMessages = [...LOADED_STICKY];
+    const en = document.getElementById('sticky-enabled');
+    if (en) en.checked = !!SETTINGS_SNAPSHOT.sticky_enabled;
+    document.getElementById('sticky-config').classList.toggle('is-disabled', !SETTINGS_SNAPSHOT.sticky_enabled);
+    renderStickyList();
     saveBar.classList.add('is-closed');
   });
   if (typeof lucide !== 'undefined') lucide.createIcons();

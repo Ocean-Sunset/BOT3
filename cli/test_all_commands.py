@@ -1263,9 +1263,9 @@ class TestEdgeCases(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(format_duration(1440), "24 hours")
 
     async def test_sticky_helpers(self):
-        from components.sticky import _skey, _get_bool, _get_str
+        from components.sticky import _skey
         self.assertEqual(_skey(123, "enabled"), "more_sticky_enabled_123")
-        self.assertEqual(_skey(123, "channel_id"), "more_sticky_channel_id_123")
+        self.assertEqual(_skey(123, "messages"), "more_sticky_messages_123")
 
 
 # =========================================================================

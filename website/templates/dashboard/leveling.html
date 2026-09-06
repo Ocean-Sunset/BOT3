@@ -263,6 +263,7 @@ const original = {};
 let SETTINGS_SNAPSHOT = {};
 let LOADED = {};
 let ROLE_MAP = {};
+const frenzyState = { pending: {}, original: {}, loaded: {} };
 const saveBar = document.getElementById('save-bar');
 const saveBtn = document.getElementById('save-btn');
 let saveTimer = null;
@@ -565,8 +566,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     markChanged('role_xp_multipliers', next);
     renderMultipliers(next);
   });
-
-  const frenzyState = { pending: {}, original: {}, loaded: {} };
 
   function markFrenzyChanged(key, value) {
     if (frenzyState.loaded[key] === value) { delete frenzyState.pending[key]; delete frenzyState.original[key]; }

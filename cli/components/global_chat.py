@@ -1,8 +1,9 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord import app_commands
 import json
 import datetime
+import time
 
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
@@ -119,6 +120,25 @@ async def _leave_hub(guild_id: int) -> str:
         await _set_hubs(hubs)
     await _set_hub(guild_id, "")
     return "Left hub." if current else "Not in a hub."
+
+
+# ── Activity Tracking ────────────────────────────────────────────────────────
+
+HUB_INACTIVE_HOURS = 18
+
+
+async def _update_activity(guild_id: int):
+    await _set_stat(_gc_key(guild_id, "last_activity"), str(int(time.time())))
+
+
+async def _get_last_activity(guild_id: int) -> float:
+    val = await _get_stat(_gc_key(guild_id, "last_activity"))
+    if not val:
+        return 0.0
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return 0.0
 
 
 # ── Modals ───────────────────────────────────────────────────────────────────
@@ -470,6 +490,37 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
         self.bot = bot
         bot.add_view(GCControlView())
         bot.add_view(GCHubView())
+        self._hub_cleanup_task.start()
+
+    def cog_unload(self):
+        self._hub_cleanup_task.cancel()
+
+    @tasks.loop(hours=1)
+    async def _hub_cleanup_task(self):
+        try:
+            hubs = await _get_hubs()
+            now = time.time()
+            changed = False
+            for hub_name, guild_ids in list(hubs.items()):
+                inactive = []
+                for gid in guild_ids:
+                    last = await _get_last_activity(int(gid))
+                    if last == 0.0 or (now - last) >= HUB_INACTIVE_HOURS * 3600:
+                        inactive.append(gid)
+                if inactive:
+                    hubs[hub_name] = [g for g in guild_ids if g not in inactive]
+                    changed = True
+                    for gid in inactive:
+                        await _set_stat(_gc_key(int(gid), "hub"), "")
+                        logger.info(f"Auto-left hub: guild {gid} inactive for {HUB_INACTIVE_HOURS}h in {hub_name}")
+            if changed:
+                await _set_hubs(hubs)
+        except Exception as e:
+            logger.warning(f"Hub cleanup failed: {e}")
+
+    @_hub_cleanup_task.before_loop
+    async def _before_hub_cleanup(self):
+        await self.bot.wait_until_ready()
 
     async def get_linked_channel(self, guild_id: int):
         val = await _get_stat(_gc_key(guild_id, "channel"))
@@ -503,6 +554,8 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
             return
         if str(message.channel.id) != my_channel_id:
             return
+
+        await _update_activity(message.guild.id)
 
         enabled = await _get_bool(message.guild.id, "gc_enabled")
         if not enabled:

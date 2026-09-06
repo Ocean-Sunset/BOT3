@@ -149,14 +149,14 @@ class ProwlBot(commands.Bot):
             await asyncio.sleep(60)
 
     async def _neon_syncer(self):
-        """Push full guild data (and stats) to the database every 5 minutes."""
+        """Push full guild data (and stats) to the database every 60s."""
         await self.wait_until_ready()
         while not self.is_closed():
             try:
                 await self._push_to_neon()
             except Exception as e:
                 logger.error(f"DB sync failed: {e}")
-            await asyncio.sleep(300)
+            await asyncio.sleep(60)
 
     async def _member_sync(self):
         """Lightweight sync: update member names/roles/joins in guild_data every 60s as a temporary CPU cap."""

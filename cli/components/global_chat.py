@@ -119,6 +119,9 @@ async def _leave_hub(guild_id: int) -> str:
         hubs[current] = [g for g in hubs[current] if g != str(guild_id)]
         await _set_hubs(hubs)
     await _set_hub(guild_id, "")
+    was_enabled = await _get_bool(guild_id, "gc_enabled")
+    if was_enabled:
+        await _set_bool(guild_id, "gc_enabled", False)
     return "Left hub." if current else "Not in a hub."
 
 
@@ -242,7 +245,7 @@ def _build_panel_embed(guild: discord.Guild, enabled: bool, muted: bool,
     embed = (
         EmbedBuilder()
         .title(emoji_title("global_chat" if enabled and not muted else "mute" if muted else "globe", "Global Chat Control Panel"))
-        .color("blue" if enabled and not muted else "red" if muted else "gray")
+        .color("blue" if enabled and not muted else "orange" if muted else "gray")
         .description(
             f"Use the buttons below to manage global chat.\n\n"
             f"**STATUS**: {status}\n"
@@ -335,7 +338,7 @@ class GCControlView(discord.ui.View):
                             embed=EmbedBuilder()
                             .title(emoji_title("mute", "Global Chat Muted"))
                             .description(f"{EMBED_EMOJIS['mute']} This server has been **muted** by admins.\nMessages will not be relayed to other servers.")
-                            .color("red")
+                            .color("orange")
                             .timestamp(datetime.datetime.utcnow())
                             .build()
                         )
@@ -564,6 +567,7 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
                     changed = True
                     for gid in inactive:
                         await _set_stat(_gc_key(int(gid), "hub"), "")
+                        await _set_bool(int(gid), "gc_enabled", False)
                         logger.info(f"Auto-left hub: guild {gid} inactive for {HUB_INACTIVE_HOURS}h in {hub_name}")
             if changed:
                 await _set_hubs(hubs)
@@ -735,9 +739,9 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
         else:
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("global_chat", "Global Chat Status"))
+                .title(emoji_title("globe", "Global Chat Status"))
                 .description("Global chat is not set up yet.")
-                .color("red")
+                .color("gray")
                 .timestamp(datetime.datetime.utcnow())
                 .build()
             )

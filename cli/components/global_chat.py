@@ -14,7 +14,7 @@ from Ediscord.builders import emoji_title, EMBED_EMOJIS
 
 HUB_NAMES = ["Hub 1", "Hub 2", "Hub 3", "Hub 4", "Hub 5"]
 HUB_LIMIT = 20
-HUB_NUMBER_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"]
+HUB_NUMBER_EMOJIS = ["1", "2", "3", "4", "5"]
 
 # ── DB Helpers ───────────────────────────────────────────────────────────────
 
@@ -347,7 +347,7 @@ class GCControlView(discord.ui.View):
     async def btn_change_channel(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(GCPickChannelModal())
 
-    @discord.ui.button(emoji="🌐", custom_id="gc_btn_hubs", style=discord.ButtonStyle.primary, row=2)
+    @discord.ui.button(emoji="<:GLOBAL_GLOBE:1546207683713957958>", custom_id="gc_btn_hubs", style=discord.ButtonStyle.primary, row=2)
     async def btn_hubs(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         await _refresh_hub_panel(interaction.client, interaction.guild_id)
@@ -365,44 +365,44 @@ class GCHubView(discord.ui.View):
         return True
 
     # Row 1: Hub 1-4
-    @discord.ui.button(emoji="1️⃣", custom_id="gc_hub_join_1", style=discord.ButtonStyle.secondary, row=1)
+    @discord.ui.button(emoji="1", custom_id="gc_hub_join_1", style=discord.ButtonStyle.secondary, row=1)
     async def hub_1(self, interaction: discord.Interaction, button: discord.ui.Button):
         ok, msg = await _join_hub(interaction.guild_id, HUB_NAMES[0])
         await interaction.response.defer()
         await _refresh_hub_panel(interaction.client, interaction.guild_id)
 
-    @discord.ui.button(emoji="2️⃣", custom_id="gc_hub_join_2", style=discord.ButtonStyle.secondary, row=1)
+    @discord.ui.button(emoji="2", custom_id="gc_hub_join_2", style=discord.ButtonStyle.secondary, row=1)
     async def hub_2(self, interaction: discord.Interaction, button: discord.ui.Button):
         ok, msg = await _join_hub(interaction.guild_id, HUB_NAMES[1])
         await interaction.response.defer()
         await _refresh_hub_panel(interaction.client, interaction.guild_id)
 
-    @discord.ui.button(emoji="3️⃣", custom_id="gc_hub_join_3", style=discord.ButtonStyle.secondary, row=1)
+    @discord.ui.button(emoji="3", custom_id="gc_hub_join_3", style=discord.ButtonStyle.secondary, row=1)
     async def hub_3(self, interaction: discord.Interaction, button: discord.ui.Button):
         ok, msg = await _join_hub(interaction.guild_id, HUB_NAMES[2])
         await interaction.response.defer()
         await _refresh_hub_panel(interaction.client, interaction.guild_id)
 
-    @discord.ui.button(emoji="4️⃣", custom_id="gc_hub_join_4", style=discord.ButtonStyle.secondary, row=1)
+    @discord.ui.button(emoji="4", custom_id="gc_hub_join_4", style=discord.ButtonStyle.secondary, row=1)
     async def hub_4(self, interaction: discord.Interaction, button: discord.ui.Button):
         ok, msg = await _join_hub(interaction.guild_id, HUB_NAMES[3])
         await interaction.response.defer()
         await _refresh_hub_panel(interaction.client, interaction.guild_id)
 
     # Row 2: Hub 5, Leave, Back
-    @discord.ui.button(emoji="5️⃣", custom_id="gc_hub_join_5", style=discord.ButtonStyle.secondary, row=2)
+    @discord.ui.button(emoji="5", custom_id="gc_hub_join_5", style=discord.ButtonStyle.secondary, row=2)
     async def hub_5(self, interaction: discord.Interaction, button: discord.ui.Button):
         ok, msg = await _join_hub(interaction.guild_id, HUB_NAMES[4])
         await interaction.response.defer()
         await _refresh_hub_panel(interaction.client, interaction.guild_id)
 
-    @discord.ui.button(emoji="❌", custom_id="gc_hub_leave", style=discord.ButtonStyle.danger, row=2)
+    @discord.ui.button(emoji="<:NUH_UH:1546207956201373747>", custom_id="gc_hub_leave", style=discord.ButtonStyle.danger, row=2)
     async def hub_leave(self, interaction: discord.Interaction, button: discord.ui.Button):
         await _leave_hub(interaction.guild_id)
         await interaction.response.defer()
         await _refresh_hub_panel(interaction.client, interaction.guild_id)
 
-    @discord.ui.button(emoji="⬅️", custom_id="gc_hub_back", style=discord.ButtonStyle.secondary, row=2)
+    @discord.ui.button(emoji="<:LEMME_GO_BACk:1546208102725193758>", custom_id="gc_hub_back", style=discord.ButtonStyle.secondary, row=2)
     async def hub_back(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         await _refresh_panel(interaction.client, interaction.guild_id)

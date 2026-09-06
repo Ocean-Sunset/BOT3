@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord import app_commands
 import json
 import time
@@ -98,7 +98,7 @@ class Frenzy(commands.Cog, name="Frenzy"):
     def cog_unload(self):
         self._check_frenzy_expiry.cancel()
 
-    @commands.Cog.loop(minutes=1)
+    @tasks.loop(minutes=1)
     async def _check_frenzy_expiry(self):
         """Check for expired frenzies every minute."""
         try:

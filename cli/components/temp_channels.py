@@ -176,9 +176,10 @@ class TempChannels(commands.Cog, name="Temp Channels"):
                 )
             break
 
-    # ── Temp Chat ─────────────────────────────────────────────────────
+    # ── Temp Channel Group ─────────────────────────────────────────────
+    temp_group = app_commands.Group(name="temp", description="Temporary channel commands")
 
-    @app_commands.command(name="temp_chat", description="Create a temporary text channel")
+    @temp_group.command(name="chat", description="Create a temporary text channel")
     @app_commands.describe(
         duration="Duration in minutes (default: 60)",
         name="Channel name",
@@ -312,7 +313,7 @@ class TempChannels(commands.Cog, name="Temp Channels"):
 
     # ── Owner Commands ────────────────────────────────────────────────
 
-    @app_commands.command(name="tempchat_close", description="Close your temporary channel")
+    @temp_group.command(name="close", description="Close your temporary channel")
     async def tempchat_close(self, interaction: discord.Interaction):
         if not interaction.guild:
             return await interaction.response.send_message("Server only.", ephemeral=True)
@@ -348,7 +349,7 @@ class TempChannels(commands.Cog, name="Temp Channels"):
             ephemeral=True,
         )
 
-    @app_commands.command(name="tempchat_list", description="List your temporary channels")
+    @temp_group.command(name="list", description="List your temporary channels")
     async def tempchat_list(self, interaction: discord.Interaction):
         if not interaction.guild:
             return await interaction.response.send_message("Server only.", ephemeral=True)

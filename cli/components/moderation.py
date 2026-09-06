@@ -936,7 +936,7 @@ class Moderation(commands.Cog, name="Moderation"):
             interaction.user.name,
         )
 
-    @app_commands.command(name="mute_evasion", description="Toggle mute evasion detection")
+    @app_commands.command(name="muteevasion", description="Toggle mute evasion detection")
     @app_commands.describe(enabled="Enable or disable")
     @is_mod()
     async def muteevasion(self, interaction: discord.Interaction, enabled: bool):

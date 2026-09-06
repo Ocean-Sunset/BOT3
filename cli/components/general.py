@@ -104,7 +104,10 @@ class General(commands.Cog):
                 ephemeral=True
             )
 
-    @app_commands.command(name="server_info", description="Show server information.")
+    # ── /server ───────────────────────────────────────────────────────────
+    server_group = app_commands.Group(name="server", description="Server information commands")
+
+    @server_group.command(name="info", description="Show server information.")
     async def serverinfo(self, interaction: discord.Interaction):
         guild = interaction.guild
         owner = await guild.fetch_member(guild.owner_id) if guild.owner_id else None
@@ -145,7 +148,21 @@ class General(commands.Cog):
         )
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="user_info", description="Show information about a user.")
+    @server_group.command(name="id", description="Get this server's ID.")
+    async def serverid(self, interaction: discord.Interaction):
+        await interaction.response.send_message(
+            embed=EmbedBuilder()
+            .title(emoji_title("id", "Server ID"))
+            .description(f"```{interaction.guild.id}```")
+            .color("gray")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+
+    # ── /user ─────────────────────────────────────────────────────────────
+    user_group = app_commands.Group(name="user", description="User information commands")
+
+    @user_group.command(name="info", description="Show information about a user.")
     @app_commands.describe(user="The user to look up")
     async def userinfo(self, interaction: discord.Interaction, user: discord.Member = None):
         target = user or interaction.user
@@ -193,7 +210,10 @@ class General(commands.Cog):
         )
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="role_info", description="Show information about a role.")
+    # ── /role ─────────────────────────────────────────────────────────────
+    role_group = app_commands.Group(name="role", description="Role information commands")
+
+    @role_group.command(name="info", description="Show information about a role.")
     @app_commands.describe(role="The role to look up")
     async def roleinfo(self, interaction: discord.Interaction, role: discord.Role):
         members_with_role = [m for m in role.guild.members if role in m.roles]
@@ -216,7 +236,22 @@ class General(commands.Cog):
         )
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="channel_info", description="Show information about a channel.")
+    @role_group.command(name="id", description="Get the ID of a role by name.")
+    @app_commands.describe(role="The role to look up")
+    async def roleid(self, interaction: discord.Interaction, role: discord.Role):
+        await interaction.response.send_message(
+            embed=EmbedBuilder()
+            .title(emoji_title("id", f"{role.name} ID"))
+            .description(f"```{role.id}```")
+            .color("gray")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+
+    # ── /channel ──────────────────────────────────────────────────────────
+    channel_group = app_commands.Group(name="channel", description="Channel information and management")
+
+    @channel_group.command(name="info", description="Show information about a channel.")
     @app_commands.describe(channel="The channel to look up")
     async def channelinfo(self, interaction: discord.Interaction, channel: discord.TextChannel = None):
         target = channel or interaction.channel
@@ -241,8 +276,47 @@ class General(commands.Cog):
         )
         await interaction.response.send_message(embed=embed)
 
+    @channel_group.command(name="lock", description="Lock a channel (prevent members from sending messages).")
+    @app_commands.describe(channel="The channel to lock (defaults to current channel)")
+    async def channel_lock(self, interaction: discord.Interaction, channel: discord.TextChannel = None):
+        target = channel or interaction.channel
+        if interaction.user.guild_permissions.manage_channels:
+            overwrites = target.overwrites_for(target.guild.default_role)
+            overwrites.send_messages = False
+            await target.set_permissions(target.guild.default_role, overwrite=overwrites)
+            await interaction.response.send_message(embed=EmbedBuilder().title(emoji_title("lock", f"Locked {target.name}")).description(f"{target.mention} has been locked. Members cannot send messages.").color("error").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+        else:
+            await interaction.response.send_message(embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Channels permission.").color("error").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
-    @app_commands.command(name="refresh_commands", description="Force re-sync all slash commands with Discord (admin only)")
+    @channel_group.command(name="unlock", description="Unlock a channel (allow members to send messages).")
+    @app_commands.describe(channel="The channel to unlock (defaults to current channel)")
+    async def channel_unlock(self, interaction: discord.Interaction, channel: discord.TextChannel = None):
+        target = channel or interaction.channel
+        if interaction.user.guild_permissions.manage_channels:
+            overwrites = target.overwrites_for(target.guild.default_role)
+            overwrites.send_messages = True
+            await target.set_permissions(target.guild.default_role, overwrite=overwrites)
+            await interaction.response.send_message(embed=EmbedBuilder().title(emoji_title("unlock", f"Unlocked {target.name}")).description(f"{target.mention} has been unlocked. Members can send messages again.").color("success").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+        else:
+            await interaction.response.send_message(embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Channels permission.").color("error").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+
+    @channel_group.command(name="id", description="Get the ID of a channel.")
+    @app_commands.describe(channel="The channel to look up")
+    async def channelid(self, interaction: discord.Interaction, channel: discord.TextChannel = None):
+        target = channel or interaction.channel
+        await interaction.response.send_message(
+            embed=EmbedBuilder()
+            .title(emoji_title("id", f"{target.name} ID"))
+            .description(f"```{target.id}```")
+            .color("gray")
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+
+    # ── /refresh ──────────────────────────────────────────────────────────
+    refresh_group = app_commands.Group(name="refresh", description="Command refresh utilities")
+
+    @refresh_group.command(name="commands", description="Force re-sync all slash commands with Discord (admin only)")
     async def refreshcommands(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message(
@@ -449,12 +523,14 @@ HELP_CATEGORIES = {
             {"name": "/ping", "desc": "Check Prowl's latency and stats.", "usage": "", "perms": None},
             {"name": "/info", "desc": "Show Prowl's info and stats.", "usage": "", "perms": None},
             {"name": "/avatar", "desc": "Show a user's avatar.", "usage": "[user]", "perms": None},
-            {"name": "/server_info", "desc": "Show server information.", "usage": "", "perms": None},
-            {"name": "/user_info", "desc": "Show information about a user.", "usage": "[user]", "perms": None},
-            {"name": "/role_info", "desc": "Show information about a role.", "usage": "<role>", "perms": None},
-            {"name": "/channel_info", "desc": "Show information about a channel.", "usage": "[channel]", "perms": None},
+            {"name": "/server info", "desc": "Show server information.", "usage": "", "perms": None},
+            {"name": "/user info", "desc": "Show information about a user.", "usage": "[user]", "perms": None},
+            {"name": "/role info", "desc": "Show information about a role.", "usage": "<role>", "perms": None},
+            {"name": "/channel info", "desc": "Show information about a channel.", "usage": "[channel]", "perms": None},
+            {"name": "/channel lock", "desc": "Lock a channel.", "usage": "[channel]", "perms": "Manage Channels"},
+            {"name": "/channel unlock", "desc": "Unlock a channel.", "usage": "[channel]", "perms": "Manage Channels"},
             {"name": "/say", "desc": "Echo back your message.", "usage": "<text> [channel]", "perms": "Manage Messages"},
-            {"name": "/refresh_commands", "desc": "Force re-sync slash commands with Discord.", "usage": "", "perms": "Administrator"},
+            {"name": "/refresh commands", "desc": "Force re-sync slash commands with Discord.", "usage": "", "perms": "Administrator"},
             {"name": "/reactionrole add", "desc": "Add a reaction role to a message.", "usage": "<message_link> <emoji> <role>", "perms": "Manage Roles"},
             {"name": "/reactionrole remove", "desc": "Remove a reaction role.", "usage": "<message_link> <emoji>", "perms": "Manage Roles"},
             {"name": "/reactionrole list", "desc": "List all reaction roles.", "usage": "", "perms": None},
@@ -473,7 +549,7 @@ HELP_CATEGORIES = {
             {"name": "/unmute", "desc": "Remove a mute from a member.", "usage": "<member> [reason]", "perms": "Moderator"},
             {"name": "/warn", "desc": "Warn a member.", "usage": "<member> [reason]", "perms": "Moderator"},
             {"name": "/purge", "desc": "Bulk delete messages in a channel.", "usage": "<count>", "perms": "Moderator"},
-            {"name": "/mute_evasion", "desc": "Toggle mute evasion detection.", "usage": "<enabled>", "perms": "Moderator"},
+            {"name": "/muteevasion", "desc": "Toggle mute evasion detection.", "usage": "<enabled>", "perms": "Moderator"},
             {"name": "/lockdown", "desc": "Toggle emergency server lockdown.", "usage": "", "perms": "Moderator"},
             {"name": "/settings", "desc": "View moderation settings.", "usage": "", "perms": "Moderator"},
         ],
@@ -560,7 +636,6 @@ HELP_CATEGORIES = {
             {"name": "/invites stats", "desc": "Show invite leaderboard.", "usage": "", "perms": None},
             {"name": "/invites user", "desc": "Show invite stats for a user.", "usage": "[user]", "perms": None},
             {"name": "/members list", "desc": "List members with a role.", "usage": "<role>", "perms": "Manage Roles"},
-            {"name": "/members info", "desc": "Get member details.", "usage": "<member>", "perms": None},
             {"name": "/members note", "desc": "Add a note about a member.", "usage": "<member> <note>", "perms": "Manage Roles"},
             {"name": "/members warnings", "desc": "View a member's warnings.", "usage": "<member>", "perms": "Manage Roles"},
         ],
@@ -601,7 +676,7 @@ HELP_CATEGORIES = {
             {"name": "/activityrole add", "desc": "Auto-assign role by game activity.", "usage": "<activity> <role>", "perms": "Manage Server"},
             {"name": "/activityrole remove", "desc": "Remove an activity role rule.", "usage": "<activity>", "perms": "Manage Server"},
             {"name": "/activityrole list", "desc": "List activity role rules.", "usage": "", "perms": None},
-            {"name": "/temp_chat", "desc": "Create a temporary text channel.", "usage": "[duration] [name]", "perms": None},
+            {"name": "/temp chat", "desc": "Create a temporary text channel.", "usage": "[duration] [name]", "perms": None},
             {"name": "/frenzy", "desc": "Multiply XP gains temporarily.", "usage": "<action> [multiplier] [duration]", "perms": "Manage Server"},
             {"name": "/id", "desc": "Get ID of a member, role, channel or emoji.", "usage": "[member] [role] [channel] [emoji]", "perms": None},
             {"name": "/role_id", "desc": "Get a role ID by name.", "usage": "<role>", "perms": None},
@@ -675,9 +750,9 @@ class HelpView(discord.ui.View):
     @discord.ui.select(
         placeholder="Jump to category...",
         options=[
-            discord.SelectOption(label="Home", value="0", emoji="sparkle"),
+            discord.SelectOption(label="Home", value="0"),
         ] + [
-            discord.SelectOption(label=name, value=str(i + 1), emoji=cat["emoji"])
+            discord.SelectOption(label=name, value=str(i + 1))
             for i, (name, cat) in enumerate(HELP_CATEGORIES.items())
         ],
     )

@@ -33,13 +33,32 @@
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">Management Channel</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Private channel for the control panel embed with mute/block buttons</div>
+              <div class="md-custom-select" data-channel-select="management_channel_id">
+                <button class="md-custom-select-btn">No channel</button>
+                <div class="md-custom-select-drop"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:0.75rem;display:flex;gap:0.5rem;">
+          <button id="deploy-panel-btn" class="md-btn md-btn-sm" style="background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid rgba(59,130,246,0.25);">Deploy Panel</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:0.75rem;letter-spacing:-0.01em;">How It Works</div>
         <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.6;">
           <p>1. Enable Global Chat and select a hub channel.</p>
-          <p>2. Any message sent in this channel is relayed to <strong>every server</strong> that has Global Chat enabled.</p>
-          <p>3. Messages from other servers appear here via webhook with the server name.</p>
-          <p>Use <code style="background:rgba(255,255,255,0.04);padding:0.1rem 0.35rem;border-radius:3px;font-size:0.75rem;">/globalchat link</code> in Discord to set the channel.</p>
-          <p>Go to <a href="https://docs.prowlbot.xyz">the documentation page</a> for further assistance</p>
+          <p>2. Select a <strong>private management channel</strong> and click Deploy Panel.</p>
+          <p>3. Use the control panel buttons to mute, block users/servers, change channels, or toggle global chat.</p>
+          <p>4. Messages in the hub channel are relayed to <strong>every linked server</strong>.</p>
         </div>
       </div>
     </div>
@@ -100,6 +119,17 @@ function resetDropdowns() {
   });
 }
 
+function initDropdown(wrap) {
+  const btn = wrap.querySelector('.md-custom-select-btn');
+  const drop = wrap.querySelector('.md-custom-select-drop');
+  if (!btn || btn.dataset.selectBound) return;
+  btn.addEventListener('click', e => { e.stopPropagation();
+    document.querySelectorAll('.md-custom-select-drop').forEach(d => { if (d !== drop) d.classList.remove('is-open'); });
+    drop.classList.toggle('is-open');
+  });
+  btn.dataset.selectBound = 'true';
+}
+
 document.addEventListener('click', e => {
   if (!e.target.closest('[data-channel-select]')) {
     document.querySelectorAll('.md-custom-select-drop').forEach(drop => drop.classList.remove('is-open'));
@@ -107,22 +137,20 @@ document.addEventListener('click', e => {
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
-  api('/channels').then(d => {
-    const channels = d.channels||[];
-    const wrap = document.querySelector('[data-channel-select="channel_id"]');
-    if (!wrap) return;
-    const btn = wrap.querySelector('.md-custom-select-btn'), drop = wrap.querySelector('.md-custom-select-drop');
+  const channelsData = await api('/channels');
+  const channels = channelsData.channels || [];
+
+  document.querySelectorAll('[data-channel-select]').forEach(wrap => {
+    const key = wrap.dataset.channelSelect;
+    const btn = wrap.querySelector('.md-custom-select-btn');
+    const drop = wrap.querySelector('.md-custom-select-drop');
     drop.innerHTML = `<button class="md-custom-opt" data-id="">No channel</button>` + channels.map(c => `<button class="md-custom-opt" data-id="${c.id}">#${esc(c.name)}</button>`).join('');
     drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
       btn.textContent = b.dataset.id ? b.textContent : 'No channel';
-      markChanged('channel_id', b.dataset.id || null);
+      markChanged(key, b.dataset.id || null);
       drop.classList.remove('is-open');
     }));
-    if (!btn.dataset.selectBound) {
-      btn.addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('is-open'); });
-      btn.dataset.selectBound = 'true';
-    }
-    resetDropdowns();
+    initDropdown(wrap);
   });
 
   api('/settings').then(d => {
@@ -144,7 +172,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       delete original[key];
     }
     for (const key of Object.keys(pending)) delete pending[key];
-    saveBar.classList.add('is-closed'); updateGrayOut();
+    saveBar.classList.add('is-closed'); updateGrayOut(); resetDropdowns();
+  });
+
+  document.getElementById('deploy-panel-btn').addEventListener('click', async () => {
+    const mgmtId = SETTINGS_SNAPSHOT.management_channel_id;
+    if (!mgmtId) {
+      if (typeof showToast==='function') showToast('Select a management channel first.','error');
+      return;
+    }
+    const btn = document.getElementById('deploy-panel-btn');
+    btn.disabled = true; btn.textContent = 'Deploying...';
+    try {
+      const res = await api('/deploy_panel', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({})});
+      if (res.ok) { if (typeof showToast==='function') showToast('Control panel deployed!','success'); }
+      else { if (typeof showToast==='function') showToast(res.error || res.message || 'Deploy failed','error'); }
+    } catch(e) { if (typeof showToast==='function') showToast('Deploy failed: '+e.message,'error'); }
+    btn.disabled = false; btn.textContent = 'Deploy Panel';
   });
 });
 </script>

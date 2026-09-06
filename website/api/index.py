@@ -5357,16 +5357,19 @@ async def members_bot_info(guild_id: str, request: Request):
 #  Global Chat API v1
 # ---------------------------------------------------------------------------
 
-GC_DEFAULTS = {"enabled": False, "channel_id": None}
+GC_DEFAULTS = {"enabled": False, "channel_id": None, "management_channel_id": None}
 
 
 async def _get_gc_settings(guild_id: str):
     d = dict(GC_DEFAULTS)
-    for suffix, out_key in (("enabled", "enabled"), ("channel", "channel_id")):
+    for suffix, out_key in (("enabled", "enabled"), ("channel", "channel_id"), ("gc_management_channel", "management_channel_id")):
         row = await fetchrow("SELECT value FROM bot_stats WHERE key = ?", f"global_chat_{suffix}_{guild_id}")
         if row:
             val = row["value"]
-            d[out_key] = (val.lower() == "true" if out_key == "enabled" else str(val))
+            if out_key == "enabled":
+                d[out_key] = (val.lower() == "true")
+            else:
+                d[out_key] = str(val) if val else None
     return d
 
 
@@ -5383,9 +5386,14 @@ async def gc_settings_set(guild_id: str, request: Request):
     body = await request.json()
     key = body.get("key"); value = body.get("value")
     if not key: return JSONResponse({"error": "missing key"}, 400)
-    if key not in ("enabled", "channel_id"):
+    if key not in ("enabled", "channel_id", "management_channel_id"):
         return JSONResponse({"error": f"unknown key '{key}'"}, 400)
-    db_key = f"global_chat_{'enabled' if key == 'enabled' else 'channel'}_{guild_id}"
+    if key == "management_channel_id":
+        db_key = f"global_chat_gc_management_channel_{guild_id}"
+    elif key == "enabled":
+        db_key = f"global_chat_enabled_{guild_id}"
+    else:
+        db_key = f"global_chat_channel_{guild_id}"
     db_val = str(value) if value is not None else ""
     await execute(
         "INSERT INTO bot_stats (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
@@ -5401,6 +5409,24 @@ async def gc_channels(guild_id: str, request: Request):
     if d and "channels" in d:
         return {"channels": [{"id": str(c.get("id")), "name": c.get("name")} for c in d["channels"] if c.get("type", 0) == 0]}
     return {"channels": []}
+
+
+@app.post("/api/v1/global_chat/{guild_id}/deploy_panel", dependencies=[Depends(require_mod)])
+async def gc_deploy_panel(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    if not BOT_SERVER_URL or not BOT_HTTP_TOKEN:
+        return JSONResponse({"error": "bot bridge not configured"}, 503)
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(
+                BOT_SERVER_URL.rstrip("/") + "/api/gc/deploy_panel",
+                json={"guild_id": str(guild_id)},
+                headers={"X-Prowl-Token": BOT_HTTP_TOKEN},
+            )
+            data = r.json() if r.status_code == 200 else {"error": f"bot responded {r.status_code}"}
+            return JSONResponse(data, status_code=r.status_code)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, 502)
 
 
 # ---------------------------------------------------------------------------
@@ -5910,6 +5936,79 @@ async def automation_logs(guild_id: str, request: Request):
         pass
     rows = await query("SELECT id, message, created_at FROM automation_logs WHERE guild_id = ? ORDER BY id DESC LIMIT 30", str(guild_id))
     return {"logs": [{"id": r["id"], "message": r["message"], "time": _relative_time(r["created_at"])} for r in rows]}
+
+
+@app.get("/api/v1/more/{guild_id}/channels")
+async def more_channels(guild_id: str, request: Request):
+    """Text channels for the sticky message channel dropdown."""
+    await require_guild_access(request, guild_id)
+    d = await get_guild_data(guild_id)
+    if d and "channels" in d:
+        return {"channels": [{"id": str(c.get("id")), "name": c.get("name", "")} for c in d["channels"] if c.get("type", 0) == 0]}
+    return {"channels": []}
+
+
+async def _get_more_settings(guild_id: str):
+    """Load sticky-message settings from bot_stats."""
+    keys = ["sticky_enabled", "sticky_channel_id", "sticky_message_type", "sticky_message", "sticky_embed"]
+    out = {}
+    for k in keys:
+        row = await fetchrow("SELECT value FROM bot_stats WHERE key = ?", f"more_{k}_{guild_id}")
+        out[k] = row["value"] if row else None
+    if out["sticky_enabled"] is not None:
+        out["sticky_enabled"] = out["sticky_enabled"] == "1"
+    else:
+        out["sticky_enabled"] = False
+    if out["sticky_message_type"] is None:
+        out["sticky_message_type"] = "basic"
+    if out["sticky_embed"] is not None:
+        try:
+            out["sticky_embed"] = json.loads(out["sticky_embed"])
+        except Exception:
+            out["sticky_embed"] = None
+    else:
+        out["sticky_embed"] = None
+    return out
+
+
+@app.get("/api/v1/more/{guild_id}/settings")
+async def more_settings_get(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    is_mod = await is_guild_moderator(request, guild_id)
+    return {"settings": await _get_more_settings(guild_id), "is_mod": is_mod}
+
+
+@app.post("/api/v1/more/{guild_id}/settings", dependencies=[Depends(require_mod)])
+async def more_settings_set(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    body = await request.json()
+    key = body.get("key")
+    value = body.get("value")
+    if not key:
+        return JSONResponse({"error": "missing key"}, status_code=400)
+    if key == "sticky_enabled":
+        value = "1" if value else "0"
+    elif key == "sticky_channel_id":
+        if value is not None and not _valid_snowflake(value):
+            return JSONResponse({"error": "invalid channel ID"}, status_code=400)
+    elif key == "sticky_message_type":
+        if value not in ("basic", "custom"):
+            return JSONResponse({"error": "message_type must be 'basic' or 'custom'"}, status_code=400)
+    elif key == "sticky_message":
+        value = value[:2000] if isinstance(value, str) else ""
+    elif key == "sticky_embed":
+        if value is not None and not isinstance(value, dict):
+            return JSONResponse({"error": "embed must be an object or null"}, status_code=400)
+        value = json.dumps(value) if value is not None else None
+    stat_key = f"more_{key}_{guild_id}"
+    if value is None:
+        await execute("DELETE FROM bot_stats WHERE key = ?", stat_key)
+    else:
+        await execute(
+            "INSERT INTO bot_stats (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT (key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
+            stat_key, str(value), time.time(),
+        )
+    return {"ok": True}
 
 
 if __name__ == "__main__":

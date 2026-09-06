@@ -12,6 +12,57 @@
   </div>
 
   <div class="md-row">
+
+    <!-- Sticky Messages -->
+    <div class="md-section" style="flex:1;">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;">
+          <div class="md-section-title">Sticky Messages</div>
+          <label class="md-toggle"><input type="checkbox" data-key="sticky_enabled" id="sticky-enabled" /><span class="md-toggle-slider"></span></label>
+        </div>
+        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin:0 0 0.75rem;line-height:1.5;">Pin a message to the bottom of a channel. It re-posts automatically after new messages.</p>
+
+        <div id="sticky-config">
+          <div class="md-behavior-list">
+            <div class="md-behavior-item" style="align-items:flex-start;">
+              <div style="flex:1;">
+                <div class="md-behavior-label">Channel</div>
+                <div class="md-custom-select" data-channel-select="sticky_channel_id">
+                  <button class="md-custom-select-btn">No channel</button>
+                  <div class="md-custom-select-drop"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;margin:0.75rem 0 0.4rem;flex-wrap:wrap;gap:0.4rem;">
+            <div class="md-behavior-label" style="margin:0;">Message</div>
+            <div class="md-segmented">
+              <button class="extra-tab msg-mode-tab is-active" data-mode="basic">Basic</button>
+              <button class="extra-tab msg-mode-tab" data-mode="custom">Custom</button>
+            </div>
+          </div>
+
+          <div data-basic-view="sticky">
+            <div class="md-behavior-list">
+              <div class="md-behavior-item" style="align-items:flex-start;">
+                <div style="flex:1;">
+                  <textarea class="md-input md-textarea" id="sticky-message" rows="3" placeholder="Type your sticky message here..."></textarea>
+                  <div class="md-vars-hint">Variables: {user} {mention} {name} {server} {channel}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div data-custom-view="sticky" style="display:none;">
+            <button class="md-action-btn" data-edit-embed="sticky" style="width:100%;justify-content:center;padding:0.5rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
+            <p style="font-size:0.7rem;color:rgba(255,255,255,0.35);margin-top:0.5rem;line-height:1.5;">Build a full embed (title, description, color, fields, footer).</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Coming Soon -->
     <div class="md-section" style="flex:1;">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div class="md-section-title">Coming Soon</div>
@@ -20,7 +71,289 @@
         </div>
       </div>
     </div>
-  </div>
 
+  </div>
 </div>
+
+<!-- Custom embed editor modal -->
+<div class="md-modal-overlay" id="embed-editor-modal">
+  <div class="md-modal" style="min-width:520px;max-width:560px;max-height:80vh;overflow-y:auto;">
+    <h3 id="embed-editor-title">Sticky Message Embed</h3>
+    <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin:0.2rem 0 0.75rem;line-height:1.5;">Variables work in title, description and footer: <code>{user}</code> <code>{mention}</code> <code>{name}</code> <code>{server}</code> <code>{channel}</code></div>
+    <div style="display:flex;flex-direction:column;gap:0.6rem;margin:0.75rem 0;">
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Title</div>
+        <input type="text" class="md-input" id="ee-title" placeholder="Sticky Message" />
+      </div>
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Description</div>
+        <textarea class="md-input md-textarea" id="ee-desc" rows="3" placeholder="Welcome! Read the rules and have fun."></textarea>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Color</div>
+          <div style="display:flex;align-items:center;gap:0.4rem;">
+            <input type="color" id="ee-color" value="#5865f2" style="width:36px;height:32px;border:none;background:none;cursor:pointer;" />
+            <input type="text" class="md-input" id="ee-color-hex" value="#5865f2" style="max-width:90px;" />
+          </div>
+          <div class="md-presets" id="ee-presets" style="margin:0.4rem 0 0 0;flex-wrap:wrap;"></div>
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">URL</div>
+          <input type="text" class="md-input" id="ee-url" placeholder="https://..." />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Author Name</div>
+          <input type="text" class="md-input" id="ee-author" placeholder="Author" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Author Icon URL</div>
+          <input type="text" class="md-input" id="ee-author-icon" placeholder="https://...png" />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Footer Text</div>
+          <input type="text" class="md-input" id="ee-footer" placeholder="Footer" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Footer Icon URL</div>
+          <input type="text" class="md-input" id="ee-footer-icon" placeholder="https://...png" />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Image URL</div>
+          <input type="text" class="md-input" id="ee-image" placeholder="https://...png" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Thumbnail URL</div>
+          <input type="text" class="md-input" id="ee-thumbnail" placeholder="https://...png" />
+        </div>
+      </div>
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Fields</div>
+        <div id="ee-fields" style="display:flex;flex-direction:column;gap:0.4rem;"></div>
+        <button class="md-action-btn" id="ee-add-field" style="margin-top:0.4rem;"><i data-lucide="plus"></i> Add Field</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="md-action-btn" id="ee-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save Embed</button>
+      <button class="md-action-btn" id="ee-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const GID = window.__GUILD_ID;
+const esc = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+const api = (path, opts) => fetch(`/api/v1/more/${GID}${path}`, opts||{}).then(r=>r.json());
+
+const pending = {}, original = {};
+let SETTINGS_SNAPSHOT = {};
+const saveBar = document.getElementById('save-bar'), saveBtn = document.getElementById('save-btn');
+let saveTimer = null;
+
+function markChanged(key, value) {
+  if (!(key in original)) original[key] = (key in SETTINGS_SNAPSHOT) ? SETTINGS_SNAPSHOT[key] : !value;
+  pending[key] = value;
+  SETTINGS_SNAPSHOT[key] = value;
+  saveBar.classList.remove('is-closed');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
+}
+
+// ── Basic / Custom mode ──
+function setModeView(mode, dirty) {
+  document.querySelectorAll('.msg-mode-tab').forEach(t => t.classList.toggle('is-active', t.dataset.mode === mode));
+  const basic = document.querySelector('[data-basic-view="sticky"]');
+  const custom = document.querySelector('[data-custom-view="sticky"]');
+  if (basic) basic.style.display = mode === 'basic' ? '' : 'none';
+  if (custom) custom.style.display = mode === 'custom' ? '' : 'none';
+  if (dirty) markChanged('sticky_message_type', mode);
+}
+
+// ── Custom embed editor ──
+const eeVal = id => document.getElementById(id)?.value ?? '';
+function collectEmbed() {
+  const e = {
+    title: eeVal('ee-title'), description: eeVal('ee-desc'), url: eeVal('ee-url'),
+    color: eeVal('ee-color-hex'),
+    author_name: eeVal('ee-author'), author_icon: eeVal('ee-author-icon'),
+    footer_text: eeVal('ee-footer'), footer_icon: eeVal('ee-footer-icon'),
+    image_url: eeVal('ee-image'), thumbnail_url: eeVal('ee-thumbnail'),
+  };
+  const fields = [];
+  document.querySelectorAll('#ee-fields .ee-field-row').forEach(row => {
+    const name = row.querySelector('.ee-field-name').value.trim();
+    const value = row.querySelector('.ee-field-value').value;
+    const inline = row.querySelector('.ee-field-inline').checked;
+    if (name) fields.push({ name, value, inline });
+  });
+  if (fields.length) e.fields = fields;
+  for (const k of ['title','description','url','author_name','author_icon','footer_text','footer_icon','image_url','thumbnail_url']) {
+    if (!e[k]) delete e[k];
+  }
+  if (!e.color || e.color.toLowerCase() === '#5865f2') delete e.color;
+  return e;
+}
+function addFieldRow(f) {
+  const row = document.createElement('div');
+  row.className = 'ee-field-row';
+  row.style.cssText = 'display:flex;gap:0.4rem;align-items:center;';
+  row.innerHTML = `<input type="text" class="md-input ee-field-name" placeholder="Name" style="flex:1.2" value="${esc(f?.name||'')}"/>
+    <input type="text" class="md-input ee-field-value" placeholder="Value" style="flex:2" value="${esc(f?.value||'')}"/>
+    <label class="md-toggle" data-tooltip="Inline"><input type="checkbox" class="ee-field-inline" ${f?.inline?'checked':''} /><span class="md-toggle-slider"></span></label>
+    <button type="button" class="md-action-btn ee-field-del" style="padding:0.25rem;"><i data-lucide="x"></i></button>`;
+  row.querySelector('.ee-field-del').addEventListener('click', () => row.remove());
+  document.getElementById('ee-fields').appendChild(row);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+function loadEmbedEditor(embed) {
+  const e = embed || {};
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+  set('ee-title', e.title); set('ee-desc', e.description); set('ee-url', e.url);
+  set('ee-author', e.author_name); set('ee-author-icon', e.author_icon);
+  set('ee-footer', e.footer_text); set('ee-footer-icon', e.footer_icon);
+  set('ee-image', e.image_url); set('ee-thumbnail', e.thumbnail_url);
+  const hex = (e.color && !/^#/.test(String(e.color))) ? '#' + e.color : (e.color || '#5865f2');
+  set('ee-color-hex', hex);
+  const colorInput = document.getElementById('ee-color');
+  if (colorInput) colorInput.value = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#5865f2';
+  const fw = document.getElementById('ee-fields');
+  fw.innerHTML = '';
+  (e.fields || []).forEach(fld => addFieldRow(fld));
+}
+
+document.querySelectorAll('.msg-mode-tab').forEach(t => t.addEventListener('click', () => setModeView(t.dataset.mode, true)));
+document.querySelectorAll('[data-edit-embed]').forEach(b => b.addEventListener('click', () => {
+  const saved = SETTINGS_SNAPSHOT.sticky_embed || {};
+  loadEmbedEditor(Object.keys(saved).length ? saved : {});
+  document.getElementById('embed-editor-modal').classList.add('is-open');
+}));
+document.getElementById('ee-save').addEventListener('click', () => {
+  const e = collectEmbed();
+  if (Object.keys(e).length === 0) {
+    if (typeof showToast === 'function') showToast('The embed is empty - add a title, description, footer or a field first.', 'warning', 5000);
+    return;
+  }
+  markChanged('sticky_embed', e);
+  if (typeof showToast === 'function') showToast('Sticky embed updated.', 'success');
+  document.getElementById('embed-editor-modal').classList.remove('is-open');
+});
+document.getElementById('ee-cancel').addEventListener('click', () => document.getElementById('embed-editor-modal').classList.remove('is-open'));
+document.getElementById('ee-add-field').addEventListener('click', () => addFieldRow({}));
+const eeHex = document.getElementById('ee-color-hex');
+const eeColor = document.getElementById('ee-color');
+if (eeHex && eeColor) {
+  eeHex.addEventListener('input', () => { if (/^#[0-9a-fA-F]{6}$/.test(eeHex.value)) eeColor.value = eeHex.value; });
+  eeColor.addEventListener('input', () => { eeHex.value = eeColor.value; });
+}
+const EE_PRESETS = ['#57f287','#5865f2','#fee75c','#faa61a','#ed4245','#eb459e','#00c8ff','#b6a2e0','#ffffff','#313338','#000000'];
+const eePresets = document.getElementById('ee-presets');
+if (eePresets) {
+  EE_PRESETS.forEach(c => {
+    const sw = document.createElement('button');
+    sw.type = 'button';
+    sw.style.cssText = 'width:22px;height:22px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);background:' + c + ';cursor:pointer;padding:0;';
+    sw.title = c;
+    sw.addEventListener('click', () => {
+      if (eeHex) { eeHex.value = c; eeHex.dispatchEvent(new Event('input')); }
+      if (eeColor) eeColor.value = c;
+    });
+    eePresets.appendChild(sw);
+  });
+}
+
+// ── Dropdowns ──
+function applyDropdownValue(wrap, value, noneLabel) {
+  const btn = wrap.querySelector('.md-custom-select-btn');
+  if (!btn) return;
+  const match = value ? wrap.querySelector(`.md-custom-opt[data-id="${value}"]`) : null;
+  btn.textContent = match ? match.textContent : noneLabel;
+}
+function resetDropdowns() {
+  document.querySelectorAll('[data-channel-select]').forEach(wrap => {
+    const key = wrap.dataset.channelSelect;
+    applyDropdownValue(wrap, SETTINGS_SNAPSHOT[key], 'No channel');
+  });
+}
+function initDropdown(wrap) {
+  const btn = wrap.querySelector('.md-custom-select-btn');
+  const drop = wrap.querySelector('.md-custom-select-drop');
+  if (!btn || btn.dataset.selectBound) return;
+  btn.addEventListener('click', e => { e.stopPropagation();
+    document.querySelectorAll('.md-custom-select-drop').forEach(d => { if (d !== drop) d.classList.remove('is-open'); });
+    drop.classList.toggle('is-open');
+  });
+  btn.dataset.selectBound = 'true';
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('[data-channel-select]')) {
+    document.querySelectorAll('.md-custom-select-drop').forEach(drop => drop.classList.remove('is-open'));
+  }
+});
+
+// ── Apply + save ──
+function applySettings() {
+  const s = SETTINGS_SNAPSHOT;
+  const en = document.getElementById('sticky-enabled');
+  if (en) en.checked = !!s.sticky_enabled;
+  setModeView(s.sticky_message_type || 'basic', false);
+  const msgEl = document.getElementById('sticky-message');
+  if (msgEl) msgEl.value = s.sticky_message || '';
+  const cfg = document.getElementById('sticky-config');
+  if (cfg) cfg.classList.toggle('is-disabled', !s.sticky_enabled);
+  resetDropdowns();
+}
+
+async function saveChanges() {
+  const keys = Object.keys(pending);
+  if (!keys.length) return;
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving...';
+  for (const key of keys) {
+    try {
+      await api('/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value:pending[key]})});
+    } catch {}
+  }
+  for (const key of keys) delete pending[key];
+  saveBar.classList.add('is-closed'); saveBtn.disabled = false; saveBtn.textContent = 'Save';
+  if (typeof showToast==='function') showToast('Settings saved.','success');
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const channelsData = await api('/channels');
+  const channels = channelsData.channels || [];
+  document.querySelectorAll('[data-channel-select]').forEach(wrap => {
+    const key = wrap.dataset.channelSelect;
+    const btn = wrap.querySelector('.md-custom-select-btn');
+    const drop = wrap.querySelector('.md-custom-select-drop');
+    drop.innerHTML = `<button class="md-custom-opt" data-id="">No channel</button>` + channels.map(c => `<button class="md-custom-opt" data-id="${c.id}">#${esc(c.name)}</button>`).join('');
+    drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+      btn.textContent = b.dataset.id ? b.textContent : 'No channel';
+      markChanged(key, b.dataset.id || null);
+      drop.classList.remove('is-open');
+    }));
+    initDropdown(wrap);
+  });
+
+  api('/settings').then(d => {
+    const s = d.settings || {}; SETTINGS_SNAPSHOT = {...s};
+    applySettings();
+    document.getElementById('sticky-enabled').addEventListener('change', function(){ markChanged('sticky_enabled', this.checked); document.getElementById('sticky-config').classList.toggle('is-disabled', !this.checked); });
+    document.getElementById('sticky-message').addEventListener('input', function(){ markChanged('sticky_message', this.value); });
+  }).catch(() => {});
+
+  saveBtn.addEventListener('click', saveChanges);
+  document.getElementById('discard-btn').addEventListener('click', () => {
+    for (const key of Object.keys(pending)) { delete original[key]; delete pending[key]; }
+    api('/settings').then(d => { SETTINGS_SNAPSHOT = {...(d.settings||{})}; applySettings(); });
+    saveBar.classList.add('is-closed');
+  });
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+});
+</script>
 {% endblock %}

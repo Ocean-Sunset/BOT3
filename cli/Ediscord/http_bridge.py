@@ -299,6 +299,27 @@ async def handle_cache_invalidate(request):
     return web.json_response({"ok": True, "invalidated": "guild:" + guild_id})
 
 
+async def handle_gc_deploy_panel(request):
+    """Deploy the Global Chat control panel embed to the management channel."""
+    if not await _check_auth(request):
+        return web.json_response({"ok": False, "error": "unauthorized"}, status=401)
+    if _bot is None or not _bot.is_ready():
+        return web.json_response({"ok": False, "error": "bot not ready"}, status=503)
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "error": "invalid json"}, status=400)
+    guild_id = body.get("guild_id")
+    if not guild_id:
+        return web.json_response({"ok": False, "error": "guild_id required"}, status=400)
+    try:
+        from components.global_chat import _refresh_panel
+        await _refresh_panel(_bot, int(guild_id))
+        return web.json_response({"ok": True, "message": "Panel deployed"})
+    except Exception as e:
+        return web.json_response({"ok": False, "message": str(e)}, status=500)
+
+
 async def start_http_server():
     """Start the aiohttp bridge. No-op (with a warning) if BOT_HTTP_TOKEN unset."""
     token = _get_token()
@@ -313,6 +334,7 @@ async def start_http_server():
     app.router.add_post("/api/profile", handle_profile_post)
     app.router.add_post("/cache/invalidate", handle_cache_invalidate)
     app.router.add_post("/semantic-search", handle_semantic_search)
+    app.router.add_post("/api/gc/deploy_panel", handle_gc_deploy_panel)
     port = int(os.environ.get("BOT_HTTP_PORT", "24612"))
     runner = web.AppRunner(app)
     await runner.setup()

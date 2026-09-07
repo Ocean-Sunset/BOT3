@@ -318,7 +318,11 @@ class GCControlView(discord.ui.View):
                 ephemeral=True
             )
         current = await _get_bool(interaction.guild_id, "gc_enabled")
-        await _set_bool(interaction.guild_id, "gc_enabled", not current)
+        new_state = not current
+        await _set_bool(interaction.guild_id, "gc_enabled", new_state)
+        if not new_state:
+            await _remove_panel(interaction.client, interaction.guild_id)
+            return await interaction.response.defer()
         enabled, muted, channel_id, blocked_users, blocked_servers, hub = await _get_panel_state(interaction.guild_id)
         embed = _build_panel_embed(interaction.guild, enabled, muted, channel_id, blocked_users, blocked_servers, hub)
         view = _build_main_view(enabled, muted)
@@ -327,8 +331,11 @@ class GCControlView(discord.ui.View):
     @discord.ui.button(emoji="<:mute_white:1546113568527749220>", custom_id="gc_btn_mute", style=discord.ButtonStyle.secondary, row=1)
     async def btn_mute(self, interaction: discord.Interaction, button: discord.ui.Button):
         current = await _get_bool(interaction.guild_id, "gc_muted")
-        await _set_bool(interaction.guild_id, "gc_muted", not current)
-        if not current:
+        new_muted = not current
+        await _set_bool(interaction.guild_id, "gc_muted", new_muted)
+        if not new_muted:
+            await _remove_mute_embed(interaction.client, interaction.guild_id)
+        else:
             ch_id = await _get_stat(_gc_key(interaction.guild_id, "channel"))
             if ch_id:
                 ch = interaction.guild.get_channel(int(ch_id))
@@ -338,7 +345,7 @@ class GCControlView(discord.ui.View):
                             embed=EmbedBuilder()
                             .title(emoji_title("mute", "Global Chat Muted"))
                             .description(f"{EMBED_EMOJIS['mute']} This server has been **muted** by admins.\nMessages will not be relayed to other servers.")
-                            .color("orange")
+                            .color("red")
                             .timestamp(datetime.datetime.utcnow())
                             .build()
                         )
@@ -473,6 +480,51 @@ async def _find_panel_message(ch: discord.TextChannel, bot_user: discord.ClientU
             if "Global Chat Control Panel" in title or "Hub Control Panel" in title:
                 return message
     return None
+
+
+async def _find_mute_message(ch: discord.TextChannel, bot_user: discord.ClientUser):
+    async for message in ch.history(limit=50):
+        if message.author == bot_user and message.embeds:
+            title = message.embeds[0].title or ""
+            if "Global Chat Muted" in title:
+                return message
+    return None
+
+
+async def _remove_panel(bot: commands.Bot, guild_id: int):
+    mgmt_ch_id = await _get_stat(_gc_key(guild_id, "gc_management_channel"))
+    if not mgmt_ch_id:
+        return
+    guild = bot.get_guild(guild_id)
+    if not guild:
+        return
+    ch = guild.get_channel(int(mgmt_ch_id))
+    if not ch:
+        return
+    try:
+        msg = await _find_panel_message(ch, bot.user)
+        if msg:
+            await msg.delete()
+    except Exception as e:
+        logger.warning(f"Failed to remove GC panel in guild {guild_id}: {e}")
+
+
+async def _remove_mute_embed(bot: commands.Bot, guild_id: int):
+    ch_id = await _get_stat(_gc_key(guild_id, "channel"))
+    if not ch_id:
+        return
+    guild = bot.get_guild(guild_id)
+    if not guild:
+        return
+    ch = guild.get_channel(int(ch_id))
+    if not ch:
+        return
+    try:
+        msg = await _find_mute_message(ch, bot.user)
+        if msg:
+            await msg.delete()
+    except Exception as e:
+        logger.warning(f"Failed to remove mute embed in guild {guild_id}: {e}")
 
 
 async def _refresh_panel(bot: commands.Bot, guild_id: int):

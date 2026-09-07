@@ -5437,6 +5437,24 @@ async def gc_deploy_panel(guild_id: str, request: Request):
         return JSONResponse({"error": str(e)}, 502)
 
 
+@app.post("/api/v1/global_chat/{guild_id}/remove_panel", dependencies=[Depends(require_mod)])
+async def gc_remove_panel(guild_id: str, request: Request):
+    await require_guild_access(request, guild_id)
+    if not BOT_SERVER_URL or not BOT_HTTP_TOKEN:
+        return JSONResponse({"error": "bot bridge not configured"}, 503)
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(
+                BOT_SERVER_URL.rstrip("/") + "/api/gc/remove_panel",
+                json={"guild_id": str(guild_id)},
+                headers={"X-Prowl-Token": BOT_HTTP_TOKEN},
+            )
+            data = r.json() if r.status_code == 200 else {"error": f"bot responded {r.status_code}"}
+            return JSONResponse(data, status_code=r.status_code)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, 502)
+
+
 # ---------------------------------------------------------------------------
 #  Server Settings API v1
 # ---------------------------------------------------------------------------

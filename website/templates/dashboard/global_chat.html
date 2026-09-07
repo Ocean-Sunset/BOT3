@@ -96,6 +96,9 @@ async function saveChanges() {
       SETTINGS_SNAPSHOT[key] = pending[key];
     } catch {}
   }
+  if (pending['enabled'] === false) {
+    try { await api('/remove_panel', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({})}); } catch {}
+  }
   for (const key of keys) delete pending[key];
   saveBar.classList.add('is-closed'); saveBtn.disabled = false; saveBtn.textContent = 'Save';
   if (typeof showToast==='function') showToast('Settings saved.','success');
